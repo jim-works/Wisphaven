@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use crate::{
     util::Direction,
-    world::{chunk::*, level::Level, *},
+    world::{chunk::*, Level, *},
 };
 use bevy::{
     prelude::*,

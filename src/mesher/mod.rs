@@ -1,4 +1,5 @@
-pub mod mesher;
+mod mesher;
+pub use mesher::*;
 
 use bevy::prelude::*;
 
