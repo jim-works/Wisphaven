@@ -2,12 +2,14 @@ use std::ops::{Index, IndexMut};
 
 use bevy::prelude::*;
 
+use crate::util::Direction;
+
 pub const CHUNK_SIZE: usize = 16;
 pub const CHUNK_SIZE_I32: i32 = CHUNK_SIZE as i32;
 pub const CHUNK_SIZE_U8: u8 = CHUNK_SIZE as u8;
 pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ChunkCoord {
     pub x: i32,
     pub y: i32,
@@ -20,6 +22,16 @@ impl ChunkCoord {
     }
     pub fn to_vec3(&self) -> Vec3 {
         Vec3::new((self.x*CHUNK_SIZE_I32) as f32,(self.y*CHUNK_SIZE_I32) as f32,(self.z*CHUNK_SIZE_I32) as f32)
+    }
+    pub fn offset(&self, dir: Direction) -> ChunkCoord {
+        match dir {
+            Direction::PosX => ChunkCoord::new(self.x+1,self.y,self.z),
+            Direction::PosY => ChunkCoord::new(self.x,self.y+1,self.z),
+            Direction::PosZ => ChunkCoord::new(self.x,self.y,self.z+1),
+            Direction::NegX => ChunkCoord::new(self.x-1,self.y,self.z),
+            Direction::NegY => ChunkCoord::new(self.x,self.y-1,self.z),
+            Direction::NegZ => ChunkCoord::new(self.x,self.y,self.z-1),
+        }
     }
 }
 
@@ -48,7 +60,7 @@ impl ChunkIdx {
     }
 }
 
-#[derive(Component)]
+#[derive(Clone)]
 pub struct Chunk {
     blocks: Box<[BlockType; BLOCKS_PER_CHUNK]>,
     pub position: ChunkCoord

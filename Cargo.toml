@@ -14,9 +14,13 @@ opt-level = 1
 opt-level = 3
 
 [dependencies]
+ahash = "0.8.3"
 #TODO: remove dynamic_linking for releases (automate this)
 bevy = { version = "0.10.1", features = ["dynamic_linking"] }
 bevy_fly_camera = "0.10.0"
 bracket-noise = "0.8.7"
+dashmap = "5.4.0"
+futures-lite = "1.13.0"
+serde = { version = "1.0.162", features = ["derive"] }
 
 

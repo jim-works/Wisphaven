@@ -1,0 +1,13 @@
+For concurrent hashmap, use:
+- https://github.com/xacrimon/dashmap
+ with aHash hasher https://github.com/tkaitchuck/ahash
+
+ persistent store (serde)
+    -   sqlite
+    -   sled
+    -   heed
+
+networking (std::net or quinn)
+
+background therading:
+https://stackoverflow.com/questions/71504675/how-to-make-async-system-function-in-the-bevy-game-engine
