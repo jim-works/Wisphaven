@@ -4,7 +4,10 @@ use bevy::prelude::*;
 
 use crate::util::Direction;
 
+use super::BlockType;
+
 pub const CHUNK_SIZE: usize = 32;
+pub const CHUNK_SIZE_F32: f32 = CHUNK_SIZE as f32;
 pub const CHUNK_SIZE_I32: i32 = CHUNK_SIZE as i32;
 pub const CHUNK_SIZE_U8: u8 = CHUNK_SIZE as u8;
 pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE;
@@ -35,6 +38,12 @@ impl ChunkCoord {
     }
 }
 
+impl From<Vec3> for ChunkCoord {
+    fn from(v: Vec3) -> Self {
+        ChunkCoord::new((v.x/CHUNK_SIZE_F32).floor() as i32,(v.y/CHUNK_SIZE_F32).floor() as i32,(v.z/CHUNK_SIZE_F32).floor() as i32)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ChunkIdx {
     pub x: u8,
@@ -61,9 +70,16 @@ impl ChunkIdx {
 }
 
 #[derive(Clone)]
+pub enum ChunkType {
+    Ungenerated(Entity),
+    Full(Chunk)
+}
+
+#[derive(Clone)]
 pub struct Chunk {
     blocks: Box<[BlockType; BLOCKS_PER_CHUNK]>,
-    pub position: ChunkCoord
+    pub position: ChunkCoord,
+    pub entity: Entity
 }
 
 impl Index<ChunkIdx> for Chunk {
@@ -93,17 +109,12 @@ impl IndexMut<usize> for Chunk {
 }
 
 impl Chunk {
-    pub fn new(position: ChunkCoord) -> Chunk {
+    pub fn new(position: ChunkCoord, entity: Entity) -> Chunk {
         Chunk {
             blocks: Box::new([BlockType::Empty; BLOCKS_PER_CHUNK]),
+            entity: entity,
             position: position
         }
     }
 }
 
-#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
-pub enum BlockType {
-    #[default]
-    Empty,
-    Basic(u32)
-}

@@ -2,29 +2,32 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
+use chunk_loading::{ChunkLoader, ChunkLoaderPlugin};
 use mesher::MesherPlugin;
-use world::chunk::BlockType;
+use world::BlockType;
 use world::*;
+use world::chunk::ChunkType;
 use worldgen::WorldGenPlugin;
-
-use crate::worldgen::worldgen::ChunkNeedsGenerated;
 use crate::{mesher::ChunkNeedsMesh, world::chunk::ChunkCoord};
 
 mod mesher;
 mod util;
 mod world;
 mod worldgen;
+mod chunk_loading;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(LevelPlugin)
         .add_plugin(FlyCameraPlugin)
         .add_plugin(MesherPlugin)
         .add_plugin(WorldGenPlugin)
+        .add_plugin(ChunkLoaderPlugin)
         .insert_resource(Level::new())
         .add_startup_system(init)
         .add_system(animate_light_direction)
-        .add_system(remove_block)
+        //.add_system(remove_block)
         .run();
 }
 
@@ -38,7 +41,14 @@ fn init(mut commands: Commands) {
             }),
             ..default()
         },
-        FlyCamera::default(),
+        FlyCamera {
+            accel: 10.0,
+            max_speed: 2.0,
+            ..default()
+        },
+        ChunkLoader {
+            radius: 8
+        },
     ));
 
     commands.spawn(DirectionalLightBundle {
@@ -53,12 +63,6 @@ fn init(mut commands: Commands) {
         },
         ..default()
     });
-
-    for x in 0..5 {
-        for z in 0..10 {
-            commands.spawn((ChunkCoord::new(x, 0, z), ChunkNeedsGenerated {}));
-        }
-    }
 }
 
 fn animate_light_direction(
@@ -81,9 +85,12 @@ fn remove_block(
     }
     let idx = (time.elapsed_seconds() * 2.0) as usize;
     for (entity, coord) in &mut query {
-        if let Some(mut chunk) = level.chunks.get_mut(coord) {
-            chunk[idx] = BlockType::Empty;
-            commands.entity(entity).insert(ChunkNeedsMesh {});
+        if let Some(mut ctype) = level.chunks.get_mut(coord) {
+            let v = ctype.value_mut();
+            if let ChunkType::Full(chunk) = v {
+                chunk[idx] = BlockType::Empty;
+                commands.entity(entity).insert(ChunkNeedsMesh {});
+            }
         }
     }
 }

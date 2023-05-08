@@ -1,9 +1,10 @@
 use futures_lite::future;
 use std::time::Instant;
 
+use crate::world::chunk::*;
 use crate::{
     util::Direction,
-    world::{chunk::*, Level, *},
+    world::{Level, *},
 };
 use bevy::{
     prelude::*,
@@ -34,38 +35,51 @@ pub fn queue_meshing(
 ) {
     let now = Instant::now();
     let pool = AsyncComputeTaskPool::get();
+    let mut len = 0;
     for (entity, coord) in query.iter() {
-        if let Some(chunk) = level.chunks.get(coord) {
-            let mut neighbors = [None, None, None, None, None, None];
-            for dir in Direction::iter() {
-                if let Some(neighbor) = level.chunks.get(&coord.offset(dir)) {
-                    neighbors[dir.to_idx()] = Some(neighbor.value().clone());
+        if let Some(ctype) = level.chunks.get(coord) {
+            if let ChunkType::Full(chunk) = ctype.value() {
+                let mut neighbor_count = 0;
+                let mut neighbors = [None, None, None, None, None, None];
+                //i wish i could extrac this if let Some() shit into a function
+                for dir in Direction::iter() {
+                    if let Some(ctype) = level.chunks.get(&coord.offset(dir)) {
+                        if let ChunkType::Full(neighbor) = ctype.value() {
+                            neighbors[dir.to_idx()] = Some(neighbor.clone());
+                            neighbor_count += 1;
+                        }
+                    }
                 }
+                // if neighbor_count != 6 {
+                //     //don't mesh if all neighbors aren't ready yet
+                //     continue;
+                // }
+                let meshing = chunk.clone();
+                len += 1;
+                let task = pool.spawn(async move {
+                    let mut data = MeshData {
+                        verts: Vec::new(),
+                        norms: Vec::new(),
+                        tris: Vec::new(),
+                    };
+                    mesh_chunk(&meshing, &neighbors, &mut data);
+                    data
+                });
+                commands
+                    .entity(entity)
+                    .remove::<ChunkNeedsMesh>()
+                    .insert(MeshTask { task });
             }
-            let meshing = chunk.clone();
-            let task = pool.spawn(async move {
-                let mut data = MeshData {
-                    verts: Vec::new(),
-                    norms: Vec::new(),
-                    tris: Vec::new(),
-                };
-                mesh_chunk(&meshing, &neighbors, &mut data);
-                data
-            });
-            commands
-                .entity(entity)
-                .remove::<ChunkNeedsMesh>()
-                .insert(MeshTask { task });
         }
         let duration = Instant::now().duration_since(now).as_millis();
         if duration > QUEUE_MESH_TIME_BUDGET_MS {
             break;
         }
     }
-    // let duration = Instant::now().duration_since(now).as_millis();
-    // if len > 0 {
-    //     println!("queued mesh generation for {} chunks in {}ms", len, duration);
-    // }
+    let duration = Instant::now().duration_since(now).as_millis();
+    if len > 0 {
+        println!("queued mesh generation for {} chunks in {}ms", len, duration);
+    }
 }
 
 pub fn poll_mesh_queue(
