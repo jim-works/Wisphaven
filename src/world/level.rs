@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use dashmap::DashMap;
-use super::{chunk::*, octree::Octree};
+use super::{chunk::*, octree::{Octree, LeafOctreeNode, OctreeNodeData, OctreeCoord}};
 
 #[derive(Resource)]
 pub struct Level {
@@ -16,6 +16,12 @@ impl Level {
         }
     }
     pub fn add_chunk(&mut self, key: ChunkCoord, chunk: ChunkType) {
-        self.chunks.insert(key,chunk);
+        if let ChunkType::Full(c) = chunk {
+            self.octree.insert(Box::new(LeafOctreeNode::new(OctreeNodeData::new(0,OctreeCoord{x:key.x,y:key.y,z:key.z}), c.entity)));
+            self.chunks.insert(key,ChunkType::Full(c));
+        } else {
+            self.chunks.insert(key,chunk);
+        }
+           
     }
 }

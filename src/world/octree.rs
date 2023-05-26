@@ -9,7 +9,7 @@ pub enum OctreeNode
 }
 
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct OctreeNodeData {
     pub position:  OctreeCoord,
     scale: i32,
@@ -41,10 +41,29 @@ pub struct Octree {
 impl Octree {
     pub fn root(&self) -> &Box<InternalOctreeNode> { &self.root }
     pub fn new() -> Octree {
-        Octree { root: Box::new(InternalOctreeNode::new(OctreeNodeData::new(1,OctreeCoord { x: 0, y: 0, z: 0 }))) }
+        Octree { root: Box::new(InternalOctreeNode::new(OctreeNodeData::new(0,OctreeCoord { x: 0, y: 0, z: 0 }))) }
     }
     pub fn get(&self, data: OctreeNodeData) -> &Option<OctreeNode> {
         self.root.get_descendant(data)
+    }
+    pub fn insert(&mut self, node: Box<LeafOctreeNode>) {
+        self.update_root(&node.data);
+        self.root.add_child(node);
+    }
+    fn update_root(&mut self, child: &OctreeNodeData) -> bool {
+        if self.root.data.contains(child) {
+            println!("no new root: {:?}", child);
+            return false; //child is already under root, no need to create a new one
+        }
+        //child is outside root's area, find which direction to expand in
+        let dir = Octant::from(child.scaled_pos()-self.root.data.scaled_pos());
+        //create new root one level higher recursively update
+        let new_pos = (self.root.data.position+dir.to_octree_coord()*2)/2;
+        let new_root = Box::new(InternalOctreeNode{children: [None,None,None,None,None,None,None,None], data: OctreeNodeData::new(self.root.data.level+1, new_pos)});
+        let old_root = std::mem::replace(&mut self.root, new_root);
+        self.root.children[dir.opposite_idx()] = Some(OctreeNode::Internal(old_root));
+        println!("new root {:?}", self.root.data);
+        return true;
     }
 }
 
@@ -53,13 +72,29 @@ impl OctreeNodeData {
     pub fn world_pos(&self) -> Vec3 {
         Vec3::new((self.position.x*CHUNK_SIZE_I32*self.scale) as f32,(self.position.y*CHUNK_SIZE_I32*self.scale) as f32,(self.position.z*CHUNK_SIZE_I32*self.scale) as f32)
     }
+    pub fn scaled_pos(&self) -> OctreeCoord {
+        self.position*self.scale
+    }
     pub fn scale(&self) -> i32 { self.scale }
     pub fn level(&self) -> u8 { self.level }
     pub fn child_octant_pos(&self, octant: Octant) -> OctreeCoord {
         self.position*2+octant.to_octree_coord()
     }
     pub fn new(level: u8, position: OctreeCoord) -> Self {
-        OctreeNodeData { position, scale: (level as i32)<<level , level }
+        OctreeNodeData { position, scale: 1<<level , level }
+    }
+    pub fn contains(&self, other: &OctreeNodeData) -> bool {
+        if self.level <= other.level {
+            return false;
+        }
+        //convert coordinates to be the same scale
+        let pos_delta = other.scaled_pos()-self.scaled_pos();
+        //octree is scale units on each axis, centered on 0, so [-scale/2,scale/2]
+        let max_dist = self.scale/2;
+        println!("delta {:?}, max_dist {}", pos_delta, max_dist);
+        return (-max_dist <= pos_delta.x && pos_delta.x <= max_dist)
+            && (-max_dist <= pos_delta.y && pos_delta.y <= max_dist)
+            && (-max_dist <= pos_delta.z && pos_delta.z <= max_dist);
     }
 }
 
@@ -189,6 +224,18 @@ impl std::ops::Mul<i32> for OctreeCoord {
     }
 
 }
+impl std::ops::Div<i32> for OctreeCoord {
+    type Output = Self;
+
+    fn div(self, rhs: i32) -> Self::Output {
+        OctreeCoord {
+            x: self.x/rhs,
+            y: self.y/rhs,
+            z: self.z/rhs
+        }
+    }
+
+}
 impl OctreeCoord {
     fn from(v: Vec3, level: u32) -> Self {
         OctreeCoord {x:(v.x/(CHUNK_SIZE_F32*((1<<level) as f32))).floor() as i32,
@@ -218,8 +265,8 @@ impl Octant {
             Octant::PosXZNegY => 2,
             Octant::PosXNegYZ => 3,
             Octant::NegXPosYZ => 4,
-            Octant::NegXYPosZ => 5,
-            Octant::NegXZPosY => 6,
+            Octant::NegXZPosY => 5,
+            Octant::NegXYPosZ => 6,
             Octant::NegXYZ => 7,
         }
     }
@@ -235,6 +282,11 @@ impl Octant {
             Octant::NegXZPosY => OctreeCoord { x: -1, y: 1, z: -1 },
             Octant::NegXYZ => OctreeCoord { x: -1, y: -1, z: -1 },
         }
+    }
+    //returns index of negative of the octant
+    //Ex: NegXPosYZ returns PosXNegYZ
+    pub fn opposite_idx(&self) -> usize {
+        7-self.to_idx()
     }
     pub fn iter() -> OctantIterator {OctantIterator { curr: None }}
 }
