@@ -48,7 +48,8 @@ fn init(mut commands: Commands) {
             ..default()
         },
         ChunkLoader {
-            radius: 1
+            radius: 4,
+            lod_levels: 1,
         },
     ));
 

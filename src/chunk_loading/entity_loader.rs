@@ -5,11 +5,13 @@ use crate::{world::{chunk::{ChunkCoord, ChunkType}, Level}, worldgen::worldgen::
 #[derive(Component)]
 pub struct ChunkLoader {
     pub radius: i32,
+    pub lod_levels: i32,
 }
 
 pub struct DespawnChunkEvent(Entity);
 
-pub fn do_loading(mut commands: Commands, mut level: ResMut<Level>, mut despawn_writer: EventWriter<DespawnChunkEvent>, loader_query: Query<(&GlobalTransform, &ChunkLoader)>) {
+pub fn do_loading(mut commands: Commands, mut level: ResMut<Level>, mut despawn_writer: EventWriter<DespawnChunkEvent>, 
+    loader_query: Query<(&GlobalTransform, &ChunkLoader), Changed<GlobalTransform>>) {
     //load all in range
     let mut loaded_chunks = HashSet::new();
     for (transform, loader) in loader_query.iter() {

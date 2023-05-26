@@ -6,8 +6,6 @@ mod block;
 use bevy::prelude::*;
 pub use block::*;
 
-mod octree;
-
 
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
