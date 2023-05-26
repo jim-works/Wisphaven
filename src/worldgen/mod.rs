@@ -29,7 +29,7 @@ impl Plugin for WorldGenPlugin {
 fn create_settings(seed: u64) -> WorldGenSettings {
     WorldGenSettings {
         noise: create_noise(seed),
-        density_by_height: Spline::new(&[Vec2::new(0.0,1.0), Vec2::new(24.0,-0.5)])
+        density_by_height: Spline::new(&[Vec2::new(0.0,1.0), Vec2::new(24.0,-0.5), Vec2::new(48.0, -1.0)])
     }
 }
 

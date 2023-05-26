@@ -22,7 +22,7 @@ pub fn do_loading(mut commands: Commands, mut level: ResMut<Level>, mut despawn_
                     if !level.chunks.contains_key(&test_coord) {
                         //chunk not loaded, load it!
                         let id = commands.spawn((test_coord, ChunkNeedsGenerated {})).id();
-                        //level.add_chunk(test_coord, ChunkType::Ungenerated(id, 1));
+                        level.add_chunk(test_coord, ChunkType::Ungenerated(id));
                         
                     }
                 }

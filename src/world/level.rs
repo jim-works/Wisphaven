@@ -16,7 +16,6 @@ impl Level {
         }
     }
     pub fn add_chunk(&mut self, key: ChunkCoord, chunk: ChunkType) {
-        //println!("added {:?}", key);
         self.chunks.insert(key,chunk);
     }
 }

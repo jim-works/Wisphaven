@@ -29,6 +29,7 @@ fn main() {
         .add_system(animate_light_direction)
         //.add_system(remove_block)
         .run();
+
 }
 
 fn init(mut commands: Commands) {

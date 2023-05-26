@@ -97,10 +97,10 @@ impl LeafOctreeNode {
             data
         }
     }
-    pub fn block_to_world(&self, idx: ) -> Vec3 {
-        Vec3::new(((self.data.position.x+idx.x)*CHUNK_SIZE_I32*self.scale) as f32,
-        (self.data.position.y*CHUNK_SIZE_I32*self.scale) as f32,
-        (self.data.position.z*CHUNK_SIZE_I32*self.scale) as f32)
+    pub fn block_to_world(&self, position: Vec3) -> Vec3 {
+        Vec3::new(((self.data.position.x*CHUNK_SIZE_I32) as f32 +position.x)*(self.data.scale as f32),
+        ((self.data.position.y*CHUNK_SIZE_I32) as f32 +position.y)*(self.data.scale as f32),
+        ((self.data.position.z*CHUNK_SIZE_I32) as f32 +position.z)*(self.data.scale as f32))
     }
 }
 
@@ -126,19 +126,6 @@ impl InternalOctreeNode {
                     internal_node.add_child(node);
                     self.children[child_idx] = Some(OctreeNode::Internal(Box::new(internal_node)));
                 },
-            }
-        }
-    }
-    //todo: dont need this I think
-    pub fn set_pos_recursively(&mut self, coord: OctreeCoord) {
-        self.data.position = coord;
-        for octant in Octant::iter() {
-            if let Some(child) = &mut self.children[octant.to_idx()] {
-                let child_pos = self.data.child_octant_pos(octant);
-                match child {
-                    OctreeNode::Internal(i) => i.set_pos_recursively(child_pos),
-                    OctreeNode::Leaf(l) => l.data.position = child_pos,
-                }
             }
         }
     }
@@ -239,7 +226,7 @@ impl Octant {
 
     pub fn to_octree_coord(&self) -> OctreeCoord {
         match self {
-            Octant::PosXYZ => OctreeCoord { x: 1, y: 1, z: 1 },
+            Octant::PosXYZ => OctreeCoord { x: 1, y: 1, z: 1 }, 
             Octant::PosXYNegZ => OctreeCoord { x: 1, y: 1, z: -1 },
             Octant::PosXZNegY => OctreeCoord { x: 1, y: -1, z: 1 },
             Octant::PosXNegYZ => OctreeCoord { x: 1, y: -1, z: -1 },

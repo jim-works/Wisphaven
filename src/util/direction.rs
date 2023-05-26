@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Direction{
     PosX,
     PosY,
@@ -17,7 +17,7 @@ impl Iterator for DirectionIterator {
     type Item = Direction;
     fn next(&mut self) -> Option<Self::Item> {
         self.curr = match self.curr {
-            None => Some(Direction::NegX),
+            None => Some(Direction::PosX),
             Some(Direction::PosX) => Some(Direction::PosY),
             Some(Direction::PosY) => Some(Direction::PosZ),
             Some(Direction::PosZ) => Some(Direction::NegX),

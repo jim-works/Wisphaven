@@ -6,7 +6,7 @@ use crate::util::Direction;
 
 use super::BlockType;
 
-pub const CHUNK_SIZE: usize = 32;
+pub const CHUNK_SIZE: usize = 16;
 pub const CHUNK_SIZE_F32: f32 = CHUNK_SIZE as f32;
 pub const CHUNK_SIZE_I32: i32 = CHUNK_SIZE as i32;
 pub const CHUNK_SIZE_U8: u8 = CHUNK_SIZE as u8;
@@ -69,13 +69,13 @@ impl ChunkIdx {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ChunkType {
     Ungenerated(Entity),
     Full(Chunk)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Chunk {
     blocks: Box<[BlockType; BLOCKS_PER_CHUNK]>,
     pub position: ChunkCoord,

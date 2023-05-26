@@ -65,7 +65,6 @@ pub fn poll_gen_queue(
                 .remove::<GenerationTask>()
                 .insert(GeneratedChunk {})
                 .insert(ChunkNeedsMesh{});
-            // println!("Chunk added at {:?}", data.position);
             level.add_chunk(data.position, ChunkType::Full(data));
             let duration = Instant::now().duration_since(now).as_millis();
             if duration > ADD_TIME_BUDGET_MS {
