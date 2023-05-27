@@ -1,8 +1,7 @@
-use bracket_noise::prelude::FastNoise;
 use futures_lite::future;
 use std::{time::Instant, sync::Arc};
 
-use crate::{world::{chunk::*, Level, BlockType}, mesher::ChunkNeedsMesh, util::Spline};
+use crate::{world::{chunk::*, Level, BlockType}, mesher::ChunkNeedsMesh, util::{Spline, SplineNoise}};
 use bevy::{
     prelude::*,
     tasks::{AsyncComputeTaskPool, Task},
@@ -22,13 +21,21 @@ pub struct GenerationTask {
 pub struct GeneratedChunk {}
 
 pub struct WorldGenSettings {
-    pub noise: FastNoise,
-    pub density_by_height: Spline
+    //3d density "main" noise. value determines if a block is placed or not
+    pub noise: SplineNoise,
+    //constant. value creates the upper control point for density required over the y axis
+    pub upper_density: Vec2,
+    //2d heightmap noise. value controls the x-value for the middle control point for density required over the y axis
+    pub heightmap_noise: SplineNoise,
+    //constant. value controls the y-value for the middle control point for density required over the y axis
+    pub mid_density: f32,
+    //constant. value creates the lower control point for density required over the y axis
+    pub base_density: Vec2
 }
 
 pub fn queue_generating(
     query: Query<(Entity, &ChunkCoord), With<ChunkNeedsGenerated>>,
-    noise: Arc<WorldGenSettings>,
+    noise: Arc<WorldGenSettings>, //cannot use a resource since we pass it to other threads
     mut commands: Commands,
 ) {
     let now = Instant::now();
@@ -77,12 +84,14 @@ pub fn poll_gen_queue(
 fn gen_chunk(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<WorldGenSettings>) -> Chunk {
     let mut chunk = Chunk::new(coord, chunk_entity);
     let noise = &settings.noise;
-    let density_map = &settings.density_by_height;
+    
     let chunk_pos = coord.to_vec3();
     for x in 0..CHUNK_SIZE_U8 {
         for y in 0..CHUNK_SIZE_U8 {
+            let mut block_pos = Vec3::new(chunk_pos.x+x as f32,chunk_pos.y+y as f32,0.0);
+            let density_map = Spline::new(&[settings.base_density, Vec2::new(settings.heightmap_noise.get_noise2d(block_pos.x, block_pos.y),settings.mid_density), settings.upper_density]);
             for z in 0..CHUNK_SIZE_U8 {
-                let block_pos = Vec3::new(chunk_pos.x+x as f32,chunk_pos.y+y as f32,chunk_pos.z+z as f32);
+                block_pos.z = chunk_pos.z+z as f32;
                 let density = noise.get_noise3d(block_pos.x,block_pos.y,block_pos.z);
                 if density < density_map.map(block_pos.y) {
                     chunk[ChunkIdx::new(x,y,z)] = BlockType::Basic(0);

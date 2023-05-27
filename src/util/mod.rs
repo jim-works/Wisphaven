@@ -6,3 +6,6 @@ pub use spline::*;
 
 mod lerp;
 pub use lerp::*;
+
+mod noise;
+pub use noise::*;

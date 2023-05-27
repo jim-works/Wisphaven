@@ -32,21 +32,21 @@ pub fn do_loading(mut commands: Commands, mut level: ResMut<Level>, mut despawn_
         }
     }
     //unload all not in range
-    // let mut to_unload = Vec::new();
-    // for c in level.chunks.iter() {
-    //     let key = c.key().clone();
-    //     if !loaded_chunks.contains(&key) {
-    //         to_unload.push(key);
-    //     }
-    // }
-    // for coord in to_unload {
-    //     if let Some((_,ctype)) = level.chunks.remove(&coord) {
-    //         match ctype {
-    //             ChunkType::Ungenerated(id) => despawn_writer.send(DespawnChunkEvent(id)),
-    //             ChunkType::Full(c) => despawn_writer.send(DespawnChunkEvent(c.entity)),
-    //         }
-    //     }
-    // }
+    let mut to_unload = Vec::new();
+    for c in level.chunks.iter() {
+        let key = c.key().clone();
+        if !loaded_chunks.contains(&key) {
+            to_unload.push(key);
+        }
+    }
+    for coord in to_unload {
+        if let Some((_,ctype)) = level.chunks.remove(&coord) {
+            match ctype {
+                ChunkType::Ungenerated(id) => despawn_writer.send(DespawnChunkEvent(id)),
+                ChunkType::Full(c) => despawn_writer.send(DespawnChunkEvent(c.entity)),
+            }
+        }
+    }
 }
 
 pub fn despawn_chunks(mut commands: Commands, mut despawn_reader: EventReader<DespawnChunkEvent>) {

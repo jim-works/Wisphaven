@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bevy::prelude::*;
 use bracket_noise::prelude::*;
 
-use crate::{world::{chunk::ChunkCoord, LevelSystemSet}, util::Spline};
+use crate::{world::{chunk::ChunkCoord, LevelSystemSet}, util::{Spline, SplineNoise}};
 
 use self::worldgen::{ChunkNeedsGenerated, WorldGenSettings};
 
@@ -29,18 +29,43 @@ impl Plugin for WorldGenPlugin {
 fn create_settings(seed: u64) -> WorldGenSettings {
     WorldGenSettings {
         noise: create_noise(seed),
-        density_by_height: Spline::new(&[Vec2::new(0.0,1.0), Vec2::new(24.0,-0.5), Vec2::new(48.0, -1.0)])
+        upper_density: Vec2::new(200.0,1.0),
+        heightmap_noise: create_heighmap_noise(seed^0xCAFEBABEDEAFBEEF),
+        mid_density: 0.0,
+        base_density: Vec2::new(-100.0,-1.0)
     }
 }
 
-fn create_noise(seed: u64) -> FastNoise {
+fn create_noise(seed: u64) -> SplineNoise {
     let mut noise = FastNoise::seeded(seed);
     noise.set_noise_type(NoiseType::SimplexFractal);
-    noise.set_frequency(0.02);
+    noise.set_fractal_type(FractalType::RigidMulti);
+    noise.set_frequency(0.002);
     noise.set_fractal_octaves(3);
     //amp multiplier
-    noise.set_fractal_gain(0.7);
+    noise.set_fractal_gain(0.5);
     //freq multiplier
-    noise.set_fractal_lacunarity(2.);
-    noise
+    noise.set_fractal_lacunarity(3.0);
+    let spline = Spline::new(&[Vec2::new(-1.0,-1.0), Vec2::new(1.0,1.0)]);
+    SplineNoise {
+        noise,
+        spline
+    }
+}
+
+fn create_heighmap_noise(seed: u64) -> SplineNoise {
+    let mut noise = FastNoise::seeded(seed);
+    noise.set_noise_type(NoiseType::SimplexFractal);
+    noise.set_fractal_type(FractalType::Billow);
+    noise.set_frequency(0.002);
+    noise.set_fractal_octaves(2);
+    //amp multiplier
+    noise.set_fractal_gain(0.5);
+    //freq multiplier
+    noise.set_fractal_lacunarity(3.0);
+    let spline = Spline::new(&[Vec2::new(-1.0,-50.0), Vec2::new(0.0, 0.0), Vec2::new(1.0,150.0)]);
+    SplineNoise {
+        noise,
+        spline
+    }
 }

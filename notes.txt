@@ -1,7 +1,3 @@
-For concurrent hashmap, use:
-- https://github.com/xacrimon/dashmap
- with aHash hasher https://github.com/tkaitchuck/ahash
-
  persistent store (serde)
     -   sqlite
     -   sled
@@ -9,5 +5,7 @@ For concurrent hashmap, use:
 
 networking (std::net or quinn)
 
-background therading:
-https://stackoverflow.com/questions/71504675/how-to-make-async-system-function-in-the-bevy-game-engine
+Terrain generation
+    -   biome map: look at fast noise lite examples - cellular noise (return type cell value) with simplex domain warp independent
+    -   rivers/tunnels: simplex, ping pong fractal type, low octaves, use aggressive spline to take a band of values. try different domain warps
+    -   fractal types: RigidMulti makes spikey terrain, Billow makes sand-dune like terrain, Fbm makes more smooth terrain (looks similar to just summing layers)

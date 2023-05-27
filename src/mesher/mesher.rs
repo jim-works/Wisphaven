@@ -85,7 +85,6 @@ pub fn queue_meshing(
                     .insert(MeshTask { task });
             }
         }
-        let duration = Instant::now().duration_since(now).as_millis();
     }
     let duration = Instant::now().duration_since(now).as_millis();
     if len > 0 {
