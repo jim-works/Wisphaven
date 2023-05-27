@@ -22,6 +22,10 @@ fn main() {
         .add_plugin(WorldGenPlugin)
         .add_plugin(ChunkLoaderPlugin)
         .insert_resource(Level::new())
+        .insert_resource(AmbientLight {
+            brightness: 0.3,
+            ..default()
+        })
         .add_startup_system(init)
         .run();
 

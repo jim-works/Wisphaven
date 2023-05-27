@@ -29,10 +29,10 @@ impl Plugin for WorldGenPlugin {
 fn create_settings(seed: u64) -> WorldGenSettings {
     WorldGenSettings {
         noise: create_noise(seed),
-        upper_density: Vec2::new(200.0,1.0),
-        heightmap_noise: create_heighmap_noise(seed^0xCAFEBABEDEAFBEEF),
+        upper_density: Vec2::new(300.0,-1.0),
+        heightmap_noise: create_heighmap_noise(seed^0xCAFEBABEDEAFBEEF), //don't want the seeds to be the same
         mid_density: 0.0,
-        base_density: Vec2::new(-100.0,-1.0)
+        base_density: Vec2::new(-100.0,1.0)
     }
 }
 
@@ -58,12 +58,12 @@ fn create_heighmap_noise(seed: u64) -> SplineNoise {
     noise.set_noise_type(NoiseType::SimplexFractal);
     noise.set_fractal_type(FractalType::Billow);
     noise.set_frequency(0.002);
-    noise.set_fractal_octaves(2);
+    noise.set_fractal_octaves(1);
     //amp multiplier
     noise.set_fractal_gain(0.5);
     //freq multiplier
     noise.set_fractal_lacunarity(3.0);
-    let spline = Spline::new(&[Vec2::new(-1.0,-50.0), Vec2::new(0.0, 0.0), Vec2::new(1.0,150.0)]);
+    let spline = Spline::new(&[Vec2::new(-1.0,-50.0), Vec2::new(0.0, 0.0), Vec2::new(1.0,250.0)]);
     SplineNoise {
         noise,
         spline
