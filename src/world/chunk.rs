@@ -39,6 +39,9 @@ impl ChunkCoord {
             Direction::NegZ => ChunkCoord::new(self.x,self.y,self.z-1),
         }
     }
+    pub fn to_next_lod(&self) -> ChunkCoord {
+        ChunkCoord::new(self.x/2,self.y/2,self.z/2)
+    }
 }
 
 impl From<Vec3> for ChunkCoord {
@@ -124,6 +127,8 @@ impl Chunk {
 pub enum LODChunkType {
     //entity, level
     Ungenerated(Entity, usize),
+    //level, represents a space that is occupied by a lower LOD chunk
+    Placeholder(usize),
     Full(LODChunk)
 }
 #[derive(Clone, Debug)]

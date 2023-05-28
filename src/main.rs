@@ -21,7 +21,7 @@ fn main() {
         .add_plugin(MesherPlugin)
         .add_plugin(WorldGenPlugin)
         .add_plugin(ChunkLoaderPlugin)
-        .insert_resource(Level::new())
+        .insert_resource(Level::new(5))
         .insert_resource(AmbientLight {
             brightness: 0.3,
             ..default()

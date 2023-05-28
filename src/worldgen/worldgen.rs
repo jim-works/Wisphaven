@@ -8,6 +8,7 @@ use bevy::{
 };
 
 use super::{ADD_TIME_BUDGET_MS, QUEUE_GEN_TIME_BUDGET_MS};
+use crate::chunk_loading::entity_loader::DespawnChunkEvent;
 
 #[derive(Component)]
 pub enum ChunkNeedsGenerated {
@@ -76,9 +77,11 @@ pub fn queue_generating(
 pub fn poll_gen_queue(
     mut commands: Commands,
     mut query: Query<(Entity, &mut GenerationTask)>,
-    mut level: ResMut<Level>
+    mut level: ResMut<Level>,
+    mut writer: EventWriter<DespawnChunkEvent>
 ) {
     let now = Instant::now();
+    let mut removed = Vec::new();
     for (entity, mut task) in query.iter_mut() {
         if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
             commands
@@ -86,34 +89,39 @@ pub fn poll_gen_queue(
                 .remove::<GenerationTask>()
                 .insert(GeneratedChunk {})
                 .insert(NeedsMesh{});
-            level.add_chunk(data.position, ChunkType::Full(data));
+            level.add_chunk(data.position, ChunkType::Full(data), &mut removed);
             let duration = Instant::now().duration_since(now).as_millis();
             if duration > ADD_TIME_BUDGET_MS {
                 break;
             }
         }
     }
+    writer.send_batch(removed.into_iter().map(|x| DespawnChunkEvent(x)));
+
 }
 
 pub fn poll_gen_lod_queue(
     mut commands: Commands,
     mut query: Query<(Entity, &mut LODGenerationTask)>,
-    mut level: ResMut<Level>
+    mut level: ResMut<Level>,
+    mut writer: EventWriter<DespawnChunkEvent>
 ) {
     let now = Instant::now();
+    let mut removed = Vec::new();
     for (entity, mut task) in query.iter_mut() {
         if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
             commands
                 .entity(entity)
                 .remove::<LODGenerationTask>()
                 .insert((GeneratedLODChunk {}, NeedsMesh{}, LODLevel{level: data.level}));
-            level.add_lod_chunk(data.position, LODChunkType::Full(data));
+            level.add_lod_chunk(data.position, LODChunkType::Full(data), &mut removed);
             let duration = Instant::now().duration_since(now).as_millis();
             if duration > ADD_TIME_BUDGET_MS {
                 break;
             }
         }
     }
+    writer.send_batch(removed.into_iter().map(|x| DespawnChunkEvent(x)));
 }
 
 fn gen_chunk(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<WorldGenSettings>) -> Chunk {

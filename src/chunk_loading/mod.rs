@@ -1,4 +1,4 @@
-mod entity_loader;
+pub mod entity_loader;
 
 pub use entity_loader::ChunkLoader;
 
