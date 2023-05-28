@@ -127,8 +127,6 @@ impl Chunk {
 pub enum LODChunkType {
     //entity, level
     Ungenerated(Entity, usize),
-    //level, represents a space that is occupied by a lower LOD chunk
-    Placeholder(usize),
     Full(LODChunk)
 }
 #[derive(Clone, Debug)]

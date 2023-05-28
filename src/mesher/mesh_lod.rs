@@ -37,22 +37,8 @@ pub fn queue_meshing_lod(
         if let Some(chunks) = level.get_lod_chunks(lod.level) {
             if let Some(ctype) = chunks.get(coord) {
             if let LODChunkType::Full(chunk) = ctype.value() {
-                let mut neighbor_count = 0;
-                let mut neighbors = [None, None, None, None, None, None];
-                //i wish i could extrac this if let Some() shit into a function
-                //but that makes the borrow checker angry
-                for dir in Direction::iter() {
-                    if let Some(ctype) = chunks.get(&coord.offset(dir)) {
-                        if let LODChunkType::Full(neighbor) = ctype.value() {
-                            neighbors[dir.to_idx()] = Some(neighbor.clone());
-                            neighbor_count += 1;
-                        }
-                    }
-                }
-                if neighbor_count != 6 {
-                    //don't mesh if all neighbors aren't ready yet
-                    continue;
-                }
+                //don't wait for neighbors since we won't have all neighbors generated, as there is a big hole in the middle of where we generate
+                //TODO: greedy meshing is very important here
                 let meshing = chunk.clone();
                 len += 1;
                 let task = pool.spawn(async move {
@@ -63,7 +49,7 @@ pub fn queue_meshing_lod(
                         scale: meshing.scale() as f32,
                         position: meshing.get_block_pos(ChunkIdx::new(0,0,0))
                     };
-                    mesh_chunk_lod(&meshing, &neighbors, &mut data);
+                    mesh_chunk_lod(&meshing, &mut data);
                     data
                 });
                 commands
@@ -84,16 +70,15 @@ pub fn queue_meshing_lod(
 }
 
 
-fn mesh_chunk_lod(chunk: &LODChunk, neighbors: &[Option<LODChunk>; 6], data: &mut MeshData) {
+fn mesh_chunk_lod(chunk: &LODChunk, data: &mut MeshData) {
     for i in 0..chunk::BLOCKS_PER_CHUNK {
         let coord = ChunkIdx::from_usize(i);
-        mesh_block_lod(&chunk, neighbors, &chunk[i], coord, coord.to_vec3()*data.scale, data);
+        mesh_block_lod(&chunk, &chunk[i], coord, coord.to_vec3()*data.scale, data);
     }
 }
 
 fn mesh_block_lod(
     chunk: &LODChunk,
-    neighbors: &[Option<LODChunk>; 6],
     b: &BlockType,
     coord: ChunkIdx,
     origin: Vec3,
@@ -103,12 +88,7 @@ fn mesh_block_lod(
         return;
     }
     if coord.z == CHUNK_SIZE_U8 - 1 {
-        if match &neighbors[Direction::PosZ.to_idx()] {
-            Some(c) => matches!(c[ChunkIdx::new(coord.x, coord.y, 0)], BlockType::Empty),
-            _ => true,
-        } {
-            mesh_pos_z(origin, Vec3::new(data.scale,data.scale,data.scale), data);
-        }
+        mesh_pos_z(origin, Vec3::new(data.scale,data.scale,data.scale), data);
     } else if matches!(
         chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
         BlockType::Empty
@@ -117,15 +97,7 @@ fn mesh_block_lod(
     }
     //negative z face
     if coord.z == 0 {
-        if match &neighbors[Direction::NegZ.to_idx()] {
-            Some(c) => matches!(
-                c[ChunkIdx::new(coord.x, coord.y, CHUNK_SIZE_U8 - 1)],
-                BlockType::Empty
-            ),
-            _ => true,
-        } {
-            mesh_neg_z(origin, Vec3::new(data.scale,data.scale,data.scale), data);
-        }
+        mesh_neg_z(origin, Vec3::new(data.scale,data.scale,data.scale), data);
     } else if matches!(
         chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
         BlockType::Empty
@@ -134,12 +106,7 @@ fn mesh_block_lod(
     }
     //positive y face
     if coord.y == CHUNK_SIZE_U8 - 1 {
-        if match &neighbors[Direction::PosY.to_idx()] {
-            Some(c) => matches!(c[ChunkIdx::new(coord.x, 0, coord.z)], BlockType::Empty),
-            _ => true,
-        } {
-            mesh_pos_y(origin, Vec3::new(data.scale,data.scale,data.scale), data);
-        }
+        mesh_pos_y(origin, Vec3::new(data.scale,data.scale,data.scale), data);
     } else if matches!(
         chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
         BlockType::Empty
@@ -148,15 +115,7 @@ fn mesh_block_lod(
     }
     //negative y face
     if coord.y == 0 {
-        if match &neighbors[Direction::NegY.to_idx()] {
-            Some(c) => matches!(
-                c[ChunkIdx::new(coord.x, CHUNK_SIZE_U8 - 1, coord.z)],
-                BlockType::Empty
-            ),
-            _ => true,
-        } {
-            mesh_neg_y(origin, Vec3::new(data.scale,data.scale,data.scale), data);
-        }
+        mesh_neg_y(origin, Vec3::new(data.scale,data.scale,data.scale), data);
     } else if matches!(
         chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
         BlockType::Empty
@@ -165,12 +124,7 @@ fn mesh_block_lod(
     }
     //positive x face
     if coord.x == CHUNK_SIZE_U8 - 1 {
-        if match &neighbors[Direction::PosX.to_idx()] {
-            Some(c) => matches!(c[ChunkIdx::new(0, coord.y, coord.z)], BlockType::Empty),
-            _ => true,
-        } {
-            mesh_pos_x(origin, Vec3::new(data.scale,data.scale,data.scale), data);
-        }
+        mesh_pos_x(origin, Vec3::new(data.scale,data.scale,data.scale), data);
     } else if matches!(
         chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
         BlockType::Empty
@@ -179,15 +133,7 @@ fn mesh_block_lod(
     }
     //negative x face
     if coord.x == 0 {
-        if match &neighbors[Direction::NegX.to_idx()] {
-            Some(c) => matches!(
-                c[ChunkIdx::new(CHUNK_SIZE_U8 - 1, coord.y, coord.z)],
-                BlockType::Empty
-            ),
-            _ => true,
-        } {
-            mesh_neg_x(origin, Vec3::new(data.scale,data.scale,data.scale), data);
-        }
+        mesh_neg_x(origin, Vec3::new(data.scale,data.scale,data.scale), data);
     } else if matches!(
         chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
         BlockType::Empty
