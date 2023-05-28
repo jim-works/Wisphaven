@@ -17,12 +17,12 @@ pub struct WorldGenPlugin;
 impl Plugin for WorldGenPlugin {
     fn build(&self, app: &mut App) {
         let build_gen_system = || {
-            move |query: Query<(Entity, &ChunkCoord), With<ChunkNeedsGenerated>>,
+            move |query: Query<(Entity, &ChunkCoord, &ChunkNeedsGenerated)>,
                   commands: Commands| {
                 worldgen::queue_generating(query, Arc::new(create_settings(8008135)), commands)
             }
         };
-        app.add_systems((worldgen::poll_gen_queue,build_gen_system()).in_set(LevelSystemSet::Main));
+        app.add_systems((worldgen::poll_gen_queue,build_gen_system(), worldgen::poll_gen_lod_queue).in_set(LevelSystemSet::Main));
     }
 }
 

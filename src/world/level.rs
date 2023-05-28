@@ -40,4 +40,19 @@ impl Level {
     pub fn get_lod_chunks_mut(&mut self, level: usize) -> Option<&mut DashMap<ChunkCoord, LODChunkType, ahash::RandomState>> {
         self.lod_chunks.get_mut(level)
     }
+    pub fn get_lod_levels(&self) -> usize {
+        self.lod_chunks.len()
+    }
+    pub fn remove_lod_chunk(&mut self, level: usize, position: ChunkCoord) -> Option<(ChunkCoord,LODChunkType)> {
+        match self.lod_chunks.get(level) {
+            None => None,
+            Some(map) => map.remove(&position)
+        }
+    }
+    pub fn contains_lod_chunk(&self, level: usize, position: ChunkCoord) -> bool {
+        match self.lod_chunks.get(level) {
+            None => false,
+            Some(map) => map.contains_key(&position)
+        }
+    }
 }

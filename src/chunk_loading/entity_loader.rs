@@ -1,6 +1,6 @@
 use bevy::{prelude::*, utils::HashSet};
 
-use crate::{world::{chunk::{ChunkCoord, ChunkType}, Level}, worldgen::worldgen::ChunkNeedsGenerated};
+use crate::{world::{chunk::{ChunkCoord, ChunkType, LODChunk, LODChunkType}, Level}, worldgen::worldgen::ChunkNeedsGenerated};
 
 #[derive(Component)]
 pub struct ChunkLoader {
@@ -23,21 +23,77 @@ pub fn do_loading(mut commands: Commands, mut level: ResMut<Level>, mut despawn_
                     loaded_chunks.insert(test_coord);
                     if !level.chunks.contains_key(&test_coord) {
                         //chunk not loaded, load it!
-                        let id = commands.spawn((test_coord, ChunkNeedsGenerated {})).id();
+                        let id = commands.spawn((test_coord, ChunkNeedsGenerated::Full)).id();
                         level.add_chunk(test_coord, ChunkType::Ungenerated(id));
                         
                     }
                 }
             }
         }
+        load_lod(1, &mut commands, &mut level, &transform, &loader);
+        load_lod(2, &mut commands, &mut level, &transform, &loader);
     }
+    // //unload all not in range
+    // let mut to_unload = Vec::new();
+    // for c in level.chunks.iter() {
+    //     let key = c.key().clone();
+    //     if !loaded_chunks.contains(&key) {
+    //         to_unload.push(key);
+    //     }
+    // }
+    // for coord in to_unload {
+    //     if let Some((_,ctype)) = level.chunks.remove(&coord) {
+    //         match ctype {
+    //             ChunkType::Ungenerated(id) => despawn_writer.send(DespawnChunkEvent(id)),
+    //             ChunkType::Full(c) => despawn_writer.send(DespawnChunkEvent(c.entity)),
+    //         }
+    //     }
+    // }
+}
+
+fn load_lod(lod_level: usize, commands: &mut Commands, level: &mut ResMut<Level>, transform: &GlobalTransform, loader: &ChunkLoader) {
+        let base_coord = ChunkCoord::from(transform.translation()/LODChunk::level_to_scale(lod_level) as f32);
+        for x in (base_coord.x - loader.radius)..(base_coord.x + loader.radius + 1) {
+            for y in (base_coord.y - loader.radius)..(base_coord.y + loader.radius + 1) {
+                for z in (base_coord.z - loader.radius)..(base_coord.z + loader.radius + 1) {
+                    //don't generate in the center, where more detailed chunks will be
+                    let no_radius = loader.radius/2;
+                    if base_coord.x-no_radius <= x && x <= base_coord.x+no_radius
+                        && base_coord.y-no_radius <= y && y <= base_coord.y+no_radius
+                        && base_coord.z-no_radius <= z && z <= base_coord.z+no_radius {
+                            continue;
+                        }
+                    let test_coord = ChunkCoord::new(x,y,z);
+                    if !level.contains_lod_chunk(lod_level, test_coord) {
+                        //chunk not loaded, load it!
+                        let id = commands.spawn((test_coord, ChunkNeedsGenerated::LOD(lod_level))).id();
+                        level.add_lod_chunk(test_coord, crate::world::chunk::LODChunkType::Ungenerated(id, lod_level));
+                        
+                    }
+                }
+            }
+        }
+}
+
+pub fn unload_all(input: Res<Input<KeyCode>>, mut level: ResMut<Level>, mut despawn_writer: EventWriter<DespawnChunkEvent>) {
+    if input.just_pressed(KeyCode::Apostrophe) {
     //unload all not in range
     let mut to_unload = Vec::new();
+    let mut to_unload_lod = Vec::new();
     for c in level.chunks.iter() {
         let key = c.key().clone();
-        if !loaded_chunks.contains(&key) {
-            to_unload.push(key);
-        }
+        to_unload.push(key);
+    }
+    for i in 0..level.get_lod_levels() {
+    for c in level.get_lod_chunks(i).unwrap() {
+        let key = c.key().clone();
+        let level = c.value();
+        match level {
+            LODChunkType::Ungenerated(_, level) => to_unload_lod.push((*level,key)),
+            LODChunkType::Full(f) => to_unload_lod.push((f.level,key))
+        };
+        
+    }
     }
     for coord in to_unload {
         if let Some((_,ctype)) = level.chunks.remove(&coord) {
@@ -46,6 +102,15 @@ pub fn do_loading(mut commands: Commands, mut level: ResMut<Level>, mut despawn_
                 ChunkType::Full(c) => despawn_writer.send(DespawnChunkEvent(c.entity)),
             }
         }
+    }
+    for (lod_level, coord) in to_unload_lod {
+        if let Some((_,lodtype)) = level.remove_lod_chunk(lod_level, coord) {
+            match lodtype {
+                LODChunkType::Ungenerated(id,_) => despawn_writer.send(DespawnChunkEvent(id)),
+                LODChunkType::Full(c) => despawn_writer.send(DespawnChunkEvent(c.entity)),
+            }
+        }
+    }
     }
 }
 

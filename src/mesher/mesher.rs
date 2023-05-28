@@ -1,7 +1,10 @@
 use futures_lite::future;
 use std::time::Instant;
 
+use super::mesh_lod::*;
+
 use crate::world::chunk::*;
+use crate::worldgen::worldgen::{GeneratedChunk, GeneratedLODChunk};
 use crate::{
     util::Direction,
     world::{Level, *},
@@ -15,7 +18,7 @@ use bevy::{
 use super::{SPAWN_MESH_TIME_BUDGET_COUNT};
 
 #[derive(Component)]
-pub struct ChunkNeedsMesh {}
+pub struct NeedsMesh {}
 
 #[derive(Component)]
 pub struct MeshTask {
@@ -23,10 +26,11 @@ pub struct MeshTask {
 }
 
 pub struct MeshData {
-    verts: Vec<Vec3>,
-    norms: Vec<Vec3>,
-    tris: Vec<u32>,
-    scale: f32,
+    pub verts: Vec<Vec3>,
+    pub norms: Vec<Vec3>,
+    pub tris: Vec<u32>,
+    pub scale: f32,
+    pub position: Vec3
 }
 
 #[derive(Resource)]
@@ -35,7 +39,7 @@ pub struct MeshTimer {
 }
 
 pub fn queue_meshing(
-    query: Query<(Entity, &ChunkCoord), With<ChunkNeedsMesh>>,
+    query: Query<(Entity, &ChunkCoord), (With<GeneratedChunk>, With<NeedsMesh>)>,
     level: Res<Level>,
     time: Res<Time>,
     mut timer: ResMut<MeshTimer>,
@@ -74,14 +78,15 @@ pub fn queue_meshing(
                         verts: Vec::new(),
                         norms: Vec::new(),
                         tris: Vec::new(),
-                        scale: 1.0
+                        scale: 1.0,
+                        position: meshing.position.to_vec3()
                     };
                     mesh_chunk(&meshing, &neighbors, &mut data);
                     data
                 });
                 commands
                     .entity(entity)
-                    .remove::<ChunkNeedsMesh>()
+                    .remove::<NeedsMesh>()
                     .insert(MeshTask { task });
             }
         }
@@ -99,12 +104,13 @@ pub fn poll_mesh_queue(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut query: Query<(Entity, &ChunkCoord, Option<&Handle<Mesh>>, &mut MeshTask)>,
+    mut query: Query<(Entity, Option<&Handle<Mesh>>, &mut MeshTask)>,
 ) {
     //todo: parallelize this
     //(can't right now as Commands and StandardMaterial do not implement clone)
     let mut len = 0;
-    for (entity, chunk, opt_mesh_handle, mut task) in query.iter_mut() {
+    let now = Instant::now();
+    for (entity, opt_mesh_handle, mut task) in query.iter_mut() {
         if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
             len += 1;
             if data.verts.len() > 0 {
@@ -123,9 +129,9 @@ pub fn poll_mesh_queue(
 
                     commands.entity(entity).insert(PbrBundle {
                         mesh: meshes.add(mesh),
-                        material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+                        material: materials.add(Color::rgb(data.scale.log2()/3.0, 0.5, 0.3).into()),
                         transform: Transform {
-                            translation: chunk.to_vec3(),
+                            translation: data.position,
                             ..default()
                         },
                         ..default()
@@ -140,15 +146,16 @@ pub fn poll_mesh_queue(
             }
         }
     }
-    // let duration = Instant::now().duration_since(now).as_millis();
-    // if len > 0 {
-    //     println!("spawned {} chunk meshes in {}ms", len, duration);
-    // }
+    let duration = Instant::now().duration_since(now).as_millis();
+    if len > 0 {
+        println!("spawned {} chunk meshes in {}ms", len, duration);
+    }
 }
 
 fn mesh_chunk(chunk: &Chunk, neighbors: &[Option<Chunk>; 6], data: &mut MeshData) {
     for i in 0..chunk::BLOCKS_PER_CHUNK {
-        mesh_block(&chunk, neighbors, &chunk[i], ChunkIdx::from_usize(i), data);
+        let coord = ChunkIdx::from_usize(i);
+        mesh_block(&chunk, neighbors, &chunk[i], coord, coord.to_vec3()*data.scale, data);
     }
 }
 
@@ -157,12 +164,12 @@ fn mesh_block(
     neighbors: &[Option<Chunk>; 6],
     b: &BlockType,
     coord: ChunkIdx,
+    origin: Vec3,
     data: &mut MeshData,
 ) {
     if let BlockType::Empty = b {
         return;
     }
-    let origin = coord.to_vec3();
     if coord.z == CHUNK_SIZE_U8 - 1 {
         if match &neighbors[Direction::PosZ.to_idx()] {
             Some(c) => matches!(c[ChunkIdx::new(coord.x, coord.y, 0)], BlockType::Empty),
@@ -256,7 +263,7 @@ fn mesh_block(
         mesh_neg_x(origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
 }
-fn mesh_neg_z(origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_neg_z(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
     data.verts.push(origin + Vec3::new(0., scale.y, 0.));
     data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
@@ -267,7 +274,7 @@ fn mesh_neg_z(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     data.norms.push(Vec3::new(0., 0., -1.));
     data.norms.push(Vec3::new(0., 0., -1.));
 }
-fn mesh_pos_z(origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_pos_z(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
     data.verts.push(origin + Vec3::new(0., 0., scale.z));
     data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
@@ -279,7 +286,7 @@ fn mesh_pos_z(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     data.norms.push(Vec3::new(0., 0., 1.));
 }
 
-fn mesh_neg_x(origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_neg_x(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
     data.verts.push(origin + Vec3::new(0., 0., scale.z));
     data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
@@ -291,7 +298,7 @@ fn mesh_neg_x(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     data.norms.push(Vec3::new(-1., 0., 0.));
 }
 
-fn mesh_pos_x(origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_pos_x(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
     data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
     data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
@@ -303,7 +310,7 @@ fn mesh_pos_x(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     data.norms.push(Vec3::new(1., 0., 0.));
 }
 
-fn mesh_pos_y(origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_pos_y(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
     data.verts.push(origin + Vec3::new(0., scale.y, 0.));
     data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
@@ -315,7 +322,7 @@ fn mesh_pos_y(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     data.norms.push(Vec3::new(0., 1., 0.));
 }
 
-fn mesh_neg_y(origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_neg_y(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
     data.verts.push(origin + Vec3::new(0., 0., 0.));
     data.verts.push(origin + Vec3::new(scale.x, 0., 0.));

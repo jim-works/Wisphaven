@@ -13,6 +13,9 @@ pub const CHUNK_SIZE_U8: u8 = CHUNK_SIZE as u8;
 pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LODLevel {pub level: usize}
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ChunkCoord {
     pub x: i32,
     pub y: i32,
@@ -158,7 +161,7 @@ impl IndexMut<usize> for LODChunk {
 }
 
 impl LODChunk {
-    pub fn new(position: ChunkCoord, entity: Entity, level: usize) -> LODChunk {
+    pub fn new(position: ChunkCoord, level: usize, entity: Entity) -> LODChunk {
         LODChunk {
             blocks: Box::new([BlockType::Empty; BLOCKS_PER_CHUNK]),
             entity,
@@ -168,10 +171,15 @@ impl LODChunk {
     }
 
     pub fn scale(&self) -> i32 {
-        1<<self.level
+        LODChunk::level_to_scale(self.level)
+    }
+
+    pub fn level_to_scale(level: usize) -> i32 {
+        1<<level
     }
 
     pub fn get_block_pos(&self, pos: ChunkIdx) -> Vec3 {
-        Vec3::new((self.position.x+(pos.x as i32)*self.scale()) as f32, (self.position.y+(pos.y as i32)*self.scale()) as f32, (self.position.z+(pos.z as i32)*self.scale()) as f32)
+        let scale = self.scale();
+        Vec3::new((self.position.x*CHUNK_SIZE_I32*scale+(pos.x as i32)*scale) as f32, (self.position.y*CHUNK_SIZE_I32*scale+(pos.y as i32)*scale) as f32, (self.position.z*CHUNK_SIZE_I32*scale+(pos.z as i32)*scale) as f32)
     }
 }

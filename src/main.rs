@@ -48,7 +48,7 @@ fn init(mut commands: Commands) {
             ..default()
         },
         ChunkLoader {
-            radius: 8,
+            radius: 4,
             lod_levels: 1,
         },
     ));
@@ -58,7 +58,7 @@ fn init(mut commands: Commands) {
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(-100.0, -10.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
     });
 }
