@@ -1,7 +1,7 @@
 use futures_lite::future;
 use std::{time::Instant, sync::Arc};
 
-use crate::{world::{chunk::*, Level, BlockType}, mesher::NeedsMesh, util::{Spline, SplineNoise}};
+use crate::{world::{chunk::*, Level, BlockType}, mesher::NeedsMesh, util::{Spline, SplineNoise}, physics::NeedsPhysics};
 use bevy::{
     prelude::*,
     tasks::{AsyncComputeTaskPool, Task},
@@ -86,7 +86,8 @@ pub fn poll_gen_queue(
                 .entity(entity)
                 .remove::<GenerationTask>()
                 .insert(GeneratedChunk {})
-                .insert(NeedsMesh{});
+                .insert(NeedsMesh{})
+                .insert(NeedsPhysics{});
             level.add_chunk(data.position, ChunkType::Full(data));
             let duration = Instant::now().duration_since(now).as_millis();
             if duration > ADD_TIME_BUDGET_MS {

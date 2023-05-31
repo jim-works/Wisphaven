@@ -141,8 +141,8 @@ pub fn unload_all(input: Res<Input<KeyCode>>, mut level: ResMut<Level>, mut desp
 
 pub fn despawn_chunks(mut commands: Commands, mut despawn_reader: EventReader<DespawnChunkEvent>) {
     for e in despawn_reader.iter() {
-        if let Some(mut ec) = commands.get_entity(e.0) {
-            ec.despawn();
+        if let Some(ec) = commands.get_entity(e.0) {
+            ec.despawn_recursive();
         }
     }
 }
