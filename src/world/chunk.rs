@@ -67,8 +67,12 @@ impl ChunkIdx {
         let z = i-x*CHUNK_SIZE*CHUNK_SIZE-y*CHUNK_SIZE;
         ChunkIdx { x: x as u8, y: y as u8, z: z as u8 }
     }
+    //on the corner of the block, block extends in positive directions
     pub fn to_vec3(&self) -> Vec3 {
         Vec3::new(self.x as f32,self.y as f32,self.z as f32)
+    }
+    pub fn get_block_center(&self) -> Vec3 {
+        Vec3::new(self.x as f32+0.5,self.y as f32+0.5,self.z as f32+0.5)
     }
     pub fn to_usize(&self) -> usize {
         (self.x as usize)*CHUNK_SIZE*CHUNK_SIZE+(self.y as usize)*CHUNK_SIZE+(self.z as usize)

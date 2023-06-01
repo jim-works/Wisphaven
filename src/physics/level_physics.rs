@@ -169,9 +169,10 @@ fn gen_physics(chunk: &Chunk, data: &mut PhysicsGenerationData) {
         ) {
             //has at least one air neighbor, generate collider
             compound.push((
-                coord.to_vec3(),
+                coord.get_block_center(),
                 Quat::IDENTITY,
-                Collider::cuboid(1.0, 1.0, 1.0),
+                //half-extents
+                Collider::cuboid(0.5, 0.5, 0.5),
             ))
         }
     }
