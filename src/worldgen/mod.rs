@@ -29,7 +29,7 @@ impl Plugin for WorldGenPlugin {
 fn create_settings(seed: u64) -> WorldGenSettings {
     WorldGenSettings {
         noise: create_noise(seed),
-        upper_density: Vec2::new(300.0,-1.0),
+        upper_density: Vec2::new(500.0,-1.0),
         heightmap_noise: create_heighmap_noise(seed^0xCAFEBABEDEAFBEEF), //don't want the seeds to be the same
         mid_density: 0.0,
         base_density: Vec2::new(-100.0,1.0)

@@ -12,7 +12,7 @@ use bevy_rapier3d::prelude::*;
 pub struct PhysicsPlugin;
 
 const SPAWN_CHUNK_TIME_BUDGET_COUNT: u32 = 1000;
-pub const GRAVITY: f32 = -10.0;
+pub const GRAVITY: f32 = -7.5;
 
 pub const PLAYER_GROUP: u32 = 1 << 0;
 pub const TERRAIN_GROUP: u32 = 1 << 1;

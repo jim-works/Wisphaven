@@ -52,16 +52,17 @@ fn init(mut commands: Commands) {
             },
             TransformBundle::from_transform(Transform::from_xyz(-2.0, -25.0, 5.0)),
             MoveSpeed {
-                base: 25.0,
-                current: 25.0,
+                base: 50.0,
+                current: 50.0,
                 max: 10.0,
             },
             Jump::default(),
             ChunkLoader {
-                radius: 5,
-                lod_levels: 0,
+                radius: 6,
+                lod_levels: 10,
             },
             RigidBody::Dynamic,
+            Ccd::enabled(),
             LockedAxes::ROTATION_LOCKED,
             Collider::capsule(Vec3::ZERO,Vec3::new(0.0, 1.8, 0.0), 0.4),
             ReadMassProperties::default(),
@@ -100,7 +101,7 @@ fn init(mut commands: Commands) {
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_xyz(-100.0, -10.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(-5.0, 10.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
     });
 }
