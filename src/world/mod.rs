@@ -23,3 +23,10 @@ impl Plugin for LevelPlugin {
         app.configure_set(LevelSystemSet::Despawn.after(LevelSystemSet::Main));
     }
 }
+
+pub struct BlockcastHit {
+    pub hit_pos: Vec3,
+    pub block_pos: BlockCoord,
+    pub block: BlockType,
+    pub normal: BlockCoord,
+}

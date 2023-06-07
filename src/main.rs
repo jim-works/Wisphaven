@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 use bevy_rapier3d::prelude::*;
 use chunk_loading::{ChunkLoader, ChunkLoaderPlugin};
-use controllers::{ControllersPlugin, RotateWithMouse, FollowPlayer, ControllableBundle};
+use controllers::{ControllersPlugin, RotateWithMouse, FollowPlayer, ControllableBundle, PlayerActionOrigin};
 use leafwing_input_manager::InputManagerBundle;
 use mesher::MesherPlugin;
 use physics::{PhysicsPlugin, ACTOR_GROUP, PLAYER_GROUP, JUMPABLE_GROUP, PhysicsObjectBundle};
@@ -85,6 +85,7 @@ fn init(mut commands: Commands) {
                 ..default()
             },
             FollowPlayer{},
+            PlayerActionOrigin{},
             InputManagerBundle {
                 input_map: controllers::get_input_map(),
                 ..default()

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
-use crate::{actors::*, physics::JUMPABLE_GROUP};
+use crate::{actors::*, physics::JUMPABLE_GROUP, world::Level, mesher::NeedsMesh};
 
 use super::{Action, FrameMovement};
 
@@ -18,6 +18,9 @@ pub struct RotateWithMouse {
 
 #[derive(Component)]
 pub struct FollowPlayer{}
+
+#[derive(Component)]
+pub struct PlayerActionOrigin{}
 
 pub fn move_player(
     mut query: Query<(&ActionState<Action>, &mut FrameMovement), With<Player>>,
@@ -48,6 +51,7 @@ pub fn move_player(
     }
 }
 
+//TODO: extract most of this into another system to look like move_player and do_planar_movement
 pub fn jump_player(
     mut query: Query<
         (
@@ -119,11 +123,45 @@ pub fn follow_local_player(
     player_query: Query<(&Transform, &RotateWithMouse), With<LocalPlayer>>,
     mut follow_query: Query<(&mut Transform, Option<&mut RotateWithMouse>), (With<FollowPlayer>, Without<LocalPlayer>)>,
 ) {
-    for (player_tf, player_rot) in player_query.iter() {
+    if let Ok((player_tf, player_rot)) = player_query.get_single() {
         for (mut follow_tf, opt_follow_rot) in follow_query.iter_mut() {
             follow_tf.translation = player_tf.translation + Vec3::new(0.0,1.5,0.0);
             if let Some(mut follow_rot) = opt_follow_rot {
                 follow_rot.yaw = player_rot.yaw;
+            }
+        }
+    }
+}
+
+//todo: mesh neighbors (add batch set block in level that takes in commands to do this)
+pub fn player_punch (
+    mut commands: Commands,
+    camera_query: Query<(&Transform, &ActionState<Action>), (With<PlayerActionOrigin>, With<FollowPlayer>, Without<LocalPlayer>)>,
+    mut level: ResMut<Level>
+) {
+    if let Ok((tf, act)) = camera_query.get_single() {
+        if act.just_pressed(Action::Punch) {
+            if let Some(hit) = level.blockcast(tf.translation, tf.forward()*10.0) {
+                if let Some(chunk_entity) = level.set_block(hit.block_pos, crate::world::BlockType::Empty) {
+                    commands.entity(chunk_entity).insert(NeedsMesh{});
+                }
+            }
+        }
+    }
+}
+
+//todo: mesh neighbors (add batch set block in level that takes in commands to do this)
+pub fn player_use (
+    mut commands: Commands,
+    camera_query: Query<(&Transform, &ActionState<Action>), (With<PlayerActionOrigin>, With<FollowPlayer>, Without<LocalPlayer>)>,
+    mut level: ResMut<Level>
+) {
+    if let Ok((tf, act)) = camera_query.get_single() {
+        if act.just_pressed(Action::Use) {
+            if let Some(hit) = level.blockcast(tf.translation, tf.forward()*10.0) {
+                if let Some(chunk_entity) = level.set_block(hit.block_pos+hit.normal, crate::world::BlockType::Basic(0)) {
+                    commands.entity(chunk_entity).insert(NeedsMesh{});
+                }
             }
         }
     }

@@ -16,7 +16,7 @@ impl Plugin for ControllersPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(InputManagerPlugin::<Action>::default())
         //player
-        .add_systems((rotate_mouse,jump_player,move_player,follow_local_player).in_base_set(CoreSet::Update))
+        .add_systems((rotate_mouse,jump_player,move_player,follow_local_player,player_punch,player_use).in_base_set(CoreSet::Update))
         //common
         .add_system(do_planar_movement.in_base_set(CoreSet::PostUpdate))
         ;

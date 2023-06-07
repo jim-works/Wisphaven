@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use dashmap::DashMap;
-use super::chunk::*;
+use crate::{world::BlockcastHit, util::max_component_norm};
+
+use super::{chunk::*, BlockType, BlockCoord};
 
 #[derive(Resource)]
 pub struct Level {
@@ -15,6 +17,24 @@ impl Level {
             lod_chunks: vec![DashMap::with_hasher(ahash::RandomState::new()); lod_levels]
         }
     }
+    pub fn get_block(&self, key: BlockCoord) -> Option<BlockType> {
+        if let Some(r) = self.get_chunk(ChunkCoord::from(key)) {
+            if let ChunkType::Full(chunk) = r.value() {
+                return Some(chunk[ChunkIdx::from(key)])
+            }
+        }
+        None
+    }
+    
+    pub fn set_block(&mut self, key: BlockCoord, val: BlockType) -> Option<Entity> {
+        if let Some(mut r) = self.get_chunk_mut(ChunkCoord::from(key)) {
+            if let ChunkType::Full(ref mut chunk) = r.value_mut() {
+                chunk[ChunkIdx::from(key)] = val; 
+                return Some(chunk.entity);      
+            }
+        }
+        None
+    }
     pub fn contains_chunk(&self, key:ChunkCoord) -> bool {
         self.chunks.contains_key(&key)
     }
@@ -26,6 +46,9 @@ impl Level {
     }
     pub fn get_chunk(&self, key: ChunkCoord) -> Option<dashmap::mapref::one::Ref<'_, ChunkCoord, ChunkType, ahash::RandomState>> {
         self.chunks.get(&key)
+    }
+    pub fn get_chunk_mut(&mut self, key: ChunkCoord) -> Option<dashmap::mapref::one::RefMut<'_, ChunkCoord, ChunkType, ahash::RandomState>> {
+        self.chunks.get_mut(&key)
     }
     pub fn add_chunk(&mut self, key: ChunkCoord, chunk: ChunkType) {
         self.chunks.insert(key,chunk); 
@@ -66,5 +89,41 @@ impl Level {
             None => false,
             Some(map) => map.contains_key(&position)
         }
+    }
+    //todo improve this (bresenham's?)
+    pub fn blockcast(&self, origin: Vec3, line: Vec3) -> Option<BlockcastHit> {
+        const STEP_SIZE: f32 = 0.05;
+        let line_len = line.length();
+        let line_norm = line/line_len;
+        let mut old_coords = BlockCoord::from(origin);
+        match self.get_block(old_coords) {
+            Some(BlockType::Empty) | None => {},
+            Some(t) => return Some(BlockcastHit {
+                    hit_pos: origin,
+                    block_pos: old_coords,
+                    block: t,
+                    normal: BlockCoord::new(0,0,0)
+                })
+        };
+        let mut t = 0.0;
+        while t < line_len {
+            t += STEP_SIZE;
+            let test_point = origin+t*line_norm;
+            let test_block = BlockCoord::from(test_point);
+            if test_block == old_coords {continue;}
+            
+            old_coords = test_block;
+            let b = self.get_block(test_block);
+            match b {
+                Some(BlockType::Empty) | None => {},
+                Some(t) => return Some(BlockcastHit {
+                    hit_pos: test_point,
+                    block_pos: test_block,
+                    block: t,
+                    normal: max_component_norm(test_point-old_coords.center()).into()
+                })
+            }
+        }
+        None
     }
 }

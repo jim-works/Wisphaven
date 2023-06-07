@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::util::Direction;
 
-use super::BlockType;
+use super::{BlockType, BlockCoord};
 
 pub const CHUNK_SIZE: usize = 16;
 pub const CHUNK_SIZE_F32: f32 = CHUNK_SIZE as f32;
@@ -50,6 +50,12 @@ impl From<Vec3> for ChunkCoord {
     }
 }
 
+impl From<BlockCoord> for ChunkCoord {
+    fn from(v: BlockCoord) -> Self {
+        ChunkCoord::new(v.x.div_euclid(CHUNK_SIZE_I32),v.y.div_euclid(CHUNK_SIZE_I32),v.z.div_euclid(CHUNK_SIZE_I32))
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ChunkIdx {
     pub x: u8,
@@ -77,6 +83,13 @@ impl ChunkIdx {
     pub fn to_usize(&self) -> usize {
         (self.x as usize)*CHUNK_SIZE*CHUNK_SIZE+(self.y as usize)*CHUNK_SIZE+(self.z as usize)
     }
+}
+
+impl From<BlockCoord> for ChunkIdx {
+    fn from(v: BlockCoord) -> Self {
+        ChunkIdx::new(v.x.rem_euclid(CHUNK_SIZE_I32) as u8,v.y.rem_euclid(CHUNK_SIZE_I32) as u8,v.z.rem_euclid(CHUNK_SIZE_I32) as u8)
+    }
+    
 }
 
 #[derive(Clone, Debug)]
