@@ -5,10 +5,10 @@ use bevy::prelude::*;
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 use bevy_rapier3d::prelude::*;
 use chunk_loading::{ChunkLoader, ChunkLoaderPlugin};
-use controllers::{ControllersPlugin, RotateWithMouse, FollowPlayer};
+use controllers::{ControllersPlugin, RotateWithMouse, FollowPlayer, ControllableBundle};
 use leafwing_input_manager::InputManagerBundle;
 use mesher::MesherPlugin;
-use physics::{PhysicsPlugin, ACTOR_GROUP, PLAYER_GROUP, JUMPABLE_GROUP};
+use physics::{PhysicsPlugin, ACTOR_GROUP, PLAYER_GROUP, JUMPABLE_GROUP, PhysicsObjectBundle};
 use world::*;
 use worldgen::WorldGenPlugin;
 
@@ -51,30 +51,25 @@ fn init(mut commands: Commands) {
                 ..default()
             },
             TransformBundle::from_transform(Transform::from_xyz(-2.0, -25.0, 5.0)),
-            MoveSpeed {
-                base: 50.0,
-                current: 50.0,
-                max: 10.0,
+            ControllableBundle {
+                physics: PhysicsObjectBundle {
+                    collision_groups: CollisionGroups::new(
+                    Group::from_bits_truncate(PLAYER_GROUP | ACTOR_GROUP),
+                    Group::all(),
+                    ),
+                    ..default()
+                },
+                ..default()
             },
             Jump::default(),
             ChunkLoader {
-                radius: 6,
-                lod_levels: 10,
+                radius: 4,
+                lod_levels: 3,
             },
-            RigidBody::Dynamic,
-            Ccd::enabled(),
-            LockedAxes::ROTATION_LOCKED,
-            Collider::capsule(Vec3::ZERO,Vec3::new(0.0, 1.8, 0.0), 0.4),
-            ReadMassProperties::default(),
             InputManagerBundle {
                 input_map: controllers::get_input_map(),
                 ..default()
             },
-            CollisionGroups::new(
-                Group::from_bits_truncate(PLAYER_GROUP | ACTOR_GROUP),
-                Group::all(),
-            ),
-            ExternalImpulse::default()
         ));
     commands.spawn((Camera3dBundle {
                 transform: Transform::from_xyz(0.0,1.5,0.0),

@@ -1,12 +1,10 @@
-use std::f32::consts::PI;
-
-use bevy::{prelude::*, transform::commands};
+use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::{actors::*, physics::JUMPABLE_GROUP};
 
-use super::Action;
+use super::{Action, FrameMovement};
 
 #[derive(Component, Default)]
 pub struct RotateWithMouse {
@@ -22,35 +20,31 @@ pub struct RotateWithMouse {
 pub struct FollowPlayer{}
 
 pub fn move_player(
-    mut query: Query<(&MoveSpeed, &ActionState<Action>, &Transform, &mut ExternalImpulse), With<Player>>,
-    time: Res<Time>,
+    mut query: Query<(&ActionState<Action>, &mut FrameMovement), With<Player>>,
 ) {
-    for (ms, act, tf, mut ext_impulse) in query.iter_mut() {
+    for (act, mut fm) in query.iter_mut() {
         let mut dv = Vec3::ZERO;
         dv.z -= if act.pressed(Action::MoveForward) {
-            ms.current
+            1.0
         } else {
             0.0
         };
         dv.z += if act.pressed(Action::MoveBack) {
-            ms.current
+            1.0
         } else {
             0.0
         };
         dv.x += if act.pressed(Action::MoveRight) {
-            ms.current
+            1.0
         } else {
             0.0
         };
         dv.x -= if act.pressed(Action::MoveLeft) {
-            ms.current
+            1.0
         } else {
             0.0
         };
-        let mut impulse = tf.rotation * (dv * time.delta_seconds());
-        impulse.y = 0.0;
-
-        ext_impulse.impulse += impulse;
+        fm.0 = dv;
     }
 }
 
@@ -90,13 +84,13 @@ pub fn jump_player(
             jump.extra_jumps_remaining = jump.extra_jump_count;
             //don't use an extra jump since we are on the ground
             if act.just_pressed(Action::Jump) {
-                ext_impulse.impulse.y += jump.current;
+                ext_impulse.impulse.y += jump.current_height;
             }
         }
         else if jump.extra_jumps_remaining > 0 && act.just_pressed(Action::Jump) {
             //we aren't on the ground, so use an extra jump
             jump.extra_jumps_remaining -= 1;
-            ext_impulse.impulse.y += jump.current;
+            ext_impulse.impulse.y += jump.current_height;
         }
     }
 }

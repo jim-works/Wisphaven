@@ -1,9 +1,6 @@
 mod level_physics;
 pub use level_physics::*;
 
-mod physics_objects;
-pub use physics_objects::*;
-
 use bevy::prelude::*;
 
 use crate::world::LevelSystemSet;
@@ -12,7 +9,7 @@ use bevy_rapier3d::prelude::*;
 pub struct PhysicsPlugin;
 
 const SPAWN_CHUNK_TIME_BUDGET_COUNT: u32 = 1000;
-pub const GRAVITY: f32 = -7.5;
+pub const GRAVITY: f32 = -10.0;
 
 pub const PLAYER_GROUP: u32 = 1 << 0;
 pub const TERRAIN_GROUP: u32 = 1 << 1;
@@ -35,4 +32,32 @@ fn configure_physics(
     mut config: ResMut<RapierConfiguration>
 ) {
     config.gravity = Vec3::new(0.0,GRAVITY,0.0);
+}
+
+#[derive(Bundle)]
+pub struct PhysicsObjectBundle {
+    pub rigidbody: RigidBody,
+    pub ccd: Ccd,
+    pub locked_axes: LockedAxes,
+    pub collider: Collider,
+    pub external_impulse: ExternalImpulse,
+    pub velocity: Velocity,
+    pub collision_groups: CollisionGroups,
+}
+
+impl Default for PhysicsObjectBundle {
+    fn default() -> Self {
+            PhysicsObjectBundle {
+                rigidbody: RigidBody::Dynamic,
+                ccd: Ccd::enabled(),
+                locked_axes: LockedAxes::ROTATION_LOCKED,
+                collider: Collider::capsule(Vec3::ZERO,Vec3::new(0.0, 1.8, 0.0), 0.4),
+                external_impulse: ExternalImpulse::default(),
+                velocity: Velocity::default(),
+                collision_groups: CollisionGroups::new(
+                Group::from_bits_truncate(ACTOR_GROUP),
+                    Group::all(),
+                ),
+        }
+    }
 }
