@@ -1,6 +1,6 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
-use crate::{world::BlockcastHit, util::max_component_norm};
+use crate::{world::BlockcastHit, util::{max_component_norm, Direction}, mesher::NeedsMesh, physics::NeedsPhysics};
 
 use super::{chunk::*, BlockType, BlockCoord};
 
@@ -25,8 +25,8 @@ impl Level {
         }
         None
     }
-    
-    pub fn set_block(&mut self, key: BlockCoord, val: BlockType) -> Option<Entity> {
+    //doesn't mesh or update physics
+    pub fn set_block_noupdate(&mut self, key: BlockCoord, val: BlockType) -> Option<Entity> {
         if let Some(mut r) = self.get_chunk_mut(ChunkCoord::from(key)) {
             if let ChunkType::Full(ref mut chunk) = r.value_mut() {
                 chunk[ChunkIdx::from(key)] = val; 
@@ -34,6 +34,32 @@ impl Level {
             }
         }
         None
+    }
+    pub fn update_chunk(chunk_entity: Entity, commands: &mut Commands) {
+        commands.entity(chunk_entity).insert((NeedsMesh{},NeedsPhysics{}));
+    }
+    //updates chunk and neighbors
+    pub fn set_block(&mut self, key: BlockCoord, val: BlockType, commands: &mut Commands){
+        self.batch_set_block(std::iter::once((key,val)), commands);
+    }
+    //meshes and updates physics
+    pub fn batch_set_block<I: Iterator<Item=(BlockCoord, BlockType)>>(&mut self, to_set: I, commands: &mut Commands) {
+        let mut to_update = HashSet::new();
+        for (coord, block) in to_set {
+            let chunk_coord: ChunkCoord = coord.into();
+            //add chunk and neighbors
+            to_update.insert(chunk_coord);
+            for dir in Direction::iter() {
+                to_update.insert(chunk_coord.offset(dir));
+            }
+            self.set_block_noupdate(coord, block);
+        }
+        //update chunk info: meshes and physics
+        for chunk_coord in to_update {
+            if let Some(entity) = self.get_chunk_entity(chunk_coord) {
+                Self::update_chunk(entity, commands);
+            }
+        }
     }
     pub fn contains_chunk(&self, key:ChunkCoord) -> bool {
         self.chunks.contains_key(&key)
@@ -49,6 +75,16 @@ impl Level {
     }
     pub fn get_chunk_mut(&mut self, key: ChunkCoord) -> Option<dashmap::mapref::one::RefMut<'_, ChunkCoord, ChunkType, ahash::RandomState>> {
         self.chunks.get_mut(&key)
+    }
+    pub fn get_chunk_entity(&self, key: ChunkCoord) -> Option<Entity> {
+        if let Some(r) = self.get_chunk(ChunkCoord::from(key)) {
+            if let ChunkType::Full(chunk) = r.value() {
+                return Some(chunk.entity);      
+            } else if let ChunkType::Ungenerated(e) = r.value() {
+                return Some(*e);
+            }
+        }
+        None
     }
     pub fn add_chunk(&mut self, key: ChunkCoord, chunk: ChunkType) {
         self.chunks.insert(key,chunk); 

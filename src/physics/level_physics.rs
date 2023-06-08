@@ -125,7 +125,14 @@ pub fn poll_gen_physics_queue(
         println!("spawned {} chunk meshes in {}ms", len, duration);
     }
 }
-
+fn get_collider(origin: ChunkIdx) -> (Vec3, Quat, Collider) {
+    (
+        origin.get_block_center(),
+        Quat::IDENTITY,
+        //half-extents
+        Collider::cuboid(0.5, 0.5, 0.5),
+    )
+}
 fn gen_physics(chunk: &Chunk, data: &mut PhysicsGenerationData) {
     let mut compound = Vec::new();
     for i in 0..chunk::BLOCKS_PER_CHUNK {
@@ -143,11 +150,7 @@ fn gen_physics(chunk: &Chunk, data: &mut PhysicsGenerationData) {
             || coord.y == 0
             || coord.z == 0
         {
-            compound.push((
-                coord.to_vec3(),
-                Quat::IDENTITY,
-                Collider::cuboid(1.0, 1.0, 1.0),
-            ))
+            compound.push(get_collider(coord))
         } else if matches!(
             chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
             BlockType::Empty
@@ -168,12 +171,7 @@ fn gen_physics(chunk: &Chunk, data: &mut PhysicsGenerationData) {
             BlockType::Empty
         ) {
             //has at least one air neighbor, generate collider
-            compound.push((
-                coord.get_block_center(),
-                Quat::IDENTITY,
-                //half-extents
-                Collider::cuboid(0.5, 0.5, 0.5),
-            ))
+            compound.push(get_collider(coord))
         }
     }
     if compound.len() > 0 {

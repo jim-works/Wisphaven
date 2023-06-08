@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
 use actors::{Jump, MoveSpeed, Player, LocalPlayer};
-use bevy::prelude::*;
+use bevy::{prelude::*, render::{primitives::Frustum, camera::CameraProjection}};
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 use bevy_rapier3d::prelude::*;
 use chunk_loading::{ChunkLoader, ChunkLoaderPlugin};
@@ -63,7 +63,7 @@ fn init(mut commands: Commands) {
             },
             Jump::default(),
             ChunkLoader {
-                radius: 4,
+                radius: 6,
                 lod_levels: 3,
             },
             InputManagerBundle {
@@ -71,12 +71,15 @@ fn init(mut commands: Commands) {
                 ..default()
             },
         ));
+    //todo: fix frustrum culling
+    let projection = PerspectiveProjection {
+        fov: PI / 2.,
+        ..default()
+    };
     commands.spawn((Camera3dBundle {
                 transform: Transform::from_xyz(0.0,1.5,0.0),
-                projection: Projection::Perspective(PerspectiveProjection {
-                    fov: PI / 2.,
-                    ..default()
-                }),
+                projection: Projection::Perspective(projection.clone()),
+                frustum: Frustum::from_view_projection(&projection.get_projection_matrix()),
                 ..default()
             },
             RotateWithMouse {

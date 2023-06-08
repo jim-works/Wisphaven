@@ -2,7 +2,12 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
-use crate::{actors::*, physics::JUMPABLE_GROUP, world::Level, mesher::NeedsMesh};
+use crate::{
+    actors::*,
+    mesher::NeedsMesh,
+    physics::{NeedsPhysics, JUMPABLE_GROUP},
+    world::{BlockCoord, Level},
+};
 
 use super::{Action, FrameMovement};
 
@@ -17,14 +22,12 @@ pub struct RotateWithMouse {
 }
 
 #[derive(Component)]
-pub struct FollowPlayer{}
+pub struct FollowPlayer {}
 
 #[derive(Component)]
-pub struct PlayerActionOrigin{}
+pub struct PlayerActionOrigin {}
 
-pub fn move_player(
-    mut query: Query<(&ActionState<Action>, &mut FrameMovement), With<Player>>,
-) {
+pub fn move_player(mut query: Query<(&ActionState<Action>, &mut FrameMovement), With<Player>>) {
     for (act, mut fm) in query.iter_mut() {
         let mut dv = Vec3::ZERO;
         dv.z -= if act.pressed(Action::MoveForward) {
@@ -60,7 +63,7 @@ pub fn jump_player(
             &ActionState<Action>,
             &Collider,
             &GlobalTransform,
-            &mut ExternalImpulse
+            &mut ExternalImpulse,
         ),
         With<Player>,
     >,
@@ -90,8 +93,7 @@ pub fn jump_player(
             if act.just_pressed(Action::Jump) {
                 ext_impulse.impulse.y += jump.current_height;
             }
-        }
-        else if jump.extra_jumps_remaining > 0 && act.just_pressed(Action::Jump) {
+        } else if jump.extra_jumps_remaining > 0 && act.just_pressed(Action::Jump) {
             //we aren't on the ground, so use an extra jump
             jump.extra_jumps_remaining -= 1;
             ext_impulse.impulse.y += jump.current_height;
@@ -105,8 +107,12 @@ pub fn rotate_mouse(
     const SENSITIVITY: f32 = 0.01;
     for (mut tf, mut rotation, action) in query.iter_mut() {
         if let Some(delta) = action.axis_pair(Action::Look) {
-            if !rotation.lock_yaw {rotation.yaw -= delta.x() * SENSITIVITY;}
-            if !rotation.lock_pitch {rotation.pitch -= delta.y() * SENSITIVITY;}
+            if !rotation.lock_yaw {
+                rotation.yaw -= delta.x() * SENSITIVITY;
+            }
+            if !rotation.lock_pitch {
+                rotation.pitch -= delta.y() * SENSITIVITY;
+            }
 
             rotation.pitch = rotation
                 .pitch
@@ -121,11 +127,14 @@ pub fn rotate_mouse(
 
 pub fn follow_local_player(
     player_query: Query<(&Transform, &RotateWithMouse), With<LocalPlayer>>,
-    mut follow_query: Query<(&mut Transform, Option<&mut RotateWithMouse>), (With<FollowPlayer>, Without<LocalPlayer>)>,
+    mut follow_query: Query<
+        (&mut Transform, Option<&mut RotateWithMouse>),
+        (With<FollowPlayer>, Without<LocalPlayer>),
+    >,
 ) {
     if let Ok((player_tf, player_rot)) = player_query.get_single() {
         for (mut follow_tf, opt_follow_rot) in follow_query.iter_mut() {
-            follow_tf.translation = player_tf.translation + Vec3::new(0.0,1.5,0.0);
+            follow_tf.translation = player_tf.translation + Vec3::new(0.0, 1.5, 0.0);
             if let Some(mut follow_rot) = opt_follow_rot {
                 follow_rot.yaw = player_rot.yaw;
             }
@@ -134,34 +143,59 @@ pub fn follow_local_player(
 }
 
 //todo: mesh neighbors (add batch set block in level that takes in commands to do this)
-pub fn player_punch (
+pub fn player_punch(
     mut commands: Commands,
-    camera_query: Query<(&Transform, &ActionState<Action>), (With<PlayerActionOrigin>, With<FollowPlayer>, Without<LocalPlayer>)>,
-    mut level: ResMut<Level>
+    camera_query: Query<
+        (&Transform, &ActionState<Action>),
+        (
+            With<PlayerActionOrigin>,
+            With<FollowPlayer>,
+            Without<LocalPlayer>,
+        ),
+    >,
+    mut level: ResMut<Level>,
 ) {
     if let Ok((tf, act)) = camera_query.get_single() {
         if act.just_pressed(Action::Punch) {
-            if let Some(hit) = level.blockcast(tf.translation, tf.forward()*10.0) {
-                if let Some(chunk_entity) = level.set_block(hit.block_pos, crate::world::BlockType::Empty) {
-                    commands.entity(chunk_entity).insert(NeedsMesh{});
-                }
+            if let Some(hit) = level.blockcast(tf.translation, tf.forward() * 10.0) {
+                level.set_block(hit.block_pos, crate::world::BlockType::Empty, &mut commands);
             }
         }
     }
 }
 
 //todo: mesh neighbors (add batch set block in level that takes in commands to do this)
-pub fn player_use (
+pub fn player_use(
     mut commands: Commands,
-    camera_query: Query<(&Transform, &ActionState<Action>), (With<PlayerActionOrigin>, With<FollowPlayer>, Without<LocalPlayer>)>,
-    mut level: ResMut<Level>
+    camera_query: Query<
+        (&Transform, &ActionState<Action>),
+        (
+            With<PlayerActionOrigin>,
+            With<FollowPlayer>,
+            Without<LocalPlayer>,
+        ),
+    >,
+    mut level: ResMut<Level>,
 ) {
+    const SIZE: i32 = 5;
     if let Ok((tf, act)) = camera_query.get_single() {
         if act.just_pressed(Action::Use) {
-            if let Some(hit) = level.blockcast(tf.translation, tf.forward()*10.0) {
-                if let Some(chunk_entity) = level.set_block(hit.block_pos+hit.normal, crate::world::BlockType::Basic(0)) {
-                    commands.entity(chunk_entity).insert(NeedsMesh{});
+            // if let Some(hit) = level.blockcast(tf.translation, tf.forward()*10.0) {
+            //     level.set_block(hit.block_pos+hit.normal, crate::world::BlockType::Basic(0), &mut commands);
+            // }
+            if let Some(hit) = level.blockcast(tf.translation, tf.forward() * 200.0) {
+                let mut changes = Vec::with_capacity((SIZE*SIZE*SIZE) as usize);
+                for x in -SIZE..SIZE {
+                    for y in -SIZE..SIZE {
+                        for z in -SIZE..SIZE {
+                            changes.push((
+                                hit.block_pos + BlockCoord::new(x, y, z),
+                                crate::world::BlockType::Basic(1),
+                            ));
+                        }
+                    }
                 }
+                level.batch_set_block(changes.into_iter(), &mut commands);
             }
         }
     }

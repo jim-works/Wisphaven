@@ -137,6 +137,9 @@ pub fn poll_mesh_queue(
                         ..default()
                     });
                 }
+            } else if let Some(_) = opt_mesh_handle  {
+                //remove old mesh from existing chunk if the new mesh is empty
+                commands.entity(entity).remove::<Handle<Mesh>>();
             }
 
             // mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0., 0.]; 3]);
