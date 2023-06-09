@@ -44,7 +44,7 @@ pub fn do_loading(
                     loaded_chunks.insert(test_coord);
                     if !level.contains_chunk(test_coord) {
                         //chunk not loaded, load it!
-                        let id = commands.spawn((test_coord, ChunkNeedsGenerated::Full)).id();
+                        let id = commands.spawn((Name::new("LODChunk"),test_coord, ChunkNeedsGenerated::Full)).id();
                         level.add_chunk(test_coord, ChunkType::Ungenerated(id));
                     }
                 }
@@ -130,7 +130,7 @@ fn load_lod(
                 if !level.contains_lod_chunk(lod_level, test_coord) {
                     //chunk not loaded, load it!
                     let id = commands
-                        .spawn((test_coord, ChunkNeedsGenerated::LOD(lod_level)))
+                        .spawn((Name::new("Chunk"),test_coord, ChunkNeedsGenerated::LOD(lod_level)))
                         .id();
                     level.add_lod_chunk(
                         test_coord,

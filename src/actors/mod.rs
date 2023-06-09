@@ -6,11 +6,14 @@ pub use player::*;
 mod combat;
 pub use combat::*;
 
+pub mod glowjelly;
+
 pub struct ActorPlugin;
 
 impl Plugin for ActorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(CombatPlugin);
+        app.add_plugin(CombatPlugin)
+            .add_plugin(glowjelly::GlowjellyPlugin);
     }
 }
 
