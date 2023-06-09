@@ -177,7 +177,7 @@ pub fn player_use(
     >,
     mut level: ResMut<Level>,
 ) {
-    const SIZE: i32 = 5;
+    const SIZE: i32 = 10;
     if let Ok((tf, act)) = camera_query.get_single() {
         if act.just_pressed(Action::Use) {
             // if let Some(hit) = level.blockcast(tf.translation, tf.forward()*10.0) {
@@ -190,7 +190,7 @@ pub fn player_use(
                         for z in -SIZE..SIZE {
                             changes.push((
                                 hit.block_pos + BlockCoord::new(x, y, z),
-                                crate::world::BlockType::Basic(1),
+                                crate::world::BlockType::Empty,
                             ));
                         }
                     }

@@ -3,6 +3,17 @@ use bevy::prelude::*;
 mod player;
 pub use player::*;
 
+mod combat;
+pub use combat::*;
+
+pub struct ActorPlugin;
+
+impl Plugin for ActorPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugin(CombatPlugin);
+    }
+}
+
 #[derive(Component)]
 pub struct MoveSpeed {
     pub base_accel: f32,

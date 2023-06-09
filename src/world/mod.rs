@@ -6,6 +6,7 @@ mod block;
 use bevy::prelude::*;
 pub use block::*;
 
+mod atmosphere;
 
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -20,7 +21,9 @@ pub struct LevelPlugin;
 
 impl Plugin for LevelPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_set(LevelSystemSet::Despawn.after(LevelSystemSet::Main));
+        app.configure_set(LevelSystemSet::Despawn.after(LevelSystemSet::Main))
+            .add_plugin(atmosphere::AtmospherePlugin)
+        ;
     }
 }
 

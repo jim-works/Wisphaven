@@ -4,8 +4,18 @@
     -   heed
 
 networking (std::net or quinn)
+    - https://github.com/naia-lib/naia
 
 Terrain generation
     -   biome map: look at fast noise lite examples - cellular noise (return type cell value) with simplex domain warp independent
     -   rivers/tunnels: simplex, ping pong fractal type, low octaves, use aggressive spline to take a band of values. try different domain warps
     -   fractal types: RigidMulti makes spikey terrain, Billow makes sand-dune like terrain, Fbm makes more smooth terrain (looks similar to just summing layers)
+
+Models: look into exporting gltf with ktx2 formatted textures
+Optimization: use `#[component(storage = "SparseSet")]` for components that will be added/removed frequently (or exist only on a few entities) (https://bevy-cheatbook.github.io/patterns/component-storage.html)
+Run criteria for systems that should only run in single/multiplayer or on a timer https://bevy-cheatbook.github.io/programming/run-criteria.html (be careful of event clearing, by deafult happens every frame)
+    -   https://bevy-cheatbook.github.io/features/fixed-timestep.html
+
+looks:
+    -   ambient occlusion: https://0fps.net/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/
+    -   create texture array shader
