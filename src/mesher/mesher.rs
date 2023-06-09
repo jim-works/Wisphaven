@@ -13,7 +13,7 @@ use bevy::{
     tasks::{AsyncComputeTaskPool, Task},
 };
 
-use super::{SPAWN_MESH_TIME_BUDGET_COUNT};
+use super::{SPAWN_MESH_TIME_BUDGET_COUNT, ChunkMaterial, ArrayTextureMaterial, ATTRIBUTE_ARRAYTEXTURE_LAYER};
 
 #[derive(Component)]
 pub struct NeedsMesh {}
@@ -27,6 +27,8 @@ pub struct MeshData {
     pub verts: Vec<Vec3>,
     pub norms: Vec<Vec3>,
     pub tris: Vec<u32>,
+    pub uvs: Vec<Vec2>,
+    pub layer_idx: Vec<u32>,
     pub scale: f32,
     pub position: Vec3
 }
@@ -76,6 +78,8 @@ pub fn queue_meshing(
                         verts: Vec::new(),
                         norms: Vec::new(),
                         tris: Vec::new(),
+                        uvs: Vec::new(),
+                        layer_idx: Vec::new(),
                         scale: 1.0,
                         position: meshing.position.to_vec3()
                     };
@@ -101,9 +105,13 @@ pub fn queue_meshing(
 pub fn poll_mesh_queue(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    chunk_material: Res<ChunkMaterial>,
     mut query: Query<(Entity, Option<&Handle<Mesh>>, &mut MeshTask)>,
 ) {
+    if !chunk_material.loaded {
+        warn!("polling mesh queue before chunk material is loaded!");
+        return;
+    }
     //todo: parallelize this
     //(can't right now as Commands and StandardMaterial do not implement clone)
     let mut len = 0;
@@ -117,17 +125,22 @@ pub fn poll_mesh_queue(
                     let mesh = meshes.get_mut(mesh_handle).unwrap();
                     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, data.verts);
                     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, data.norms);
+                    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, data.uvs);
+                    mesh.insert_attribute(ATTRIBUTE_ARRAYTEXTURE_LAYER, data.layer_idx);
                     mesh.set_indices(Some(mesh::Indices::U32(data.tris)));
                 } else {
                     //spawn new chunk
                     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
                     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, data.verts);
                     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, data.norms);
-                    mesh.set_indices(Some(mesh::Indices::U32(data.tris)));
+                    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, data.uvs);
+                    mesh.insert_attribute(ATTRIBUTE_ARRAYTEXTURE_LAYER, data.layer_idx);
 
-                    commands.entity(entity).insert(PbrBundle {
+                    mesh.set_indices(Some(mesh::Indices::U32(data.tris)));
+                    commands.entity(entity).insert(MaterialMeshBundle::<ArrayTextureMaterial> {
                         mesh: meshes.add(mesh),
-                        material: materials.add(Color::rgb(data.scale.log2()/3.0, 0.5, 0.3).into()),
+                        //just cloning the handle, is it worth matching then cloning weak?
+                        material: chunk_material.opaque_material.clone().unwrap(),
                         transform: Transform {
                             translation: data.position,
                             ..default()
@@ -176,13 +189,13 @@ fn mesh_block(
             Some(c) => matches!(c[ChunkIdx::new(coord.x, coord.y, 0)], BlockType::Empty),
             _ => true,
         } {
-            mesh_pos_z(origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_pos_z(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
         }
     } else if matches!(
         chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
         BlockType::Empty
     ) {
-        mesh_pos_z(origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_pos_z(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //negative z face
     if coord.z == 0 {
@@ -193,13 +206,13 @@ fn mesh_block(
             ),
             _ => true,
         } {
-            mesh_neg_z(origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_neg_z(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
         }
     } else if matches!(
         chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
         BlockType::Empty
     ) {
-        mesh_neg_z(origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_neg_z(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //positive y face
     if coord.y == CHUNK_SIZE_U8 - 1 {
@@ -207,13 +220,13 @@ fn mesh_block(
             Some(c) => matches!(c[ChunkIdx::new(coord.x, 0, coord.z)], BlockType::Empty),
             _ => true,
         } {
-            mesh_pos_y(origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_pos_y(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
         }
     } else if matches!(
         chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
         BlockType::Empty
     ) {
-        mesh_pos_y(origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_pos_y(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //negative y face
     if coord.y == 0 {
@@ -224,13 +237,13 @@ fn mesh_block(
             ),
             _ => true,
         } {
-            mesh_neg_y(origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_neg_y(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
         }
     } else if matches!(
         chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
         BlockType::Empty
     ) {
-        mesh_neg_y(origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_neg_y(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //positive x face
     if coord.x == CHUNK_SIZE_U8 - 1 {
@@ -238,13 +251,13 @@ fn mesh_block(
             Some(c) => matches!(c[ChunkIdx::new(0, coord.y, coord.z)], BlockType::Empty),
             _ => true,
         } {
-            mesh_pos_x(origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_pos_x(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
         }
     } else if matches!(
         chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
         BlockType::Empty
     ) {
-        mesh_pos_x(origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_pos_x(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //negative x face
     if coord.x == 0 {
@@ -255,17 +268,28 @@ fn mesh_block(
             ),
             _ => true,
         } {
-            mesh_neg_x(origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_neg_x(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
         }
     } else if matches!(
         chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
         BlockType::Empty
     ) {
-        mesh_neg_x(origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_neg_x(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
 }
-pub fn mesh_neg_z(origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_neg_z(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
+    add_uvs(&mut data.uvs);
+    match b {
+        _ => {}
+        BlockType::Basic(id) => {
+            let x = *id;
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+        }
+    }
     data.verts.push(origin + Vec3::new(0., scale.y, 0.));
     data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
     data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
@@ -275,8 +299,19 @@ pub fn mesh_neg_z(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     data.norms.push(Vec3::new(0., 0., -1.));
     data.norms.push(Vec3::new(0., 0., -1.));
 }
-pub fn mesh_pos_z(origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_pos_z(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
+    add_uvs(&mut data.uvs);
+    match b {
+        _ => {}
+        BlockType::Basic(id) => {
+            let x = *id;
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+        }
+    }
     data.verts.push(origin + Vec3::new(0., 0., scale.z));
     data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
     data.verts.push(origin + Vec3::new(scale.x, scale.y, scale.z));
@@ -287,8 +322,19 @@ pub fn mesh_pos_z(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     data.norms.push(Vec3::new(0., 0., 1.));
 }
 
-pub fn mesh_neg_x(origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_neg_x(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
+    add_uvs(&mut data.uvs);
+    match b {
+        _ => {}
+        BlockType::Basic(id) => {
+            let x = *id;
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+        }
+    }
     data.verts.push(origin + Vec3::new(0., 0., scale.z));
     data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
     data.verts.push(origin + Vec3::new(0., scale.y, 0.));
@@ -299,8 +345,19 @@ pub fn mesh_neg_x(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     data.norms.push(Vec3::new(-1., 0., 0.));
 }
 
-pub fn mesh_pos_x(origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_pos_x(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
+    add_uvs(&mut data.uvs);
+    match b {
+        _ => {}
+        BlockType::Basic(id) => {
+            let x = *id;
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+        }
+    }
     data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
     data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
     data.verts.push(origin + Vec3::new(scale.x, scale.y, scale.z));
@@ -311,8 +368,19 @@ pub fn mesh_pos_x(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     data.norms.push(Vec3::new(1., 0., 0.));
 }
 
-pub fn mesh_pos_y(origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_pos_y(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
+    add_uvs(&mut data.uvs);
+    match b {
+        _ => {}
+        BlockType::Basic(id) => {
+            let x = *id;
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+        }
+    }
     data.verts.push(origin + Vec3::new(0., scale.y, 0.));
     data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
     data.verts.push(origin + Vec3::new(scale.x, scale.y, scale.z));
@@ -323,8 +391,19 @@ pub fn mesh_pos_y(origin: Vec3, scale: Vec3, data: &mut MeshData) {
     data.norms.push(Vec3::new(0., 1., 0.));
 }
 
-pub fn mesh_neg_y(origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_neg_y(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
+    add_uvs(&mut data.uvs);
+    match b {
+        _ => {}
+        BlockType::Basic(id) => {
+            let x = *id;
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+            data.layer_idx.push(x);
+        }
+    }
     data.verts.push(origin + Vec3::new(0., 0., 0.));
     data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
     data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
@@ -343,4 +422,12 @@ fn add_tris(tris: &mut Vec<u32>, first_vert_idx: u32) {
     tris.push(first_vert_idx + 2);
     tris.push(first_vert_idx + 3);
     tris.push(first_vert_idx);
+}
+
+fn add_uvs(uvs: &mut Vec<Vec2>) {
+    //4 uvs per face
+    uvs.push(Vec2::new(0.0,0.0));
+    uvs.push(Vec2::new(1.0,0.0));
+    uvs.push(Vec2::new(1.0,1.0));
+    uvs.push(Vec2::new(0.0,1.0));
 }
