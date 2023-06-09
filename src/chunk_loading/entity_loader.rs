@@ -162,7 +162,6 @@ pub fn unload_all(
                 match level {
                     LODChunkType::Ungenerated(_, level) => to_unload_lod.push((*level, key)),
                     LODChunkType::Full(f) => to_unload_lod.push((f.level, key)),
-                    _ => {}
                 };
             }
         }
@@ -179,7 +178,6 @@ pub fn unload_all(
                 match lodtype {
                     LODChunkType::Ungenerated(id, _) => despawn_writer.send(DespawnChunkEvent(id)),
                     LODChunkType::Full(c) => despawn_writer.send(DespawnChunkEvent(c.entity)),
-                    _ => {}
                 }
             }
         }

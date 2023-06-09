@@ -8,7 +8,6 @@ use bevy::{
 };
 
 use super::{ADD_TIME_BUDGET_MS, QUEUE_GEN_TIME_BUDGET_MS};
-use crate::chunk_loading::entity_loader::DespawnChunkEvent;
 
 #[derive(Component)]
 pub enum ChunkNeedsGenerated {

@@ -4,8 +4,7 @@ use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
     actors::*,
-    mesher::NeedsMesh,
-    physics::{NeedsPhysics, JUMPABLE_GROUP},
+    physics::JUMPABLE_GROUP,
     world::{BlockCoord, Level},
 };
 

@@ -1,10 +1,8 @@
 use futures_lite::future;
 use std::time::Instant;
 
-use super::mesh_lod::*;
-
 use crate::world::chunk::*;
-use crate::worldgen::worldgen::{GeneratedChunk, GeneratedLODChunk};
+use crate::worldgen::worldgen::GeneratedChunk;
 use crate::{
     util::Direction,
     world::{Level, *},

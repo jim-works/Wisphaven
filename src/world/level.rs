@@ -93,7 +93,6 @@ impl Level {
         match chunk {
             LODChunkType::Ungenerated(_, level) => self.insert_chunk_at_lod(key, level, chunk),
             LODChunkType::Full(l) => self.insert_chunk_at_lod(key, l.level, LODChunkType::Full(l)),
-            _ => {}
         }
     }
     fn insert_chunk_at_lod(&mut self, key: ChunkCoord, level: usize, chunk: LODChunkType) {

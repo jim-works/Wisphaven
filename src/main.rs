@@ -3,9 +3,9 @@
 
 use std::f32::consts::PI;
 
-use actors::{Jump, MoveSpeed, Player, LocalPlayer, ActorPlugin, CombatInfo};
+use actors::{Jump, Player, LocalPlayer, ActorPlugin, CombatInfo};
 use bevy::{prelude::*, render::{primitives::Frustum, camera::CameraProjection}};
-use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
+use bevy_fly_camera::FlyCameraPlugin;
 use bevy_rapier3d::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_atmosphere::prelude::*;
@@ -13,7 +13,7 @@ use chunk_loading::{ChunkLoader, ChunkLoaderPlugin};
 use controllers::{ControllersPlugin, RotateWithMouse, FollowPlayer, ControllableBundle, PlayerActionOrigin};
 use leafwing_input_manager::InputManagerBundle;
 use mesher::MesherPlugin;
-use physics::{PhysicsPlugin, ACTOR_GROUP, PLAYER_GROUP, JUMPABLE_GROUP, PhysicsObjectBundle};
+use physics::{PhysicsPlugin, ACTOR_GROUP, PLAYER_GROUP, PhysicsObjectBundle};
 use world::*;
 use worldgen::WorldGenPlugin;
 
