@@ -48,10 +48,14 @@ pub struct ArrayTextureMaterial {
 }
 
 //random high id to not conflict
-const ATTRIBUTE_ARRAYTEXTURE_LAYER: MeshVertexAttribute = MeshVertexAttribute::new("BlendColor", 970540917, VertexFormat::Uint32);
+//would make more sense to be u32, but the texture sampler in the shader doesn't like u32 for some reason
+const ATTRIBUTE_ARRAYTEXTURE_LAYER: MeshVertexAttribute = MeshVertexAttribute::new("TexLayer", 970540917, VertexFormat::Sint32);
 
 impl Material for ArrayTextureMaterial {
     fn fragment_shader() -> ShaderRef {
+        "shaders/array_texture.wgsl".into()
+    }
+    fn vertex_shader() -> ShaderRef {
         "shaders/array_texture.wgsl".into()
     }
     fn alpha_mode(&self) -> AlphaMode {
@@ -64,9 +68,16 @@ impl Material for ArrayTextureMaterial {
         _key: MaterialPipelineKey<Self>,
     ) -> Result<(), SpecializedMeshPipelineError> {
         let vertex_layout = layout.get_layout(&[
-            //TODO: fix this for pbr and shading in general
+            //standard bevy pbr stuff (check assets/shaders/array_texture.wgsl Vertex struct)
             Mesh::ATTRIBUTE_POSITION.at_shader_location(0),
-            ATTRIBUTE_ARRAYTEXTURE_LAYER.at_shader_location(1),
+            Mesh::ATTRIBUTE_NORMAL.at_shader_location(1),
+            Mesh::ATTRIBUTE_UV_0.at_shader_location(2),
+            // Mesh::ATTRIBUTE_TANGENT.at_shader_location(3),
+            // Mesh::ATTRIBUTE_COLOR.at_shader_location(4),
+            // Mesh::ATTRIBUTE_JOINT_INDEX.at_shader_location(5),
+            // Mesh::ATTRIBUTE_JOINT_WEIGHT.at_shader_location(6),
+            //my addition
+            ATTRIBUTE_ARRAYTEXTURE_LAYER.at_shader_location(7),
         ])?;
         descriptor.vertex.buffers = vec![vertex_layout];
         Ok(())

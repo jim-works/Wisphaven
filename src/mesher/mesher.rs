@@ -28,7 +28,7 @@ pub struct MeshData {
     pub norms: Vec<Vec3>,
     pub tris: Vec<u32>,
     pub uvs: Vec<Vec2>,
-    pub layer_idx: Vec<u32>,
+    pub layer_idx: Vec<i32>,
     pub scale: f32,
     pub position: Vec3
 }
@@ -152,8 +152,6 @@ pub fn poll_mesh_queue(
                 //remove old mesh from existing chunk if the new mesh is empty
                 commands.entity(entity).remove::<Handle<Mesh>>();
             }
-
-            // mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0., 0.]; 3]);
             commands.entity(entity).remove::<MeshTask>();
             if len > SPAWN_MESH_TIME_BUDGET_COUNT {
                 break;
@@ -281,14 +279,14 @@ pub fn mesh_neg_z(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
     add_tris(&mut data.tris, data.verts.len() as u32);
     add_uvs(&mut data.uvs);
     match b {
-        _ => {}
         BlockType::Basic(id) => {
             let x = *id;
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-        }
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+        },
+        _ => {}
     }
     data.verts.push(origin + Vec3::new(0., scale.y, 0.));
     data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
@@ -303,14 +301,14 @@ pub fn mesh_pos_z(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
     add_tris(&mut data.tris, data.verts.len() as u32);
     add_uvs(&mut data.uvs);
     match b {
-        _ => {}
         BlockType::Basic(id) => {
             let x = *id;
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-        }
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+        },
+        _ => {}
     }
     data.verts.push(origin + Vec3::new(0., 0., scale.z));
     data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
@@ -326,14 +324,14 @@ pub fn mesh_neg_x(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
     add_tris(&mut data.tris, data.verts.len() as u32);
     add_uvs(&mut data.uvs);
     match b {
-        _ => {}
         BlockType::Basic(id) => {
             let x = *id;
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-        }
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+        },
+        _ => {}
     }
     data.verts.push(origin + Vec3::new(0., 0., scale.z));
     data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
@@ -349,14 +347,14 @@ pub fn mesh_pos_x(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
     add_tris(&mut data.tris, data.verts.len() as u32);
     add_uvs(&mut data.uvs);
     match b {
-        _ => {}
         BlockType::Basic(id) => {
             let x = *id;
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-        }
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+        },
+        _ => {}
     }
     data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
     data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
@@ -372,14 +370,14 @@ pub fn mesh_pos_y(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
     add_tris(&mut data.tris, data.verts.len() as u32);
     add_uvs(&mut data.uvs);
     match b {
-        _ => {}
         BlockType::Basic(id) => {
             let x = *id;
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-        }
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+        },
+        _ => {}
     }
     data.verts.push(origin + Vec3::new(0., scale.y, 0.));
     data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
@@ -395,14 +393,14 @@ pub fn mesh_neg_y(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
     add_tris(&mut data.tris, data.verts.len() as u32);
     add_uvs(&mut data.uvs);
     match b {
-        _ => {}
         BlockType::Basic(id) => {
             let x = *id;
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-            data.layer_idx.push(x);
-        }
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+            data.layer_idx.push(x as i32);
+        },
+        _ => {}
     }
     data.verts.push(origin + Vec3::new(0., 0., 0.));
     data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
