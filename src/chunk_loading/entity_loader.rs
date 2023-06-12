@@ -5,7 +5,7 @@ use crate::{
         chunk::{ChunkCoord, ChunkType, LODChunk, LODChunkType},
         Level,
     },
-    worldgen::worldgen::ChunkNeedsGenerated,
+    worldgen::ChunkNeedsGenerated,
 };
 
 #[derive(Component)]

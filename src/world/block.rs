@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use crate::util::Direction;
 
+use super::chunk::{ChunkCoord, CHUNK_SIZE_I32};
+
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BlockType {
     #[default]
@@ -49,5 +51,11 @@ impl std::ops::Add<BlockCoord> for BlockCoord {
 impl From<Vec3> for BlockCoord {
     fn from(v: Vec3) -> Self {
         BlockCoord::new(v.x.floor() as i32,v.y.floor() as i32,v.z.floor() as i32)
+    }
+}
+
+impl From<ChunkCoord> for BlockCoord {
+    fn from(v: ChunkCoord) -> Self {
+        BlockCoord::new(v.x*CHUNK_SIZE_I32,v.y*CHUNK_SIZE_I32,v.z*CHUNK_SIZE_I32)
     }
 }

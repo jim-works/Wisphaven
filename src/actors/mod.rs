@@ -29,7 +29,7 @@ impl Default for MoveSpeed {
         MoveSpeed {
                 base_accel: 75.0,
                 current_accel: 75.0,
-                max_speed: 10.0,
+                max_speed: 100.0,
             }
     }
 }

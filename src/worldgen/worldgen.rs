@@ -1,13 +1,13 @@
 use futures_lite::future;
 use std::{time::Instant, sync::Arc};
 
-use crate::{world::{chunk::*, Level, BlockType}, mesher::NeedsMesh, util::{Spline, SplineNoise}, physics::NeedsPhysics};
+use crate::{world::{chunk::*, Level, BlockType, BlockBuffer}, mesher::NeedsMesh, util::{Spline, SplineNoise}, physics::NeedsPhysics};
 use bevy::{
     prelude::*,
     tasks::{AsyncComputeTaskPool, Task},
 };
 
-use super::{ADD_TIME_BUDGET_MS, QUEUE_GEN_TIME_BUDGET_MS};
+use super::{ADD_TIME_BUDGET_MS, QUEUE_GEN_TIME_BUDGET_MS, structures::{self, StructureGenerationSettings}};
 
 #[derive(Component)]
 pub enum ChunkNeedsGenerated {
@@ -15,13 +15,20 @@ pub enum ChunkNeedsGenerated {
     LOD(usize)
 }
 
+//task to generate the overall shape of the terrain
 #[derive(Component)]
-pub struct GenerationTask {
+pub struct ShapingTask {
     pub task: Task<Chunk>,
 }
 
+//task to generate small structures (trees, buildings, etc)
 #[derive(Component)]
-pub struct LODGenerationTask {
+pub struct GenSmallStructureTask {
+    pub task: Task<(Chunk, BlockBuffer)>,
+}
+
+#[derive(Component)]
+pub struct LODShapingTask {
     pub task: Task<LODChunk>,
 }
 
@@ -31,7 +38,7 @@ pub struct GeneratedChunk {}
 #[derive(Component)]
 pub struct GeneratedLODChunk {}
 
-pub struct WorldGenSettings {
+pub struct ShaperSettings {
     //3d density "main" noise. value determines if a block is placed or not
     pub noise: SplineNoise,
     //constant. value creates the upper control point for density required over the y axis
@@ -46,7 +53,7 @@ pub struct WorldGenSettings {
 
 pub fn queue_generating(
     query: Query<(Entity, &ChunkCoord, &ChunkNeedsGenerated)>,
-    noise: Arc<WorldGenSettings>, //cannot use a resource since we pass it to other threads
+    noise: Arc<ShaperSettings>, //cannot use a resource since we pass it to other threads
     mut commands: Commands,
 ) {
     let now = Instant::now();
@@ -59,11 +66,11 @@ pub fn queue_generating(
         ec.remove::<ChunkNeedsGenerated>();
         match gen_request {
             ChunkNeedsGenerated::Full => {
-                ec.insert(GenerationTask { task: pool.spawn(async move { gen_chunk(gen_coord, entity,gen_noise) })});
+                ec.insert(ShapingTask { task: pool.spawn(async move { gen_chunk(gen_coord, entity,gen_noise) })});
             },
             ChunkNeedsGenerated::LOD(level) => {
                 let gen_level = *level;
-                ec.insert(LODGenerationTask {task: pool.spawn(async move { gen_lod_chunk(gen_coord, gen_level, entity,gen_noise) })});
+                ec.insert(LODShapingTask {task: pool.spawn(async move { gen_lod_chunk(gen_coord, gen_level, entity,gen_noise) })});
             },
         };
         let duration = Instant::now().duration_since(now).as_millis();
@@ -74,20 +81,39 @@ pub fn queue_generating(
 }
 
 pub fn poll_gen_queue(
+    structure_settings: Arc<StructureGenerationSettings>,
     mut commands: Commands,
-    mut query: Query<(Entity, &mut GenerationTask)>,
-    mut level: ResMut<Level>
+    mut shaping_query: Query<(Entity, &mut ShapingTask)>,
+    mut structure_query: Query<(Entity, &mut GenSmallStructureTask)>,
+    level: Res<Level>
 ) {
     let now = Instant::now();
-    for (entity, mut task) in query.iter_mut() {
+    let pool = AsyncComputeTaskPool::get();
+    for (entity, mut task) in shaping_query.iter_mut() {
         if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
+            let settings = structure_settings.clone();
             commands
                 .entity(entity)
-                .remove::<GenerationTask>()
+                .remove::<ShapingTask>()
+                .insert(GenSmallStructureTask {
+                    task: pool.spawn(async move { structures::gen_small_structures(data, settings) })
+                });
+            let duration = Instant::now().duration_since(now).as_millis();
+            if duration > ADD_TIME_BUDGET_MS {
+                break;
+            }
+        }
+    }
+    for (entity, mut task) in structure_query.iter_mut() {
+        if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
+            level.add_buffer(data.1, &mut commands);
+            level.add_chunk(data.0.position, ChunkType::Full(data.0));
+            commands
+                .entity(entity)
+                .remove::<GenSmallStructureTask>()
                 .insert(GeneratedChunk {})
                 .insert(NeedsMesh{})
                 .insert(NeedsPhysics{});
-            level.add_chunk(data.position, ChunkType::Full(data));
             let duration = Instant::now().duration_since(now).as_millis();
             if duration > ADD_TIME_BUDGET_MS {
                 break;
@@ -98,7 +124,7 @@ pub fn poll_gen_queue(
 
 pub fn poll_gen_lod_queue(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut LODGenerationTask)>,
+    mut query: Query<(Entity, &mut LODShapingTask)>,
     mut level: ResMut<Level>
 ) {
     let now = Instant::now();
@@ -106,7 +132,7 @@ pub fn poll_gen_lod_queue(
         if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
             commands
                 .entity(entity)
-                .remove::<LODGenerationTask>()
+                .remove::<LODShapingTask>()
                 .insert((GeneratedLODChunk {}, NeedsMesh{}, LODLevel{level: data.level}));
             level.add_lod_chunk(data.position, LODChunkType::Full(data));
             let duration = Instant::now().duration_since(now).as_millis();
@@ -117,7 +143,7 @@ pub fn poll_gen_lod_queue(
     }
 }
 
-fn gen_chunk(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<WorldGenSettings>) -> Chunk {
+fn gen_chunk(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<ShaperSettings>) -> Chunk {
     let mut chunk = Chunk::new(coord, chunk_entity);
     let noise = &settings.noise;
     
@@ -138,7 +164,7 @@ fn gen_chunk(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<WorldGenSett
     chunk
 }
 
-fn gen_lod_chunk(coord: ChunkCoord, level: usize, chunk_entity: Entity, settings: Arc<WorldGenSettings>) -> LODChunk {
+fn gen_lod_chunk(coord: ChunkCoord, level: usize, chunk_entity: Entity, settings: Arc<ShaperSettings>) -> LODChunk {
     let mut chunk = LODChunk::new(coord, level, chunk_entity);
     let noise = &settings.noise;
     

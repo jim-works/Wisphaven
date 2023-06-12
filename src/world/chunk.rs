@@ -1,4 +1,4 @@
-use std::ops::{Index, IndexMut};
+use std::ops::{Index, IndexMut, Add};
 
 use bevy::prelude::*;
 
@@ -10,6 +10,7 @@ pub const CHUNK_SIZE: usize = 16;
 pub const CHUNK_SIZE_F32: f32 = CHUNK_SIZE as f32;
 pub const CHUNK_SIZE_I32: i32 = CHUNK_SIZE as i32;
 pub const CHUNK_SIZE_U8: u8 = CHUNK_SIZE as u8;
+pub const CHUNK_SIZE_U64: u64 = CHUNK_SIZE as u64;
 pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -90,6 +91,14 @@ impl From<BlockCoord> for ChunkIdx {
         ChunkIdx::new(v.x.rem_euclid(CHUNK_SIZE_I32) as u8,v.y.rem_euclid(CHUNK_SIZE_I32) as u8,v.z.rem_euclid(CHUNK_SIZE_I32) as u8)
     }
     
+}
+
+impl Add<ChunkIdx> for ChunkIdx {
+    type Output = Self;
+
+    fn add(self, rhs: ChunkIdx) -> Self::Output {
+        ChunkIdx::new(self.x+rhs.x,self.y+rhs.y,self.z+rhs.z)
+    }
 }
 
 #[derive(Clone, Debug)]

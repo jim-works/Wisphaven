@@ -2,6 +2,9 @@ pub mod chunk;
 mod level;
 pub use level::*;
 
+mod block_buffer;
+pub use block_buffer::*;
+
 mod block;
 use bevy::prelude::*;
 pub use block::*;

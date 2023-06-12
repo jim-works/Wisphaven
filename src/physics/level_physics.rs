@@ -12,7 +12,7 @@ use crate::{
         chunk::{self, *},
         BlockType, Level,
     },
-    worldgen::worldgen::GeneratedChunk,
+    worldgen::GeneratedChunk,
 };
 
 use super::SPAWN_CHUNK_TIME_BUDGET_COUNT;

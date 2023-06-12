@@ -1,6 +1,7 @@
 #import bevy_pbr::mesh_view_bindings
 #import bevy_pbr::pbr_bindings
 #import bevy_pbr::mesh_bindings
+#import bevy_pbr::mesh_functions
 
 #import bevy_pbr::utils
 #import bevy_pbr::clustered_forward
@@ -8,10 +9,9 @@
 #import bevy_pbr::pbr_ambient
 #import bevy_pbr::shadows
 #import bevy_pbr::fog
-#import bevy_pbr::pbr_functions
 
 #import bevy_pbr::prepass_utils
-#import bevy_pbr::mesh_functions
+#import bevy_pbr::pbr_functions
 
 @group(1) @binding(1)
 var my_array_texture: texture_2d_array<f32>;
@@ -95,14 +95,14 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 struct FragmentInput {
     @builtin(front_facing) is_front: bool,
     @builtin(position) frag_coord: vec4<f32>,
-    //uses locations 0-4
     @location(5) layer: i32,
+    //uses locations 0-4
     #import bevy_pbr::mesh_vertex_output
 };
 
+//copied from bevy's pbr shader https://github.com/bevyengine/bevy/blob/527d3a5885daa4b43df7054f7787dad47f06135d/crates/bevy_pbr/src/render/pbr.wgsl
 @fragment
 fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
-    //TODO: update according to https://github.com/bevyengine/bevy/blob/527d3a5885daa4b43df7054f7787dad47f06135d/crates/bevy_pbr/src/render/pbr.wgsl
     let is_orthographic = view.projection[3].w == 1.0;
     let V = calculate_view(in.world_position, is_orthographic);
 #ifdef VERTEX_UVS
@@ -133,6 +133,7 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
 #endif
 #ifdef VERTEX_UVS
     if ((material.flags & STANDARD_MATERIAL_FLAGS_BASE_COLOR_TEXTURE_BIT) != 0u) {
+        //my addition is this "in.layer"
         output_color = output_color * textureSample(my_array_texture, my_array_texture_sampler, uv, in.layer);
     }
 #endif
@@ -215,7 +216,7 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
 
     // fog
     if (fog.mode != FOG_MODE_OFF && (material.flags & STANDARD_MATERIAL_FLAGS_FOG_ENABLED_BIT) != 0u) {
-        //temp disable output_color = apply_fog(fog, output_color, in.world_position.xyz, view.world_position.xyz);
+        //temp removal because of weird error: output_color = apply_fog(fog, output_color, in.world_position.xyz, view.world_position.xyz);
     }
 
 #ifdef TONEMAP_IN_SHADER

@@ -2,7 +2,7 @@ use futures_lite::future;
 use std::time::Instant;
 
 use crate::world::chunk::*;
-use crate::worldgen::worldgen::GeneratedChunk;
+use crate::worldgen::GeneratedChunk;
 use crate::{
     util::Direction,
     world::{Level, *},
@@ -13,7 +13,7 @@ use bevy::{
     tasks::{AsyncComputeTaskPool, Task},
 };
 
-use super::{SPAWN_MESH_TIME_BUDGET_COUNT, ChunkMaterial, ArrayTextureMaterial, ATTRIBUTE_ARRAYTEXTURE_LAYER};
+use super::{SPAWN_MESH_TIME_BUDGET_COUNT, ChunkMaterial, ArrayTextureMaterial, materials::ATTRIBUTE_ARRAYTEXTURE_LAYER};
 
 #[derive(Component)]
 pub struct NeedsMesh {}

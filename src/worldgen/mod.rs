@@ -3,11 +3,14 @@ use std::sync::Arc;
 use bevy::prelude::*;
 use bracket_noise::prelude::*;
 
-use crate::{world::{chunk::ChunkCoord, LevelSystemSet}, util::{Spline, SplineNoise}};
+use crate::{world::{chunk::ChunkCoord, LevelSystemSet, Level}, util::{Spline, SplineNoise, get_next_prng}};
 
-use self::worldgen::{ChunkNeedsGenerated, WorldGenSettings};
+mod worldgen;
+pub use worldgen::{ChunkNeedsGenerated, GeneratedChunk, GeneratedLODChunk, ShapingTask, LODShapingTask, ShaperSettings};
 
-pub mod worldgen;
+use self::{structures::{StructureGenerationSettings, StructureGenerator, trees::SmallTreeGenerator}, worldgen::GenSmallStructureTask};
+
+pub mod structures;
 
 const QUEUE_GEN_TIME_BUDGET_MS: u128 = 10;
 const ADD_TIME_BUDGET_MS: u128 = 10;
@@ -19,16 +22,24 @@ impl Plugin for WorldGenPlugin {
         let build_gen_system = || {
             move |query: Query<(Entity, &ChunkCoord, &ChunkNeedsGenerated)>,
                   commands: Commands| {
-                worldgen::queue_generating(query, Arc::new(create_settings(8008135)), commands)
+                worldgen::queue_generating(query, Arc::new(create_shaper_settings(8008135)), commands)
             }
         };
-        app.add_systems((worldgen::poll_gen_queue,build_gen_system(), worldgen::poll_gen_lod_queue).in_set(LevelSystemSet::Main));
+        let build_poll_system = || {
+            move | shaping_query: Query<(Entity, &mut ShapingTask)>,
+                    structure_query: Query<(Entity, &mut GenSmallStructureTask)>,
+                    level: Res<Level>,
+                  commands: Commands| {
+                worldgen::poll_gen_queue(Arc::new(create_structure_settings(424242)), commands, shaping_query, structure_query, level)
+            }
+        };
+        app.add_systems((build_poll_system(),build_gen_system(), worldgen::poll_gen_lod_queue).in_set(LevelSystemSet::Main));
     }
 }
 
-fn create_settings(seed: u64) -> WorldGenSettings {
-    WorldGenSettings {
-        noise: create_noise(seed),
+fn create_shaper_settings(seed: u64) -> ShaperSettings {
+    ShaperSettings {
+        noise: create_shaper_noise(seed),
         upper_density: Vec2::new(0.0,-1.0),
         heightmap_noise: create_heighmap_noise(seed^0xCAFEBABEDEAFBEEF), //don't want the seeds to be the same
         mid_density: 0.0,
@@ -36,7 +47,7 @@ fn create_settings(seed: u64) -> WorldGenSettings {
     }
 }
 
-fn create_noise(seed: u64) -> SplineNoise {
+fn create_shaper_noise(seed: u64) -> SplineNoise {
     let mut noise = FastNoise::seeded(seed);
     noise.set_noise_type(NoiseType::SimplexFractal);
     noise.set_fractal_type(FractalType::RigidMulti);
@@ -68,4 +79,19 @@ fn create_heighmap_noise(seed: u64) -> SplineNoise {
         noise,
         spline
     }
+}
+
+fn create_structure_settings(mut seed: u64) -> StructureGenerationSettings {
+    let mut noise = FastNoise::seeded(seed);
+    noise.set_noise_type(NoiseType::WhiteNoise);
+    let mut structures: Vec<Box<dyn StructureGenerator+Send+Sync>> = Vec::new();
+
+    structures.push(Box::new(SmallTreeGenerator::new(get_next_seed(&mut seed))));
+
+    StructureGenerationSettings { rolls_per_chunk: 5, structures, placement_noise: noise}
+}
+
+fn get_next_seed(seed: &mut u64) -> u64 {
+    *seed = get_next_prng::<16>(*seed);
+    *seed
 }

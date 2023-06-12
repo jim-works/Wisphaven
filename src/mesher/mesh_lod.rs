@@ -3,7 +3,7 @@ use std::time::Instant;
 use super::mesher::*;
 
 use crate::world::chunk::*;
-use crate::worldgen::worldgen::GeneratedLODChunk;
+use crate::worldgen::GeneratedLODChunk;
 use crate::world::{Level, *};
 use bevy::{
     prelude::*,

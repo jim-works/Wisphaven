@@ -152,7 +152,7 @@ pub fn player_punch(
             Without<LocalPlayer>,
         ),
     >,
-    mut level: ResMut<Level>,
+    level: Res<Level>,
 ) {
     if let Ok((tf, act)) = camera_query.get_single() {
         if act.just_pressed(Action::Punch) {
@@ -174,7 +174,7 @@ pub fn player_use(
             Without<LocalPlayer>,
         ),
     >,
-    mut level: ResMut<Level>,
+    level: Res<Level>,
 ) {
     const SIZE: i32 = 10;
     if let Ok((tf, act)) = camera_query.get_single() {
