@@ -222,7 +222,6 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
         output_color = alpha_discard(material, output_color);
     }
     //MY ADDITION - ambient occlusion - not exactly sure where this should happen, but I think after pbr is good
-    //ao is lerped neighbor count
     output_color *= in.ao;
 
     // fog

@@ -179,23 +179,23 @@ pub fn player_use(
     const SIZE: i32 = 10;
     if let Ok((tf, act)) = camera_query.get_single() {
         if act.just_pressed(Action::Use) {
-            // if let Some(hit) = level.blockcast(tf.translation, tf.forward()*10.0) {
-            //     level.set_block(hit.block_pos+hit.normal, crate::world::BlockType::Basic(0), &mut commands);
-            // }
-            if let Some(hit) = level.blockcast(tf.translation, tf.forward() * 200.0) {
-                let mut changes = Vec::with_capacity((SIZE*SIZE*SIZE) as usize);
-                for x in -SIZE..SIZE {
-                    for y in -SIZE..SIZE {
-                        for z in -SIZE..SIZE {
-                            changes.push((
-                                hit.block_pos + BlockCoord::new(x, y, z),
-                                crate::world::BlockType::Empty,
-                            ));
-                        }
-                    }
-                }
-                level.batch_set_block(changes.into_iter(), &mut commands);
+            if let Some(hit) = level.blockcast(tf.translation, tf.forward()*10.0) {
+                level.set_block(hit.block_pos+hit.normal, crate::world::BlockType::Basic(0), &mut commands);
             }
+            // if let Some(hit) = level.blockcast(tf.translation, tf.forward() * 200.0) {
+            //     let mut changes = Vec::with_capacity((SIZE*SIZE*SIZE) as usize);
+            //     for x in -SIZE..SIZE {
+            //         for y in -SIZE..SIZE {
+            //             for z in -SIZE..SIZE {
+            //                 changes.push((
+            //                     hit.block_pos + BlockCoord::new(x, y, z),
+            //                     crate::world::BlockType::Empty,
+            //                 ));
+            //             }
+            //         }
+            //     }
+            //     level.batch_set_block(changes.into_iter(), &mut commands);
+            // }
         }
     }
 }

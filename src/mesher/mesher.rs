@@ -1,5 +1,7 @@
 use bevy::render::mesh::VertexAttributeValues;
 use futures_lite::future;
+use std::ops::Index;
+use std::process::Output;
 use std::time::Instant;
 
 use crate::world::chunk::*;
@@ -194,13 +196,13 @@ fn mesh_block(
             Some(c) => matches!(c[ChunkIdx::new(coord.x, coord.y, 0)], BlockType::Empty),
             _ => true,
         } {
-            mesh_pos_z(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_pos_z(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
         }
     } else if matches!(
         chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
         BlockType::Empty
     ) {
-        mesh_pos_z(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_pos_z(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //negative z face
     if coord.z == 0 {
@@ -211,13 +213,13 @@ fn mesh_block(
             ),
             _ => true,
         } {
-            mesh_neg_z(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_neg_z(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
         }
     } else if matches!(
         chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
         BlockType::Empty
     ) {
-        mesh_neg_z(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_neg_z(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //positive y face
     if coord.y == CHUNK_SIZE_U8 - 1 {
@@ -225,13 +227,13 @@ fn mesh_block(
             Some(c) => matches!(c[ChunkIdx::new(coord.x, 0, coord.z)], BlockType::Empty),
             _ => true,
         } {
-            mesh_pos_y(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_pos_y(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
         }
     } else if matches!(
         chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
         BlockType::Empty
     ) {
-        mesh_pos_y(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_pos_y(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //negative y face
     if coord.y == 0 {
@@ -242,13 +244,13 @@ fn mesh_block(
             ),
             _ => true,
         } {
-            mesh_neg_y(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_neg_y(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
         }
     } else if matches!(
         chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
         BlockType::Empty
     ) {
-        mesh_neg_y(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_neg_y(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //positive x face
     if coord.x == CHUNK_SIZE_U8 - 1 {
@@ -256,13 +258,13 @@ fn mesh_block(
             Some(c) => matches!(c[ChunkIdx::new(0, coord.y, coord.z)], BlockType::Empty),
             _ => true,
         } {
-            mesh_pos_x(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_pos_x(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
         }
     } else if matches!(
         chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
         BlockType::Empty
     ) {
-        mesh_pos_x(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_pos_x(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //negative x face
     if coord.x == 0 {
@@ -273,55 +275,58 @@ fn mesh_block(
             ),
             _ => true,
         } {
-            mesh_neg_x(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_neg_x(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
         }
     } else if matches!(
         chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
         BlockType::Empty
     ) {
-        mesh_neg_x(b, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_neg_x(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
 }
-pub fn mesh_neg_z(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_neg_z(b: &BlockType, chunk: &impl Index<ChunkIdx, Output=BlockType>, coord: ChunkIdx, origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
-    add_uvs(&mut data.uvs);
     match b {
         BlockType::Basic(id) => {
             let x = *id;
             data.layer_idx.push(x as i32);
-            data.ao_level.push(0.3);
+            add_ao(chunk, coord, false, false, false, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, false, true, false, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, true, true, false, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, true, false, false, data);
         },
         _ => {}
     }
+    data.verts.push(origin + Vec3::new(0., 0., 0.));
     data.verts.push(origin + Vec3::new(0., scale.y, 0.));
     data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
     data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
-    data.verts.push(origin + Vec3::new(0., 0., 0.));
     data.norms.push(Vec3::new(0., 0., -1.));
     data.norms.push(Vec3::new(0., 0., -1.));
     data.norms.push(Vec3::new(0., 0., -1.));
     data.norms.push(Vec3::new(0., 0., -1.));
+    data.uvs.push(Vec2::new(1.0,1.0));
+    data.uvs.push(Vec2::new(1.0,0.0));
+    data.uvs.push(Vec2::new(0.0,0.0));
+    data.uvs.push(Vec2::new(0.0,1.0));
 }
-pub fn mesh_pos_z(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_pos_z(b: &BlockType, chunk: &impl Index<ChunkIdx, Output=BlockType>, coord: ChunkIdx, origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
-    add_uvs(&mut data.uvs);
+    //add_uvs(&mut data.uvs);
     match b {
         BlockType::Basic(id) => {
             let x = *id;
             data.layer_idx.push(x as i32);
-            data.ao_level.push(0.3);
+            add_ao(chunk, coord, false, false, true, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, true, false, true, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, true, true, true, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, false, true, true, data);
         },
         _ => {}
     }
@@ -333,22 +338,26 @@ pub fn mesh_pos_z(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
     data.norms.push(Vec3::new(0., 0., 1.));
     data.norms.push(Vec3::new(0., 0., 1.));
     data.norms.push(Vec3::new(0., 0., 1.));
+    data.uvs.push(Vec2::new(0.0,1.0));
+    data.uvs.push(Vec2::new(1.0,1.0));
+    data.uvs.push(Vec2::new(1.0,0.0));
+    data.uvs.push(Vec2::new(0.0,0.0));
+    
 }
 
-pub fn mesh_neg_x(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_neg_x(b: &BlockType, chunk: &impl Index<ChunkIdx, Output=BlockType>, coord: ChunkIdx, origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
-    add_uvs(&mut data.uvs);
     match b {
         BlockType::Basic(id) => {
             let x = *id;
             data.layer_idx.push(x as i32);
-            data.ao_level.push(0.3);
+            add_ao(chunk, coord, false, false, true, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, false, true, true, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, false, true, false, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, false, false, false, data);
         },
         _ => {}
     }
@@ -360,49 +369,56 @@ pub fn mesh_neg_x(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
     data.norms.push(Vec3::new(-1., 0., 0.));
     data.norms.push(Vec3::new(-1., 0., 0.));
     data.norms.push(Vec3::new(-1., 0., 0.));
+    data.uvs.push(Vec2::new(1.0,1.0));
+    data.uvs.push(Vec2::new(1.0,0.0));
+    data.uvs.push(Vec2::new(0.0,0.0));
+    data.uvs.push(Vec2::new(0.0,1.0));
 }
 
-pub fn mesh_pos_x(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_pos_x(b: &BlockType, chunk: &impl Index<ChunkIdx, Output=BlockType>, coord: ChunkIdx, origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
-    add_uvs(&mut data.uvs);
     match b {
         BlockType::Basic(id) => {
             let x = *id;
             data.layer_idx.push(x as i32);
-            data.ao_level.push(0.3);
+            add_ao(chunk, coord, true, true, true, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, true, false, true, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, true, false, false, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, true, true, false, data);
         },
         _ => {}
     }
-    data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
-    data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
     data.verts.push(origin + Vec3::new(scale.x, scale.y, scale.z));
     data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
+    data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
+    data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
+    
     data.norms.push(Vec3::new(1., 0., 0.));
     data.norms.push(Vec3::new(1., 0., 0.));
     data.norms.push(Vec3::new(1., 0., 0.));
     data.norms.push(Vec3::new(1., 0., 0.));
+    data.uvs.push(Vec2::new(0.0,0.0));
+    data.uvs.push(Vec2::new(0.0,1.0));
+    data.uvs.push(Vec2::new(1.0,1.0));
+    data.uvs.push(Vec2::new(1.0,0.0));
 }
 
-pub fn mesh_pos_y(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_pos_y(b: &BlockType, chunk: &impl Index<ChunkIdx, Output=BlockType>, coord: ChunkIdx, origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
-    add_uvs(&mut data.uvs);
     match b {
         BlockType::Basic(id) => {
             let x = *id;
             data.layer_idx.push(x as i32);
-            data.ao_level.push(0.3);
+            add_ao(chunk, coord, false, true, false, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, false, true, true, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, true, true, true, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, true, true, false, data);
         },
         _ => {}
     }
@@ -414,22 +430,25 @@ pub fn mesh_pos_y(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
     data.norms.push(Vec3::new(0., 1., 0.));
     data.norms.push(Vec3::new(0., 1., 0.));
     data.norms.push(Vec3::new(0., 1., 0.));
+    data.uvs.push(Vec2::new(1.0,1.0));
+    data.uvs.push(Vec2::new(1.0,0.0));
+    data.uvs.push(Vec2::new(0.0,0.0));
+    data.uvs.push(Vec2::new(0.0,1.0));
 }
 
-pub fn mesh_neg_y(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_neg_y(b: &BlockType, chunk: &impl Index<ChunkIdx, Output=BlockType>, coord: ChunkIdx, origin: Vec3, scale: Vec3, data: &mut MeshData) {
     add_tris(&mut data.tris, data.verts.len() as u32);
-    add_uvs(&mut data.uvs);
     match b {
         BlockType::Basic(id) => {
             let x = *id;
             data.layer_idx.push(x as i32);
-            data.ao_level.push(0.3);
+            add_ao(chunk, coord, false, false, false, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, true, false, false, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, true, false, true, data);
             data.layer_idx.push(x as i32);
-            data.ao_level.push(1.0);
+            add_ao(chunk, coord, false, false, true, data);
         },
         _ => {}
     }
@@ -441,6 +460,10 @@ pub fn mesh_neg_y(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
     data.norms.push(Vec3::new(0., -1., 0.));
     data.norms.push(Vec3::new(0., -1., 0.));
     data.norms.push(Vec3::new(0., -1., 0.));
+    data.uvs.push(Vec2::new(1.0,1.0));
+    data.uvs.push(Vec2::new(0.0,1.0));
+    data.uvs.push(Vec2::new(0.0,0.0));
+    data.uvs.push(Vec2::new(1.0,0.0));
 }
 
 fn add_tris(tris: &mut Vec<u32>, first_vert_idx: u32) {
@@ -453,10 +476,52 @@ fn add_tris(tris: &mut Vec<u32>, first_vert_idx: u32) {
     tris.push(first_vert_idx);
 }
 
-fn add_uvs(uvs: &mut Vec<Vec2>) {
-    //4 uvs per face
-    uvs.push(Vec2::new(0.0,0.0));
-    uvs.push(Vec2::new(1.0,0.0));
-    uvs.push(Vec2::new(1.0,1.0));
-    uvs.push(Vec2::new(0.0,1.0));
+//TODO: add support for chunk neighbors
+//https://0fps.net/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/
+fn add_ao(
+    chunk: &impl Index<ChunkIdx, Output=BlockType>,
+    //neighbors: &[Option<Chunk>; 6],
+    coord: ChunkIdx,
+    pos_x: bool,
+    pos_y: bool,
+    pos_z: bool,
+    data: &mut MeshData
+) {
+    let side1_coord = IVec3::new(coord.x as i32 + if pos_x {1} else {-1}, coord.y as i32 + if pos_y {1} else {-1}, coord.z as i32);
+    let side2_coord = IVec3::new(coord.x as i32, coord.y as i32 + if pos_y {1} else {-1}, coord.z as i32 + if pos_z {1} else {-1});
+    let corner_coord = IVec3::new(coord.x as i32 + if pos_x {1} else {-1}, coord.y as i32 + if pos_y {1} else {-1}, coord.z as i32 + if pos_z {1} else {-1});
+    let mut side1 = false;
+    let mut side2 = false;
+    let mut corner = false;
+
+    if side1_coord.x < CHUNK_SIZE_I32 && side1_coord.x >= 0 {
+        if side1_coord.y < CHUNK_SIZE_I32 && side1_coord.y >= 0 {
+            side1 = matches!(chunk[ChunkIdx::new(side1_coord.x as u8, side1_coord.y as u8, side1_coord.z as u8)], BlockType::Basic(_));
+        }
+    }
+    if side2_coord.z < CHUNK_SIZE_I32 && side2_coord.z >= 0 {
+        if side2_coord.y < CHUNK_SIZE_I32 && side2_coord.y >= 0 {
+            side2 = matches!(chunk[ChunkIdx::new(side2_coord.x as u8, side2_coord.y as u8, side2_coord.z as u8)], BlockType::Basic(_));
+        }
+    }
+    if corner_coord.x < CHUNK_SIZE_I32 && corner_coord.x >= 0 {
+        if corner_coord.y < CHUNK_SIZE_I32 && corner_coord.y >= 0 {
+            if corner_coord.z < CHUNK_SIZE_I32 && corner_coord.z >= 0 {
+                corner = matches!(chunk[ChunkIdx::new(corner_coord.x as u8, corner_coord.y as u8, corner_coord.z as u8)], BlockType::Basic(_));
+            }
+        }
+    }
+
+    data.ao_level.push(neighbors_to_ao(side1, side2, corner));
+}
+
+//calculates ao level based on neighbor count
+//each argument is 1 if that neighbor is present, 0 otherwise
+//https://0fps.net/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/
+fn neighbors_to_ao(side1: bool, side2: bool, corner: bool) -> f32 {
+    const LEVEL_FOR_NEIGHBORS: [f32; 4] = [0.5, 0.7, 0.9, 1.0];
+    if side1 && side2 {
+        return LEVEL_FOR_NEIGHBORS[0];
+    }
+    return LEVEL_FOR_NEIGHBORS[3-(side1 as usize+side2 as usize +corner as usize)];
 }

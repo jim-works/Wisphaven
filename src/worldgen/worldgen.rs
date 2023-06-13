@@ -155,8 +155,13 @@ fn gen_chunk(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<ShaperSettin
             for z in 0..CHUNK_SIZE_U8 {
                 block_pos.z = chunk_pos.z+z as f32;
                 let density = noise.get_noise3d(block_pos.x,block_pos.y,block_pos.z);
-                if density < density_map.map(block_pos.y) {
-                    chunk[ChunkIdx::new(x,y,z)] = BlockType::Basic(0);
+                 if density < density_map.map(block_pos.y) {
+                    if x == 0 || y == 0 || z == 0
+                        || x == CHUNK_SIZE_U8-1 || y == CHUNK_SIZE_U8-1 || z == CHUNK_SIZE_U8-1 {
+                        chunk[ChunkIdx::new(x,y,z)] = BlockType::Basic(1);
+                    } else {
+                        chunk[ChunkIdx::new(x,y,z)] = BlockType::Basic(0);
+                    }
                 }
             }
         }

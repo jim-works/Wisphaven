@@ -49,7 +49,7 @@ fn setup_environment(mut commands: Commands) {
     commands.spawn((
         DirectionalLightBundle {
             directional_light: DirectionalLight {
-                shadows_enabled: true,
+                shadows_enabled: false,
                 ..default()
             },
             ..default()
