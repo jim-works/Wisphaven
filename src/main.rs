@@ -76,7 +76,7 @@ fn init(mut commands: Commands, mut spawn_glowjelly: EventWriter<SpawnGlowjellyE
         },
         Jump::default(),
         ChunkLoader {
-            radius: 6,
+            radius: 4,
             lod_levels: 2,
         },
         InputManagerBundle {

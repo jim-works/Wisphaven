@@ -43,6 +43,7 @@ pub fn queue_meshing_lod(
                         tris: Vec::new(),
                         uvs: Vec::new(),
                         layer_idx: Vec::new(),
+                        ao_level: Vec::new(),
                         scale: meshing.scale() as f32,
                         position: meshing.get_block_pos(ChunkIdx::new(0,0,0))
                     };

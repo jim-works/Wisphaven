@@ -1,3 +1,4 @@
+use bevy::render::mesh::VertexAttributeValues;
 use futures_lite::future;
 use std::time::Instant;
 
@@ -13,7 +14,8 @@ use bevy::{
     tasks::{AsyncComputeTaskPool, Task},
 };
 
-use super::{SPAWN_MESH_TIME_BUDGET_COUNT, ChunkMaterial, ArrayTextureMaterial, materials::ATTRIBUTE_ARRAYTEXTURE_LAYER};
+use super::materials::ATTRIBUTE_AO;
+use super::{SPAWN_MESH_TIME_BUDGET_COUNT, ChunkMaterial, ArrayTextureMaterial, materials::ATTRIBUTE_TEXLAYER};
 
 #[derive(Component)]
 pub struct NeedsMesh {}
@@ -29,6 +31,7 @@ pub struct MeshData {
     pub tris: Vec<u32>,
     pub uvs: Vec<Vec2>,
     pub layer_idx: Vec<i32>,
+    pub ao_level: Vec<f32>,
     pub scale: f32,
     pub position: Vec3
 }
@@ -80,6 +83,7 @@ pub fn queue_meshing(
                         tris: Vec::new(),
                         uvs: Vec::new(),
                         layer_idx: Vec::new(),
+                        ao_level: Vec::new(),
                         scale: 1.0,
                         position: meshing.position.to_vec3()
                     };
@@ -126,7 +130,9 @@ pub fn poll_mesh_queue(
                     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, data.verts);
                     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, data.norms);
                     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, data.uvs);
-                    mesh.insert_attribute(ATTRIBUTE_ARRAYTEXTURE_LAYER, data.layer_idx);
+                    
+                    mesh.insert_attribute(ATTRIBUTE_TEXLAYER, data.layer_idx);
+                    mesh.insert_attribute(ATTRIBUTE_AO, data.ao_level);
                     mesh.set_indices(Some(mesh::Indices::U32(data.tris)));
                 } else {
                     //spawn new chunk
@@ -134,7 +140,8 @@ pub fn poll_mesh_queue(
                     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, data.verts);
                     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, data.norms);
                     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, data.uvs);
-                    mesh.insert_attribute(ATTRIBUTE_ARRAYTEXTURE_LAYER, data.layer_idx);
+                    mesh.insert_attribute(ATTRIBUTE_TEXLAYER, data.layer_idx);
+                    mesh.insert_attribute(ATTRIBUTE_AO, data.ao_level);
 
                     mesh.set_indices(Some(mesh::Indices::U32(data.tris)));
                     commands.entity(entity).insert(MaterialMeshBundle::<ArrayTextureMaterial> {
@@ -282,9 +289,13 @@ pub fn mesh_neg_z(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
         BlockType::Basic(id) => {
             let x = *id;
             data.layer_idx.push(x as i32);
+            data.ao_level.push(0.3);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
         },
         _ => {}
     }
@@ -304,9 +315,13 @@ pub fn mesh_pos_z(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
         BlockType::Basic(id) => {
             let x = *id;
             data.layer_idx.push(x as i32);
+            data.ao_level.push(0.3);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
         },
         _ => {}
     }
@@ -327,9 +342,13 @@ pub fn mesh_neg_x(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
         BlockType::Basic(id) => {
             let x = *id;
             data.layer_idx.push(x as i32);
+            data.ao_level.push(0.3);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
         },
         _ => {}
     }
@@ -350,9 +369,13 @@ pub fn mesh_pos_x(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
         BlockType::Basic(id) => {
             let x = *id;
             data.layer_idx.push(x as i32);
+            data.ao_level.push(0.3);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
         },
         _ => {}
     }
@@ -373,9 +396,13 @@ pub fn mesh_pos_y(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
         BlockType::Basic(id) => {
             let x = *id;
             data.layer_idx.push(x as i32);
+            data.ao_level.push(0.3);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
         },
         _ => {}
     }
@@ -396,9 +423,13 @@ pub fn mesh_neg_y(b: &BlockType, origin: Vec3, scale: Vec3, data: &mut MeshData)
         BlockType::Basic(id) => {
             let x = *id;
             data.layer_idx.push(x as i32);
+            data.ao_level.push(0.3);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
             data.layer_idx.push(x as i32);
+            data.ao_level.push(1.0);
         },
         _ => {}
     }

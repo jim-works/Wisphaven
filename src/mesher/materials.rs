@@ -117,6 +117,8 @@ pub struct ArrayTextureMaterial {
     // pub parallax_mapping_method: ParallaxMappingMethod,
 
     // pub max_parallax_layer_count: f32,
+    // #[uniform(50)]
+    // pub ao_curve: Vec4,
 }
 
 impl From<&ArrayTextureMaterial> for ArrayTextureMaterialKey {
@@ -199,8 +201,10 @@ impl AsBindGroupShaderType<ArrayTextureMaterialUniform> for ArrayTextureMaterial
 
 //random high id to not conflict
 //would make more sense to be u32, but the texture sampler in the shader doesn't like u32 for some reason
-pub const ATTRIBUTE_ARRAYTEXTURE_LAYER: MeshVertexAttribute =
+pub const ATTRIBUTE_TEXLAYER: MeshVertexAttribute =
     MeshVertexAttribute::new("TexLayer", 970540917, VertexFormat::Sint32);
+pub const ATTRIBUTE_AO: MeshVertexAttribute =
+    MeshVertexAttribute::new("AOLevel", 970540918, VertexFormat::Float32);
 
 impl Material for ArrayTextureMaterial {
     fn fragment_shader() -> ShaderRef {
@@ -231,7 +235,8 @@ impl Material for ArrayTextureMaterial {
             // Mesh::ATTRIBUTE_JOINT_INDEX.at_shader_location(5),
             // Mesh::ATTRIBUTE_JOINT_WEIGHT.at_shader_location(6),
             //my addition
-            ATTRIBUTE_ARRAYTEXTURE_LAYER.at_shader_location(7),
+            ATTRIBUTE_TEXLAYER.at_shader_location(7),
+            ATTRIBUTE_AO.at_shader_location(8),
         ])?;
         descriptor.vertex.buffers = vec![vertex_layout];
         Ok(())
@@ -270,6 +275,7 @@ impl Default for ArrayTextureMaterial {
             // parallax_depth_scale: 0.1,
             // max_parallax_layer_count: 16.0,
             // parallax_mapping_method: ParallaxMappingMethod::Occlusion,
+            //ao_curve: Vec4::new(0.0, 0.2, 0.5, 0.8)
         }
     }
 }

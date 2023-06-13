@@ -17,6 +17,8 @@
 var my_array_texture: texture_2d_array<f32>;
 @group(1) @binding(2)
 var my_array_texture_sampler: sampler;
+//@group(1) @binding(50)
+//const ao_curve = array(1.0, 0.9, 0.6, 0.3);
 
 //from https://github.com/bevyengine/bevy/blob/527d3a5885daa4b43df7054f7787dad47f06135d/crates/bevy_pbr/src/render/mesh.wgsl
 struct Vertex {
@@ -39,13 +41,16 @@ struct Vertex {
     @location(5) joint_indices: vec4<u32>,
     @location(6) joint_weights: vec4<f32>,
 #endif
-//my addition (it doesn't like u32 when sampling the texture for some reason)
+//my addition tex array layer, ao level
     @location(7) layer: i32,
+    @location(8) ao: f32
 };
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
+//texture array layer is x coordinate, ao level is y coordinate
     @location(5) layer: i32,
+    @location(6) ao: f32,
     //uses locations 0-4
     #import bevy_pbr::mesh_vertex_output
     
@@ -88,6 +93,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 #endif
 //my addition
     out.layer = vertex.layer;
+    out.ao = vertex.ao;
     return out;
 }
 
@@ -95,7 +101,9 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 struct FragmentInput {
     @builtin(front_facing) is_front: bool,
     @builtin(position) frag_coord: vec4<f32>,
+//texture array layer is x coordinate, ao level is y coordinate
     @location(5) layer: i32,
+    @location(6) ao: f32,
     //uses locations 0-4
     #import bevy_pbr::mesh_vertex_output
 };
@@ -133,7 +141,7 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
 #endif
 #ifdef VERTEX_UVS
     if ((material.flags & STANDARD_MATERIAL_FLAGS_BASE_COLOR_TEXTURE_BIT) != 0u) {
-        //my addition is this "in.layer"
+        //my addition is this "in.layer" (texture array layer)
         output_color = output_color * textureSample(my_array_texture, my_array_texture_sampler, uv, in.layer);
     }
 #endif
@@ -213,6 +221,9 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     } else {
         output_color = alpha_discard(material, output_color);
     }
+    //MY ADDITION - ambient occlusion - not exactly sure where this should happen, but I think after pbr is good
+    //ao is lerped neighbor count
+    output_color *= in.ao;
 
     // fog
     if (fog.mode != FOG_MODE_OFF && (material.flags & STANDARD_MATERIAL_FLAGS_FOG_ENABLED_BIT) != 0u) {
