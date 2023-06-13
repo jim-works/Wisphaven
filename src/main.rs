@@ -16,6 +16,7 @@ use chunk_loading::{ChunkLoader, ChunkLoaderPlugin};
 use controllers::{
     ControllableBundle, ControllersPlugin, FollowPlayer, PlayerActionOrigin, RotateWithMouse,
 };
+use items::{ItemsPlugin, inventory::{Inventory, self}, ItemRegistry, PickupItemEvent};
 use leafwing_input_manager::InputManagerBundle;
 use mesher::MesherPlugin;
 use physics::{PhysicsObjectBundle, PhysicsPlugin, ACTOR_GROUP, PLAYER_GROUP};
@@ -30,6 +31,7 @@ mod physics;
 mod util;
 mod world;
 mod worldgen;
+mod items;
 
 fn main() {
     App::new()
@@ -44,6 +46,7 @@ fn main() {
         .add_plugin(PhysicsPlugin)
         .add_plugin(ControllersPlugin)
         .add_plugin(ActorPlugin)
+        .add_plugin(ItemsPlugin)
         .insert_resource(Level::new(5))
         .insert_resource(AmbientLight {
             brightness: 0.3,
@@ -53,8 +56,8 @@ fn main() {
         .run();
 }
 
-fn init(mut commands: Commands, mut spawn_glowjelly: EventWriter<SpawnGlowjellyEvent>) {
-    commands.spawn((
+fn init(mut commands: Commands, mut spawn_glowjelly: EventWriter<SpawnGlowjellyEvent>, mut pickup_item: EventWriter<PickupItemEvent>) {
+    let player_id = commands.spawn((
         Name::new("Player"),
         Player {},
         LocalPlayer {},
@@ -83,7 +86,10 @@ fn init(mut commands: Commands, mut spawn_glowjelly: EventWriter<SpawnGlowjellyE
             input_map: controllers::get_input_map(),
             ..default()
         },
-    ));
+    )).id();
+    let mut inventory = Inventory::new(player_id, 10);
+    inventory.pickup_item(items::ItemStack { id: items::ItemType::Block(BlockType::Basic(0)), size: 1 }, &ItemRegistry::default(), &mut pickup_item);
+    commands.entity(player_id).insert(inventory);
     //todo: fix frustrum culling
     let projection = PerspectiveProjection {
         fov: PI / 2.,

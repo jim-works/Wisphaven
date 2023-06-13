@@ -5,7 +5,7 @@ use leafwing_input_manager::prelude::ActionState;
 use crate::{
     actors::*,
     physics::JUMPABLE_GROUP,
-    world::{BlockCoord, Level},
+    world::{BlockCoord, Level}, items::{inventory::Inventory, UseItemEvent},
 };
 
 use super::{Action, FrameMovement};
@@ -167,21 +167,24 @@ pub fn player_punch(
 pub fn player_use(
     mut commands: Commands,
     camera_query: Query<
-        (&Transform, &ActionState<Action>),
+        (&GlobalTransform, &ActionState<Action>),
         (
             With<PlayerActionOrigin>,
             With<FollowPlayer>,
             Without<LocalPlayer>,
         ),
     >,
+    player_query: Query<&Inventory, (With<Player>, With<LocalPlayer>)>,
+    mut use_writer: EventWriter<UseItemEvent>,
     level: Res<Level>,
 ) {
     const SIZE: i32 = 10;
     if let Ok((tf, act)) = camera_query.get_single() {
         if act.just_pressed(Action::Use) {
-            if let Some(hit) = level.blockcast(tf.translation, tf.forward()*10.0) {
-                level.set_block(hit.block_pos+hit.normal, crate::world::BlockType::Basic(0), &mut commands);
+            if let Ok(inv) = player_query.get_single() {
+                inv.use_item(0, *tf,&mut use_writer);
             }
+            
             // if let Some(hit) = level.blockcast(tf.translation, tf.forward() * 200.0) {
             //     let mut changes = Vec::with_capacity((SIZE*SIZE*SIZE) as usize);
             //     for x in -SIZE..SIZE {

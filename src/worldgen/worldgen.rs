@@ -156,7 +156,7 @@ fn gen_chunk(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<ShaperSettin
                 block_pos.z = chunk_pos.z+z as f32;
                 let density = noise.get_noise3d(block_pos.x,block_pos.y,block_pos.z);
                  if density < density_map.map(block_pos.y) {
-                    chunk[ChunkIdx::new(x,y,z)] = BlockType::Basic(5);
+                    chunk[ChunkIdx::new(x,y,z)] = BlockType::Basic(0);
                 }
             }
         }

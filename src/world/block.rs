@@ -3,7 +3,7 @@ use crate::util::Direction;
 
 use super::chunk::{ChunkCoord, CHUNK_SIZE_I32};
 
-#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BlockType {
     #[default]
     Empty,
