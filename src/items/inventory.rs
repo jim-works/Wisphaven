@@ -39,6 +39,9 @@ impl Inventory {
             let stacks = &mut self.items[i];
             match stacks {
                 Some(stack) => {
+                    if stack.id != item.id {
+                        continue;
+                    }
                     let picking_up = item.size.min(registry.get_data(&item.id).unwrap().max_stack_size-item.size);
                     if picking_up > 0 {
                         item.size -= picking_up;

@@ -30,4 +30,5 @@ bevy_atmosphere = "0.6.0"
 
 #TODO: check if parallel makes things faster once I have many physics objects
 bevy_rapier3d = { version = "0.21.0", features = [ "simd-stable", "debug-render-3d", "parallel" ] }
+big-brain = "0.17.0"
 

@@ -16,6 +16,7 @@ impl Plugin for ItemsPlugin {
             .add_event::<DropItemEvent>()
             .insert_resource(ItemRegistry::default())
             .add_system(block_item::use_block_item)
+            .add_system(block_item::use_mega_block_item)
         ;
     }
 }
@@ -30,7 +31,8 @@ pub struct ItemStack {
 pub enum ItemType {
     Pickaxe,
     Gun,
-    Block(BlockType)
+    Block(BlockType),
+    MegaBlock(BlockType, i32),
 }
 
 pub struct UseItemEvent(Entity, ItemType, GlobalTransform);
@@ -41,7 +43,8 @@ pub struct DropItemEvent(Entity, ItemStack);
 
 #[derive(Resource)]
 pub struct ItemRegistry {
-    data: HashMap<ItemType, ItemData>
+    data: HashMap<ItemType, ItemData>,
+    default_data: ItemData //temporary
 }
 
 pub struct ItemData {
@@ -52,14 +55,16 @@ pub struct ItemData {
 impl Default for ItemRegistry {
     fn default() -> Self {
         Self { 
-            data: HashMap::new()
+            data: HashMap::new(),
+            default_data: ItemData { name: "Default".to_string(), max_stack_size: 100 }
          }
     }
 }
 
 impl ItemRegistry {
     pub fn get_data(&self, item: &ItemType) -> Option<&ItemData> {
-        self.data.get(item)
+        Some(&self.default_data)
+        //self.data.get(item)
     }
     pub fn set_data(&mut self, item: ItemType, data: ItemData) {
         self.data.insert(item, data);

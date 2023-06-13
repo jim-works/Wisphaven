@@ -10,7 +10,8 @@ pub enum Action {
     Jump,
     Punch,
     Use,
-    Look
+    Look,
+    Scroll,
 }
 
 pub fn get_input_map() -> InputMap<Action> {
@@ -26,6 +27,8 @@ pub fn get_input_map() -> InputMap<Action> {
     map.insert(MouseButton::Right, Action::Use);
 
     map.insert(DualAxis::mouse_motion(), Action::Look);
+
+    map.insert(SingleAxis::mouse_wheel_y(), Action::Scroll);
 
     map
 }

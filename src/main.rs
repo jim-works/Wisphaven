@@ -59,7 +59,7 @@ fn main() {
 fn init(mut commands: Commands, mut spawn_glowjelly: EventWriter<SpawnGlowjellyEvent>, mut pickup_item: EventWriter<PickupItemEvent>) {
     let player_id = commands.spawn((
         Name::new("Player"),
-        Player {},
+        Player {selected_slot: 0},
         LocalPlayer {},
         CombatInfo::new(10.0, 0.0),
         RotateWithMouse {
@@ -89,6 +89,7 @@ fn init(mut commands: Commands, mut spawn_glowjelly: EventWriter<SpawnGlowjellyE
     )).id();
     let mut inventory = Inventory::new(player_id, 10);
     inventory.pickup_item(items::ItemStack { id: items::ItemType::Block(BlockType::Basic(0)), size: 1 }, &ItemRegistry::default(), &mut pickup_item);
+    inventory.pickup_item(items::ItemStack { id: items::ItemType::MegaBlock(BlockType::Empty, 10), size: 1 }, &ItemRegistry::default(), &mut pickup_item);
     commands.entity(player_id).insert(inventory);
     //todo: fix frustrum culling
     let projection = PerspectiveProjection {

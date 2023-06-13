@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
+use bevy_rapier3d::{prelude::*, na::ComplexField};
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
@@ -141,7 +141,6 @@ pub fn follow_local_player(
     }
 }
 
-//todo: mesh neighbors (add batch set block in level that takes in commands to do this)
 pub fn player_punch(
     mut commands: Commands,
     camera_query: Query<
@@ -163,9 +162,7 @@ pub fn player_punch(
     }
 }
 
-//todo: mesh neighbors (add batch set block in level that takes in commands to do this)
 pub fn player_use(
-    mut commands: Commands,
     camera_query: Query<
         (&GlobalTransform, &ActionState<Action>),
         (
@@ -174,31 +171,27 @@ pub fn player_use(
             Without<LocalPlayer>,
         ),
     >,
-    player_query: Query<&Inventory, (With<Player>, With<LocalPlayer>)>,
+    player_query: Query<(&Inventory, &Player), With<LocalPlayer>>,
     mut use_writer: EventWriter<UseItemEvent>,
-    level: Res<Level>,
 ) {
-    const SIZE: i32 = 10;
     if let Ok((tf, act)) = camera_query.get_single() {
         if act.just_pressed(Action::Use) {
-            if let Ok(inv) = player_query.get_single() {
-                inv.use_item(0, *tf,&mut use_writer);
+            if let Ok((inv, player)) = player_query.get_single() {
+                inv.use_item(player.selected_slot as usize, *tf,&mut use_writer);
             }
-            
-            // if let Some(hit) = level.blockcast(tf.translation, tf.forward() * 200.0) {
-            //     let mut changes = Vec::with_capacity((SIZE*SIZE*SIZE) as usize);
-            //     for x in -SIZE..SIZE {
-            //         for y in -SIZE..SIZE {
-            //             for z in -SIZE..SIZE {
-            //                 changes.push((
-            //                     hit.block_pos + BlockCoord::new(x, y, z),
-            //                     crate::world::BlockType::Empty,
-            //                 ));
-            //             }
-            //         }
-            //     }
-            //     level.batch_set_block(changes.into_iter(), &mut commands);
-            // }
+        }
+    }
+}
+
+pub fn player_scroll_inventory(
+    mut query: Query<(&Inventory, &ActionState<Action>, &mut Player), With<LocalPlayer>>,
+) {
+    const SCROLL_SENSITIVITY: f32 = 0.05;
+    if let Ok((inv, act, mut player)) = query.get_single_mut() {
+        let delta = act.value(Action::Scroll);
+        player.selected_slot = (if delta > SCROLL_SENSITIVITY {player.selected_slot as i32+1} else if delta < -SCROLL_SENSITIVITY {player.selected_slot as i32 - 1} else {player.selected_slot as i32}).rem_euclid(inv.items.len() as i32) as u32;
+        if delta.abs() > SCROLL_SENSITIVITY {
+            info!("Selected slot {}", player.selected_slot);
         }
     }
 }
