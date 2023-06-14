@@ -4,6 +4,7 @@ use crate::world::BlockType;
 
 pub mod inventory;
 pub mod block_item;
+pub mod weapons;
 
 pub struct ItemsPlugin;
 
@@ -14,14 +15,17 @@ impl Plugin for ItemsPlugin {
             .add_event::<UnequipItemEvent>()
             .add_event::<PickupItemEvent>()
             .add_event::<DropItemEvent>()
+            .add_event::<AttackItemEvent>()
             .insert_resource(ItemRegistry::default())
             .add_system(block_item::use_block_item)
             .add_system(block_item::use_mega_block_item)
+            .add_system(weapons::equip_unequip_weapon.in_base_set(CoreSet::PostUpdate))
+            .add_system(weapons::attack_dagger)
         ;
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ItemStack {
     pub id: ItemType,
     pub size: u32,
@@ -30,16 +34,17 @@ pub struct ItemStack {
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
 pub enum ItemType {
     Pickaxe,
-    Gun,
+    Dagger,
     Block(BlockType),
     MegaBlock(BlockType, i32),
 }
 
-pub struct UseItemEvent(Entity, ItemType, GlobalTransform);
-pub struct EquipItemEvent(Entity, ItemStack);
-pub struct UnequipItemEvent(Entity, ItemStack);
-pub struct PickupItemEvent(Entity, ItemStack);
-pub struct DropItemEvent(Entity, ItemStack);
+pub struct UseItemEvent(pub Entity, pub ItemType, pub GlobalTransform);
+pub struct AttackItemEvent(pub Entity, pub ItemStack, pub GlobalTransform);
+pub struct EquipItemEvent(pub Entity, pub ItemStack);
+pub struct UnequipItemEvent(pub Entity, pub ItemStack);
+pub struct PickupItemEvent(pub Entity, pub ItemStack);
+pub struct DropItemEvent(pub Entity, pub ItemStack);
 
 #[derive(Resource)]
 pub struct ItemRegistry {

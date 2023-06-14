@@ -5,7 +5,7 @@ use leafwing_input_manager::prelude::ActionState;
 use crate::{
     actors::*,
     physics::JUMPABLE_GROUP,
-    world::{BlockCoord, Level}, items::{inventory::Inventory, UseItemEvent},
+    world::{BlockCoord, Level}, items::{inventory::Inventory, UseItemEvent, EquipItemEvent, UnequipItemEvent, AttackItemEvent},
 };
 
 use super::{Action, FrameMovement};
@@ -151,15 +151,16 @@ pub fn player_punch(
             Without<LocalPlayer>,
         ),
     >,
-    player_query: Query<(Entity, &Player), With<LocalPlayer>>,
+    player_query: Query<(Entity, &Player, &CombatInfo), With<LocalPlayer>>,
     combat_query: Query<&CombatInfo>,
-    mut combat_writer: EventWriter<AttackEvent>,
+    mut attack_punch_writer: EventWriter<AttackEvent>,
+    mut attack_item_writer: EventWriter<AttackItemEvent>,
     level: Res<Level>,
     collision: Res<RapierContext>,
 ) {
     if let Ok((tf, act)) = camera_query.get_single() {
         if act.just_pressed(Action::Punch) {
-            let (player_entity, player) = player_query.get_single().unwrap();
+            let (player_entity, player, info) = player_query.get_single().unwrap();
             //first test if we punched a combatant
             let groups = QueryFilter {
                     groups: Some(CollisionGroups::new(
@@ -171,7 +172,10 @@ pub fn player_punch(
             if let Some((hit,_)) = collision.cast_ray(tf.translation(), tf.forward(), 10.0, true, groups) {
                 if combat_query.contains(hit) {
                     //we hit a combatant, so attack it and return
-                    combat_writer.send(AttackEvent { attacker: player_entity, target: hit, damage: player.hit_damage, knockback: tf.forward() });
+                    match &info.equipped_weapon {
+                        Some(weapon) => attack_item_writer.send(AttackItemEvent(player_entity, weapon.clone(), tf.clone())),
+                        None => attack_punch_writer.send(AttackEvent { attacker: player_entity, target: hit, damage: player.hit_damage, knockback: tf.forward() })
+                    };
                     return;
                 }
             }
@@ -205,14 +209,15 @@ pub fn player_use(
 }
 
 pub fn player_scroll_inventory(
-    mut query: Query<(&Inventory, &ActionState<Action>, &mut Player), With<LocalPlayer>>,
+    mut query: Query<(&mut Inventory, &ActionState<Action>), With<LocalPlayer>>,
+    mut equip_writer: EventWriter<EquipItemEvent>,
+    mut unequip_writer: EventWriter<UnequipItemEvent>
 ) {
     const SCROLL_SENSITIVITY: f32 = 0.05;
-    if let Ok((inv, act, mut player)) = query.get_single_mut() {
+    if let Ok((mut inv, act)) = query.get_single_mut() {
         let delta = act.value(Action::Scroll);
-        player.selected_slot = (if delta > SCROLL_SENSITIVITY {player.selected_slot as i32+1} else if delta < -SCROLL_SENSITIVITY {player.selected_slot as i32 - 1} else {player.selected_slot as i32}).rem_euclid(inv.items.len() as i32) as u32;
-        if delta.abs() > SCROLL_SENSITIVITY {
-            info!("Selected slot {}", player.selected_slot);
-        }
+        let slot_diff = if delta > SCROLL_SENSITIVITY {1} else if delta < -SCROLL_SENSITIVITY {-1} else {0};
+        let curr_slot = inv.selected_slot();
+        inv.select_slot(curr_slot as i32 + slot_diff, &mut equip_writer, &mut unequip_writer);
     }
 }

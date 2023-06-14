@@ -16,7 +16,7 @@ use chunk_loading::{ChunkLoader, ChunkLoaderPlugin};
 use controllers::{
     ControllableBundle, ControllersPlugin, FollowPlayer, PlayerActionOrigin, RotateWithMouse,
 };
-use items::{ItemsPlugin, inventory::{Inventory, self}, ItemRegistry, PickupItemEvent};
+use items::{ItemsPlugin, inventory::{Inventory, self}, ItemRegistry, PickupItemEvent, EquipItemEvent};
 use leafwing_input_manager::InputManagerBundle;
 use mesher::MesherPlugin;
 use physics::{PhysicsObjectBundle, PhysicsPlugin, ACTOR_GROUP, PLAYER_GROUP};
@@ -56,7 +56,7 @@ fn main() {
         .run();
 }
 
-fn init(mut commands: Commands, mut spawn_glowjelly: EventWriter<SpawnGlowjellyEvent>, mut pickup_item: EventWriter<PickupItemEvent>) {
+fn init(mut commands: Commands, mut spawn_glowjelly: EventWriter<SpawnGlowjellyEvent>, mut pickup_item: EventWriter<PickupItemEvent>, mut equip_item: EventWriter<EquipItemEvent>) {
     let player_id = commands.spawn((
         Name::new("Player"),
         Player {selected_slot: 0, hit_damage: 1.0},
@@ -91,8 +91,9 @@ fn init(mut commands: Commands, mut spawn_glowjelly: EventWriter<SpawnGlowjellyE
         },
     )).id();
     let mut inventory = Inventory::new(player_id, 10);
-    inventory.pickup_item(items::ItemStack { id: items::ItemType::Block(BlockType::Basic(0)), size: 1 }, &ItemRegistry::default(), &mut pickup_item);
-    inventory.pickup_item(items::ItemStack { id: items::ItemType::MegaBlock(BlockType::Empty, 10), size: 1 }, &ItemRegistry::default(), &mut pickup_item);
+    inventory.pickup_item(items::ItemStack { id: items::ItemType::Block(BlockType::Basic(0)), size: 1 }, &ItemRegistry::default(), &mut pickup_item, &mut equip_item);
+    inventory.pickup_item(items::ItemStack { id: items::ItemType::MegaBlock(BlockType::Empty, 10), size: 1 }, &ItemRegistry::default(), &mut pickup_item, &mut equip_item);
+    inventory.pickup_item(items::ItemStack { id: items::ItemType::Dagger, size: 1 }, &ItemRegistry::default(), &mut pickup_item, &mut equip_item);
     commands.entity(player_id).insert(inventory);
     //todo: fix frustrum culling
     let projection = PerspectiveProjection {

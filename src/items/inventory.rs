@@ -4,16 +4,35 @@ use super::*;
 
 #[derive(Component)]
 pub struct Inventory {
-    pub items: Vec<Option<ItemStack>>,
-    owner: Entity
+    items: Vec<Option<ItemStack>>,
+    owner: Entity,
+    selected_slot: usize,
 }
 
 impl Inventory {
     pub fn new(owner: Entity, slots: usize) -> Self {
         Self {
             items: vec![None; slots],
-            owner
+            owner,
+            selected_slot: 0
         }
+    }
+    pub fn selected_slot(&self) -> usize { self.selected_slot }
+    //if slot_num is negative or over the number of slots in the inventory, loop back around 
+    pub fn select_slot(&mut self, slot_num: i32, equip_writer: &mut EventWriter<EquipItemEvent>, unequip_writer: &mut EventWriter<UnequipItemEvent>) {
+        //loop back around
+        let new_slot = slot_num.rem_euclid(self.items.len() as i32) as usize;
+        if new_slot != self.selected_slot {
+            if let Some(stack) = &self.items[new_slot] {
+                equip_writer.send(EquipItemEvent(self.owner, stack.clone()));
+            }
+            if let Some(stack) = &self.items[self.selected_slot] {
+                unequip_writer.send(UnequipItemEvent(self.owner, stack.clone()))
+            }
+            self.selected_slot = new_slot;
+            info!("selected slot {}", self.selected_slot);
+        }
+        
     }
     pub fn has_item(&self, item: ItemType) -> bool {
         self.items.iter().any(|x| if let Some(ref stack) = x {
@@ -30,15 +49,17 @@ impl Inventory {
         }).count()
     }
     //returns what's left (if any) of the item stack after picking up
-    pub fn pickup_item(&mut self, mut item: ItemStack, registry: &ItemRegistry, writer: &mut EventWriter<PickupItemEvent>) -> Option<ItemStack> {
+    pub fn pickup_item(&mut self, mut item: ItemStack, registry: &ItemRegistry, pickup_writer: &mut EventWriter<PickupItemEvent>, equip_writer: &mut EventWriter<EquipItemEvent>) -> Option<ItemStack> {
         let initial_size = item.size;
         for i in 0..self.items.len() {
             if item.size == 0 {
                 return None;
             }
             let stacks = &mut self.items[i];
+            
             match stacks {
                 Some(stack) => {
+                    //pick up part of the stack
                     if stack.id != item.id {
                         continue;
                     }
@@ -49,8 +70,10 @@ impl Inventory {
                     }
                 },
                 None => {
+                    //pick up the whole stack into an empty slot
                     *stacks = Some(item.clone());
-                    writer.send(PickupItemEvent(self.owner, item.clone()));
+                    pickup_writer.send(PickupItemEvent(self.owner, item.clone()));
+                    equip_writer.send(EquipItemEvent(self.owner, item.clone()));
                     item.size = 0;
                     return None
                 }
@@ -58,32 +81,36 @@ impl Inventory {
         }
         let picked_up = item.size-initial_size;
         if picked_up > 0 {
-            writer.send(PickupItemEvent(self.owner, ItemStack { id: item.id, size: picked_up }));
+            pickup_writer.send(PickupItemEvent(self.owner, ItemStack { id: item.id, size: picked_up }));
+            equip_writer.send(EquipItemEvent(self.owner, ItemStack { id: item.id, size: picked_up }));
         }
         return Some(item);
     }
     //returns the dropped items
-    pub fn drop_slot(&mut self, slot: usize, writer: &mut EventWriter<DropItemEvent>) -> Option<ItemStack> {
+    pub fn drop_slot(&mut self, slot: usize, drop_writer: &mut EventWriter<DropItemEvent>, unequip_writer: &mut EventWriter<UnequipItemEvent>) -> Option<ItemStack> {
         let item = self.items[slot].clone();
         self.items[slot] = None;
         if let Some(ref stack) = item {
-            writer.send(DropItemEvent(self.owner, stack.clone()))
+            drop_writer.send(DropItemEvent(self.owner, stack.clone()));
+            unequip_writer.send(UnequipItemEvent(self.owner, stack.clone()));
         }
         return item;
     }
     //returns the dropped items
-    pub fn drop_items(&mut self, slot: usize, max_drops: u32, writer: &mut EventWriter<DropItemEvent>) -> Option<ItemStack> {
+    pub fn drop_items(&mut self, slot: usize, max_drops: u32, drop_writer: &mut EventWriter<DropItemEvent>, unequip_writer: &mut EventWriter<UnequipItemEvent>) -> Option<ItemStack> {
         if let Some(item) = &mut self.items[slot] {
             let to_drop = max_drops.min(item.size);
             if to_drop == item.size {
-                writer.send(DropItemEvent(self.owner, item.clone()));
+                drop_writer.send(DropItemEvent(self.owner, item.clone()));
+                unequip_writer.send(UnequipItemEvent(self.owner, item.clone()));
                 let ret = Some(item.clone());
                 drop(item);
                 self.items[slot] = None;
                 return ret;
             } else {
                 item.size -= to_drop;
-                writer.send(DropItemEvent(self.owner, item.clone()));
+                drop_writer.send(DropItemEvent(self.owner, item.clone()));
+                unequip_writer.send(UnequipItemEvent(self.owner, item.clone()));
                 return Some(ItemStack {
                     id: item.id,
                     size: to_drop
