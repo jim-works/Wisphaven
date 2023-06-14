@@ -1,5 +1,7 @@
 use bevy::utils::HashMap;
 
+use crate::util::max_component_norm;
+
 use super::{chunk::*, *};
 
 
@@ -17,6 +19,15 @@ impl BlockBuffer {
         let coord = ChunkIdx::from(coord).to_usize();
         if matches!(entry[coord], BlockType::Empty) {
             entry[coord] = block;
+        }
+    }
+    //moves along the axis with the max distance between a and b repeatedly. not exactly linear but cool
+    pub fn place_descending(&mut self, block: BlockType, a: BlockCoord, b: BlockCoord) {
+        let mut t = a;
+        while t != b {
+            self.set_block(t,block);
+            let diff = b-t;
+            t += diff.max_component_norm();
         }
     }
     pub fn new() -> Self {

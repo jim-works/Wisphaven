@@ -36,7 +36,7 @@ fn daylight_cycle(
 
     if timer.0.finished() {
         let t = (time.elapsed_seconds_wrapped() as f32 / DAY_CYCLE_SECONDS)*2.0*PI;
-        atmosphere.sun_position = Vec3::new(0., t.sin(), t.cos());
+        atmosphere.sun_position = Vec3::new(0.0, t.sin(), t.cos());
 
         if let Some((mut light_trans, mut directional)) = query.single_mut().into() {
             light_trans.rotation = Quat::from_rotation_x(-t);
@@ -49,7 +49,7 @@ fn setup_environment(mut commands: Commands) {
     commands.spawn((
         DirectionalLightBundle {
             directional_light: DirectionalLight {
-                shadows_enabled: false,
+                shadows_enabled: true,
                 ..default()
             },
             ..default()

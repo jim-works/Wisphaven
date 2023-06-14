@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, scene::SceneInstance};
 use bevy_rapier3d::prelude::*;
 use big_brain::prelude::*;
 
@@ -14,6 +14,9 @@ pub struct GlowjellyResources {
 
 #[derive(Component)]
 pub struct Glowjelly;
+
+#[derive(Component)]
+pub struct GlowjellyScene;
 
 pub struct SpawnGlowjellyEvent {
     pub location: Transform,
@@ -50,6 +53,7 @@ impl Plugin for GlowjellyPlugin {
             .add_system(spawn_glowjelly)
             .add_system(keyboard_animation_control)
             .add_system(eval_height)
+            .add_system(setup_glowjelly)
             .add_system(float_scorer_system.in_set(BigBrainSet::Scorers))
             .add_system(float_action_system.in_set(BigBrainSet::Actions))
             .add_event::<SpawnGlowjellyEvent>();
@@ -67,6 +71,7 @@ pub fn spawn_glowjelly(
     mut commands: Commands,
     jelly_res: Res<GlowjellyResources>,
     mut spawn_requests: EventReader<SpawnGlowjellyEvent>,
+    children_query: Query<&Children>
 ) {
     for spawn in spawn_requests.iter() {
         commands
@@ -96,20 +101,55 @@ pub fn spawn_glowjelly(
                     .label("glowjelly thinker")
                     .picker(FirstToScore {threshold: 0.5})
                     .when(FloatScorer, FloatAction)
-            ))
-            .with_children(|cb| {
-                cb.spawn(PointLightBundle {
-                    point_light: PointLight {
-                        color: spawn.color,
-                        intensity: 500.0,
-                        shadows_enabled: true,
-                        ..default()
-                    },
-                    ..default()
-                });
-            });
+            ));
+            // )).with_children(|cb| {
+            //     cb.spawn(PointLightBundle {
+            //         point_light: PointLight {
+            //             color: spawn.color,
+            //             intensity: 500.0,
+            //             shadows_enabled: true,
+            //             ..default()
+            //         },
+            //         ..default()
+            //     });
+            // });
+
     }
 }
+
+//attach tag component to animator: this is kinda ugly
+pub fn setup_glowjelly(
+    mut commands: Commands,
+    children_query: Query<&Children>,
+    glowjelly_query: Query<Entity, (With<Glowjelly>, Added<SceneInstance>)>,
+    anim_query: Query<&AnimationPlayer>
+) {
+    for parent_id in glowjelly_query.iter() {
+        //hierarchy is parent -> scene -> gltfnode (with animation player)
+        //find first child with a child that has an animation player
+        //not perfect but whatevs
+        // info!("glowjelly id: {:?}", parent_id);
+        // for child in children_query.get(parent_id).unwrap() {
+        //     let mut found = false;
+        //     info!("child id: {:?}", child);
+        //     if let Ok(grandchildren) = children_query.get(*child) {
+        //         for candidate_anim_player in grandchildren  {
+        //             info!("grandchild id: {:?}", candidate_anim_player);
+        //             if anim_query.contains(*candidate_anim_player) {
+        //                 info!("found!");
+        //                 commands.entity(*candidate_anim_player).insert(GlowjellyScene);
+        //                 found = true;
+        //                 break;
+        //             }
+        //         }
+        //     }
+        //     if found {
+        //         break;
+        //     }
+        // }
+    }
+}
+
 pub fn eval_height (
     collision: Res<RapierContext>,
     mut query: Query<(&mut FloatHeight, &GlobalTransform)>

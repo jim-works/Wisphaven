@@ -7,6 +7,8 @@ pub use spline::*;
 mod noise;
 pub use noise::*;
 
+pub mod l_system;
+
 use bevy::prelude::Vec3;
 
 pub fn lerp(a: f32, b: f32, t: f32) -> f32 {

@@ -1,14 +1,14 @@
-use std::sync::Arc;
+use std::{sync::Arc, f32::consts::PI};
 
-use bevy::prelude::*;
+use bevy::{prelude::*};
 use bracket_noise::prelude::*;
 
-use crate::{world::{chunk::ChunkCoord, LevelSystemSet, Level}, util::{Spline, SplineNoise, get_next_prng}};
+use crate::{world::{chunk::ChunkCoord, LevelSystemSet, Level}, util::{Spline, SplineNoise, get_next_prng, l_system::{TreeAlphabet, LSystem}}};
 
 mod worldgen;
 pub use worldgen::{ChunkNeedsGenerated, GeneratedChunk, GeneratedLODChunk, ShapingTask, LODShapingTask, ShaperSettings};
 
-use self::{structures::{StructureGenerationSettings, StructureGenerator, trees::SmallTreeGenerator}, worldgen::GenSmallStructureTask};
+use self::{structures::{StructureGenerationSettings, StructureGenerator, trees::{LTreeGenerator, get_short_tree}}, worldgen::GenSmallStructureTask};
 
 pub mod structures;
 
@@ -83,10 +83,11 @@ fn create_heighmap_noise(seed: u64) -> SplineNoise {
 
 fn create_structure_settings(mut seed: u64) -> StructureGenerationSettings {
     let mut noise = FastNoise::seeded(seed);
-    noise.set_noise_type(NoiseType::WhiteNoise);
+    noise.set_noise_type(NoiseType::Value);
+    noise.set_frequency(843580.97854);
     let mut structures: Vec<Box<dyn StructureGenerator+Send+Sync>> = Vec::new();
 
-    structures.push(Box::new(SmallTreeGenerator::new(get_next_seed(&mut seed))));
+    structures.push(get_short_tree(get_next_seed(&mut seed)));
 
     StructureGenerationSettings { rolls_per_chunk: 5, structures, placement_noise: noise}
 }

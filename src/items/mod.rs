@@ -26,7 +26,7 @@ impl Plugin for ItemsPlugin {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItemStack {
     pub id: Entity,
     pub size: u32,

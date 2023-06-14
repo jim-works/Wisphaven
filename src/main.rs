@@ -59,7 +59,7 @@ fn main() {
 fn init(mut commands: Commands, mut spawn_glowjelly: EventWriter<SpawnGlowjellyEvent>, mut pickup_item: EventWriter<PickupItemEvent>, mut equip_item: EventWriter<EquipItemEvent>, item_query: Query<&Item>) {
     let player_id = commands.spawn((
         Name::new("Player"),
-        Player {selected_slot: 0, hit_damage: 1.0},
+        Player {hit_damage: 1.0},
         LocalPlayer {},
         CombatantBundle {
             combat_info: CombatInfo::new(10.0, 0.0),

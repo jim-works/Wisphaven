@@ -1,3 +1,5 @@
+use std::ops::AddAssign;
+
 use bevy::prelude::*;
 use crate::util::Direction;
 
@@ -39,12 +41,41 @@ impl BlockCoord {
             Direction::NegZ => BlockCoord::new(self.x,self.y,self.z-1),
         }
     }
+    //if v has maximum element m, returns the vector with m set to sign(m) and all other elements 0.
+    pub fn max_component_norm(&self) -> BlockCoord {
+        let abs = self.abs();
+        if abs.x > abs.y && abs.x > abs.z {
+            return BlockCoord::new(self.x.signum(),0,0)
+        } else if abs.y > abs.z {
+            return BlockCoord::new(0,self.y.signum(),0)
+        } else {
+            return BlockCoord::new(0,0,self.z.signum())
+        }
+    }
+    pub fn abs(&self) -> BlockCoord {
+        BlockCoord::new(self.x.abs(),self.y.abs(),self.z.abs())
+    }
 }
 
 impl std::ops::Add<BlockCoord> for BlockCoord {
     type Output = Self;
     fn add(self, rhs: BlockCoord) -> Self::Output {
         BlockCoord::new(self.x+rhs.x, self.y+rhs.y, self.z+rhs.z)
+    }
+}
+
+impl std::ops::Sub<BlockCoord> for BlockCoord {
+    type Output = Self;
+    fn sub(self, rhs: BlockCoord) -> Self::Output {
+        BlockCoord::new(self.x-rhs.x, self.y-rhs.y, self.z-rhs.z)
+    }
+}
+
+impl AddAssign for BlockCoord {
+    fn add_assign(&mut self, rhs: Self) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+        self.z += rhs.z;
     }
 }
 

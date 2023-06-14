@@ -196,13 +196,13 @@ pub fn player_use(
             Without<LocalPlayer>,
         ),
     >,
-    player_query: Query<(&Inventory, &Player), With<LocalPlayer>>,
+    player_query: Query<&Inventory, With<LocalPlayer>>,
     mut use_writer: EventWriter<UseItemEvent>,
 ) {
     if let Ok((tf, act)) = camera_query.get_single() {
         if act.just_pressed(Action::Use) {
-            if let Ok((inv, player)) = player_query.get_single() {
-                inv.use_item(player.selected_slot as usize, *tf,&mut use_writer);
+            if let Ok(inv) = player_query.get_single() {
+                inv.use_item(inv.selected_slot(), *tf,&mut use_writer);
             }
         }
     }
