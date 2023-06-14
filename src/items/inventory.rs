@@ -34,14 +34,14 @@ impl Inventory {
         }
         
     }
-    pub fn has_item(&self, item: ItemType) -> bool {
+    pub fn has_item(&self, item: Entity) -> bool {
         self.items.iter().any(|x| if let Some(ref stack) = x {
             stack.id == item
         } else { 
             false
         })
     }
-    pub fn count_type(&self, item: ItemType) -> usize {
+    pub fn count_type(&self, item: Entity) -> usize {
         self.items.iter().filter(|x| if let Some(ref stack) = x {
             stack.id == item
         } else { 
@@ -49,7 +49,7 @@ impl Inventory {
         }).count()
     }
     //returns what's left (if any) of the item stack after picking up
-    pub fn pickup_item(&mut self, mut item: ItemStack, registry: &ItemRegistry, pickup_writer: &mut EventWriter<PickupItemEvent>, equip_writer: &mut EventWriter<EquipItemEvent>) -> Option<ItemStack> {
+    pub fn pickup_item(&mut self, mut item: ItemStack, registry: &ItemRegistry, data_query: &Query<&ItemData>, pickup_writer: &mut EventWriter<PickupItemEvent>, equip_writer: &mut EventWriter<EquipItemEvent>) -> Option<ItemStack> {
         let initial_size = item.size;
         for i in 0..self.items.len() {
             if item.size == 0 {
@@ -63,7 +63,7 @@ impl Inventory {
                     if stack.id != item.id {
                         continue;
                     }
-                    let picking_up = item.size.min(registry.get_data(&item.id).unwrap().max_stack_size-item.size);
+                    let picking_up = item.size.min(data_query.get(item.id).unwrap().max_stack_size-item.size);
                     if picking_up > 0 {
                         item.size -= picking_up;
                         stack.size += picking_up;
@@ -122,7 +122,7 @@ impl Inventory {
     }
     pub fn use_item(&self, slot: usize, use_pos: GlobalTransform, writer: &mut EventWriter<UseItemEvent>) {
         if let Some(item) = &self.items[slot] {
-            writer.send(UseItemEvent(self.owner, item.id, use_pos));
+            writer.send(UseItemEvent(self.owner, item.clone(), use_pos));
         }
     }
 }

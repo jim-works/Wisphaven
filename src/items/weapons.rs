@@ -3,7 +3,13 @@ use bevy_rapier3d::prelude::*;
 
 use crate::actors::{CombatInfo, AttackEvent};
 
-use super::{EquipItemEvent, UnequipItemEvent, AttackItemEvent};
+use super::{EquipItemEvent, UnequipItemEvent, AttackItemEvent, ItemRegistry};
+
+#[derive(Component)]
+pub struct MeleeWeaponItem {
+    damage: f32,
+    knockback: f32,
+}
 
 pub fn equip_unequip_weapon (
     mut equip_reader: EventReader<EquipItemEvent>,
@@ -24,13 +30,15 @@ pub fn equip_unequip_weapon (
     }
 }
 
-pub fn attack_dagger (
+pub fn attack_melee (
     mut attack_item_reader: EventReader<AttackItemEvent>,
     mut attack_writer: EventWriter<AttackEvent>,
-    collision: Res<RapierContext>
+    collision: Res<RapierContext>,
+    registry: Res<ItemRegistry>,
+    weapon_query: Query<&MeleeWeaponItem>
 ) {
     for item_event in attack_item_reader.iter() {
-        if matches!(item_event.1.id, super::ItemType::Dagger) {
+        if let Ok(weapon) = weapon_query.get(item_event.1.id) {
             let groups = QueryFilter {
                 groups: Some(CollisionGroups::new(
                     Group::ALL,
@@ -39,7 +47,7 @@ pub fn attack_dagger (
                 ..default()
             }.exclude_collider(item_event.0);
             if let Some((hit,_)) = collision.cast_ray(item_event.2.translation(), item_event.2.forward(), 10.0, true, groups) {
-                attack_writer.send(AttackEvent { attacker: item_event.0, target: hit, damage: 5.0, knockback: item_event.2.forward()*2.0 })
+                attack_writer.send(AttackEvent { attacker: item_event.0, target: hit, damage: weapon.damage, knockback: item_event.2.forward()*weapon.knockback })
             }
         }
     }
