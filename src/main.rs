@@ -16,7 +16,7 @@ use chunk_loading::{ChunkLoader, ChunkLoaderPlugin};
 use controllers::{
     ControllableBundle, ControllersPlugin, FollowPlayer, PlayerActionOrigin, RotateWithMouse,
 };
-use items::{ItemsPlugin, inventory::{Inventory, self}, ItemRegistry, PickupItemEvent, EquipItemEvent, ItemData};
+use items::{ItemsPlugin, inventory::Inventory, PickupItemEvent, EquipItemEvent, block_item::{BlockItem, MegablockItem}, Item, ItemStack, weapons::MeleeWeaponItem};
 use leafwing_input_manager::InputManagerBundle;
 use mesher::MesherPlugin;
 use physics::{PhysicsObjectBundle, PhysicsPlugin, ACTOR_GROUP, PLAYER_GROUP};
@@ -56,8 +56,7 @@ fn main() {
         .run();
 }
 
-fn init(mut commands: Commands, mut spawn_glowjelly: EventWriter<SpawnGlowjellyEvent>, mut pickup_item: EventWriter<PickupItemEvent>, mut equip_item: EventWriter<EquipItemEvent>,
-    items: Res<ItemRegistry>, item_data_query: Query<&ItemData>) {
+fn init(mut commands: Commands, mut spawn_glowjelly: EventWriter<SpawnGlowjellyEvent>, mut pickup_item: EventWriter<PickupItemEvent>, mut equip_item: EventWriter<EquipItemEvent>, item_query: Query<&Item>) {
     let player_id = commands.spawn((
         Name::new("Player"),
         Player {selected_slot: 0, hit_damage: 1.0},
@@ -92,9 +91,12 @@ fn init(mut commands: Commands, mut spawn_glowjelly: EventWriter<SpawnGlowjellyE
         },
     )).id();
     let mut inventory = Inventory::new(player_id, 10);
-    inventory.pickup_item(items.get_stack(&items::ItemType::Block(BlockType::Basic(0)), 1).unwrap(), &items, &item_data_query, &mut pickup_item, &mut equip_item);
-    inventory.pickup_item(items.get_stack(&items::ItemType::MegaBlock(BlockType::Empty, 10), 1).unwrap(), &items, &item_data_query, &mut pickup_item, &mut equip_item);
-    inventory.pickup_item(items.get_stack(&items::ItemType::Dagger, 1).unwrap(), &items, &item_data_query, &mut pickup_item, &mut equip_item);
+    let grass_item = items::create_item(Item::new("Grass Block".to_string(), 999), BlockItem(BlockType::Basic(0)), &mut commands);
+    let mega_air_item = items::create_item(Item::new("Mega Air".to_string(), 999), MegablockItem(BlockType::Empty,10), &mut commands);
+    let dagger_item = items::create_item(Item::new("Dagger".to_string(), 999), MeleeWeaponItem{damage: 5.0, knockback: 2.0}, &mut commands);
+    inventory.pickup_item(ItemStack::new(grass_item,1), &item_query, &mut pickup_item, &mut equip_item);
+    inventory.pickup_item(ItemStack::new(mega_air_item,1), &item_query, &mut pickup_item, &mut equip_item);
+    inventory.pickup_item(ItemStack::new(dagger_item,1), &item_query, &mut pickup_item, &mut equip_item);
     commands.entity(player_id).insert(inventory);
     //todo: fix frustrum culling
     let projection = PerspectiveProjection {

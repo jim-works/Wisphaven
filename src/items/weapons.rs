@@ -3,12 +3,12 @@ use bevy_rapier3d::prelude::*;
 
 use crate::actors::{CombatInfo, AttackEvent};
 
-use super::{EquipItemEvent, UnequipItemEvent, AttackItemEvent, ItemRegistry};
+use super::{EquipItemEvent, UnequipItemEvent, AttackItemEvent};
 
 #[derive(Component)]
 pub struct MeleeWeaponItem {
-    damage: f32,
-    knockback: f32,
+    pub damage: f32,
+    pub knockback: f32,
 }
 
 pub fn equip_unequip_weapon (
@@ -34,7 +34,6 @@ pub fn attack_melee (
     mut attack_item_reader: EventReader<AttackItemEvent>,
     mut attack_writer: EventWriter<AttackEvent>,
     collision: Res<RapierContext>,
-    registry: Res<ItemRegistry>,
     weapon_query: Query<&MeleeWeaponItem>
 ) {
     for item_event in attack_item_reader.iter() {
