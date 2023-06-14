@@ -144,18 +144,39 @@ pub fn follow_local_player(
 pub fn player_punch(
     mut commands: Commands,
     camera_query: Query<
-        (&Transform, &ActionState<Action>),
+        (&GlobalTransform, &ActionState<Action>),
         (
             With<PlayerActionOrigin>,
             With<FollowPlayer>,
             Without<LocalPlayer>,
         ),
     >,
+    player_query: Query<(Entity, &Player), With<LocalPlayer>>,
+    combat_query: Query<&CombatInfo>,
+    mut combat_writer: EventWriter<AttackEvent>,
     level: Res<Level>,
+    collision: Res<RapierContext>,
 ) {
     if let Ok((tf, act)) = camera_query.get_single() {
         if act.just_pressed(Action::Punch) {
-            if let Some(hit) = level.blockcast(tf.translation, tf.forward() * 10.0) {
+            let (player_entity, player) = player_query.get_single().unwrap();
+            //first test if we punched a combatant
+            let groups = QueryFilter {
+                    groups: Some(CollisionGroups::new(
+            Group::ALL,
+                Group::from_bits_truncate(crate::physics::ACTOR_GROUP),
+                )),
+                ..default()
+            }.exclude_collider(player_entity);
+            if let Some((hit,_)) = collision.cast_ray(tf.translation(), tf.forward(), 10.0, true, groups) {
+                if combat_query.contains(hit) {
+                    //we hit a combatant, so attack it and return
+                    combat_writer.send(AttackEvent { attacker: player_entity, target: hit, damage: player.hit_damage, knockback: tf.forward() });
+                    return;
+                }
+            }
+            //if not, break a block
+            if let Some(hit) = level.blockcast(tf.translation(), tf.forward() * 10.0) {
                 level.set_block(hit.block_pos, crate::world::BlockType::Empty, &mut commands);
             }
         }

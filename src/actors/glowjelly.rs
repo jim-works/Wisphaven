@@ -4,7 +4,7 @@ use big_brain::prelude::*;
 
 use crate::physics::PhysicsObjectBundle;
 
-use super::CombatInfo;
+use super::{CombatInfo, CombatantBundle};
 
 #[derive(Resource)]
 pub struct GlowjellyResources {
@@ -77,7 +77,13 @@ pub fn spawn_glowjelly(
                     ..default()
                 },
                 Name::new("glowjelly"),
-                CombatInfo::new(100.0, 100.0),
+                CombatantBundle {
+                    combat_info: CombatInfo {
+                        knockback_multiplier: 10.0,
+                        ..CombatInfo::new(10.0, 0.0)
+                    },
+                    ..default()
+                },
                 PhysicsObjectBundle {
                     rigidbody: RigidBody::Dynamic,
                     collider: Collider::cuboid(0.5, 0.5, 0.5),
@@ -104,7 +110,8 @@ pub fn spawn_glowjelly(
             });
     }
 }
-pub fn eval_height (collision: Res<RapierContext>,
+pub fn eval_height (
+    collision: Res<RapierContext>,
     mut query: Query<(&mut FloatHeight, &GlobalTransform)>
 ) {
     let groups = QueryFilter {
@@ -128,27 +135,22 @@ pub fn float_action_system (
     mut info: Query<(&mut FloatHeight, &mut ExternalImpulse)>,
     mut query: Query<(&Actor, &mut ActionState), With<FloatAction>>
 ) {
-    info!("trying to act");
     for (Actor(actor), mut state) in query.iter_mut() {
         if let Ok((mut floater, mut impulse)) = info.get_mut(*actor) {
             match *state {
                 ActionState::Requested => {
-                    debug!("Time to float!");
                     *state = ActionState::Executing;
                     impulse.impulse += Vec3::Y*5.0;
                     floater.seconds_remaining = 5.0;
                 }
                 ActionState::Executing => {
-                    trace!("Floating...");
                     floater.seconds_remaining -= time.delta_seconds();
                     if floater.seconds_remaining <= 0.0 {
-                        debug!("Done floating");
                         *state = ActionState::Success;
                     }
                 }
                 // All Actions should make sure to handle cancellations!
                 ActionState::Cancelled => {
-                    debug!("Action was cancelled. Considering this a failure.");
                     *state = ActionState::Failure;
                 }
                 _ => {}

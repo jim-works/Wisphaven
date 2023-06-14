@@ -10,23 +10,60 @@ impl Plugin for CombatPlugin {
         app.add_event::<AttackEvent>()
             .add_event::<DeathEvent>()
             .add_system(process_attacks.in_base_set(CoreSet::PostUpdate))
+            .add_system(do_death.in_base_set(CoreSet::PostUpdate).after(process_attacks))
             // .add_system(test_attack.in_base_set(CoreSet::Update))
         ;
     }
 }
 
+#[derive(Bundle)]
+pub struct CombatantBundle {
+    pub combat_info: CombatInfo,
+    pub death_info: DeathInfo,
+}
+
+impl Default for CombatantBundle {
+    fn default() -> Self {
+        Self {
+            combat_info: CombatInfo::new(10.0,0.0),
+            death_info: DeathInfo::default()
+        }
+    }
+}
+
 #[derive(Component)]
 pub struct CombatInfo {
-    curr_health: f32,
-    max_health: f32,
-    curr_defense: f32,
-    base_defense: f32,
+    pub curr_health: f32,
+    pub max_health: f32,
+    pub curr_defense: f32,
+    pub base_defense: f32,
+    pub knockback_multiplier: f32
+}
+
+impl CombatInfo {
+    pub fn new(health: f32, defense: f32) -> Self {
+        Self {
+            curr_health: health,
+            max_health: health,
+            curr_defense: defense,
+            base_defense: defense,
+            knockback_multiplier: 0.0,
+        }
+    }
 }
 
 #[derive(Component)]
 pub struct DeathInfo {
-    death_type: DeathType,
+    pub death_type: DeathType,
     //death_message: Option<&str>,
+}
+
+impl Default for DeathInfo {
+    fn default() -> Self {
+        Self {
+            death_type: DeathType::default()
+        }
+    }
 }
 
 #[derive(Default)]
@@ -34,23 +71,19 @@ pub enum DeathType {
     #[default] Default,
     LocalPlayer,
     RemotePlayer,
-}
-
-impl CombatInfo {
-    pub fn new(health: f32, defense: f32) -> CombatInfo {
-        CombatInfo { curr_health: health, max_health: health, curr_defense: defense, base_defense: defense }
-    }
+    Immortal,
 }
 
 #[derive(Clone, Copy)]
 pub struct AttackEvent {
-    attacker: Entity,
-    target: Entity,
-    damage: f32,
+    pub attacker: Entity,
+    pub target: Entity,
+    pub damage: f32,
+    pub knockback: Vec3,
 }
 
 #[derive(Clone, Copy)]
 pub struct DeathEvent {
-    final_blow: AttackEvent,
-    damage_taken: f32,
+    pub final_blow: AttackEvent,
+    pub damage_taken: f32,
 }
