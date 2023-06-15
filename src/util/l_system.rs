@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use bevy::prelude::Quat;
+use bevy::prelude::*;
 
 //https://en.wikipedia.org/wiki/L-system
 
@@ -11,6 +11,7 @@ pub struct LSystem<Alphabet: Clone, P: Fn(&Alphabet, u32) -> Option<Vec<Alphabet
 
 impl<Alphabet: Clone, P: Fn(&Alphabet, u32) -> Option<Vec<Alphabet>>> LSystem<Alphabet, P> {
     pub fn apply_to(&self, sentence: &Vec<Alphabet>, seed: u32) -> Vec<Alphabet> {
+        let _my_span = info_span!("l_structure_apply_to", name = "l_structure_apply_to").entered();
         let mut new_sentence = Vec::new(); 
         for i in 0..sentence.len(){
             let letter = &sentence[i];

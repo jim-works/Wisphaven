@@ -56,6 +56,7 @@ pub fn queue_generating(
     noise: Arc<ShaperSettings>, //cannot use a resource since we pass it to other threads
     mut commands: Commands,
 ) {
+    let _my_span = info_span!("queue_generating", name = "queue_generating").entered();
     let now = Instant::now();
     let pool = AsyncComputeTaskPool::get();
     for (entity, coord, gen_request) in query.iter() {
@@ -87,6 +88,7 @@ pub fn poll_gen_queue(
     mut structure_query: Query<(Entity, &mut GenSmallStructureTask)>,
     level: Res<Level>
 ) {
+    let _my_span = info_span!("poll_gen_queue", name = "poll_gen_queue").entered();
     let now = Instant::now();
     let pool = AsyncComputeTaskPool::get();
     for (entity, mut task) in shaping_query.iter_mut() {
@@ -127,6 +129,7 @@ pub fn poll_gen_lod_queue(
     mut query: Query<(Entity, &mut LODShapingTask)>,
     mut level: ResMut<Level>
 ) {
+    let _my_span = info_span!("poll_gen_lod_queue", name = "poll_gen_lod_queue").entered();
     let now = Instant::now();
     for (entity, mut task) in query.iter_mut() {
         if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
@@ -144,6 +147,7 @@ pub fn poll_gen_lod_queue(
 }
 
 fn gen_chunk(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<ShaperSettings>) -> Chunk {
+    let _my_span = info_span!("gen_chunk", name = "gen_chunk").entered();
     let mut chunk = Chunk::new(coord, chunk_entity);
     let noise = &settings.noise;
     
@@ -165,6 +169,7 @@ fn gen_chunk(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<ShaperSettin
 }
 
 fn gen_lod_chunk(coord: ChunkCoord, level: usize, chunk_entity: Entity, settings: Arc<ShaperSettings>) -> LODChunk {
+    let _my_span = info_span!("gen_lod_chunk", name = "gen_lod_chunk").entered();
     let mut chunk = LODChunk::new(coord, level, chunk_entity);
     let noise = &settings.noise;
     

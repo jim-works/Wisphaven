@@ -28,6 +28,7 @@ pub fn do_loading(
     mut timer: ResMut<ChunkLoadingTimer>,
     time: Res<Time>
 ) {
+    let _my_span = info_span!("do_loading", name = "do_loading").entered();
     timer.timer.tick(time.delta());
     if !timer.timer.finished() {
         return;
@@ -109,6 +110,7 @@ fn load_lod(
     loader: &ChunkLoader,
     loaded_list: &mut HashSet<ChunkCoord>,
 ) {
+    let _my_span = info_span!("load_lod", name = "load_lod").entered();
     let base_coord =
         ChunkCoord::from(transform.translation() / LODChunk::level_to_scale(lod_level) as f32);
     for x in (base_coord.x - loader.radius)..(base_coord.x + loader.radius + 1) {
@@ -185,6 +187,7 @@ pub fn unload_all(
 }
 
 pub fn despawn_chunks(mut commands: Commands, mut despawn_reader: EventReader<DespawnChunkEvent>) {
+    let _my_span = info_span!("despawn_chunks", name = "despawn_chunks").entered();
     for e in despawn_reader.iter() {
         if let Some(ec) = commands.get_entity(e.0) {
             ec.despawn_recursive();

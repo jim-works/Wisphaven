@@ -50,6 +50,7 @@ pub fn queue_meshing(
     mut timer: ResMut<MeshTimer>,
     mut commands: Commands,
 ) {
+    let _my_span = info_span!("queue_meshing", name = "queue_meshing").entered();
     timer.timer.tick(time.delta());
     if !timer.timer.just_finished() {
         return;
@@ -114,6 +115,7 @@ pub fn poll_mesh_queue(
     chunk_material: Res<ChunkMaterial>,
     mut query: Query<(Entity, Option<&Handle<Mesh>>, &mut MeshTask)>,
 ) {
+    let _my_span = info_span!("poll_mesh_queue", name = "poll_mesh_queue").entered();
     if !chunk_material.loaded {
         warn!("polling mesh queue before chunk material is loaded!");
         return;
@@ -174,6 +176,7 @@ pub fn poll_mesh_queue(
 }
 
 fn mesh_chunk(chunk: &Chunk, neighbors: &[Option<Chunk>; 6], data: &mut MeshData) {
+    let _my_span = info_span!("mesh_chunk", name = "mesh_chunk").entered();
     for i in 0..chunk::BLOCKS_PER_CHUNK {
         let coord = ChunkIdx::from_usize(i);
         mesh_block(&chunk, neighbors, &chunk[i], coord, coord.to_vec3()*data.scale, data);

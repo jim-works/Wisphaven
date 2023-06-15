@@ -15,10 +15,10 @@ opt-level = 3
 
 [dependencies]
 ahash = "0.8.3"
-#TODO: remove dynamic_linking for releases (automate this)
+#TODO: remove dynamic_linking/trace_tracy for releases (automate this)
 #TODO: add features ktx2 and zstd to enable better texture performance and compression when using ktx2 textures
 #TODO: maybe enable wayland feature?
-bevy = { version = "0.10.1", features = ["dynamic_linking"] }
+bevy = { version = "0.10.1", features = ["dynamic_linking", "trace_tracy"] }
 bevy_fly_camera = "0.10.0"
 bracket-noise = "0.8.7"
 dashmap = "5.4.0"

@@ -21,6 +21,7 @@ pub fn queue_meshing_lod(
     mut timer: ResMut<MeshTimer>,
     mut commands: Commands,
 ) {
+    let _my_span = info_span!("queue_meshing_lod", name = "queue_meshing_lod").entered();
     timer.timer.tick(time.delta());
     if !timer.timer.just_finished() {
         return;
@@ -69,6 +70,7 @@ pub fn queue_meshing_lod(
 
 
 fn mesh_chunk_lod(chunk: &LODChunk, data: &mut MeshData) {
+    let _my_span = info_span!("mesh_chunk_lod", name = "mesh_chunk_lod").entered();
     for i in 0..chunk::BLOCKS_PER_CHUNK {
         let coord = ChunkIdx::from_usize(i);
         mesh_block_lod(&chunk, &chunk[i], coord, coord.to_vec3()*data.scale, data);

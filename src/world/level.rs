@@ -75,6 +75,7 @@ impl Level {
         to_set: I,
         commands: &mut Commands,
     ) {
+        let _my_span = info_span!("batch_set_block", name = "batch_set_block").entered();
         let mut to_update = HashSet::new();
         for (coord, block) in to_set {
             let chunk_coord: ChunkCoord = coord.into();
@@ -93,17 +94,14 @@ impl Level {
         }
     }
     pub fn add_buffer(&self, buffer: BlockBuffer, commands: &mut Commands) {
+        let _my_span = info_span!("add_buffer", name = "add_buffer").entered();
         for (coord, buf) in buffer.buf {
             //if the chunk is already generated, add the contents of the buffer to the chunk
             if let Some(mut chunk_ref) = self.get_chunk_mut(coord) {
                 match chunk_ref.value_mut() {
                     ChunkType::Ungenerated(_) => {}
                     ChunkType::Full(ref mut c) => {
-                        for i in 0..BLOCKS_PER_CHUNK {
-                            if !matches!(buf[i], BlockType::Empty) {
-                                c[i] = buf[i];
-                            }
-                        }
+                        buf.apply_to(c);
                         Self::update_chunk_only(c.entity, commands);
                         //self.update_chunk_neighbors_only(c.position, commands);
                         continue;
@@ -117,11 +115,7 @@ impl Level {
                 .entry(coord)
                 .or_insert(Box::new([BlockType::Empty; 4096]));
             //copy contents of buf into entry, since they are different buffers
-            for i in 0..BLOCKS_PER_CHUNK {
-                if !matches!(buf[i], BlockType::Empty) {
-                    entry.value_mut()[i] = buf[i];
-                }
-            }
+            buf.apply_to(entry.value_mut().as_mut());
         }
     }
     pub fn contains_chunk(&self, key: ChunkCoord) -> bool {
@@ -158,6 +152,7 @@ impl Level {
         None
     }
     pub fn add_chunk(&self, key: ChunkCoord, chunk: ChunkType) {
+        let _my_span = info_span!("add_chunk", name = "add_chunk").entered();
         //copy contents of buffer into chunk if necessary
         if let ChunkType::Full(mut c) = chunk {
             if let Some((_, buf)) = self.buffers.remove(&key) {
@@ -173,6 +168,7 @@ impl Level {
         }
     }
     pub fn add_lod_chunk(&mut self, key: ChunkCoord, chunk: LODChunkType) {
+        let _my_span = info_span!("add_lod_chunk", name = "add_lod_chunk").entered();
         match chunk {
             LODChunkType::Ungenerated(_, level) => self.insert_chunk_at_lod(key, level, chunk),
             LODChunkType::Full(l) => self.insert_chunk_at_lod(key, l.level, LODChunkType::Full(l)),
@@ -217,6 +213,7 @@ impl Level {
     }
     //todo improve this (bresenham's?)
     pub fn blockcast(&self, origin: Vec3, line: Vec3) -> Option<BlockcastHit> {
+        let _my_span = info_span!("blockcast", name = "blockcast").entered();
         const STEP_SIZE: f32 = 0.05;
         let line_len = line.length();
         let line_norm = line / line_len;

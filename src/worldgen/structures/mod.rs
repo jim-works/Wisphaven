@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use bracket_noise::prelude::FastNoise;
+use bevy::prelude::*;
 
 use crate::{world::{chunk::{Chunk, ChunkIdx, CHUNK_SIZE_F32, CHUNK_SIZE_U64}, BlockBuffer, BlockCoord}, util::get_next_prng};
 
@@ -18,6 +19,7 @@ pub trait StructureGenerator {
 }
 
 pub fn gen_small_structures(chunk: Chunk, settings: Arc<StructureGenerationSettings>) -> (Chunk, BlockBuffer) {
+    let _my_span = info_span!("gen_small_structures", name = "gen_small_structures").entered();
     let mut buf = BlockBuffer::new();
     for roll in 0..settings.rolls_per_chunk {
         //rescale from [-1,1] to [0,CHUNK_SIZE]

@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use bracket_noise::prelude::{FastNoise, NoiseType};
 
-use crate::{world::{chunk::*, BlockBuffer, BlockCoord, BlockType}, util::l_system::{LSystem, TreeAlphabet}};
+use crate::{world::{chunk::*, BlockBuffer, BlockCoord, BlockType, BlockChange}, util::l_system::{LSystem, TreeAlphabet}};
 use bevy::prelude::*;
 use super::StructureGenerator;
 
@@ -26,6 +26,7 @@ impl<P: Fn(&TreeAlphabet, u32) -> Option<Vec<TreeAlphabet>>, I: Fn(BlockCoord) -
         local_pos: ChunkIdx,
         chunk: &Chunk,
     ) {
+        let _my_span = info_span!("tree_generate", name = "tree_generate").entered();
         //determine if location is suitable for a tree
         if !matches!(chunk[local_pos], BlockType::Basic(0)) {
             return;
@@ -68,7 +69,7 @@ impl<P: Fn(&TreeAlphabet, u32) -> Option<Vec<TreeAlphabet>>, I: Fn(BlockCoord) -
                         for y in -LEAF_SIZE..LEAF_SIZE+1 {
                             for z in -LEAF_SIZE..LEAF_SIZE+1 {
                                 if x*x+y*y+z*z < LEAF_SIZE*LEAF_SIZE+1 {
-                                    buffer.set_if_empty(BlockCoord::new(x,y,z)+curr_head.translation.into(), BlockType::Basic(5));
+                                    buffer.set(BlockCoord::new(x,y,z)+curr_head.translation.into(), BlockChange::SetIfEmpty(BlockType::Basic(5)));
                                 }
                             }
                         }
@@ -179,6 +180,6 @@ pub fn get_short_tree(seed: u64) -> Box<dyn StructureGenerator+Send+Sync> {
         }}),
         3,
         |_| vec![TreeAlphabet::Rotate(Quat::from_euler(EulerRot::XYZ, PI*0.5, 0.0, 0.0)), TreeAlphabet::Move(5.0), TreeAlphabet::Replace(10.0)],
-        |p,a,b| p.place_descending(crate::world::BlockType::Basic(4), a.into(), b.into())
+        |p,a,b| p.place_descending(BlockChange::Set(BlockType::Basic(4)), a.into(), b.into())
     ))
 }

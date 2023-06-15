@@ -31,6 +31,7 @@ fn daylight_cycle(
     mut timer: ResMut<CycleTimer>,
     time: Res<Time>,
 ) {
+    let _my_span = info_span!("daylight_cycle", name = "daylight_cycle").entered();
     const DAY_CYCLE_SECONDS: f32 = 60.0*10.0;
     timer.0.tick(time.delta());
 
