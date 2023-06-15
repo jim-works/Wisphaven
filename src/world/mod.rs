@@ -11,6 +11,9 @@ pub use block::*;
 
 mod atmosphere;
 
+pub mod events;
+pub mod settings;
+
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum LevelSystemSet {
@@ -20,12 +23,23 @@ pub enum LevelSystemSet {
     Despawn
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash, States, Default)]
+pub enum LevelLoadState {
+    #[default]
+    NotLoaded,
+    Loading,
+    Loaded,
+}
+
 pub struct LevelPlugin;
 
 impl Plugin for LevelPlugin {
     fn build(&self, app: &mut App) {
         app.configure_set(LevelSystemSet::Despawn.after(LevelSystemSet::Main))
             .add_plugin(atmosphere::AtmospherePlugin)
+            .add_event::<events::CreateLevelEvent>()
+            .add_event::<events::OpenLevelEvent>()
+            .add_state::<LevelLoadState>()
         ;
     }
 }

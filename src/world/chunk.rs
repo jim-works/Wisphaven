@@ -45,6 +45,14 @@ impl ChunkCoord {
     }
 }
 
+impl Add<ChunkCoord> for ChunkCoord {
+    type Output = ChunkCoord;
+
+    fn add(self, rhs: ChunkCoord) -> Self::Output {
+        ChunkCoord::new(self.x+rhs.x,self.y+rhs.y,self.z+rhs.z)
+    }
+}
+
 impl From<Vec3> for ChunkCoord {
     fn from(v: Vec3) -> Self {
         ChunkCoord::new((v.x/CHUNK_SIZE_F32).floor() as i32,(v.y/CHUNK_SIZE_F32).floor() as i32,(v.z/CHUNK_SIZE_F32).floor() as i32)

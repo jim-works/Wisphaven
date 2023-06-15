@@ -1,13 +1,8 @@
-use bevy::prelude::*;
-use crate::worldgen::worldgen::ChunkGeneratedEvent;
+pub struct CreateLevelEvent {
+    pub name: String,
+    pub seed: u64,
+}
 
-use super::level::Level;
-
-pub fn on_chunk_generated(
-    mut event: EventReader<ChunkGeneratedEvent>,
-    mut level: ResMut<Level>
-) {
-    for c in event.iter() {
-        level.add_chunk(c.chunk.position, c.chunk)
-    }
+pub struct OpenLevelEvent {
+    pub name: String,
 }

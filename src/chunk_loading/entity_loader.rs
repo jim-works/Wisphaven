@@ -8,11 +8,24 @@ use crate::{
     worldgen::ChunkNeedsGenerated,
 };
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct ChunkLoader {
     pub radius: i32,
     pub lod_levels: i32,
 }
+
+impl ChunkLoader {
+    pub fn for_each_chunk(&self, mut f: impl FnMut(ChunkCoord)) {
+        for x in -self.radius..self.radius+1 {
+            for y in -self.radius..self.radius+1 {
+                for z in -self.radius..self.radius+1 {
+                    (f)(ChunkCoord::new(x,y,z));        
+                }
+            }
+        }
+    }
+}
+
 #[derive(Resource)]
 pub struct ChunkLoadingTimer {
     pub timer: Timer
@@ -38,19 +51,15 @@ pub fn do_loading(
     let mut loaded_lods = Vec::new();
     for (transform, loader) in loader_query.iter() {
         let base_coord = ChunkCoord::from(transform.translation());
-        for x in (base_coord.x - loader.radius)..(base_coord.x + loader.radius + 1) {
-            for y in (base_coord.y - loader.radius)..(base_coord.y + loader.radius + 1) {
-                for z in (base_coord.z - loader.radius)..(base_coord.z + loader.radius + 1) {
-                    let test_coord = ChunkCoord::new(x, y, z);
-                    loaded_chunks.insert(test_coord);
-                    if !level.contains_chunk(test_coord) {
-                        //chunk not loaded, load it!
-                        let id = commands.spawn((Name::new("LODChunk"),test_coord, ChunkNeedsGenerated::Full)).id();
-                        level.add_chunk(test_coord, ChunkType::Ungenerated(id));
-                    }
-                }
+        loader.for_each_chunk(|coord| {
+            let test_coord = coord+base_coord;
+            loaded_chunks.insert(test_coord);
+            if !level.contains_chunk(test_coord) {
+                //chunk not loaded, load it!
+                let id = commands.spawn((Name::new("Chunk"),test_coord, ChunkNeedsGenerated::Full)).id();
+                level.add_chunk(test_coord, ChunkType::Ungenerated(id));
             }
-        }
+        });
         for i in 1..loader.lod_levels as usize {
             let mut loaded_lod = HashSet::new();
             load_lod(
@@ -132,7 +141,7 @@ fn load_lod(
                 if !level.contains_lod_chunk(lod_level, test_coord) {
                     //chunk not loaded, load it!
                     let id = commands
-                        .spawn((Name::new("Chunk"),test_coord, ChunkNeedsGenerated::LOD(lod_level)))
+                        .spawn((Name::new("LODChunk"),test_coord, ChunkNeedsGenerated::LOD(lod_level)))
                         .id();
                     level.add_lod_chunk(
                         test_coord,

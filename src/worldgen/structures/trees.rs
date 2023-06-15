@@ -26,7 +26,7 @@ impl<P: Fn(&TreeAlphabet, u32) -> Option<Vec<TreeAlphabet>>, I: Fn(BlockCoord) -
         local_pos: ChunkIdx,
         chunk: &Chunk,
     ) {
-        let _my_span = info_span!("tree_generate", name = "tree_generate").entered();
+        let _my_span = info_span!("tree_validate", name = "tree_validate").entered();
         //determine if location is suitable for a tree
         if !matches!(chunk[local_pos], BlockType::Basic(0)) {
             return;
@@ -36,6 +36,7 @@ impl<P: Fn(&TreeAlphabet, u32) -> Option<Vec<TreeAlphabet>>, I: Fn(BlockCoord) -
                 return;
             }
         }
+        let _my_span = info_span!("tree_generate", name = "tree_generate").entered();
         //generate tree
         let vec3_pos = pos.to_vec3();
         let seed = self.rng.get_noise3d(vec3_pos.x,vec3_pos.y,vec3_pos.z).to_bits();

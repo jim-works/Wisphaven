@@ -11,17 +11,21 @@ use super::{chunk::*, BlockBuffer, BlockCoord, BlockType};
 
 #[derive(Resource)]
 pub struct Level {
+    pub name: String,
+    pub spawn_point: Vec3,
     chunks: DashMap<ChunkCoord, ChunkType, ahash::RandomState>,
     buffers: DashMap<ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>, ahash::RandomState>,
     lod_chunks: Vec<DashMap<ChunkCoord, LODChunkType, ahash::RandomState>>,
 }
 
 impl Level {
-    pub fn new(lod_levels: usize) -> Level {
+    pub fn new(name: String, lod_levels: usize) -> Level {
         Level {
+            name,
             chunks: DashMap::with_hasher(ahash::RandomState::new()),
             buffers: DashMap::with_hasher(ahash::RandomState::new()),
             lod_chunks: vec![DashMap::with_hasher(ahash::RandomState::new()); lod_levels],
+            spawn_point: Vec3::ZERO
         }
     }
     pub fn get_block(&self, key: BlockCoord) -> Option<BlockType> {
