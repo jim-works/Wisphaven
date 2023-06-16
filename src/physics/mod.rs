@@ -3,7 +3,7 @@ pub use level_physics::*;
 
 use bevy::prelude::*;
 
-use crate::world::LevelSystemSet;
+use crate::world::{LevelSystemSet, LevelLoadState};
 use bevy_rapier3d::prelude::*;
 
 pub struct PhysicsPlugin;
@@ -23,7 +23,7 @@ impl Plugin for PhysicsPlugin {
             //.add_plugin(RapierDebugRenderPlugin::default())
             .insert_resource(GeneratePhysicsTimer{timer: Timer::from_seconds(0.25, TimerMode::Repeating)})
             .add_systems((level_physics::queue_gen_physics,
-                level_physics::poll_gen_physics_queue).in_set(LevelSystemSet::Main))
+                level_physics::poll_gen_physics_queue).in_set(LevelSystemSet::LoadingAndMain))
             .add_startup_system(configure_physics);
     }
 }

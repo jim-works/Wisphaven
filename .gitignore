@@ -4,3 +4,4 @@ debug/
 Cargo.lock
 **/*.rs.bk
 *.pdb
+worlds/

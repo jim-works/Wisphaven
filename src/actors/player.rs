@@ -33,6 +33,7 @@ pub fn spawn_local_player(
     mut equip_item: EventWriter<EquipItemEvent>,
     item_query: Query<&Item>
 ) {
+    info!("Spawning local player!");
     let player_id = commands.spawn((
         Name::new("local player"),
         Player {hit_damage: 1.0},

@@ -15,7 +15,9 @@ impl Plugin for ActorPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(CombatPlugin)
             .add_plugin(BigBrainPlugin)
-            .add_plugin(glowjelly::GlowjellyPlugin);
+            .add_plugin(glowjelly::GlowjellyPlugin)
+            .add_plugin(player::PlayerPlugin)
+        ;
     }
 }
 

@@ -17,10 +17,12 @@ pub mod settings;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum LevelSystemSet {
-    //systems in main should not despawn any entities, and don't have to worry about entity despawning
+    //systems in main should not despawn any entities, and don't have to worry about entity despawning. only runs in LevelLoadState::Loaded
     Main,
-    //all the despawning happens in the despawn set
-    Despawn
+    //all the despawning happens in the despawn set. only runs in LevelLoadState::Loaded
+    Despawn,
+    //like main, but also runs in only runs in LevelLoadState::Loading
+    LoadingAndMain,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, States, Default)]
@@ -28,14 +30,18 @@ pub enum LevelLoadState {
     #[default]
     NotLoaded,
     Loading,
-    Loaded,
+    Loaded
 }
 
 pub struct LevelPlugin;
 
 impl Plugin for LevelPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_set(LevelSystemSet::Despawn.after(LevelSystemSet::Main))
+        app
+            .configure_set(LevelSystemSet::Main.in_set(OnUpdate(LevelLoadState::Loaded)))
+            .configure_set(LevelSystemSet::Despawn.after(LevelSystemSet::Main).after(LevelSystemSet::LoadingAndMain))
+            .configure_set(LevelSystemSet::Despawn.in_set(OnUpdate(LevelLoadState::Loaded)))
+            .configure_set(LevelSystemSet::LoadingAndMain.run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded))))
             .add_plugin(atmosphere::AtmospherePlugin)
             .add_event::<events::CreateLevelEvent>()
             .add_event::<events::OpenLevelEvent>()

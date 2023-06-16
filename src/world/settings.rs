@@ -15,11 +15,11 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             init_loader: ChunkLoader {
-                radius: 4,
+                radius: 6,
                 lod_levels: 2,
             },
             player_loader: ChunkLoader {
-                radius: 4,
+                radius: 6,
                 lod_levels: 2,
             },
             env_path: Box::new(Path::new("worlds").join(Path::new("world.mdb")))

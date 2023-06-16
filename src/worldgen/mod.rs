@@ -3,7 +3,7 @@ use std::{sync::Arc, f32::consts::PI};
 use bevy::{prelude::*};
 use bracket_noise::prelude::*;
 
-use crate::{world::{chunk::ChunkCoord, LevelSystemSet, Level}, util::{Spline, SplineNoise, get_next_prng, l_system::{TreeAlphabet, LSystem}}};
+use crate::{world::{chunk::ChunkCoord, LevelSystemSet, Level, LevelLoadState}, util::{Spline, SplineNoise, get_next_prng, l_system::{TreeAlphabet, LSystem}}};
 
 mod worldgen;
 pub use worldgen::{ChunkNeedsGenerated, GeneratedChunk, GeneratedLODChunk, ShapingTask, LODShapingTask, ShaperSettings};
@@ -33,7 +33,7 @@ impl Plugin for WorldGenPlugin {
                 worldgen::poll_gen_queue(Arc::new(create_structure_settings(424242)), commands, shaping_query, structure_query, level)
             }
         };
-        app.add_systems((build_poll_system(),build_gen_system(), worldgen::poll_gen_lod_queue).in_set(LevelSystemSet::Main));
+        app.add_systems((build_poll_system(),build_gen_system(), worldgen::poll_gen_lod_queue).in_set(LevelSystemSet::LoadingAndMain));
     }
 }
 

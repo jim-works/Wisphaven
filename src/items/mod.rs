@@ -1,8 +1,6 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
 
-use crate::world::BlockType;
-
-use self::weapons::MeleeWeaponItem;
+use crate::world::{LevelLoadState, LevelSystemSet};
 
 pub mod inventory;
 pub mod block_item;
@@ -18,10 +16,10 @@ impl Plugin for ItemsPlugin {
             .add_event::<PickupItemEvent>()
             .add_event::<DropItemEvent>()
             .add_event::<AttackItemEvent>()
-            .add_system(block_item::use_block_item)
-            .add_system(block_item::use_mega_block_item)
-            .add_system(weapons::equip_unequip_weapon.in_base_set(CoreSet::PostUpdate))
-            .add_system(weapons::attack_melee)
+            .add_system(block_item::use_block_item.in_set(LevelSystemSet::Main))
+            .add_system(block_item::use_mega_block_item.in_set(LevelSystemSet::Main))
+            .add_system(weapons::equip_unequip_weapon.in_set(LevelSystemSet::Main))
+            .add_system(weapons::attack_melee.in_set(LevelSystemSet::Main))
         ;
     }
 }

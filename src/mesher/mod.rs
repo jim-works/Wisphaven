@@ -11,7 +11,7 @@ use bevy::{
     prelude::*,
 };
 
-use crate::world::LevelSystemSet;
+use crate::world::{LevelSystemSet, LevelLoadState};
 
 pub struct MesherPlugin;
 
@@ -29,8 +29,7 @@ impl Plugin for MesherPlugin {
                     mesher::queue_meshing,
                     mesh_lod::queue_meshing_lod,
                 )
-                    .in_set(LevelSystemSet::Main),
-            )
+                    .in_set(LevelSystemSet::LoadingAndMain))
             .add_startup_system(materials::init)
             //can't be a startup system since init starts loading the chunk image asynchronously
             .add_system(materials::create_chunk_material);

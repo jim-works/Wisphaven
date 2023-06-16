@@ -8,7 +8,7 @@ use crate::{
     worldgen::ChunkNeedsGenerated,
 };
 
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Debug)]
 pub struct ChunkLoader {
     pub radius: i32,
     pub lod_levels: i32,
@@ -16,10 +16,10 @@ pub struct ChunkLoader {
 
 impl ChunkLoader {
     pub fn for_each_chunk(&self, mut f: impl FnMut(ChunkCoord)) {
-        for x in -self.radius..self.radius+1 {
-            for y in -self.radius..self.radius+1 {
-                for z in -self.radius..self.radius+1 {
-                    (f)(ChunkCoord::new(x,y,z));        
+        for x in -self.radius..self.radius + 1 {
+            for y in -self.radius..self.radius + 1 {
+                for z in -self.radius..self.radius + 1 {
+                    (f)(ChunkCoord::new(x, y, z));
                 }
             }
         }
@@ -28,7 +28,7 @@ impl ChunkLoader {
 
 #[derive(Resource)]
 pub struct ChunkLoadingTimer {
-    pub timer: Timer
+    pub timer: Timer,
 }
 
 pub struct DespawnChunkEvent(pub Entity);
@@ -39,7 +39,7 @@ pub fn do_loading(
     mut despawn_writer: EventWriter<DespawnChunkEvent>,
     loader_query: Query<(&GlobalTransform, &ChunkLoader)>,
     mut timer: ResMut<ChunkLoadingTimer>,
-    time: Res<Time>
+    time: Res<Time>,
 ) {
     let _my_span = info_span!("do_loading", name = "do_loading").entered();
     timer.timer.tick(time.delta());
@@ -52,11 +52,13 @@ pub fn do_loading(
     for (transform, loader) in loader_query.iter() {
         let base_coord = ChunkCoord::from(transform.translation());
         loader.for_each_chunk(|coord| {
-            let test_coord = coord+base_coord;
+            let test_coord = coord + base_coord;
             loaded_chunks.insert(test_coord);
             if !level.contains_chunk(test_coord) {
                 //chunk not loaded, load it!
-                let id = commands.spawn((Name::new("Chunk"),test_coord, ChunkNeedsGenerated::Full)).id();
+                let id = commands
+                    .spawn((Name::new("Chunk"), test_coord, ChunkNeedsGenerated::Full))
+                    .id();
                 level.add_chunk(test_coord, ChunkType::Ungenerated(id));
             }
         });
@@ -93,11 +95,12 @@ pub fn do_loading(
     let mut to_unload_lod = Vec::new();
     for i in 0..loaded_lods.len() {
         let lod_level = i + 1;
-        let chunks = level.get_lod_chunks(lod_level).unwrap();
-        for c in chunks.iter() {
-            let key = c.key().clone();
-            if !loaded_lods[i].contains(&key) {
-                to_unload_lod.push((lod_level, key));
+        if let Some(chunks) = level.get_lod_chunks(lod_level) {
+            for c in chunks.iter() {
+                let key = c.key().clone();
+                if !loaded_lods[i].contains(&key) {
+                    to_unload_lod.push((lod_level, key));
+                }
             }
         }
     }
@@ -141,7 +144,11 @@ fn load_lod(
                 if !level.contains_lod_chunk(lod_level, test_coord) {
                     //chunk not loaded, load it!
                     let id = commands
-                        .spawn((Name::new("LODChunk"),test_coord, ChunkNeedsGenerated::LOD(lod_level)))
+                        .spawn((
+                            Name::new("LODChunk"),
+                            test_coord,
+                            ChunkNeedsGenerated::LOD(lod_level),
+                        ))
                         .id();
                     level.add_lod_chunk(
                         test_coord,

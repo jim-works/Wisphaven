@@ -4,9 +4,7 @@
 
 
 use actors::{ActorPlugin, glowjelly::SpawnGlowjellyEvent};
-use bevy::{
-    prelude::*,
-};
+use bevy::prelude::*;
 use bevy_atmosphere::prelude::*;
 use bevy_fly_camera::FlyCameraPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
@@ -32,7 +30,7 @@ mod serialization;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(AtmospherePlugin)
         .add_plugin(LevelPlugin)
@@ -44,6 +42,7 @@ fn main() {
         .add_plugin(ControllersPlugin)
         .add_plugin(ActorPlugin)
         .add_plugin(ItemsPlugin)
+        .add_plugin(serialization::SerializationPlugin)
         .insert_resource(settings::Settings::default())
         .insert_resource(AmbientLight {
             brightness: 0.3,
@@ -54,7 +53,8 @@ fn main() {
 }
 
 fn init(mut writer: EventWriter<CreateLevelEvent>) {
-    writer.send(CreateLevelEvent { name: "level".to_string(), seed: 8008135 })
+    writer.send(CreateLevelEvent { name: "level".to_string(), seed: 8008135 });
+    info!("Sent create level event!");
     // for i in 0..5 {
     //     spawn_glowjelly.send(SpawnGlowjellyEvent {
     //         location: Transform::from_xyz(i as f32*5.0,-45.0,0.0),
