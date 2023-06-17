@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::prelude::*;
 
 use crate::world::{LevelLoadState, LevelSystemSet};
@@ -37,11 +39,11 @@ impl ItemStack {
 
 #[derive(Clone, Hash, Eq, PartialEq, Component)]
 pub struct Item {
-    pub name: String,
+    pub name: &'static str,
     pub max_stack_size: u32
 }
 impl Item {
-    pub fn new(name: String, max_stack_size: u32) -> Self {
+    pub fn new(name: &'static str, max_stack_size: u32) -> Self {
         Self {
             name,
             max_stack_size

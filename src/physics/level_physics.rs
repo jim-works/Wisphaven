@@ -100,7 +100,7 @@ pub fn poll_gen_physics_queue(
 
             if let Some(collider) = opt_collider {
                 //remove old collider
-                commands.entity(collider.child).despawn();
+                commands.entity(collider.child).despawn_recursive();
             }
             //add new collider
             let mut child_commands = commands.spawn(*tf);

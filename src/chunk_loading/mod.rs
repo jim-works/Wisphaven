@@ -75,6 +75,6 @@ pub fn despawn_initial_loader(
     mut commands: Commands,
 ) {
     for entity in init_loader.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).despawn_recursive();
     }
 }

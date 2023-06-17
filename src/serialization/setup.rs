@@ -39,7 +39,7 @@ pub fn on_level_created(
                 commands.insert_resource(HeedEnv(env));
                 commands.insert_resource(ChunkDB(db));
                 commands.insert_resource(Level::new(
-                    event.name.clone(),
+                    event.name,
                     settings.init_loader.lod_levels.try_into().unwrap(),
                 ));
                 next_state.set(LevelLoadState::Loading);

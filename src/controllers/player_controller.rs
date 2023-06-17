@@ -159,6 +159,7 @@ pub fn player_punch(
     collision: Res<RapierContext>,
 ) {
     if let Ok((tf, act)) = camera_query.get_single() {
+        println!("pos: {:?}", tf.translation());
         if act.just_pressed(Action::Punch) {
             let (player_entity, player, info) = player_query.get_single().unwrap();
             //first test if we punched a combatant

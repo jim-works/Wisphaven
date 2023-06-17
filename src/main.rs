@@ -53,7 +53,7 @@ fn main() {
 }
 
 fn init(mut writer: EventWriter<CreateLevelEvent>) {
-    writer.send(CreateLevelEvent { name: "level".to_string(), seed: 8008135 });
+    writer.send(CreateLevelEvent { name: "level", seed: 8008135 });
     info!("Sent create level event!");
     // for i in 0..5 {
     //     spawn_glowjelly.send(SpawnGlowjellyEvent {
@@ -62,4 +62,3 @@ fn init(mut writer: EventWriter<CreateLevelEvent>) {
     //     });
     // }
 }
-

@@ -3,7 +3,7 @@ pub use level_physics::*;
 
 use bevy::prelude::*;
 
-use crate::world::{LevelSystemSet, LevelLoadState};
+use crate::world::LevelSystemSet;
 use bevy_rapier3d::prelude::*;
 
 pub struct PhysicsPlugin;

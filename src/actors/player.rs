@@ -65,9 +65,9 @@ pub fn spawn_local_player(
         },
         )).id();
         let mut inventory = Inventory::new(player_id, 10);
-        let grass_item = items::create_item(Item::new("Grass Block".to_string(), 999), BlockItem(BlockType::Basic(0)), &mut commands);
-        let mega_air_item = items::create_item(Item::new("Mega Air".to_string(), 999), MegablockItem(BlockType::Empty,10), &mut commands);
-        let dagger_item = items::create_item(Item::new("Dagger".to_string(), 999), MeleeWeaponItem{damage: 5.0, knockback: 2.0}, &mut commands);
+        let grass_item = items::create_item(Item::new("Grass Block", 999), BlockItem(BlockType::Basic(0)), &mut commands);
+        let mega_air_item = items::create_item(Item::new("Mega Air", 999), MegablockItem(BlockType::Empty,10), &mut commands);
+        let dagger_item = items::create_item(Item::new("Dagger", 999), MeleeWeaponItem{damage: 5.0, knockback: 2.0}, &mut commands);
         inventory.pickup_item(ItemStack::new(grass_item,1), &item_query, &mut pickup_item, &mut equip_item);
         inventory.pickup_item(ItemStack::new(mega_air_item,1), &item_query, &mut pickup_item, &mut equip_item);
         inventory.pickup_item(ItemStack::new(dagger_item,1), &item_query, &mut pickup_item, &mut equip_item);

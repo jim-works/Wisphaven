@@ -11,7 +11,7 @@ use super::{chunk::*, BlockBuffer, BlockCoord, BlockType};
 
 #[derive(Resource)]
 pub struct Level {
-    pub name: String,
+    pub name: &'static str,
     pub spawn_point: Vec3,
     chunks: DashMap<ChunkCoord, ChunkType, ahash::RandomState>,
     buffers: DashMap<ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>, ahash::RandomState>,
@@ -19,7 +19,7 @@ pub struct Level {
 }
 
 impl Level {
-    pub fn new(name: String, lod_levels: usize) -> Level {
+    pub fn new(name: &'static str, lod_levels: usize) -> Level {
         Level {
             name,
             chunks: DashMap::with_hasher(ahash::RandomState::new()),
