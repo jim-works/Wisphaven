@@ -159,8 +159,9 @@ pub fn poll_mesh_queue(
                         ..default()
                     });
                 }
-            } else if let Some(_) = opt_mesh_handle  {
+            } else if let Some(old_handle) = opt_mesh_handle  {
                 //remove old mesh from existing chunk if the new mesh is empty
+                meshes.remove(old_handle);
                 commands.entity(entity).remove::<Handle<Mesh>>();
             }
             commands.entity(entity).remove::<MeshTask>();

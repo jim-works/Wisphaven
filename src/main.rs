@@ -27,6 +27,7 @@ mod world;
 mod worldgen;
 mod items;
 mod serialization;
+mod ui;
 
 fn main() {
     App::new()
@@ -43,6 +44,7 @@ fn main() {
         .add_plugin(ActorPlugin)
         .add_plugin(ItemsPlugin)
         .add_plugin(serialization::SerializationPlugin)
+        .add_plugin(ui::UIPlugin)
         .insert_resource(settings::Settings::default())
         .insert_resource(AmbientLight {
             brightness: 0.3,

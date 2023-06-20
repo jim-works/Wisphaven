@@ -202,7 +202,8 @@ pub fn unload_all(
     }
 }
 
-pub fn despawn_chunks(mut commands: Commands, mut despawn_reader: EventReader<DespawnChunkEvent>) {
+pub fn despawn_chunks(mut commands: Commands, mut despawn_reader: EventReader<DespawnChunkEvent>,
+) {
     let _my_span = info_span!("despawn_chunks", name = "despawn_chunks").entered();
     for e in despawn_reader.iter() {
         if let Some(ec) = commands.get_entity(e.0) {
