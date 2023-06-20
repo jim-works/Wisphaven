@@ -2,7 +2,7 @@ use bevy::{prelude::*, scene::SceneInstance};
 use bevy_rapier3d::prelude::*;
 use big_brain::prelude::*;
 
-use crate::physics::PhysicsObjectBundle;
+use crate::{physics::PhysicsObjectBundle, ui::healthbar::{spawn_billboard_healthbar, HealthbarResources}, world::LevelLoadState};
 
 use super::{CombatInfo, CombatantBundle};
 
@@ -50,6 +50,7 @@ pub struct GlowjellyPlugin;
 impl Plugin for GlowjellyPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(load_resources)
+            .add_system(trigger_spawning.in_schedule(OnEnter(LevelLoadState::Loaded)))
             .add_system(spawn_glowjelly)
             .add_system(keyboard_animation_control)
             .add_system(eval_height)
@@ -67,14 +68,26 @@ pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     });
 }
 
+fn trigger_spawning (
+    mut writer: EventWriter<SpawnGlowjellyEvent>
+) {
+    for i in 0..5 {
+        writer.send(SpawnGlowjellyEvent {
+            location: Transform::from_xyz(i as f32*5.0,-45.0,0.0),
+            color: Color::rgb(i as f32, 1.0, 1.0)
+        });
+    }
+}
+
 pub fn spawn_glowjelly(
     mut commands: Commands,
     jelly_res: Res<GlowjellyResources>,
     mut spawn_requests: EventReader<SpawnGlowjellyEvent>,
+    healthbar_resources: Res<HealthbarResources>,
     children_query: Query<&Children>
 ) {
     for spawn in spawn_requests.iter() {
-        commands
+        let id = commands
             .spawn((
                 SceneBundle {
                     scene: jelly_res.scene.clone_weak(),
@@ -101,7 +114,9 @@ pub fn spawn_glowjelly(
                     .label("glowjelly thinker")
                     .picker(FirstToScore {threshold: 0.5})
                     .when(FloatScorer, FloatAction)
-            ));
+            )).id();
+        //add healthbar
+        spawn_billboard_healthbar(&mut commands, &healthbar_resources, id, Vec3::new(0.0,2.0,0.0));
             // )).with_children(|cb| {
             //     cb.spawn(PointLightBundle {
             //         point_light: PointLight {

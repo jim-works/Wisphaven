@@ -3,9 +3,10 @@
 
 
 
-use actors::{ActorPlugin, glowjelly::SpawnGlowjellyEvent};
+use actors::ActorPlugin;
 use bevy::prelude::*;
 use bevy_atmosphere::prelude::*;
+use bevy_mod_billboard::prelude::*;
 use bevy_fly_camera::FlyCameraPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use chunk_loading::{ChunkLoader, ChunkLoaderPlugin};
@@ -33,6 +34,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugin(WorldInspectorPlugin::new())
+        .add_plugin(BillboardPlugin)
         .add_plugin(AtmospherePlugin)
         .add_plugin(LevelPlugin)
         .add_plugin(FlyCameraPlugin)
@@ -57,10 +59,4 @@ fn main() {
 fn init(mut writer: EventWriter<CreateLevelEvent>) {
     writer.send(CreateLevelEvent { name: "level", seed: 8008135 });
     info!("Sent create level event!");
-    // for i in 0..5 {
-    //     spawn_glowjelly.send(SpawnGlowjellyEvent {
-    //         location: Transform::from_xyz(i as f32*5.0,-45.0,0.0),
-    //         color: Color::rgb(i as f32, 1.0, 1.0)
-    //     });
-    // }
 }

@@ -16,6 +16,7 @@ impl Plugin for UIPlugin {
             .add_startup_system(styles::init)
             .add_plugin(inventory::InventoryPlugin)
             .add_plugin(crosshair::CrosshairPlugin)
+            .add_plugin(healthbar::HealthbarPlugin)
         ;
     }
 }
