@@ -104,7 +104,6 @@ impl Inventory {
                 drop_writer.send(DropItemEvent(self.owner, item.clone()));
                 unequip_writer.send(UnequipItemEvent(self.owner, item.clone()));
                 let ret = Some(item.clone());
-                drop(item);
                 self.items[slot] = None;
                 ret
             } else {

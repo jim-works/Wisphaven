@@ -153,35 +153,33 @@ fn gen_physics<T: std::ops::IndexMut<usize, Output=BlockType>>(chunk: &Chunk<T>,
             BlockType::Basic(id) => id,
             BlockType::Entity(_) => todo!(),
         };
-        //on edge, generate collider
+        //on edge or has air neighbor, generate collider
         if coord.x == CHUNK_SIZE_U8 - 1
             || coord.y == CHUNK_SIZE_U8 - 1
             || coord.z == CHUNK_SIZE_U8 - 1
             || coord.x == 0
             || coord.y == 0
             || coord.z == 0
+            ||matches!(
+                chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
+                BlockType::Empty
+            ) || matches!(
+                chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
+                BlockType::Empty
+            ) || matches!(
+                chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
+                BlockType::Empty
+            ) || matches!(
+                chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
+                BlockType::Empty
+            ) || matches!(
+                chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
+                BlockType::Empty
+            ) || matches!(
+                chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
+                BlockType::Empty
+            ) 
         {
-            compound.push(get_collider(registry, id, coord))
-        } else if matches!(
-            chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
-            BlockType::Empty
-        ) || matches!(
-            chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
-            BlockType::Empty
-        ) || matches!(
-            chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
-            BlockType::Empty
-        ) || matches!(
-            chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
-            BlockType::Empty
-        ) || matches!(
-            chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
-            BlockType::Empty
-        ) || matches!(
-            chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
-            BlockType::Empty
-        ) {
-            //has at least one air neighbor, generate collider
             compound.push(get_collider(registry, id, coord))
         }
     }

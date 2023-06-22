@@ -93,12 +93,12 @@ pub fn do_loading(
     }
     //unload lods (i=lod-1)
     let mut to_unload_lod = Vec::new();
-    for i in 0..loaded_lods.len() {
+    for (i, lods) in loaded_lods.iter().enumerate() {
         let lod_level = i + 1;
         if let Some(chunks) = level.get_lod_chunks(lod_level) {
             for c in chunks.iter() {
                 let key = *c.key();
-                if !loaded_lods[i].contains(&key) {
+                if !lods.contains(&key) {
                     to_unload_lod.push((lod_level, key));
                 }
             }
@@ -147,7 +147,7 @@ fn load_lod(
                         .spawn((
                             Name::new("LODChunk"),
                             test_coord,
-                            ChunkNeedsGenerated::LOD(lod_level),
+                            ChunkNeedsGenerated::Lod(lod_level),
                         ))
                         .id();
                     level.add_lod_chunk(

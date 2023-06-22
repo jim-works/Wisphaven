@@ -30,7 +30,7 @@ impl Iterator for DirectionIterator {
 }
 
 impl Direction {
-    pub fn to_idx(&self) -> usize {
+    pub fn to_idx(self) -> usize {
         match self {
             Direction::PosX => 0,
             Direction::PosY => 1,
@@ -41,7 +41,7 @@ impl Direction {
         }
     }
 
-    pub fn opposite(&self) -> Direction {
+    pub fn opposite(self) -> Direction {
         match self {
             Direction::PosX => Direction::NegX,
             Direction::PosY => Direction::NegY,

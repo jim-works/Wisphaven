@@ -53,7 +53,7 @@ impl From<&ArrayChunk> for ChunkSaveFormat {
 }
 
 impl ChunkSaveFormat {
-    fn to_chunk(self, chunk_entity: Entity) -> ArrayChunk {
+    fn into_chunk(self, chunk_entity: Entity) -> ArrayChunk {
         let mut curr_idx = 0;
         let mut chunk = ArrayChunk::new(self.position, chunk_entity);
         for (block, length) in self.data.into_iter() {

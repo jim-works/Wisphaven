@@ -30,10 +30,10 @@ impl ChunkCoord {
     pub fn new (x: i32, y: i32, z: i32) -> ChunkCoord {
         ChunkCoord { x, y, z }
     }
-    pub fn to_vec3(&self) -> Vec3 {
+    pub fn to_vec3(self) -> Vec3 {
         Vec3::new((self.x*CHUNK_SIZE_I32) as f32,(self.y*CHUNK_SIZE_I32) as f32,(self.z*CHUNK_SIZE_I32) as f32)
     }
-    pub fn offset(&self, dir: Direction) -> ChunkCoord {
+    pub fn offset(self, dir: Direction) -> ChunkCoord {
         match dir {
             Direction::PosX => ChunkCoord::new(self.x+1,self.y,self.z),
             Direction::PosY => ChunkCoord::new(self.x,self.y+1,self.z),
@@ -43,7 +43,7 @@ impl ChunkCoord {
             Direction::NegZ => ChunkCoord::new(self.x,self.y,self.z-1),
         }
     }
-    pub fn to_next_lod(&self) -> ChunkCoord {
+    pub fn to_next_lod(self) -> ChunkCoord {
         ChunkCoord::new(self.x/2,self.y/2,self.z/2)
     }
 }
@@ -86,13 +86,13 @@ impl ChunkIdx {
         ChunkIdx { x: x as u8, y: y as u8, z: z as u8 }
     }
     //on the corner of the block, block extends in positive directions
-    pub fn to_vec3(&self) -> Vec3 {
+    pub fn to_vec3(self) -> Vec3 {
         Vec3::new(self.x as f32,self.y as f32,self.z as f32)
     }
-    pub fn get_block_center(&self) -> Vec3 {
+    pub fn get_block_center(self) -> Vec3 {
         Vec3::new(self.x as f32+0.5,self.y as f32+0.5,self.z as f32+0.5)
     }
-    pub fn to_usize(&self) -> usize {
+    pub fn to_usize(self) -> usize {
         (self.x as usize)*CHUNK_SIZE*CHUNK_SIZE+(self.y as usize)*CHUNK_SIZE+(self.z as usize)
     }
 }

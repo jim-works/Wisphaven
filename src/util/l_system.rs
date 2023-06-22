@@ -13,8 +13,7 @@ impl<Alphabet: Clone, P: Fn(&Alphabet, u32) -> Option<Vec<Alphabet>>> LSystem<Al
     pub fn apply_to(&self, sentence: &Vec<Alphabet>, seed: u32) -> Vec<Alphabet> {
         let _my_span = info_span!("l_structure_apply_to", name = "l_structure_apply_to").entered();
         let mut new_sentence = Vec::new(); 
-        for i in 0..sentence.len(){
-            let letter = &sentence[i];
+        for (i, letter) in sentence.iter().enumerate() {
             if let Some(mut rhs) = (self.producer)(letter, seed+i as u32) {
                 new_sentence.append(&mut rhs);
             } else {

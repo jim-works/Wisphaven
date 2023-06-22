@@ -12,7 +12,7 @@ use super::{ADD_TIME_BUDGET_MS, QUEUE_GEN_TIME_BUDGET_MS, structures::{self, Str
 #[derive(Component)]
 pub enum ChunkNeedsGenerated {
     Full,
-    LOD(usize)
+    Lod(usize)
 }
 
 //task to generate the overall shape of the terrain
@@ -69,7 +69,7 @@ pub fn queue_generating(
             ChunkNeedsGenerated::Full => {
                 ec.insert(ShapingTask { task: pool.spawn(async move { gen_chunk(gen_coord, entity,gen_noise) })});
             },
-            ChunkNeedsGenerated::LOD(level) => {
+            ChunkNeedsGenerated::Lod(level) => {
                 let gen_level = *level;
                 ec.insert(LODShapingTask {task: pool.spawn(async move { gen_lod_chunk(gen_coord, gen_level, entity,gen_noise) })});
             },

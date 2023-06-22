@@ -1,5 +1,5 @@
-mod mesher;
-pub use mesher::*;
+mod generator;
+pub use generator::*;
 
 mod mesh_lod;
 
@@ -26,8 +26,8 @@ impl Plugin for MesherPlugin {
             })
             .add_systems(
                 (
-                    mesher::poll_mesh_queue,
-                    mesher::queue_meshing,
+                    generator::poll_mesh_queue,
+                    generator::queue_meshing,
                     mesh_lod::queue_meshing_lod,
                 )
                     .in_set(LevelSystemSet::LoadingAndMain))

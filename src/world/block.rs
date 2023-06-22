@@ -65,18 +65,18 @@ impl BlockCoord {
         BlockCoord { x, y, z }
     }
     //returns coordinate at negative corner of block
-    pub fn to_vec3(&self) -> Vec3 {
+    pub fn to_vec3(self) -> Vec3 {
         Vec3::new(self.x as f32, self.y as f32, self.z as f32)
     }
     //returns coordinate at center of block
-    pub fn center(&self) -> Vec3 {
+    pub fn center(self) -> Vec3 {
         Vec3::new(
             self.x as f32 + 0.5,
             self.y as f32 + 0.5,
             self.z as f32 + 0.5,
         )
     }
-    pub fn offset(&self, dir: Direction) -> BlockCoord {
+    pub fn offset(self, dir: Direction) -> BlockCoord {
         match dir {
             Direction::PosX => BlockCoord::new(self.x + 1, self.y, self.z),
             Direction::PosY => BlockCoord::new(self.x, self.y + 1, self.z),
@@ -87,7 +87,7 @@ impl BlockCoord {
         }
     }
     //if v has maximum element m, returns the vector with m set to sign(m) and all other elements 0.
-    pub fn max_component_norm(&self) -> BlockCoord {
+    pub fn max_component_norm(self) -> BlockCoord {
         let abs = self.abs();
         if abs.x > abs.y && abs.x > abs.z {
             BlockCoord::new(self.x.signum(), 0, 0)
@@ -97,7 +97,7 @@ impl BlockCoord {
             BlockCoord::new(0, 0, self.z.signum())
         }
     }
-    pub fn abs(&self) -> BlockCoord {
+    pub fn abs(self) -> BlockCoord {
         BlockCoord::new(self.x.abs(), self.y.abs(), self.z.abs())
     }
 }
