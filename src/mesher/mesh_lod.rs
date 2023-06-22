@@ -78,7 +78,7 @@ fn mesh_chunk_lod(chunk: &LODChunk, data: &mut MeshData) {
         let block = chunk[i];
         match block {
             BlockType::Empty => {},
-            BlockType::Basic(id) => mesh_block_lod(&chunk, registry.get_block_mesh(id), coord, coord.to_vec3()*data.scale, data, registry),
+            BlockType::Basic(id) => mesh_block_lod(chunk, registry.get_block_mesh(id), coord, coord.to_vec3()*data.scale, data, registry),
             BlockType::Entity(_) => todo!(),
         }
     }

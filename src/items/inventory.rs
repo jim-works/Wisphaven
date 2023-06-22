@@ -84,7 +84,7 @@ impl Inventory {
             pickup_writer.send(PickupItemEvent(self.owner, ItemStack { id: item.id, size: picked_up }));
             equip_writer.send(EquipItemEvent(self.owner, ItemStack { id: item.id, size: picked_up }));
         }
-        return Some(item);
+        Some(item)
     }
     //returns the dropped items
     pub fn drop_slot(&mut self, slot: usize, drop_writer: &mut EventWriter<DropItemEvent>, unequip_writer: &mut EventWriter<UnequipItemEvent>) -> Option<ItemStack> {
@@ -94,7 +94,7 @@ impl Inventory {
             drop_writer.send(DropItemEvent(self.owner, stack.clone()));
             unequip_writer.send(UnequipItemEvent(self.owner, stack.clone()));
         }
-        return item;
+        item
     }
     //returns the dropped items
     pub fn drop_items(&mut self, slot: usize, max_drops: u32, drop_writer: &mut EventWriter<DropItemEvent>, unequip_writer: &mut EventWriter<UnequipItemEvent>) -> Option<ItemStack> {
@@ -106,15 +106,15 @@ impl Inventory {
                 let ret = Some(item.clone());
                 drop(item);
                 self.items[slot] = None;
-                return ret;
+                ret
             } else {
                 item.size -= to_drop;
                 drop_writer.send(DropItemEvent(self.owner, item.clone()));
                 unequip_writer.send(UnequipItemEvent(self.owner, item.clone()));
-                return Some(ItemStack {
+                Some(ItemStack {
                     id: item.id,
                     size: to_drop
-                });
+                })
             }
         } else {
             None

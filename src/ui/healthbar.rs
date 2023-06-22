@@ -43,8 +43,8 @@ fn init(
     mut meshes: ResMut<Assets<Mesh>>,
     mut billboard_textures: ResMut<Assets<BillboardTexture>>,
 ) {
-    let fg: Handle<Image> = assets.load("textures/HealthbarForeground.png").into();
-    let bg: Handle<Image> = assets.load("textures/HealthbarBackground.png").into();
+    let fg: Handle<Image> = assets.load("textures/HealthbarForeground.png");
+    let bg: Handle<Image> = assets.load("textures/HealthbarBackground.png");
     commands.insert_resource(HealthbarResources {
         foreground_image: fg.clone(),
         background_image: bg.clone(),

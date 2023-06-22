@@ -29,5 +29,5 @@ pub fn get_next_prng<const ITERATIONS: u64>(curr: u64) -> u64 {
         seed = seed.wrapping_mul(673).wrapping_add(i);
         seed = rot(seed);
     }
-    return seed;
+    seed
 }

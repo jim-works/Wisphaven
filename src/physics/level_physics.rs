@@ -185,7 +185,7 @@ fn gen_physics<T: std::ops::IndexMut<usize, Output=BlockType>>(chunk: &Chunk<T>,
             compound.push(get_collider(registry, id, coord))
         }
     }
-    if compound.len() > 0 {
+    if !compound.is_empty() {
         data.colliders.push(Collider::compound(compound));
     }
 }

@@ -96,10 +96,10 @@ pub fn get_short_tree(seed: u64) -> Box<dyn StructureGenerator+Send+Sync> {
     let mut noise = FastNoise::seeded(seed);
     //white noise doesn't work
     noise.set_noise_type(NoiseType::Value);
-    noise.set_frequency(436781.23476);
+    noise.set_frequency(436_781.25);
     let mut selection_noise = FastNoise::seeded(seed+1);
     selection_noise.set_noise_type(NoiseType::Value);
-    selection_noise.set_frequency(1230481.123712);
+    selection_noise.set_frequency(1_230_481.1);
     Box::new(LTreeGenerator::new(
             noise,
         LSystem::new(move |x,idx| {

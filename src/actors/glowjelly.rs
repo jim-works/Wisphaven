@@ -84,7 +84,7 @@ pub fn spawn_glowjelly(
     jelly_res: Res<GlowjellyResources>,
     mut spawn_requests: EventReader<SpawnGlowjellyEvent>,
     healthbar_resources: Res<HealthbarResources>,
-    children_query: Query<&Children>
+    _children_query: Query<&Children>
 ) {
     for spawn in spawn_requests.iter() {
         let id = commands
@@ -134,12 +134,12 @@ pub fn spawn_glowjelly(
 
 //attach tag component to animator: this is kinda ugly
 pub fn setup_glowjelly(
-    mut commands: Commands,
-    children_query: Query<&Children>,
+    _commands: Commands,
+    _children_query: Query<&Children>,
     glowjelly_query: Query<Entity, (With<Glowjelly>, Added<SceneInstance>)>,
-    anim_query: Query<&AnimationPlayer>
+    _anim_query: Query<&AnimationPlayer>
 ) {
-    for parent_id in glowjelly_query.iter() {
+    for _parent_id in glowjelly_query.iter() {
         //hierarchy is parent -> scene -> gltfnode (with animation player)
         //find first child with a child that has an animation player
         //not perfect but whatevs
@@ -186,7 +186,7 @@ pub fn eval_height (
 }
 pub fn float_action_system (
     time: Res<Time>,
-    jelly_anim: Res<GlowjellyResources>,
+    _jelly_anim: Res<GlowjellyResources>,
     mut info: Query<(&mut FloatHeight, &mut ExternalImpulse)>,
     mut query: Query<(&Actor, &mut ActionState), With<FloatAction>>
 ) {

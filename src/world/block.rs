@@ -90,11 +90,11 @@ impl BlockCoord {
     pub fn max_component_norm(&self) -> BlockCoord {
         let abs = self.abs();
         if abs.x > abs.y && abs.x > abs.z {
-            return BlockCoord::new(self.x.signum(), 0, 0);
+            BlockCoord::new(self.x.signum(), 0, 0)
         } else if abs.y > abs.z {
-            return BlockCoord::new(0, self.y.signum(), 0);
+            BlockCoord::new(0, self.y.signum(), 0)
         } else {
-            return BlockCoord::new(0, 0, self.z.signum());
+            BlockCoord::new(0, 0, self.z.signum())
         }
     }
     pub fn abs(&self) -> BlockCoord {

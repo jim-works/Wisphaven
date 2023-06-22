@@ -68,8 +68,8 @@ pub fn do_loading(
                 i,
                 &mut commands,
                 &mut level,
-                &transform,
-                &loader,
+                transform,
+                loader,
                 &mut loaded_lod,
             );
             loaded_lods.push(loaded_lod);
@@ -78,7 +78,7 @@ pub fn do_loading(
     //unload all not in range
     let mut to_unload = Vec::new();
     for c in level.chunks_iter() {
-        let key = c.key().clone();
+        let key = *c.key();
         if !loaded_chunks.contains(&key) {
             to_unload.push(key);
         }
@@ -97,7 +97,7 @@ pub fn do_loading(
         let lod_level = i + 1;
         if let Some(chunks) = level.get_lod_chunks(lod_level) {
             for c in chunks.iter() {
-                let key = c.key().clone();
+                let key = *c.key();
                 if !loaded_lods[i].contains(&key) {
                     to_unload_lod.push((lod_level, key));
                 }
@@ -170,12 +170,12 @@ pub fn unload_all(
         let mut to_unload = Vec::new();
         let mut to_unload_lod = Vec::new();
         for c in level.chunks_iter() {
-            let key = c.key().clone();
+            let key = *c.key();
             to_unload.push(key);
         }
         for i in 0..level.get_lod_levels() {
             for c in level.get_lod_chunks(i).unwrap() {
-                let key = c.key().clone();
+                let key = *c.key();
                 let level = c.value();
                 match level {
                     LODChunkType::Ungenerated(_, level) => to_unload_lod.push((*level, key)),

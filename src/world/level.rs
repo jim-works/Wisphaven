@@ -146,7 +146,7 @@ impl Level {
         self.chunks.get_mut(&key)
     }
     pub fn get_chunk_entity(&self, key: ChunkCoord) -> Option<Entity> {
-        if let Some(r) = self.get_chunk(ChunkCoord::from(key)) {
+        if let Some(r) = self.get_chunk(key) {
             if let ChunkType::Full(chunk) = r.value() {
                 return Some(chunk.entity);
             } else if let ChunkType::Ungenerated(e) = r.value() {

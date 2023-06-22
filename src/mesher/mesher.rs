@@ -128,7 +128,7 @@ pub fn poll_mesh_queue(
     for (entity, opt_mesh_handle, mut task) in query.iter_mut() {
         if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
             len += 1;
-            if data.verts.len() > 0 {
+            if !data.verts.is_empty() {
                 if let Some(mesh_handle) = opt_mesh_handle {
                     //update existing chunk
                     let mesh = meshes.get_mut(mesh_handle).unwrap();
@@ -192,7 +192,7 @@ fn mesh_chunk<T: std::ops::IndexMut<usize, Output = BlockType>>(
         match block {
             BlockType::Empty => {}
             BlockType::Basic(id) => mesh_block(
-                &chunk,
+                chunk,
                 neighbors,
                 registry.get_block_mesh(id),
                 coord,
@@ -950,43 +950,35 @@ fn add_ao(
     let mut side2 = false;
     let mut corner = false;
 
-    if side1_coord.x < CHUNK_SIZE_I32 && side1_coord.x >= 0 {
-        if side1_coord.y < CHUNK_SIZE_I32 && side1_coord.y >= 0 {
-            side1 = matches!(
-                chunk[ChunkIdx::new(
-                    side1_coord.x as u8,
-                    side1_coord.y as u8,
-                    side1_coord.z as u8
-                )],
-                BlockType::Basic(_)
-            );
-        }
+    if side1_coord.x < CHUNK_SIZE_I32 && side1_coord.x >= 0 && side1_coord.y < CHUNK_SIZE_I32 && side1_coord.y >= 0 {
+        side1 = matches!(
+            chunk[ChunkIdx::new(
+                side1_coord.x as u8,
+                side1_coord.y as u8,
+                side1_coord.z as u8
+            )],
+            BlockType::Basic(_)
+        );
     }
-    if side2_coord.z < CHUNK_SIZE_I32 && side2_coord.z >= 0 {
-        if side2_coord.y < CHUNK_SIZE_I32 && side2_coord.y >= 0 {
-            side2 = matches!(
-                chunk[ChunkIdx::new(
-                    side2_coord.x as u8,
-                    side2_coord.y as u8,
-                    side2_coord.z as u8
-                )],
-                BlockType::Basic(_)
-            );
-        }
+    if side2_coord.z < CHUNK_SIZE_I32 && side2_coord.z >= 0 && side2_coord.y < CHUNK_SIZE_I32 && side2_coord.y >= 0 {
+        side2 = matches!(
+            chunk[ChunkIdx::new(
+                side2_coord.x as u8,
+                side2_coord.y as u8,
+                side2_coord.z as u8
+            )],
+            BlockType::Basic(_)
+        );
     }
-    if corner_coord.x < CHUNK_SIZE_I32 && corner_coord.x >= 0 {
-        if corner_coord.y < CHUNK_SIZE_I32 && corner_coord.y >= 0 {
-            if corner_coord.z < CHUNK_SIZE_I32 && corner_coord.z >= 0 {
-                corner = matches!(
-                    chunk[ChunkIdx::new(
-                        corner_coord.x as u8,
-                        corner_coord.y as u8,
-                        corner_coord.z as u8
-                    )],
-                    BlockType::Basic(_)
-                );
-            }
-        }
+    if corner_coord.x < CHUNK_SIZE_I32 && corner_coord.x >= 0 && corner_coord.y < CHUNK_SIZE_I32 && corner_coord.y >= 0 && corner_coord.z < CHUNK_SIZE_I32 && corner_coord.z >= 0 {
+        corner = matches!(
+            chunk[ChunkIdx::new(
+                corner_coord.x as u8,
+                corner_coord.y as u8,
+                corner_coord.z as u8
+            )],
+            BlockType::Basic(_)
+        );
     }
 
     data.ao_level.push(neighbors_to_ao(side1, side2, corner));
@@ -1000,5 +992,5 @@ fn neighbors_to_ao(side1: bool, side2: bool, corner: bool) -> f32 {
     if side1 && side2 {
         return LEVEL_FOR_NEIGHBORS[0];
     }
-    return LEVEL_FOR_NEIGHBORS[3 - (side1 as usize + side2 as usize + corner as usize)];
+    LEVEL_FOR_NEIGHBORS[3 - (side1 as usize + side2 as usize + corner as usize)]
 }

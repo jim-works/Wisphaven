@@ -69,7 +69,7 @@ pub struct BlockcastHit {
 
 pub fn get_block_registry() -> &'static BlockRegistry {
     static REGISTRY: OnceLock<BlockRegistry> = OnceLock::new();
-    REGISTRY.get_or_init(|| initialize_block_registry())
+    REGISTRY.get_or_init(initialize_block_registry)
 }
 
 fn initialize_block_registry() -> BlockRegistry {

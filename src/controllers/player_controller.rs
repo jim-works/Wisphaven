@@ -174,7 +174,7 @@ pub fn player_punch(
                 if combat_query.contains(hit) {
                     //we hit a combatant, so attack it and return
                     match &info.equipped_weapon {
-                        Some(weapon) => attack_item_writer.send(AttackItemEvent(player_entity, weapon.clone(), tf.clone())),
+                        Some(weapon) => attack_item_writer.send(AttackItemEvent(player_entity, weapon.clone(), *tf)),
                         None => attack_punch_writer.send(AttackEvent { attacker: player_entity, target: hit, damage: player.hit_damage, knockback: tf.forward() })
                     };
                     return;

@@ -45,7 +45,7 @@ impl From<&ArrayChunk> for ChunkSaveFormat {
                 }
             }
         }
-        return Self {
+        Self {
             position: value.position,
             data
         }
@@ -60,7 +60,7 @@ impl ChunkSaveFormat {
             for idx in curr_idx..curr_idx+length as usize {
                 chunk.blocks[idx] = block;
             }
-            curr_idx = curr_idx+length as usize;
+            curr_idx += length as usize;
         };
         chunk
     }

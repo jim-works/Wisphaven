@@ -57,18 +57,13 @@ impl CombatInfo {
 }
 
 #[derive(Component)]
+#[derive(Default)]
 pub struct DeathInfo {
     pub death_type: DeathType,
     //death_message: Option<&str>,
 }
 
-impl Default for DeathInfo {
-    fn default() -> Self {
-        Self {
-            death_type: DeathType::default()
-        }
-    }
-}
+
 
 #[derive(Default)]
 pub enum DeathType {

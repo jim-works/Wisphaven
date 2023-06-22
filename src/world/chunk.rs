@@ -155,8 +155,8 @@ impl ArrayChunk {
     pub fn new(position: ChunkCoord, entity: Entity) -> ArrayChunk {
         Chunk {
             blocks: Box::new([BlockType::Empty; BLOCKS_PER_CHUNK]),
-            entity: entity,
-            position: position
+            entity,
+            position
         }
     }
 }

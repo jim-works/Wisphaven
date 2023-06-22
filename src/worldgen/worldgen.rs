@@ -60,7 +60,7 @@ pub fn queue_generating(
     let now = Instant::now();
     let pool = AsyncComputeTaskPool::get();
     for (entity, coord, gen_request) in query.iter() {
-        let gen_coord = coord.clone();
+        let gen_coord = *coord;
         let gen_noise = noise.clone();
         //must be async so that it's a future
         let mut ec = commands.entity(entity);

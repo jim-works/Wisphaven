@@ -18,7 +18,7 @@ pub fn do_saving(
     if let Ok(mut wtxn) = heed_env.0.write_txn() {
         for (entity, coord) in save_query.iter() {
             if let Some(chunk_ref) = level.get_chunk(*coord) {
-                if let ChunkType::Full(chunk) = chunk_ref.value() {
+                if let ChunkType::Full(_chunk) = chunk_ref.value() {
                     if let Err(e) = chunk_db.0.put(&mut wtxn, coord, &[0]) {
                         error!("Error saving chunk {:?} {}", coord, e);
                         break;
