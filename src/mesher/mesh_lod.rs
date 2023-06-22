@@ -34,16 +34,7 @@ pub fn queue_meshing_lod(
                     let meshing = chunk.clone();
                     len += 1;
                     let task = pool.spawn(async move {
-                        let mut data = MeshData {
-                            verts: Vec::new(),
-                            norms: Vec::new(),
-                            tris: Vec::new(),
-                            uvs: Vec::new(),
-                            layer_idx: Vec::new(),
-                            ao_level: Vec::new(),
-                            scale: meshing.scale() as f32,
-                            position: meshing.get_block_pos(ChunkIdx::new(0, 0, 0)),
-                        };
+                        let mut data = ChunkMesh::new(meshing.scale() as f32);
                         mesh_chunk_lod(&meshing, &mut data);
                         data
                     });
@@ -58,13 +49,13 @@ pub fn queue_meshing_lod(
     let duration = Instant::now().duration_since(now).as_millis();
     if len > 0 {
         println!(
-            "queued mesh generation for {} chunks in {}ms",
+            "queued mesh generation for {} lod chunks in {}ms",
             len, duration
         );
     }
 }
 
-fn mesh_chunk_lod(chunk: &LODChunk, data: &mut MeshData) {
+fn mesh_chunk_lod(chunk: &LODChunk, data: &mut ChunkMesh) {
     let _my_span = info_span!("mesh_chunk_lod", name = "mesh_chunk_lod").entered();
     let registry = crate::world::get_block_registry();
     for i in 0..chunk::BLOCKS_PER_CHUNK {
@@ -90,7 +81,7 @@ fn mesh_block_lod(
     b: &BlockMesh,
     coord: ChunkIdx,
     origin: Vec3,
-    data: &mut MeshData,
+    data: &mut ChunkMesh,
     registry: &BlockRegistry,
 ) {
     if coord.z == CHUNK_SIZE_U8 - 1
@@ -107,7 +98,11 @@ fn mesh_block_lod(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            data,
+            if registry.is_mesh_transparent(b, Direction::PosZ) {
+                &mut data.transparent
+            } else {
+                &mut data.opaque
+            },
         );
     }
     //negative z face
@@ -125,7 +120,11 @@ fn mesh_block_lod(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            data,
+            if registry.is_mesh_transparent(b, Direction::NegZ) {
+                &mut data.transparent
+            } else {
+                &mut data.opaque
+            },
         );
     }
     //positive y face
@@ -143,7 +142,11 @@ fn mesh_block_lod(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            data,
+            if registry.is_mesh_transparent(b, Direction::PosY) {
+                &mut data.transparent
+            } else {
+                &mut data.opaque
+            },
         );
     }
     //negative y face
@@ -161,7 +164,11 @@ fn mesh_block_lod(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            data,
+            if registry.is_mesh_transparent(b, Direction::NegY) {
+                &mut data.transparent
+            } else {
+                &mut data.opaque
+            },
         );
     }
     //positive x face
@@ -179,7 +186,11 @@ fn mesh_block_lod(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            data,
+            if registry.is_mesh_transparent(b, Direction::PosX) {
+                &mut data.transparent
+            } else {
+                &mut data.opaque
+            },
         );
     }
     //negative x face
@@ -197,7 +208,11 @@ fn mesh_block_lod(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            data,
+            if registry.is_mesh_transparent(b, Direction::NegX) {
+                &mut data.transparent
+            } else {
+                &mut data.opaque
+            },
         );
     }
 }

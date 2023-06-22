@@ -40,15 +40,18 @@ impl BlockRegistry {
     pub fn get_block_mesh(&self, id: u32) -> &BlockMesh {
         &self.meshes[id as usize]
     }
-    pub fn is_transparent(&self, block: BlockType, face: Direction) -> bool {
+    pub fn is_block_transparent(&self, block: BlockType, face: Direction) -> bool {
         match block {
             BlockType::Empty => true,
-            BlockType::Basic(id) => match self.meshes[id as usize] {
-                BlockMesh::Uniform(_) => false,
-                BlockMesh::MultiTexture(_) => false,
-                BlockMesh::BottomSlab(_, _) => face != Direction::NegY,
-            },
+            BlockType::Basic(id) => self.is_mesh_transparent(&self.meshes[id as usize], face),
             BlockType::Entity(_) => todo!(),
+        }
+    }
+    pub fn is_mesh_transparent(&self, mesh: &BlockMesh, face: Direction) -> bool {
+        match mesh {
+            BlockMesh::Uniform(_) => false,
+            BlockMesh::MultiTexture(_) => false,
+            BlockMesh::BottomSlab(_, _) => face != Direction::NegY,
         }
     }
 }

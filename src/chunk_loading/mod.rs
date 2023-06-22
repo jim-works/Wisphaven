@@ -37,7 +37,7 @@ pub fn on_load_level (
 ) {
     let spawn_point = Transform::from_translation(level.spawn_point);
     info!("creating inital loader at {:?} loader: {:?}", spawn_point, settings.init_loader);
-    commands.spawn((TransformBundle::from_transform(spawn_point),InitialLoader,settings.init_loader.clone()));
+    commands.spawn((SpatialBundle::from_transform(spawn_point),InitialLoader,settings.init_loader.clone()));
 }
 
 pub fn finish_loading_trigger (

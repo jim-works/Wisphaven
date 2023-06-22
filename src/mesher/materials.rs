@@ -294,6 +294,7 @@ pub fn create_chunk_material(
     assets: Res<AssetServer>,
     mut chunk_material: ResMut<ChunkMaterial>,
     mut materials: ResMut<Assets<ArrayTextureMaterial>>,
+    mut pbr_mat: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
 ) {
     if matches!(chunk_material.opaque_material, Some(_))
@@ -321,7 +322,8 @@ pub fn create_chunk_material(
     }));
     chunk_material.transparent_material = Some(materials.add(ArrayTextureMaterial {
         base_color_texture: Some(chunk_material.tex_handle.clone()),
-        alpha_mode: AlphaMode::Blend,
+        //todo: crash when setting alphamode::Blend
+        alpha_mode: AlphaMode::Mask(0.5),
         ..default()
     }));
     chunk_material.layers = array_layers;

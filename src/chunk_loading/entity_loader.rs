@@ -57,7 +57,7 @@ pub fn do_loading(
             if !level.contains_chunk(test_coord) {
                 //chunk not loaded, load it!
                 let id = commands
-                    .spawn((Name::new("Chunk"), test_coord, ChunkNeedsGenerated::Full))
+                    .spawn((Name::new("Chunk"), test_coord, SpatialBundle::default(), ChunkNeedsGenerated::Full))
                     .id();
                 level.add_chunk(test_coord, ChunkType::Ungenerated(id));
             }
@@ -147,6 +147,7 @@ fn load_lod(
                         .spawn((
                             Name::new("LODChunk"),
                             test_coord,
+                            SpatialBundle::default(),
                             ChunkNeedsGenerated::Lod(lod_level),
                         ))
                         .id();

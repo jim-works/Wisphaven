@@ -25,7 +25,23 @@ pub struct NeedsMesh;
 
 #[derive(Component)]
 pub struct MeshTask {
-    pub task: Task<MeshData>,
+    pub task: Task<ChunkMesh>,
+}
+
+pub struct ChunkMesh {
+    pub opaque: MeshData,
+    pub transparent: MeshData,
+    pub scale: f32,
+}
+
+impl ChunkMesh {
+    pub fn new(scale: f32) -> Self {
+        Self {
+            opaque: MeshData::new(),
+            transparent: MeshData::new(),
+            scale,
+        }
+    }
 }
 
 pub struct MeshData {
@@ -35,9 +51,26 @@ pub struct MeshData {
     pub uvs: Vec<Vec2>,
     pub layer_idx: Vec<i32>,
     pub ao_level: Vec<f32>,
-    pub scale: f32,
-    pub position: Vec3,
 }
+
+impl MeshData {
+    pub fn new() -> Self {
+        Self {
+            verts: Vec::new(),
+            norms: Vec::new(),
+            tris: Vec::new(),
+            uvs: Vec::new(),
+            layer_idx: Vec::new(),
+            ao_level: Vec::new(),
+        }
+    }
+    pub fn is_empty(&self) -> bool {
+        self.verts.is_empty()
+    }
+}
+
+#[derive(Component)]
+pub struct ChunkMeshChild;
 
 #[derive(Resource)]
 pub struct MeshTimer {
@@ -81,16 +114,7 @@ pub fn queue_meshing(
                 let meshing = chunk.clone();
                 len += 1;
                 let task = pool.spawn(async move {
-                    let mut data = MeshData {
-                        verts: Vec::new(),
-                        norms: Vec::new(),
-                        tris: Vec::new(),
-                        uvs: Vec::new(),
-                        layer_idx: Vec::new(),
-                        ao_level: Vec::new(),
-                        scale: 1.0,
-                        position: meshing.position.to_vec3(),
-                    };
+                    let mut data = ChunkMesh::new(1.0);
                     mesh_chunk(&meshing, &neighbors, &mut data);
                     data
                 });
@@ -109,12 +133,12 @@ pub fn queue_meshing(
         );
     }
 }
-
 pub fn poll_mesh_queue(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     chunk_material: Res<ChunkMaterial>,
-    mut query: Query<(Entity, Option<&Handle<Mesh>>, &mut MeshTask)>,
+    mut query: Query<(Entity, &mut MeshTask, Option<&Children>)>,
+    children_query: Query<Entity, With<ChunkMeshChild>>,
 ) {
     let _my_span = info_span!("poll_mesh_queue", name = "poll_mesh_queue").entered();
     if !chunk_material.loaded {
@@ -125,48 +149,37 @@ pub fn poll_mesh_queue(
     //(can't right now as Commands and StandardMaterial do not implement clone)
     let mut len = 0;
     let now = Instant::now();
-    for (entity, opt_mesh_handle, mut task) in query.iter_mut() {
+    for (entity, mut task, opt_children) in query.iter_mut() {
         if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
             len += 1;
-            if !data.verts.is_empty() {
-                if let Some(mesh_handle) = opt_mesh_handle {
-                    //update existing chunk
-                    let mesh = meshes.get_mut(mesh_handle).unwrap();
-                    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, data.verts);
-                    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, data.norms);
-                    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, data.uvs);
-
-                    mesh.insert_attribute(ATTRIBUTE_TEXLAYER, data.layer_idx);
-                    mesh.insert_attribute(ATTRIBUTE_AO, data.ao_level);
-                    mesh.set_indices(Some(mesh::Indices::U32(data.tris)));
-                } else {
-                    //spawn new chunk
-                    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-                    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, data.verts);
-                    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, data.norms);
-                    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, data.uvs);
-                    mesh.insert_attribute(ATTRIBUTE_TEXLAYER, data.layer_idx);
-                    mesh.insert_attribute(ATTRIBUTE_AO, data.ao_level);
-
-                    mesh.set_indices(Some(mesh::Indices::U32(data.tris)));
-                    commands
-                        .entity(entity)
-                        .insert(MaterialMeshBundle::<ArrayTextureMaterial> {
-                            mesh: meshes.add(mesh),
-                            //just cloning the handle, is it worth matching then cloning weak?
-                            material: chunk_material.opaque_material.clone().unwrap(),
-                            transform: Transform {
-                                translation: data.position,
-                                ..default()
-                            },
-                            ..default()
-                        });
+            //remove old mesh
+            if let Some(children) = opt_children {
+                for child in children {
+                    if children_query.contains(*child) {
+                        commands.entity(*child).despawn_recursive();
+                    }
                 }
-            } else if let Some(old_handle) = opt_mesh_handle {
-                //remove old mesh from existing chunk if the new mesh is empty
-                meshes.remove(old_handle);
-                commands.entity(entity).remove::<Handle<Mesh>>();
             }
+            //add new meshes
+            if !data.opaque.is_empty() {
+                spawn_mesh(
+                    data.opaque,
+                    chunk_material.opaque_material.clone().unwrap(),
+                    &mut commands,
+                    &mut meshes,
+                    entity,
+                );
+            }
+            if !data.transparent.is_empty() {
+                spawn_mesh(
+                    data.transparent,
+                    chunk_material.transparent_material.clone().unwrap(),
+                    &mut commands,
+                    &mut meshes,
+                    entity,
+                );
+            }
+
             commands.entity(entity).remove::<MeshTask>();
             if len > SPAWN_MESH_TIME_BUDGET_COUNT {
                 break;
@@ -179,10 +192,39 @@ pub fn poll_mesh_queue(
     }
 }
 
+pub fn spawn_mesh(
+    data: MeshData,
+    material: Handle<ArrayTextureMaterial>,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    entity: Entity,
+) {
+    //spawn new mesh
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, data.verts);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, data.norms);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, data.uvs);
+    mesh.insert_attribute(ATTRIBUTE_TEXLAYER, data.layer_idx);
+    mesh.insert_attribute(ATTRIBUTE_AO, data.ao_level);
+
+    mesh.set_indices(Some(mesh::Indices::U32(data.tris)));
+    commands.entity(entity).with_children(|children| {
+        children.spawn((
+            MaterialMeshBundle::<ArrayTextureMaterial> {
+                mesh: meshes.add(mesh),
+                material,
+                transform: Transform::default(),
+                ..default()
+            },
+            ChunkMeshChild,
+        ));
+    });
+}
+
 fn mesh_chunk<T: std::ops::IndexMut<usize, Output = BlockType>>(
     chunk: &Chunk<T>,
     neighbors: &[Option<Chunk<T>>; 6],
-    data: &mut MeshData,
+    data: &mut ChunkMesh,
 ) {
     let _my_span = info_span!("mesh_chunk", name = "mesh_chunk").entered();
     let registry = crate::world::get_block_registry();
@@ -211,10 +253,14 @@ pub fn should_mesh_face(
     neighbor: BlockType,
 ) -> bool {
     match block {
-        BlockMesh::Uniform(_) | BlockMesh::MultiTexture(_) => registry.is_transparent(neighbor, block_face.opposite()),
-        BlockMesh::BottomSlab(_, _) => block_face == Direction::PosY || registry.is_transparent(neighbor, block_face.opposite()),
+        BlockMesh::Uniform(_) | BlockMesh::MultiTexture(_) => {
+            registry.is_block_transparent(neighbor, block_face.opposite())
+        }
+        BlockMesh::BottomSlab(_, _) => {
+            block_face == Direction::PosY
+                || registry.is_block_transparent(neighbor, block_face.opposite())
+        }
     }
-    
 }
 fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
     chunk: &Chunk<T>,
@@ -222,7 +268,7 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
     b: &BlockMesh,
     coord: ChunkIdx,
     origin: Vec3,
-    data: &mut MeshData,
+    data: &mut ChunkMesh,
     registry: &BlockRegistry,
 ) {
     if coord.z == CHUNK_SIZE_U8 - 1 {
@@ -241,7 +287,11 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                data,
+                if registry.is_mesh_transparent(b, Direction::PosZ) {
+                    &mut data.transparent
+                } else {
+                    &mut data.opaque
+                },
             );
         }
     } else if should_mesh_face(
@@ -256,7 +306,11 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            data,
+            if registry.is_mesh_transparent(b, Direction::PosZ) {
+                &mut data.transparent
+            } else {
+                &mut data.opaque
+            },
         );
     }
     //negative z face
@@ -276,7 +330,11 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                data,
+                if registry.is_mesh_transparent(b, Direction::NegZ) {
+                    &mut data.transparent
+                } else {
+                    &mut data.opaque
+                },
             );
         }
     } else if should_mesh_face(
@@ -291,7 +349,11 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            data,
+            if registry.is_mesh_transparent(b, Direction::NegZ) {
+                &mut data.transparent
+            } else {
+                &mut data.opaque
+            },
         );
     }
     //positive y face
@@ -311,7 +373,11 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                data,
+                if registry.is_mesh_transparent(b, Direction::PosY) {
+                    &mut data.transparent
+                } else {
+                    &mut data.opaque
+                },
             );
         }
     } else if should_mesh_face(
@@ -326,7 +392,11 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            data,
+            if registry.is_mesh_transparent(b, Direction::PosY) {
+                &mut data.transparent
+            } else {
+                &mut data.opaque
+            },
         );
     }
     //negative y face
@@ -346,7 +416,11 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                data,
+                if registry.is_mesh_transparent(b, Direction::NegY) {
+                    &mut data.transparent
+                } else {
+                    &mut data.opaque
+                },
             );
         }
     } else if should_mesh_face(
@@ -361,7 +435,11 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            data,
+            if registry.is_mesh_transparent(b, Direction::NegY) {
+                &mut data.transparent
+            } else {
+                &mut data.opaque
+            },
         );
     }
     //positive x face
@@ -381,7 +459,11 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                data,
+                if registry.is_mesh_transparent(b, Direction::PosX) {
+                    &mut data.transparent
+                } else {
+                    &mut data.opaque
+                },
             );
         }
     } else if should_mesh_face(
@@ -396,7 +478,11 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            data,
+            if registry.is_mesh_transparent(b, Direction::PosX) {
+                &mut data.transparent
+            } else {
+                &mut data.opaque
+            },
         );
     }
     //negative x face
@@ -416,7 +502,11 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                data,
+                if registry.is_mesh_transparent(b, Direction::NegX) {
+                    &mut data.transparent
+                } else {
+                    &mut data.opaque
+                },
             );
         }
     } else if should_mesh_face(
@@ -431,10 +521,16 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            data,
+            if registry.is_mesh_transparent(b, Direction::NegX) {
+                &mut data.transparent
+            } else {
+                &mut data.opaque
+            },
         );
     }
 }
+
+//TODO: Set uv scale for repeating textures
 pub fn mesh_neg_z(
     b: &BlockMesh,
     chunk: &impl Index<ChunkIdx, Output = BlockType>,
@@ -950,7 +1046,11 @@ fn add_ao(
     let mut side2 = false;
     let mut corner = false;
 
-    if side1_coord.x < CHUNK_SIZE_I32 && side1_coord.x >= 0 && side1_coord.y < CHUNK_SIZE_I32 && side1_coord.y >= 0 {
+    if side1_coord.x < CHUNK_SIZE_I32
+        && side1_coord.x >= 0
+        && side1_coord.y < CHUNK_SIZE_I32
+        && side1_coord.y >= 0
+    {
         side1 = matches!(
             chunk[ChunkIdx::new(
                 side1_coord.x as u8,
@@ -960,7 +1060,11 @@ fn add_ao(
             BlockType::Basic(_)
         );
     }
-    if side2_coord.z < CHUNK_SIZE_I32 && side2_coord.z >= 0 && side2_coord.y < CHUNK_SIZE_I32 && side2_coord.y >= 0 {
+    if side2_coord.z < CHUNK_SIZE_I32
+        && side2_coord.z >= 0
+        && side2_coord.y < CHUNK_SIZE_I32
+        && side2_coord.y >= 0
+    {
         side2 = matches!(
             chunk[ChunkIdx::new(
                 side2_coord.x as u8,
@@ -970,7 +1074,13 @@ fn add_ao(
             BlockType::Basic(_)
         );
     }
-    if corner_coord.x < CHUNK_SIZE_I32 && corner_coord.x >= 0 && corner_coord.y < CHUNK_SIZE_I32 && corner_coord.y >= 0 && corner_coord.z < CHUNK_SIZE_I32 && corner_coord.z >= 0 {
+    if corner_coord.x < CHUNK_SIZE_I32
+        && corner_coord.x >= 0
+        && corner_coord.y < CHUNK_SIZE_I32
+        && corner_coord.y >= 0
+        && corner_coord.z < CHUNK_SIZE_I32
+        && corner_coord.z >= 0
+    {
         corner = matches!(
             chunk[ChunkIdx::new(
                 corner_coord.x as u8,

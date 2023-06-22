@@ -26,7 +26,7 @@ impl Plugin for WorldGenPlugin {
             }
         };
         let build_poll_system = || {
-            move | shaping_query: Query<(Entity, &mut ShapingTask)>,
+            move | shaping_query: Query<(Entity, &mut Transform, &mut ShapingTask)>,
                     structure_query: Query<(Entity, &mut GenSmallStructureTask)>,
                     level: Res<Level>,
                   commands: Commands| {

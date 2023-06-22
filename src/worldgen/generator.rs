@@ -84,16 +84,17 @@ pub fn queue_generating(
 pub fn poll_gen_queue(
     structure_settings: Arc<StructureGenerationSettings>,
     mut commands: Commands,
-    mut shaping_query: Query<(Entity, &mut ShapingTask)>,
+    mut shaping_query: Query<(Entity, &mut Transform, &mut ShapingTask)>,
     mut structure_query: Query<(Entity, &mut GenSmallStructureTask)>,
     level: Res<Level>
 ) {
     let _my_span = info_span!("poll_gen_queue", name = "poll_gen_queue").entered();
     let now = Instant::now();
     let pool = AsyncComputeTaskPool::get();
-    for (entity, mut task) in shaping_query.iter_mut() {
+    for (entity, mut tf, mut task) in shaping_query.iter_mut() {
         if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
             let settings = structure_settings.clone();
+            tf.translation = data.position.to_vec3();
             commands
                 .entity(entity)
                 .remove::<ShapingTask>()
@@ -126,13 +127,14 @@ pub fn poll_gen_queue(
 
 pub fn poll_gen_lod_queue(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut LODShapingTask)>,
+    mut query: Query<(Entity, &mut Transform, &mut LODShapingTask)>,
     mut level: ResMut<Level>
 ) {
     let _my_span = info_span!("poll_gen_lod_queue", name = "poll_gen_lod_queue").entered();
     let now = Instant::now();
-    for (entity, mut task) in query.iter_mut() {
+    for (entity, mut tf, mut task) in query.iter_mut() {
         if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
+            tf.translation = data.get_block_pos(ChunkIdx::new(0,0,0));
             commands
                 .entity(entity)
                 .remove::<LODShapingTask>()
