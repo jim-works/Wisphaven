@@ -4,7 +4,7 @@ pub use entity_loader::ChunkLoader;
 
 use bevy::prelude::*;
 
-use crate::{world::{LevelSystemSet, events::CreateLevelEvent, LevelLoadState, Level, chunk::ChunkCoord, settings::Settings}, physics::ChunkColliderGenerated, actors::spawn_local_player};
+use crate::{world::{LevelSystemSet, LevelLoadState, Level, settings::Settings}, actors::spawn_local_player};
 
 use self::entity_loader::{DespawnChunkEvent, ChunkLoadingTimer};
 

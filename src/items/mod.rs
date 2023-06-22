@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
 use bevy::prelude::*;
 
-use crate::world::{LevelLoadState, LevelSystemSet};
+use crate::world::LevelSystemSet;
 
 pub mod inventory;
 pub mod block_item;

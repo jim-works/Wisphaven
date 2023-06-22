@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use heed::types::{SerdeBincode, OwnedType, UnalignedSlice, ByteSlice};
+use heed::types::{SerdeBincode, ByteSlice};
 
 use crate::world::{chunk::{ChunkCoord, ArrayChunk}, LevelLoadState, BlockType, LevelSystemSet};
 
@@ -60,6 +60,7 @@ impl ChunkSaveFormat {
             for idx in curr_idx..curr_idx+length as usize {
                 chunk.blocks[idx] = block;
             }
+            curr_idx = curr_idx+length as usize;
         };
         chunk
     }

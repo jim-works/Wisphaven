@@ -5,7 +5,7 @@ use bevy_atmosphere::prelude::AtmosphereCamera;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::InputManagerBundle;
 
-use crate::{world::{*, settings::Settings}, controllers::{*, self}, physics::*, items::{inventory::Inventory, *, self, block_item::*, weapons::MeleeWeaponItem}, chunk_loading::ChunkLoader};
+use crate::{world::{*, settings::Settings}, controllers::{*, self}, physics::*, items::{inventory::Inventory, *, self, block_item::*, weapons::MeleeWeaponItem}};
 
 use super::{CombatantBundle, CombatInfo, DeathInfo, Jump};
 

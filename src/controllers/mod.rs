@@ -8,7 +8,7 @@ pub use input::*;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::{actors::MoveSpeed, physics::PhysicsObjectBundle, world::{LevelLoadState, LevelSystemSet}};
+use crate::{actors::MoveSpeed, physics::PhysicsObjectBundle, world::LevelSystemSet};
 
 pub struct ControllersPlugin;
 

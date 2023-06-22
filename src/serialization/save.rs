@@ -5,7 +5,7 @@ use crate::{
     worldgen::GeneratedChunk,
 };
 
-use super::{ChunkDB, HeedEnv, NeedsSaving, ChunkSaveFormat};
+use super::{ChunkDB, HeedEnv, NeedsSaving};
 
 pub fn do_saving(
     mut commands: Commands,

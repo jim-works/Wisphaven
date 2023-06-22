@@ -4,7 +4,7 @@ use bevy::prelude::*;
 pub struct InventoryPlugin;
 
 impl Plugin for InventoryPlugin {
-    fn build(&self, app: &mut App) {
+    fn build(&self, _app: &mut App) {
         
     }
 }

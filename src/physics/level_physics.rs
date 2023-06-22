@@ -146,7 +146,7 @@ fn gen_physics<T: std::ops::IndexMut<usize, Output=BlockType>>(chunk: &Chunk<T>,
     let registry = get_block_registry();
     for i in 0..chunk::BLOCKS_PER_CHUNK {
         let coord = ChunkIdx::from_usize(i);
-        //TODO: greedy meshing for basic blocks
+        //TODO: greedy meshing
         let b = chunk[i];
         let id = match b {
             BlockType::Empty => continue,

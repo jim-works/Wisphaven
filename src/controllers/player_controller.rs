@@ -1,11 +1,11 @@
 use bevy::prelude::*;
-use bevy_rapier3d::{prelude::*, na::ComplexField};
+use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
     actors::*,
     physics::JUMPABLE_GROUP,
-    world::{BlockCoord, Level}, items::{inventory::Inventory, UseItemEvent, EquipItemEvent, UnequipItemEvent, AttackItemEvent},
+    world::Level, items::{inventory::Inventory, UseItemEvent, EquipItemEvent, UnequipItemEvent, AttackItemEvent},
 };
 
 use super::{Action, FrameMovement};

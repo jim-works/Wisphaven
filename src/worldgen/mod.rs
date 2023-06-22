@@ -1,14 +1,14 @@
-use std::{sync::Arc, f32::consts::PI};
+use std::sync::Arc;
 
 use bevy::{prelude::*};
 use bracket_noise::prelude::*;
 
-use crate::{world::{chunk::ChunkCoord, LevelSystemSet, Level, LevelLoadState}, util::{Spline, SplineNoise, get_next_prng, l_system::{TreeAlphabet, LSystem}}};
+use crate::{world::{chunk::ChunkCoord, LevelSystemSet, Level}, util::{Spline, SplineNoise, get_next_prng}};
 
 mod worldgen;
 pub use worldgen::{ChunkNeedsGenerated, GeneratedChunk, GeneratedLODChunk, ShapingTask, LODShapingTask, ShaperSettings};
 
-use self::{structures::{StructureGenerationSettings, StructureGenerator, trees::{LTreeGenerator, get_short_tree}}, worldgen::GenSmallStructureTask};
+use self::{structures::{StructureGenerationSettings, StructureGenerator, trees::get_short_tree}, worldgen::GenSmallStructureTask};
 
 pub mod structures;
 

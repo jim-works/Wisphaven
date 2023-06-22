@@ -1,5 +1,3 @@
-use std::f32::consts::PI;
-
 use bevy_mod_billboard::prelude::*;
 
 use bevy::prelude::{shape::Quad, *};

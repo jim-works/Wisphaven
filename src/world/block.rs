@@ -2,9 +2,8 @@ use std::ops::AddAssign;
 
 use crate::util::Direction;
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::Collider;
 
-use super::chunk::{ChunkCoord, ChunkIdx, CHUNK_SIZE_I32};
+use super::chunk::{ChunkCoord, CHUNK_SIZE_I32};
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BlockType {

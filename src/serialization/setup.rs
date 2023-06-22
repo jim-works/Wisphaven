@@ -8,7 +8,7 @@ use crate::world::chunk::ChunkCoord;
 use crate::world::LevelLoadState;
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
 
-use super::{ChunkDB, ChunkSaveFormat, HeedEnv};
+use super::{ChunkDB, HeedEnv};
 
 pub fn on_level_created(
     mut reader: EventReader<CreateLevelEvent>,

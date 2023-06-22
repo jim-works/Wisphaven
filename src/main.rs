@@ -1,6 +1,7 @@
 //disable console window from popping up on windows in release builds
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
+//TODO: remove this before release. annoying as balls during development
+#![allow(dead_code)]
 
 
 use actors::ActorPlugin;
