@@ -1,5 +1,7 @@
 pub mod chunk;
 mod level;
+use std::sync::OnceLock;
+
 pub use level::*;
 
 mod block_buffer;
@@ -55,4 +57,35 @@ pub struct BlockcastHit {
     pub block_pos: BlockCoord,
     pub block: BlockType,
     pub normal: BlockCoord,
+}
+
+// pub static BLOCK_REGISTRY: BlockRegistry = BlockRegistry {
+//     data: [BlockMesh::MultiTexture([1,0,1,1,3,1]),
+//         BlockMesh::Uniform(3),
+//         BlockMesh::MultiTexture([5,6,5,5,6,5]),
+//         BlockMesh::Uniform(7)
+//         ]
+// };
+
+pub fn get_block_registry() -> &'static BlockRegistry {
+    static REGISTRY: OnceLock<BlockRegistry> = OnceLock::new();
+    REGISTRY.get_or_init(|| initialize_block_registry())
+}
+
+fn initialize_block_registry() -> BlockRegistry {
+    let mut registry = BlockRegistry{ meshes: Vec::new() };
+    //grass - 0
+    registry.meshes.push(BlockMesh::MultiTexture([1,0,1,1,3,1]));
+    //dirt - 1
+    registry.meshes.push(BlockMesh::Uniform(3));
+    //stone - 2
+    registry.meshes.push(BlockMesh::Uniform(2));
+    //log - 3
+    registry.meshes.push(BlockMesh::MultiTexture([5,6,5,5,6,5]));
+    //leaves - 4
+    registry.meshes.push(BlockMesh::Uniform(7));
+    //log slab - 5
+    registry.meshes.push(BlockMesh::BottomSlab(0.5, [5,6,5,5,6,5]));
+
+    registry
 }

@@ -41,6 +41,17 @@ impl Direction {
         }
     }
 
+    pub fn opposite(&self) -> Direction {
+        match self {
+            Direction::PosX => Direction::NegX,
+            Direction::PosY => Direction::NegY,
+            Direction::PosZ => Direction::NegZ,
+            Direction::NegX => Direction::PosX,
+            Direction::NegY => Direction::PosY,
+            Direction::NegZ => Direction::PosZ,
+        }
+    }
+
     pub fn iter() -> DirectionIterator {
         DirectionIterator { curr: None }
     }

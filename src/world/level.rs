@@ -2,7 +2,7 @@ use crate::{
     mesher::NeedsMesh,
     physics::NeedsPhysics,
     util::{max_component_norm, Direction},
-    world::BlockcastHit,
+    world::BlockcastHit, serialization::NeedsSaving,
 };
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
@@ -49,7 +49,7 @@ impl Level {
     pub fn update_chunk_only(chunk_entity: Entity, commands: &mut Commands) {
         commands
             .entity(chunk_entity)
-            .insert((NeedsMesh {}, NeedsPhysics {}));
+            .insert((NeedsMesh, NeedsPhysics, NeedsSaving));
     }
     pub fn update_chunk_neighbors_only(&self, coord: ChunkCoord, commands: &mut Commands) {
         for dir in Direction::iter() {

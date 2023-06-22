@@ -1,7 +1,5 @@
-use bevy::render::mesh::VertexAttributeValues;
 use futures_lite::future;
 use std::ops::Index;
-use std::process::Output;
 use std::time::Instant;
 
 use crate::world::chunk::*;
@@ -17,10 +15,13 @@ use bevy::{
 };
 
 use super::materials::ATTRIBUTE_AO;
-use super::{SPAWN_MESH_TIME_BUDGET_COUNT, ChunkMaterial, ArrayTextureMaterial, materials::ATTRIBUTE_TEXLAYER};
+use super::{
+    materials::ATTRIBUTE_TEXLAYER, ArrayTextureMaterial, ChunkMaterial,
+    SPAWN_MESH_TIME_BUDGET_COUNT,
+};
 
 #[derive(Component)]
-pub struct NeedsMesh {}
+pub struct NeedsMesh;
 
 #[derive(Component)]
 pub struct MeshTask {
@@ -35,12 +36,12 @@ pub struct MeshData {
     pub layer_idx: Vec<i32>,
     pub ao_level: Vec<f32>,
     pub scale: f32,
-    pub position: Vec3
+    pub position: Vec3,
 }
 
 #[derive(Resource)]
 pub struct MeshTimer {
-    pub timer: Timer
+    pub timer: Timer,
 }
 
 pub fn queue_meshing(
@@ -88,7 +89,7 @@ pub fn queue_meshing(
                         layer_idx: Vec::new(),
                         ao_level: Vec::new(),
                         scale: 1.0,
-                        position: meshing.position.to_vec3()
+                        position: meshing.position.to_vec3(),
                     };
                     mesh_chunk(&meshing, &neighbors, &mut data);
                     data
@@ -134,7 +135,7 @@ pub fn poll_mesh_queue(
                     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, data.verts);
                     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, data.norms);
                     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, data.uvs);
-                    
+
                     mesh.insert_attribute(ATTRIBUTE_TEXLAYER, data.layer_idx);
                     mesh.insert_attribute(ATTRIBUTE_AO, data.ao_level);
                     mesh.set_indices(Some(mesh::Indices::U32(data.tris)));
@@ -148,18 +149,20 @@ pub fn poll_mesh_queue(
                     mesh.insert_attribute(ATTRIBUTE_AO, data.ao_level);
 
                     mesh.set_indices(Some(mesh::Indices::U32(data.tris)));
-                    commands.entity(entity).insert(MaterialMeshBundle::<ArrayTextureMaterial> {
-                        mesh: meshes.add(mesh),
-                        //just cloning the handle, is it worth matching then cloning weak?
-                        material: chunk_material.opaque_material.clone().unwrap(),
-                        transform: Transform {
-                            translation: data.position,
+                    commands
+                        .entity(entity)
+                        .insert(MaterialMeshBundle::<ArrayTextureMaterial> {
+                            mesh: meshes.add(mesh),
+                            //just cloning the handle, is it worth matching then cloning weak?
+                            material: chunk_material.opaque_material.clone().unwrap(),
+                            transform: Transform {
+                                translation: data.position,
+                                ..default()
+                            },
                             ..default()
-                        },
-                        ..default()
-                    });
+                        });
                 }
-            } else if let Some(old_handle) = opt_mesh_handle  {
+            } else if let Some(old_handle) = opt_mesh_handle {
                 //remove old mesh from existing chunk if the new mesh is empty
                 meshes.remove(old_handle);
                 commands.entity(entity).remove::<Handle<Mesh>>();
@@ -176,298 +179,735 @@ pub fn poll_mesh_queue(
     }
 }
 
-fn mesh_chunk(chunk: &Chunk, neighbors: &[Option<Chunk>; 6], data: &mut MeshData) {
+fn mesh_chunk<T: std::ops::IndexMut<usize, Output = BlockType>>(
+    chunk: &Chunk<T>,
+    neighbors: &[Option<Chunk<T>>; 6],
+    data: &mut MeshData,
+) {
     let _my_span = info_span!("mesh_chunk", name = "mesh_chunk").entered();
+    let registry = crate::world::get_block_registry();
     for i in 0..chunk::BLOCKS_PER_CHUNK {
         let coord = ChunkIdx::from_usize(i);
-        mesh_block(&chunk, neighbors, &chunk[i], coord, coord.to_vec3()*data.scale, data);
+        let block = chunk[i];
+        match block {
+            BlockType::Empty => {}
+            BlockType::Basic(id) => mesh_block(
+                &chunk,
+                neighbors,
+                registry.get_block_mesh(id),
+                coord,
+                coord.to_vec3() * data.scale,
+                data,
+                registry,
+            ),
+            BlockType::Entity(_) => todo!(),
+        }
     }
 }
-
-fn mesh_block(
-    chunk: &Chunk,
-    neighbors: &[Option<Chunk>; 6],
-    b: &BlockType,
+pub fn should_mesh_face(
+    registry: &BlockRegistry,
+    block: &BlockMesh,
+    block_face: Direction,
+    neighbor: BlockType,
+) -> bool {
+    match block {
+        BlockMesh::Uniform(_) | BlockMesh::MultiTexture(_) => registry.is_transparent(neighbor, block_face.opposite()),
+        BlockMesh::BottomSlab(_, _) => block_face == Direction::PosY || registry.is_transparent(neighbor, block_face.opposite()),
+    }
+    
+}
+fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
+    chunk: &Chunk<T>,
+    neighbors: &[Option<Chunk<T>>; 6],
+    b: &BlockMesh,
     coord: ChunkIdx,
     origin: Vec3,
     data: &mut MeshData,
+    registry: &BlockRegistry,
 ) {
-    if let BlockType::Empty = b {
-        return;
-    }
     if coord.z == CHUNK_SIZE_U8 - 1 {
         if match &neighbors[Direction::PosZ.to_idx()] {
-            Some(c) => matches!(c[ChunkIdx::new(coord.x, coord.y, 0)], BlockType::Empty),
+            Some(c) => should_mesh_face(
+                registry,
+                b,
+                Direction::PosZ,
+                c[ChunkIdx::new(coord.x, coord.y, 0)],
+            ),
             _ => true,
         } {
-            mesh_pos_z(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_pos_z(
+                b,
+                chunk,
+                coord,
+                origin,
+                Vec3::new(data.scale, data.scale, data.scale),
+                data,
+            );
         }
-    } else if matches!(
+    } else if should_mesh_face(
+        registry,
+        b,
+        Direction::PosZ,
         chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
-        BlockType::Empty
     ) {
-        mesh_pos_z(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_pos_z(
+            b,
+            chunk,
+            coord,
+            origin,
+            Vec3::new(data.scale, data.scale, data.scale),
+            data,
+        );
     }
     //negative z face
     if coord.z == 0 {
         if match &neighbors[Direction::NegZ.to_idx()] {
-            Some(c) => matches!(
+            Some(c) => should_mesh_face(
+                registry,
+                b,
+                Direction::NegZ,
                 c[ChunkIdx::new(coord.x, coord.y, CHUNK_SIZE_U8 - 1)],
-                BlockType::Empty
             ),
             _ => true,
         } {
-            mesh_neg_z(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_neg_z(
+                b,
+                chunk,
+                coord,
+                origin,
+                Vec3::new(data.scale, data.scale, data.scale),
+                data,
+            );
         }
-    } else if matches!(
+    } else if should_mesh_face(
+        registry,
+        b,
+        Direction::NegZ,
         chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
-        BlockType::Empty
     ) {
-        mesh_neg_z(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_neg_z(
+            b,
+            chunk,
+            coord,
+            origin,
+            Vec3::new(data.scale, data.scale, data.scale),
+            data,
+        );
     }
     //positive y face
     if coord.y == CHUNK_SIZE_U8 - 1 {
         if match &neighbors[Direction::PosY.to_idx()] {
-            Some(c) => matches!(c[ChunkIdx::new(coord.x, 0, coord.z)], BlockType::Empty),
+            Some(c) => should_mesh_face(
+                registry,
+                b,
+                Direction::PosY,
+                c[ChunkIdx::new(coord.x, 0, coord.z)],
+            ),
             _ => true,
         } {
-            mesh_pos_y(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_pos_y(
+                b,
+                chunk,
+                coord,
+                origin,
+                Vec3::new(data.scale, data.scale, data.scale),
+                data,
+            );
         }
-    } else if matches!(
+    } else if should_mesh_face(
+        registry,
+        b,
+        Direction::PosY,
         chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
-        BlockType::Empty
     ) {
-        mesh_pos_y(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_pos_y(
+            b,
+            chunk,
+            coord,
+            origin,
+            Vec3::new(data.scale, data.scale, data.scale),
+            data,
+        );
     }
     //negative y face
     if coord.y == 0 {
         if match &neighbors[Direction::NegY.to_idx()] {
-            Some(c) => matches!(
+            Some(c) => should_mesh_face(
+                registry,
+                b,
+                Direction::NegY,
                 c[ChunkIdx::new(coord.x, CHUNK_SIZE_U8 - 1, coord.z)],
-                BlockType::Empty
             ),
             _ => true,
         } {
-            mesh_neg_y(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_neg_y(
+                b,
+                chunk,
+                coord,
+                origin,
+                Vec3::new(data.scale, data.scale, data.scale),
+                data,
+            );
         }
-    } else if matches!(
+    } else if should_mesh_face(
+        registry,
+        b,
+        Direction::NegY,
         chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
-        BlockType::Empty
     ) {
-        mesh_neg_y(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_neg_y(
+            b,
+            chunk,
+            coord,
+            origin,
+            Vec3::new(data.scale, data.scale, data.scale),
+            data,
+        );
     }
     //positive x face
     if coord.x == CHUNK_SIZE_U8 - 1 {
         if match &neighbors[Direction::PosX.to_idx()] {
-            Some(c) => matches!(c[ChunkIdx::new(0, coord.y, coord.z)], BlockType::Empty),
+            Some(c) => should_mesh_face(
+                registry,
+                b,
+                Direction::PosX,
+                c[ChunkIdx::new(0, coord.y, coord.z)],
+            ),
             _ => true,
         } {
-            mesh_pos_x(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_pos_x(
+                b,
+                chunk,
+                coord,
+                origin,
+                Vec3::new(data.scale, data.scale, data.scale),
+                data,
+            );
         }
-    } else if matches!(
+    } else if should_mesh_face(
+        registry,
+        b,
+        Direction::PosX,
         chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
-        BlockType::Empty
     ) {
-        mesh_pos_x(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_pos_x(
+            b,
+            chunk,
+            coord,
+            origin,
+            Vec3::new(data.scale, data.scale, data.scale),
+            data,
+        );
     }
     //negative x face
     if coord.x == 0 {
         if match &neighbors[Direction::NegX.to_idx()] {
-            Some(c) => matches!(
+            Some(c) => should_mesh_face(
+                registry,
+                b,
+                Direction::NegX,
                 c[ChunkIdx::new(CHUNK_SIZE_U8 - 1, coord.y, coord.z)],
-                BlockType::Empty
             ),
             _ => true,
         } {
-            mesh_neg_x(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+            mesh_neg_x(
+                b,
+                chunk,
+                coord,
+                origin,
+                Vec3::new(data.scale, data.scale, data.scale),
+                data,
+            );
         }
-    } else if matches!(
+    } else if should_mesh_face(
+        registry,
+        b,
+        Direction::NegX,
         chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
-        BlockType::Empty
     ) {
-        mesh_neg_x(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
+        mesh_neg_x(
+            b,
+            chunk,
+            coord,
+            origin,
+            Vec3::new(data.scale, data.scale, data.scale),
+            data,
+        );
     }
 }
-pub fn mesh_neg_z(b: &BlockType, chunk: &impl Index<ChunkIdx, Output=BlockType>, coord: ChunkIdx, origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_neg_z(
+    b: &BlockMesh,
+    chunk: &impl Index<ChunkIdx, Output = BlockType>,
+    coord: ChunkIdx,
+    origin: Vec3,
+    scale: Vec3,
+    data: &mut MeshData,
+) {
     add_tris(&mut data.tris, data.verts.len() as u32);
-    match b {
-        BlockType::Basic(id) => {
-            let x = *id;
-            data.layer_idx.push(x as i32);
+    let texture = match b {
+        BlockMesh::Uniform(tex) => {
             add_ao(chunk, coord, false, false, false, data);
-            data.layer_idx.push(x as i32);
             add_ao(chunk, coord, false, true, false, data);
-            data.layer_idx.push(x as i32);
             add_ao(chunk, coord, true, true, false, data);
-            data.layer_idx.push(x as i32);
             add_ao(chunk, coord, true, false, false, data);
-        },
-        _ => {}
-    }
-    data.verts.push(origin + Vec3::new(0., 0., 0.));
-    data.verts.push(origin + Vec3::new(0., scale.y, 0.));
-    data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
-    data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
-    data.norms.push(Vec3::new(0., 0., -1.));
-    data.norms.push(Vec3::new(0., 0., -1.));
-    data.norms.push(Vec3::new(0., 0., -1.));
-    data.norms.push(Vec3::new(0., 0., -1.));
-    data.uvs.push(Vec2::new(1.0,1.0));
-    data.uvs.push(Vec2::new(1.0,0.0));
-    data.uvs.push(Vec2::new(0.0,0.0));
-    data.uvs.push(Vec2::new(0.0,1.0));
-}
-pub fn mesh_pos_z(b: &BlockType, chunk: &impl Index<ChunkIdx, Output=BlockType>, coord: ChunkIdx, origin: Vec3, scale: Vec3, data: &mut MeshData) {
-    add_tris(&mut data.tris, data.verts.len() as u32);
-    //add_uvs(&mut data.uvs);
-    match b {
-        BlockType::Basic(id) => {
-            let x = *id;
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, false, false, true, data);
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, true, false, true, data);
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, true, true, true, data);
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, false, true, true, data);
-        },
-        _ => {}
-    }
-    data.verts.push(origin + Vec3::new(0., 0., scale.z));
-    data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
-    data.verts.push(origin + Vec3::new(scale.x, scale.y, scale.z));
-    data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
-    data.norms.push(Vec3::new(0., 0., 1.));
-    data.norms.push(Vec3::new(0., 0., 1.));
-    data.norms.push(Vec3::new(0., 0., 1.));
-    data.norms.push(Vec3::new(0., 0., 1.));
-    data.uvs.push(Vec2::new(0.0,1.0));
-    data.uvs.push(Vec2::new(1.0,1.0));
-    data.uvs.push(Vec2::new(1.0,0.0));
-    data.uvs.push(Vec2::new(0.0,0.0));
-    
-}
 
-pub fn mesh_neg_x(b: &BlockType, chunk: &impl Index<ChunkIdx, Output=BlockType>, coord: ChunkIdx, origin: Vec3, scale: Vec3, data: &mut MeshData) {
-    add_tris(&mut data.tris, data.verts.len() as u32);
-    match b {
-        BlockType::Basic(id) => {
-            let x = *id;
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, false, false, true, data);
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, false, true, true, data);
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, false, true, false, data);
-            data.layer_idx.push(x as i32);
+            data.verts.push(origin + Vec3::new(0., 0., 0.));
+            data.verts.push(origin + Vec3::new(0., scale.y, 0.));
+            data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
+            data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
+
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+
+            *tex as i32
+        }
+        BlockMesh::MultiTexture(tex) => {
             add_ao(chunk, coord, false, false, false, data);
-        },
-        _ => {}
-    }
-    data.verts.push(origin + Vec3::new(0., 0., scale.z));
-    data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
-    data.verts.push(origin + Vec3::new(0., scale.y, 0.));
-    data.verts.push(origin + Vec3::new(0., 0., 0.));
-    data.norms.push(Vec3::new(-1., 0., 0.));
-    data.norms.push(Vec3::new(-1., 0., 0.));
-    data.norms.push(Vec3::new(-1., 0., 0.));
-    data.norms.push(Vec3::new(-1., 0., 0.));
-    data.uvs.push(Vec2::new(1.0,1.0));
-    data.uvs.push(Vec2::new(1.0,0.0));
-    data.uvs.push(Vec2::new(0.0,0.0));
-    data.uvs.push(Vec2::new(0.0,1.0));
-}
-
-pub fn mesh_pos_x(b: &BlockType, chunk: &impl Index<ChunkIdx, Output=BlockType>, coord: ChunkIdx, origin: Vec3, scale: Vec3, data: &mut MeshData) {
-    add_tris(&mut data.tris, data.verts.len() as u32);
-    match b {
-        BlockType::Basic(id) => {
-            let x = *id;
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, true, true, true, data);
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, true, false, true, data);
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, true, false, false, data);
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, true, true, false, data);
-        },
-        _ => {}
-    }
-    data.verts.push(origin + Vec3::new(scale.x, scale.y, scale.z));
-    data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
-    data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
-    data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
-    
-    data.norms.push(Vec3::new(1., 0., 0.));
-    data.norms.push(Vec3::new(1., 0., 0.));
-    data.norms.push(Vec3::new(1., 0., 0.));
-    data.norms.push(Vec3::new(1., 0., 0.));
-    data.uvs.push(Vec2::new(0.0,0.0));
-    data.uvs.push(Vec2::new(0.0,1.0));
-    data.uvs.push(Vec2::new(1.0,1.0));
-    data.uvs.push(Vec2::new(1.0,0.0));
-}
-
-pub fn mesh_pos_y(b: &BlockType, chunk: &impl Index<ChunkIdx, Output=BlockType>, coord: ChunkIdx, origin: Vec3, scale: Vec3, data: &mut MeshData) {
-    add_tris(&mut data.tris, data.verts.len() as u32);
-    match b {
-        BlockType::Basic(id) => {
-            let x = *id;
-            data.layer_idx.push(x as i32);
             add_ao(chunk, coord, false, true, false, data);
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, false, true, true, data);
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, true, true, true, data);
-            data.layer_idx.push(x as i32);
             add_ao(chunk, coord, true, true, false, data);
-        },
-        _ => {}
-    }
-    data.verts.push(origin + Vec3::new(0., scale.y, 0.));
-    data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
-    data.verts.push(origin + Vec3::new(scale.x, scale.y, scale.z));
-    data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
-    data.norms.push(Vec3::new(0., 1., 0.));
-    data.norms.push(Vec3::new(0., 1., 0.));
-    data.norms.push(Vec3::new(0., 1., 0.));
-    data.norms.push(Vec3::new(0., 1., 0.));
-    data.uvs.push(Vec2::new(1.0,1.0));
-    data.uvs.push(Vec2::new(1.0,0.0));
-    data.uvs.push(Vec2::new(0.0,0.0));
-    data.uvs.push(Vec2::new(0.0,1.0));
+            add_ao(chunk, coord, true, false, false, data);
+
+            data.verts.push(origin + Vec3::new(0., 0., 0.));
+            data.verts.push(origin + Vec3::new(0., scale.y, 0.));
+            data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
+            data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
+
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+
+            tex[Direction::NegZ.to_idx()] as i32
+        }
+        BlockMesh::BottomSlab(height, tex) => {
+            //TODO: ao strength should be reduced based on height
+            add_ao(chunk, coord, false, false, false, data);
+            add_ao(chunk, coord, true, false, false, data);
+            add_ao(chunk, coord, true, false, true, data);
+            add_ao(chunk, coord, false, false, true, data);
+
+            data.verts.push(origin + Vec3::new(0., 0., 0.));
+            data.verts
+                .push(origin + Vec3::new(0., height * scale.y, 0.));
+            data.verts
+                .push(origin + Vec3::new(scale.x, height * scale.y, 0.));
+            data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
+
+            data.uvs.push(Vec2::new(1.0, *height));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, *height));
+
+            tex[Direction::NegZ.to_idx()] as i32
+        }
+    };
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+
+    data.norms.push(Vec3::new(0., 0., -1.));
+    data.norms.push(Vec3::new(0., 0., -1.));
+    data.norms.push(Vec3::new(0., 0., -1.));
+    data.norms.push(Vec3::new(0., 0., -1.));
+}
+pub fn mesh_pos_z(
+    b: &BlockMesh,
+    chunk: &impl Index<ChunkIdx, Output = BlockType>,
+    coord: ChunkIdx,
+    origin: Vec3,
+    scale: Vec3,
+    data: &mut MeshData,
+) {
+    add_tris(&mut data.tris, data.verts.len() as u32);
+    let texture = match b {
+        BlockMesh::Uniform(tex) => {
+            add_ao(chunk, coord, false, false, true, data);
+            add_ao(chunk, coord, true, false, true, data);
+            add_ao(chunk, coord, true, true, true, data);
+            add_ao(chunk, coord, false, true, true, data);
+
+            data.verts.push(origin + Vec3::new(0., 0., scale.z));
+            data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
+            data.verts
+                .push(origin + Vec3::new(scale.x, scale.y, scale.z));
+            data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
+
+            data.uvs.push(Vec2::new(0.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+
+            *tex as i32
+        }
+        BlockMesh::MultiTexture(tex) => {
+            add_ao(chunk, coord, false, false, true, data);
+            add_ao(chunk, coord, true, false, true, data);
+            add_ao(chunk, coord, true, true, true, data);
+            add_ao(chunk, coord, false, true, true, data);
+
+            data.verts.push(origin + Vec3::new(0., 0., scale.z));
+            data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
+            data.verts
+                .push(origin + Vec3::new(scale.x, scale.y, scale.z));
+            data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
+
+            data.uvs.push(Vec2::new(0.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+
+            tex[Direction::PosZ.to_idx()] as i32
+        }
+        BlockMesh::BottomSlab(height, tex) => {
+            //TODO: ao strength should be reduced based on height
+            add_ao(chunk, coord, false, false, false, data);
+            add_ao(chunk, coord, true, false, false, data);
+            add_ao(chunk, coord, true, false, true, data);
+            add_ao(chunk, coord, false, false, true, data);
+            data.verts.push(origin + Vec3::new(0., 0., scale.z));
+            data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
+            data.verts
+                .push(origin + Vec3::new(scale.x, height * scale.y, scale.z));
+            data.verts
+                .push(origin + Vec3::new(0., height * scale.y, scale.z));
+
+            data.uvs.push(Vec2::new(0.0, 1.0 * height));
+            data.uvs.push(Vec2::new(1.0, 1.0 * height));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+
+            tex[Direction::PosZ.to_idx()] as i32
+        }
+    };
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.norms.push(Vec3::new(0., 0., 1.));
+    data.norms.push(Vec3::new(0., 0., 1.));
+    data.norms.push(Vec3::new(0., 0., 1.));
+    data.norms.push(Vec3::new(0., 0., 1.));
 }
 
-pub fn mesh_neg_y(b: &BlockType, chunk: &impl Index<ChunkIdx, Output=BlockType>, coord: ChunkIdx, origin: Vec3, scale: Vec3, data: &mut MeshData) {
+pub fn mesh_neg_x(
+    b: &BlockMesh,
+    chunk: &impl Index<ChunkIdx, Output = BlockType>,
+    coord: ChunkIdx,
+    origin: Vec3,
+    scale: Vec3,
+    data: &mut MeshData,
+) {
     add_tris(&mut data.tris, data.verts.len() as u32);
-    match b {
-        BlockType::Basic(id) => {
-            let x = *id;
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, false, false, false, data);
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, true, false, false, data);
-            data.layer_idx.push(x as i32);
-            add_ao(chunk, coord, true, false, true, data);
-            data.layer_idx.push(x as i32);
+    let texture = match b {
+        BlockMesh::Uniform(tex) => {
             add_ao(chunk, coord, false, false, true, data);
-        },
-        _ => {}
-    }
-    data.verts.push(origin + Vec3::new(0., 0., 0.));
-    data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
-    data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
-    data.verts.push(origin + Vec3::new(0., 0., scale.z));
+            add_ao(chunk, coord, false, true, true, data);
+            add_ao(chunk, coord, false, true, false, data);
+            add_ao(chunk, coord, false, false, false, data);
+
+            data.verts.push(origin + Vec3::new(0., 0., scale.z));
+            data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
+            data.verts.push(origin + Vec3::new(0., scale.y, 0.));
+            data.verts.push(origin + Vec3::new(0., 0., 0.));
+
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+
+            *tex as i32
+        }
+        BlockMesh::MultiTexture(tex) => {
+            add_ao(chunk, coord, false, false, true, data);
+            add_ao(chunk, coord, false, true, true, data);
+            add_ao(chunk, coord, false, true, false, data);
+            add_ao(chunk, coord, false, false, false, data);
+
+            data.verts.push(origin + Vec3::new(0., 0., scale.z));
+            data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
+            data.verts.push(origin + Vec3::new(0., scale.y, 0.));
+            data.verts.push(origin + Vec3::new(0., 0., 0.));
+
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+
+            tex[Direction::NegX.to_idx()] as i32
+        }
+        BlockMesh::BottomSlab(height, tex) => {
+            //TODO: ao strength should be reduced based on height
+            add_ao(chunk, coord, false, false, false, data);
+            add_ao(chunk, coord, true, false, false, data);
+            add_ao(chunk, coord, true, false, true, data);
+            add_ao(chunk, coord, false, false, true, data);
+
+            data.verts.push(origin + Vec3::new(0., 0., scale.z));
+            data.verts
+                .push(origin + Vec3::new(0., scale.y * height, scale.z));
+            data.verts
+                .push(origin + Vec3::new(0., scale.y * height, 0.));
+            data.verts.push(origin + Vec3::new(0., 0., 0.));
+
+            data.uvs.push(Vec2::new(1.0, 1.0 * height));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0 * height));
+
+            tex[Direction::NegX.to_idx()] as i32
+        }
+    };
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.norms.push(Vec3::new(-1., 0., 0.));
+    data.norms.push(Vec3::new(-1., 0., 0.));
+    data.norms.push(Vec3::new(-1., 0., 0.));
+    data.norms.push(Vec3::new(-1., 0., 0.));
+}
+
+pub fn mesh_pos_x(
+    b: &BlockMesh,
+    chunk: &impl Index<ChunkIdx, Output = BlockType>,
+    coord: ChunkIdx,
+    origin: Vec3,
+    scale: Vec3,
+    data: &mut MeshData,
+) {
+    add_tris(&mut data.tris, data.verts.len() as u32);
+    let texture = match b {
+        BlockMesh::Uniform(tex) => {
+            add_ao(chunk, coord, true, true, true, data);
+            add_ao(chunk, coord, true, false, true, data);
+            add_ao(chunk, coord, true, false, false, data);
+            add_ao(chunk, coord, true, true, false, data);
+
+            data.verts
+                .push(origin + Vec3::new(scale.x, scale.y, scale.z));
+            data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
+            data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
+            data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
+
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+
+            *tex as i32
+        }
+        BlockMesh::MultiTexture(tex) => {
+            add_ao(chunk, coord, true, true, true, data);
+            add_ao(chunk, coord, true, false, true, data);
+            add_ao(chunk, coord, true, false, false, data);
+            add_ao(chunk, coord, true, true, false, data);
+
+            data.verts
+                .push(origin + Vec3::new(scale.x, scale.y, scale.z));
+            data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
+            data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
+            data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
+
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+
+            tex[Direction::PosX.to_idx()] as i32
+        }
+        BlockMesh::BottomSlab(height, tex) => {
+            //TODO: ao strength should be reduced based on height
+            add_ao(chunk, coord, false, false, false, data);
+            add_ao(chunk, coord, true, false, false, data);
+            add_ao(chunk, coord, true, false, true, data);
+            add_ao(chunk, coord, false, false, true, data);
+
+            data.verts
+                .push(origin + Vec3::new(scale.x, scale.y * height, scale.z));
+            data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
+            data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
+            data.verts
+                .push(origin + Vec3::new(scale.x, scale.y * height, 0.));
+
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+
+            tex[Direction::PosX.to_idx()] as i32
+        }
+    };
+
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.norms.push(Vec3::new(1., 0., 0.));
+    data.norms.push(Vec3::new(1., 0., 0.));
+    data.norms.push(Vec3::new(1., 0., 0.));
+    data.norms.push(Vec3::new(1., 0., 0.));
+}
+
+pub fn mesh_pos_y(
+    b: &BlockMesh,
+    chunk: &impl Index<ChunkIdx, Output = BlockType>,
+    coord: ChunkIdx,
+    origin: Vec3,
+    scale: Vec3,
+    data: &mut MeshData,
+) {
+    add_tris(&mut data.tris, data.verts.len() as u32);
+    let texture = match b {
+        BlockMesh::Uniform(tex) => {
+            add_ao(chunk, coord, false, true, false, data);
+            add_ao(chunk, coord, false, true, true, data);
+            add_ao(chunk, coord, true, true, true, data);
+            add_ao(chunk, coord, true, true, false, data);
+
+            data.verts.push(origin + Vec3::new(0., scale.y, 0.));
+            data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
+            data.verts
+                .push(origin + Vec3::new(scale.x, scale.y, scale.z));
+            data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
+
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+
+            *tex as i32
+        }
+        BlockMesh::MultiTexture(tex) => {
+            add_ao(chunk, coord, false, true, false, data);
+            add_ao(chunk, coord, false, true, true, data);
+            add_ao(chunk, coord, true, true, true, data);
+            add_ao(chunk, coord, true, true, false, data);
+
+            data.verts.push(origin + Vec3::new(0., scale.y, 0.));
+            data.verts.push(origin + Vec3::new(0., scale.y, scale.z));
+            data.verts
+                .push(origin + Vec3::new(scale.x, scale.y, scale.z));
+            data.verts.push(origin + Vec3::new(scale.x, scale.y, 0.));
+
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+
+            tex[Direction::PosY.to_idx()] as i32
+        }
+        BlockMesh::BottomSlab(height, tex) => {
+            //TODO: ao strength should be reduced based on height
+            add_ao(chunk, coord, false, false, false, data);
+            add_ao(chunk, coord, true, false, false, data);
+            add_ao(chunk, coord, true, false, true, data);
+            add_ao(chunk, coord, false, false, true, data);
+
+            data.verts
+                .push(origin + Vec3::new(0., scale.y * height, 0.));
+            data.verts
+                .push(origin + Vec3::new(0., scale.y * height, scale.z));
+            data.verts
+                .push(origin + Vec3::new(scale.x, scale.y * height, scale.z));
+            data.verts
+                .push(origin + Vec3::new(scale.x, scale.y * height, 0.));
+
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+
+            tex[Direction::PosY.to_idx()] as i32
+        }
+    };
+    data.norms.push(Vec3::new(0., 1., 0.));
+    data.norms.push(Vec3::new(0., 1., 0.));
+    data.norms.push(Vec3::new(0., 1., 0.));
+    data.norms.push(Vec3::new(0., 1., 0.));
+
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+}
+
+pub fn mesh_neg_y(
+    b: &BlockMesh,
+    chunk: &impl Index<ChunkIdx, Output = BlockType>,
+    coord: ChunkIdx,
+    origin: Vec3,
+    scale: Vec3,
+    data: &mut MeshData,
+) {
+    add_tris(&mut data.tris, data.verts.len() as u32);
+    let texture = match b {
+        BlockMesh::Uniform(tex) => {
+            add_ao(chunk, coord, false, false, false, data);
+            add_ao(chunk, coord, true, false, false, data);
+            add_ao(chunk, coord, true, false, true, data);
+            add_ao(chunk, coord, false, false, true, data);
+
+            data.verts.push(origin + Vec3::new(0., 0., 0.));
+            data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
+            data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
+            data.verts.push(origin + Vec3::new(0., 0., scale.z));
+
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+
+            *tex as i32
+        }
+        BlockMesh::MultiTexture(tex) => {
+            add_ao(chunk, coord, false, false, false, data);
+            add_ao(chunk, coord, true, false, false, data);
+            add_ao(chunk, coord, true, false, true, data);
+            add_ao(chunk, coord, false, false, true, data);
+
+            data.verts.push(origin + Vec3::new(0., 0., 0.));
+            data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
+            data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
+            data.verts.push(origin + Vec3::new(0., 0., scale.z));
+
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+
+            tex[Direction::NegY.to_idx()] as i32
+        }
+        BlockMesh::BottomSlab(_, tex) => {
+            add_ao(chunk, coord, false, false, false, data);
+            add_ao(chunk, coord, true, false, false, data);
+            add_ao(chunk, coord, true, false, true, data);
+            add_ao(chunk, coord, false, false, true, data);
+            data.verts.push(origin + Vec3::new(0., 0., 0.));
+            data.verts.push(origin + Vec3::new(scale.x, 0., 0.));
+            data.verts.push(origin + Vec3::new(scale.x, 0., scale.z));
+            data.verts.push(origin + Vec3::new(0., 0., scale.z));
+
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+
+            tex[Direction::NegY.to_idx()] as i32
+        }
+    };
+
     data.norms.push(Vec3::new(0., -1., 0.));
     data.norms.push(Vec3::new(0., -1., 0.));
     data.norms.push(Vec3::new(0., -1., 0.));
     data.norms.push(Vec3::new(0., -1., 0.));
-    data.uvs.push(Vec2::new(1.0,1.0));
-    data.uvs.push(Vec2::new(0.0,1.0));
-    data.uvs.push(Vec2::new(0.0,0.0));
-    data.uvs.push(Vec2::new(1.0,0.0));
+
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
+    data.layer_idx.push(texture);
 }
 
 fn add_tris(tris: &mut Vec<u32>, first_vert_idx: u32) {
@@ -483,35 +923,68 @@ fn add_tris(tris: &mut Vec<u32>, first_vert_idx: u32) {
 //TODO: add support for chunk neighbors
 //https://0fps.net/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/
 fn add_ao(
-    chunk: &impl Index<ChunkIdx, Output=BlockType>,
+    chunk: &impl Index<ChunkIdx, Output = BlockType>,
     //neighbors: &[Option<Chunk>; 6],
     coord: ChunkIdx,
     pos_x: bool,
     pos_y: bool,
     pos_z: bool,
-    data: &mut MeshData
+    data: &mut MeshData,
 ) {
-    let side1_coord = IVec3::new(coord.x as i32 + if pos_x {1} else {-1}, coord.y as i32 + if pos_y {1} else {-1}, coord.z as i32);
-    let side2_coord = IVec3::new(coord.x as i32, coord.y as i32 + if pos_y {1} else {-1}, coord.z as i32 + if pos_z {1} else {-1});
-    let corner_coord = IVec3::new(coord.x as i32 + if pos_x {1} else {-1}, coord.y as i32 + if pos_y {1} else {-1}, coord.z as i32 + if pos_z {1} else {-1});
+    let side1_coord = IVec3::new(
+        coord.x as i32 + if pos_x { 1 } else { -1 },
+        coord.y as i32 + if pos_y { 1 } else { -1 },
+        coord.z as i32,
+    );
+    let side2_coord = IVec3::new(
+        coord.x as i32,
+        coord.y as i32 + if pos_y { 1 } else { -1 },
+        coord.z as i32 + if pos_z { 1 } else { -1 },
+    );
+    let corner_coord = IVec3::new(
+        coord.x as i32 + if pos_x { 1 } else { -1 },
+        coord.y as i32 + if pos_y { 1 } else { -1 },
+        coord.z as i32 + if pos_z { 1 } else { -1 },
+    );
     let mut side1 = false;
     let mut side2 = false;
     let mut corner = false;
 
     if side1_coord.x < CHUNK_SIZE_I32 && side1_coord.x >= 0 {
         if side1_coord.y < CHUNK_SIZE_I32 && side1_coord.y >= 0 {
-            side1 = matches!(chunk[ChunkIdx::new(side1_coord.x as u8, side1_coord.y as u8, side1_coord.z as u8)], BlockType::Basic(_));
+            side1 = matches!(
+                chunk[ChunkIdx::new(
+                    side1_coord.x as u8,
+                    side1_coord.y as u8,
+                    side1_coord.z as u8
+                )],
+                BlockType::Basic(_)
+            );
         }
     }
     if side2_coord.z < CHUNK_SIZE_I32 && side2_coord.z >= 0 {
         if side2_coord.y < CHUNK_SIZE_I32 && side2_coord.y >= 0 {
-            side2 = matches!(chunk[ChunkIdx::new(side2_coord.x as u8, side2_coord.y as u8, side2_coord.z as u8)], BlockType::Basic(_));
+            side2 = matches!(
+                chunk[ChunkIdx::new(
+                    side2_coord.x as u8,
+                    side2_coord.y as u8,
+                    side2_coord.z as u8
+                )],
+                BlockType::Basic(_)
+            );
         }
     }
     if corner_coord.x < CHUNK_SIZE_I32 && corner_coord.x >= 0 {
         if corner_coord.y < CHUNK_SIZE_I32 && corner_coord.y >= 0 {
             if corner_coord.z < CHUNK_SIZE_I32 && corner_coord.z >= 0 {
-                corner = matches!(chunk[ChunkIdx::new(corner_coord.x as u8, corner_coord.y as u8, corner_coord.z as u8)], BlockType::Basic(_));
+                corner = matches!(
+                    chunk[ChunkIdx::new(
+                        corner_coord.x as u8,
+                        corner_coord.y as u8,
+                        corner_coord.z as u8
+                    )],
+                    BlockType::Basic(_)
+                );
             }
         }
     }
@@ -527,5 +1000,5 @@ fn neighbors_to_ao(side1: bool, side2: bool, corner: bool) -> f32 {
     if side1 && side2 {
         return LEVEL_FOR_NEIGHBORS[0];
     }
-    return LEVEL_FOR_NEIGHBORS[3-(side1 as usize+side2 as usize +corner as usize)];
+    return LEVEL_FOR_NEIGHBORS[3 - (side1 as usize + side2 as usize + corner as usize)];
 }

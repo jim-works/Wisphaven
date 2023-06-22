@@ -24,7 +24,7 @@ impl<P: Fn(&TreeAlphabet, u32) -> Option<Vec<TreeAlphabet>>, I: Fn(BlockCoord) -
         buffer: &mut BlockBuffer,
         pos: BlockCoord,
         local_pos: ChunkIdx,
-        chunk: &Chunk,
+        chunk: &ArrayChunk,
     ) {
         let _my_span = info_span!("tree_validate", name = "tree_validate").entered();
         //determine if location is suitable for a tree
@@ -70,7 +70,7 @@ impl<P: Fn(&TreeAlphabet, u32) -> Option<Vec<TreeAlphabet>>, I: Fn(BlockCoord) -
                         for y in -LEAF_SIZE..LEAF_SIZE+1 {
                             for z in -LEAF_SIZE..LEAF_SIZE+1 {
                                 if x*x+y*y+z*z < LEAF_SIZE*LEAF_SIZE+1 {
-                                    buffer.set(BlockCoord::new(x,y,z)+curr_head.translation.into(), BlockChange::SetIfEmpty(BlockType::Basic(5)));
+                                    buffer.set(BlockCoord::new(x,y,z)+curr_head.translation.into(), BlockChange::SetIfEmpty(BlockType::Basic(4)));
                                 }
                             }
                         }
@@ -181,6 +181,6 @@ pub fn get_short_tree(seed: u64) -> Box<dyn StructureGenerator+Send+Sync> {
         }}),
         3,
         |_| vec![TreeAlphabet::Rotate(Quat::from_euler(EulerRot::XYZ, PI*0.5, 0.0, 0.0)), TreeAlphabet::Move(5.0), TreeAlphabet::Replace(10.0)],
-        |p,a,b| p.place_descending(BlockChange::Set(BlockType::Basic(4)), a.into(), b.into())
+        |p,a,b| p.place_descending(BlockChange::Set(BlockType::Basic(3)), a.into(), b.into())
     ))
 }

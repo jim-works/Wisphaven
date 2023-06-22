@@ -1,6 +1,7 @@
 use std::ops::{Index, IndexMut, Add};
 
 use bevy::prelude::*;
+use serde::{Serialize, Deserialize};
 
 use crate::util::Direction;
 
@@ -16,7 +17,9 @@ pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE;
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LODLevel {pub level: usize}
 
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub type ArrayChunk = Chunk<[BlockType; BLOCKS_PER_CHUNK]>;
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ChunkCoord {
     pub x: i32,
     pub y: i32,
@@ -112,44 +115,44 @@ impl Add<ChunkIdx> for ChunkIdx {
 #[derive(Clone, Debug)]
 pub enum ChunkType {
     Ungenerated(Entity),
-    Full(Chunk)
+    Full(ArrayChunk)
 }
 
 #[derive(Clone, Debug)]
-pub struct Chunk {
-    blocks: Box<[BlockType; BLOCKS_PER_CHUNK]>,
+pub struct Chunk<T> where T: Index<usize, Output=BlockType> + IndexMut<usize, Output=BlockType> {
+    pub blocks: Box<T>,
     pub position: ChunkCoord,
     pub entity: Entity
 }
 
-impl Index<ChunkIdx> for Chunk {
+impl<T: std::ops::IndexMut<usize, Output=BlockType>> Index<ChunkIdx> for Chunk<T> {
     type Output = BlockType;
     fn index(&self, index: ChunkIdx) -> &BlockType {
         &self.blocks[index.to_usize()]
     }
 }
 
-impl IndexMut<ChunkIdx> for Chunk {
+impl<T: std::ops::IndexMut<usize, Output=BlockType>> IndexMut<ChunkIdx> for Chunk<T> {
     fn index_mut(&mut self, index: ChunkIdx) -> &mut BlockType {
         &mut self.blocks[index.to_usize()]
     }
 }
 
-impl Index<usize> for Chunk {
+impl<T: std::ops::IndexMut<usize, Output=BlockType>> Index<usize> for Chunk<T> {
     type Output = BlockType;
     fn index(&self, index: usize) -> &BlockType {
         &self.blocks[index]
     }
 }
 
-impl IndexMut<usize> for Chunk {
+impl<T: std::ops::IndexMut<usize, Output=BlockType>> IndexMut<usize> for Chunk<T> {
     fn index_mut(&mut self, index: usize) -> &mut BlockType {
         &mut self.blocks[index]
     }
 }
 
-impl Chunk {
-    pub fn new(position: ChunkCoord, entity: Entity) -> Chunk {
+impl ArrayChunk {
+    pub fn new(position: ChunkCoord, entity: Entity) -> ArrayChunk {
         Chunk {
             blocks: Box::new([BlockType::Empty; BLOCKS_PER_CHUNK]),
             entity: entity,
@@ -157,6 +160,7 @@ impl Chunk {
         }
     }
 }
+
 #[derive(Clone, Debug)]
 pub enum LODChunkType {
     //entity, level

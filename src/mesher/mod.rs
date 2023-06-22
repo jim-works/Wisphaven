@@ -11,7 +11,7 @@ use bevy::{
     prelude::*,
 };
 
-use crate::world::{LevelSystemSet, LevelLoadState};
+use crate::{world::{LevelSystemSet, LevelLoadState, Level, chunk::ChunkCoord}, worldgen::GeneratedChunk};
 
 pub struct MesherPlugin;
 
@@ -19,6 +19,7 @@ const SPAWN_MESH_TIME_BUDGET_COUNT: u32 = 1000;
 
 impl Plugin for MesherPlugin {
     fn build(&self, app: &mut App) {
+
         app.add_plugin(MaterialPlugin::<ArrayTextureMaterial>::default())
             .insert_resource(MeshTimer {
                 timer: Timer::from_seconds(0.05, TimerMode::Repeating),

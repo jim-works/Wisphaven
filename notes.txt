@@ -23,3 +23,13 @@ memory leak? investigate mesh handles
     -   not buffer clearing
     -   not meshes leaking
     -   https://github.com/fasterthanlime/mevi    
+
+block entities, two approaches:
+    1.  each block entity has &'static dyn BlockEntity
+        -   BlockEntity trait has functions for onplace(chunkcoord, blockcoord), ondestroy(chunkcoord, blockcoord), serialize, etc
+        -   store block data in DashMap<ChunkCoord, DashMap<ChunkIdx, T>> where T is block data type. This way, onplace/ondestroy functions can take &self and we can easily serialize on a per-chunk basis
+    2. each block entity has Entity
+        -   Entity has BlockEntity(Vec<id>) component, and whatever other components we need for the blocks functionality.
+        -   onplace/ondestroy can be implemented with systems using Added<Component> and Removed<Component>. update Vec<id> in these systems?
+        -   serialize can query the entity's blockentity, where each id corresponds to a serializer for a component T which takes in Query<(&BlockEntity, &T)>
+        -   placing can be done with id -> bundle map

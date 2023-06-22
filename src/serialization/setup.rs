@@ -1,6 +1,7 @@
 pub use bevy::prelude::*;
 
 use heed::EnvOpenOptions;
+use heed::types::{SerdeBincode, ByteSlice};
 use std::fs;
 
 use crate::world::chunk::ChunkCoord;
@@ -23,12 +24,12 @@ pub fn on_level_created(
             .max_dbs(MAX_DBS)
             .open(settings.env_path.as_path())
             .unwrap();
-        let db = env.open_database::<ChunkCoord, ChunkSaveFormat>(Some(&event.name));
+        let db = env.open_database::<SerdeBincode<ChunkCoord>, ByteSlice>(Some(&event.name));
         match db {
             Ok(db_opt) => {
                 let db = match db_opt {
                     Some(db) => db,
-                    None => match env.create_database::<ChunkCoord, ChunkSaveFormat>(Some(&event.name)) {
+                    None => match env.create_database::<SerdeBincode<ChunkCoord>, ByteSlice>(Some(&event.name)) {
                         Ok(db) => db,
                         Err(e) => {
                             error!("couldn't create world db {}", e);

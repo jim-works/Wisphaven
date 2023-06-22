@@ -18,13 +18,13 @@ pub enum ChunkNeedsGenerated {
 //task to generate the overall shape of the terrain
 #[derive(Component)]
 pub struct ShapingTask {
-    pub task: Task<Chunk>,
+    pub task: Task<ArrayChunk>,
 }
 
 //task to generate small structures (trees, buildings, etc)
 #[derive(Component)]
 pub struct GenSmallStructureTask {
-    pub task: Task<(Chunk, BlockBuffer)>,
+    pub task: Task<(ArrayChunk, BlockBuffer)>,
 }
 
 #[derive(Component)]
@@ -146,7 +146,7 @@ pub fn poll_gen_lod_queue(
     }
 }
 
-fn gen_chunk(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<ShaperSettings>) -> Chunk {
+fn gen_chunk(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<ShaperSettings>) -> ArrayChunk {
     let _my_span = info_span!("gen_chunk", name = "gen_chunk").entered();
     let mut chunk = Chunk::new(coord, chunk_entity);
     let noise = &settings.noise;

@@ -9,6 +9,7 @@ use bevy::{
     prelude::*,
     tasks::AsyncComputeTaskPool,
 };
+use crate::util::Direction;
 
 
 
@@ -71,72 +72,88 @@ pub fn queue_meshing_lod(
 
 fn mesh_chunk_lod(chunk: &LODChunk, data: &mut MeshData) {
     let _my_span = info_span!("mesh_chunk_lod", name = "mesh_chunk_lod").entered();
+    let registry = crate::world::get_block_registry();
     for i in 0..chunk::BLOCKS_PER_CHUNK {
         let coord = ChunkIdx::from_usize(i);
-        mesh_block_lod(&chunk, &chunk[i], coord, coord.to_vec3()*data.scale, data);
+        let block = chunk[i];
+        match block {
+            BlockType::Empty => {},
+            BlockType::Basic(id) => mesh_block_lod(&chunk, registry.get_block_mesh(id), coord, coord.to_vec3()*data.scale, data, registry),
+            BlockType::Entity(_) => todo!(),
+        }
     }
 }
 
 fn mesh_block_lod(
     chunk: &LODChunk,
-    b: &BlockType,
+    b: &BlockMesh,
     coord: ChunkIdx,
-   origin: Vec3,
+    origin: Vec3,
     data: &mut MeshData,
+    registry: &BlockRegistry
 ) {
-    if let BlockType::Empty = b {
-        return;
-    }
     if coord.z == CHUNK_SIZE_U8 - 1 {
         mesh_pos_z(b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
-    } else if matches!(
+    } else if should_mesh_face(
+        registry,
+        b,
+        Direction::PosZ,
         chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
-        BlockType::Empty
-    ) {
+    )  {
         mesh_pos_z (b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //negative z face
     if coord.z == 0 {
         mesh_neg_z (b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
-    } else if matches!(
+    } else if should_mesh_face(
+        registry,
+        b,
+        Direction::NegZ,
         chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
-        BlockType::Empty
     ) {
         mesh_neg_z (b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //positive y face
     if coord.y == CHUNK_SIZE_U8 - 1 {
         mesh_pos_y (b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
-    } else if matches!(
+    } else if should_mesh_face(
+        registry,
+        b,
+        Direction::PosY,
         chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
-        BlockType::Empty
     ) {
         mesh_pos_y (b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //negative y face
     if coord.y == 0 {
         mesh_neg_y (b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
-    } else if matches!(
+    } else if should_mesh_face(
+        registry,
+        b,
+        Direction::NegY,
         chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
-        BlockType::Empty
     ) {
         mesh_neg_y (b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //positive x face
     if coord.x == CHUNK_SIZE_U8 - 1 {
         mesh_pos_x (b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
-    } else if matches!(
+    } else if should_mesh_face(
+        registry,
+        b,
+        Direction::PosX,
         chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
-        BlockType::Empty
     ) {
         mesh_pos_x (b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
     //negative x face
     if coord.x == 0 {
         mesh_neg_x (b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
-    } else if matches!(
+    } else if should_mesh_face(
+        registry,
+        b,
+        Direction::NegX,
         chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
-        BlockType::Empty
     ) {
         mesh_neg_x (b, chunk, coord, origin, Vec3::new(data.scale,data.scale,data.scale), data);
     }
