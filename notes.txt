@@ -24,6 +24,7 @@ memory leak? investigate mesh handles
     -   not meshes leaking
     -   https://github.com/fasterthanlime/mevi 
     -   tracy has memory profiling too   
+    -   https://valgrind.org/docs/manual/dh-manual.html
 
 block entities, two approaches:
     1.  each block entity has &'static dyn BlockEntity

@@ -33,10 +33,10 @@ pub struct LODShapingTask {
 }
 
 #[derive(Component)]
-pub struct GeneratedChunk {}
+pub struct GeneratedChunk;
 
 #[derive(Component)]
-pub struct GeneratedLODChunk {}
+pub struct GeneratedLODChunk;
 
 pub struct ShaperSettings {
     //3d density "main" noise. value determines if a block is placed or not

@@ -1,8 +1,9 @@
 use crate::{
     mesher::NeedsMesh,
     physics::NeedsPhysics,
+    serialization::NeedsSaving,
     util::{max_component_norm, Direction},
-    world::BlockcastHit, serialization::NeedsSaving,
+    world::BlockcastHit,
 };
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
@@ -25,7 +26,7 @@ impl Level {
             chunks: DashMap::with_hasher(ahash::RandomState::new()),
             buffers: DashMap::with_hasher(ahash::RandomState::new()),
             lod_chunks: vec![DashMap::with_hasher(ahash::RandomState::new()); lod_levels],
-            spawn_point: Vec3::ZERO
+            spawn_point: Vec3::ZERO,
         }
     }
     pub fn get_block(&self, key: BlockCoord) -> Option<BlockType> {
@@ -46,10 +47,16 @@ impl Level {
         }
         None
     }
-    pub fn update_chunk_only(chunk_entity: Entity, commands: &mut Commands) {
-        commands
-            .entity(chunk_entity)
-            .insert((NeedsMesh, NeedsPhysics, NeedsSaving));
+    pub fn update_chunk_only<const SAVE: bool>(chunk_entity: Entity, commands: &mut Commands) {
+        if SAVE {
+            commands
+                .entity(chunk_entity)
+                .insert((NeedsMesh, NeedsPhysics, NeedsSaving));
+        } else {
+            commands
+                .entity(chunk_entity)
+                .insert((NeedsMesh, NeedsPhysics));
+        }
     }
     pub fn update_chunk_neighbors_only(&self, coord: ChunkCoord, commands: &mut Commands) {
         for dir in Direction::iter() {
@@ -93,7 +100,7 @@ impl Level {
         //update chunk info: meshes and physics
         for chunk_coord in to_update {
             if let Some(entity) = self.get_chunk_entity(chunk_coord) {
-                Self::update_chunk_only(entity, commands);
+                Self::update_chunk_only::<true>(entity, commands);
             }
         }
     }
@@ -106,7 +113,7 @@ impl Level {
                     ChunkType::Ungenerated(_) => {}
                     ChunkType::Full(ref mut c) => {
                         buf.apply_to(c);
-                        Self::update_chunk_only(c.entity, commands);
+                        Self::update_chunk_only::<true>(c.entity, commands);
                         //self.update_chunk_neighbors_only(c.position, commands);
                         continue;
                     }
@@ -117,10 +124,61 @@ impl Level {
             let mut entry = self
                 .buffers
                 .entry(coord)
-                .or_insert(Box::new([BlockType::Empty; 4096]));
+                .or_insert(Box::new([BlockType::Empty; BLOCKS_PER_CHUNK]));
             //copy contents of buf into entry, since they are different buffers
             buf.apply_to(entry.value_mut().as_mut());
         }
+    }
+    pub fn add_rle_buffer(
+        &self,
+        coord: ChunkCoord,
+        buf: &[(BlockType, u16)],
+        commands: &mut Commands,
+    ) {
+        let _my_span = info_span!("add_array_buffer", name = "add_array_buffer").entered();
+        //if the chunk is already generated, add the contents of the buffer to the chunk
+        if let Some(mut chunk_ref) = self.get_chunk_mut(coord) {
+            match chunk_ref.value_mut() {
+                ChunkType::Ungenerated(_) => {}
+                ChunkType::Full(ref mut c) => {
+                    let mut start = 0;
+                    for (block, run) in buf {
+                        if !matches!(*block, BlockType::Empty) {
+                            for i in start..start+*run as usize {
+                                c[i] = *block;
+                            }
+                        }
+                        start += *run as usize;
+                    }
+                    Self::update_chunk_only::<true>(c.entity, commands);
+                    //self.update_chunk_neighbors_only(c.position, commands);
+                    return;
+                }
+            }
+            //we break if we updated a chunk in the world, so now we merge the buffer
+            //TODO: figure out how to remove this allocation (must keep mutable reference alive for locking)
+            let mut entry = self
+                .buffers
+                .entry(coord)
+                .or_insert(Box::new([BlockType::Empty; BLOCKS_PER_CHUNK]));
+            //copy contents of buf into entry, since they are different buffers
+            let stored_buf = entry.value_mut().as_mut();
+            let mut start = 0;
+            for (block, run) in buf {
+                if !matches!(*block, BlockType::Empty) {
+                    for i in start..start+*run as usize {
+                        stored_buf[i] = *block;
+                    }
+                }
+                start += *run as usize;
+            }
+        }
+    }
+    pub fn take_buffer(
+        &self,
+        key: &ChunkCoord,
+    ) -> Option<(ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>)> {
+        self.buffers.remove(key)
     }
     pub fn contains_chunk(&self, key: ChunkCoord) -> bool {
         self.chunks.contains_key(&key)

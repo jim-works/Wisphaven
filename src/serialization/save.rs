@@ -23,6 +23,7 @@ pub fn save_all (
         save_writer.send(SaveChunkEvent(*coord));
         commands.entity(entity).remove::<NeedsSaving>();
     }
+    //TODO: save chunk buffers, enable WAL mode again
 }
 
 pub fn do_saving(
@@ -36,11 +37,14 @@ pub fn do_saving(
         |x| x.0
     ));
     let mut data = Vec::new();
+    let mut buffers = Vec::new();
         for coord in to_save {
             if let Some(chunk_ref) = level.get_chunk(coord) {
                 if let ChunkType::Full(chunk) = chunk_ref.value() {
                     data.push((super::ChunkTable::Terrain, coord, ChunkSaveFormat::from(chunk).into_bits()));
                     saved += 1;
+                } else if let Some(buffer) = level.take_buffer(&coord) {
+                    buffers.push(buffer);
                 }
             }
         }

@@ -5,7 +5,7 @@ use crate::{
         chunk::{ChunkCoord, ChunkType, LODChunk, LODChunkType},
         Level,
     },
-    worldgen::ChunkNeedsGenerated,
+    worldgen::ChunkNeedsGenerated, serialization::NeedsLoading,
 };
 
 #[derive(Component, Clone, Debug)]
@@ -57,7 +57,7 @@ pub fn do_loading(
             if !level.contains_chunk(test_coord) {
                 //chunk not loaded, load it!
                 let id = commands
-                    .spawn((Name::new("Chunk"), test_coord, SpatialBundle::default(), ChunkNeedsGenerated::Full))
+                    .spawn((Name::new("Chunk"), test_coord, SpatialBundle::default(), NeedsLoading))
                     .id();
                 level.add_chunk(test_coord, ChunkType::Ungenerated(id));
             }

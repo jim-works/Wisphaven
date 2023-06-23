@@ -11,7 +11,7 @@ use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::*;
 
 use crate::world::{
-    chunk::{ArrayChunk, ChunkCoord},
+    chunk::{ArrayChunk, ChunkCoord, BLOCKS_PER_CHUNK},
     BlockType, LevelLoadState, LevelSystemSet,
 };
 
@@ -19,6 +19,7 @@ use self::queries::{READ_CHUNK_DATA, SAVE_CHUNK_DATA};
 
 pub struct SerializationPlugin;
 
+mod loading;
 pub mod queries;
 mod save;
 mod setup;
@@ -26,7 +27,15 @@ mod setup;
 impl Plugin for SerializationPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(setup::on_level_created.in_set(OnUpdate(LevelLoadState::NotLoaded)))
-            .add_systems((save::do_saving, save::save_all, tick_db).in_set(LevelSystemSet::Main))
+            .add_systems(
+                (
+                    loading::load_chunk_terrain,
+                    loading::queue_terrain_loading,
+                    tick_db,
+                )
+                    .in_set(LevelSystemSet::LoadingAndMain),
+            )
+            .add_systems((save::do_saving, save::save_all).in_set(LevelSystemSet::Main))
             .add_system(finish_up.in_base_set(CoreSet::PostUpdate))
             .add_event::<SaveChunkEvent>()
             .add_event::<DataFromDBEvent>()
@@ -36,6 +45,9 @@ impl Plugin for SerializationPlugin {
 
 #[derive(Component)]
 pub struct NeedsSaving;
+
+#[derive(Component)]
+pub struct NeedsLoading;
 
 #[derive(Resource)]
 pub struct SaveTimer(Timer);
@@ -64,19 +76,19 @@ impl std::fmt::Display for ChunkSerializationError {
 
 impl std::error::Error for ChunkSerializationError {}
 
-impl From<&ArrayChunk> for ChunkSaveFormat {
-    fn from(value: &ArrayChunk) -> Self {
+impl From<(ChunkCoord, &[BlockType; BLOCKS_PER_CHUNK])> for ChunkSaveFormat {
+    fn from(value: (ChunkCoord, &[BlockType; BLOCKS_PER_CHUNK])) -> Self {
         let mut data = Vec::new();
         let mut run = 1;
         let mut curr_block_opt = None;
-        for block in value.blocks.into_iter() {
+        for block in value.1.into_iter() {
             match curr_block_opt {
                 None => curr_block_opt = Some(block),
                 Some(curr_block) => {
                     if curr_block == block {
                         run += 1;
                     } else {
-                        data.push((curr_block, run));
+                        data.push((*curr_block, run));
                         curr_block_opt = Some(block);
                         run = 1;
                     }
@@ -84,9 +96,15 @@ impl From<&ArrayChunk> for ChunkSaveFormat {
             }
         }
         Self {
-            position: value.position,
+            position: value.0,
             data,
         }
+    }
+}
+
+impl From<&ArrayChunk> for ChunkSaveFormat {
+    fn from(value: &ArrayChunk) -> Self {
+        (value.position, value.blocks.as_ref()).into()
     }
 }
 
@@ -173,7 +191,7 @@ pub struct LevelDB {
 
 enum LevelDBCommand {
     Save(Vec<(ChunkTable, ChunkCoord, Vec<u8>)>),
-    Load(Vec<(ChunkTable, ChunkCoord)>),
+    Load(Vec<(Vec<ChunkTable>, ChunkCoord)>),
 }
 
 enum LevelDBResult {
@@ -181,11 +199,12 @@ enum LevelDBResult {
     Load(Vec<DataFromDBEvent>),
 }
 
-pub struct DataFromDBEvent(ChunkTable, Vec<u8>);
+pub struct DataFromDBEvent(ChunkCoord, Vec<(ChunkTable, Vec<u8>)>);
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum ChunkTable {
     Terrain = 0,
+    Buffers = 1,
 }
 
 #[derive(Debug)]
@@ -196,10 +215,11 @@ pub enum LevelDBErr {
 
 impl LevelDB {
     pub fn new(path: &Path) -> Result<LevelDB, r2d2::Error> {
-        let manager = SqliteConnectionManager::file(path).with_init(|conn| conn.execute_batch(
-            "PRAGMA journal_mode=WAL;
-             PRAGMA synchronous=NORMAL;",
-        ));
+        let manager = SqliteConnectionManager::file(path);
+        // .with_init(|conn| conn.execute_batch(
+        //     "PRAGMA journal_mode=WAL;
+        //      PRAGMA synchronous=NORMAL;",
+        // ));
         let pool = Pool::new(manager)?;
         Ok(Self {
             pool,
@@ -223,9 +243,10 @@ impl LevelDB {
         }
     }
     //adds chunks to the queue to be loaded, will write to DataFromDBEvent when loaded
-    pub fn load_chunk_data(&mut self, data: Vec<(ChunkTable, ChunkCoord, Vec<u8>)>) {
+    pub fn load_chunk_data(&mut self, data: Vec<(Vec<ChunkTable>, ChunkCoord)>) {
         if !data.is_empty() {
-            self.queue.push_back(LevelDBCommand::Save(data));
+            info!("queued loading for {} chunks", data.len());
+            self.queue.push_back(LevelDBCommand::Load(data));
         }
     }
 }
@@ -252,20 +273,25 @@ fn do_saving(
 //contacts the db, should be done in a single thread
 fn do_loading(
     conn: PooledConnection<SqliteConnectionManager>,
-    data: Vec<(ChunkTable, ChunkCoord)>,
+    data: Vec<(Vec<ChunkTable>, ChunkCoord)>,
 ) -> Result<LevelDBResult, LevelDBErr> {
     match conn.prepare_cached(READ_CHUNK_DATA) {
         Ok(mut stmt) => {
             let mut results = Vec::new();
-            for (tid, coord) in data {
-                let result = stmt
-                    .query_map(params![tid as i32, coord.x, coord.y, coord.z], |row| {
-                        Ok(DataFromDBEvent(tid, row.get(0)?))
-                    });
-                match result {
-                    Ok(data) => results.extend(data.map(|row| row.unwrap())),
-                    Err(e) => return Err(LevelDBErr::Sqlite(e)),
+            for (tids, coord) in data {
+                let mut coord_result = Vec::new();
+                for tid in tids {
+                    let result = stmt
+                        .query_row(params![tid as i32, coord.x, coord.y, coord.z], |row| {
+                            Ok(row.get(0)?)
+                        });
+                    match result {
+                        Ok(data) => coord_result.push((tid, data)),
+                        Err(rusqlite::Error::QueryReturnedNoRows) => coord_result.push((tid, Vec::new())),
+                        Err(e) => return Err(LevelDBErr::Sqlite(e)),
+                    }
                 }
+                results.push(DataFromDBEvent(coord, coord_result));
             }
             Ok(LevelDBResult::Load(results))
         }
@@ -284,7 +310,10 @@ fn tick_db(mut db: ResMut<LevelDB>, mut load_writer: EventWriter<DataFromDBEvent
             match data {
                 Ok(result) => match result {
                     LevelDBResult::Save(count) => info!("Saved {} chunks.", count),
-                    LevelDBResult::Load(events) => load_writer.send_batch(events),
+                    LevelDBResult::Load(events) => {
+                        info!("Loaded {} chunks.", events.len());
+                        load_writer.send_batch(events)
+                    }
                 },
                 Err(e) => error!("DB Error: {:?}", e),
             }
@@ -322,20 +351,23 @@ fn finish_up(mut db: ResMut<LevelDB>, reader: EventReader<AppExit>) {
         //finish current task
         let _ = future::block_on(task);
     }
+    let mut saved = 0;
     //run all saving tasks before closing
     while let Some(command) = db.queue.pop_front() {
         match command {
             LevelDBCommand::Save(data) => {
                 if let Ok(conn) = db.pool.get() {
-                    let _ = conn.execute_batch(
-                        "PRAGMA journal_mode=WAL;
-                         PRAGMA synchronous=NORMAL;",
-                    );
-                    let _ = do_saving(conn, data);
+                    saved += data.len();
+                    if let Err(e) = do_saving(conn, data) {
+                        error!("Error saving chunks: {:?}", e);
+                    }
                 }
             }
             LevelDBCommand::Load(_) => {}
         }
     }
-    info!("Finished saving!");
+    info!(
+        "Finished saving! Saved {} chunks after last command.",
+        saved
+    );
 }

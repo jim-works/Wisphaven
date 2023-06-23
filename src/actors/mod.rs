@@ -49,6 +49,6 @@ pub struct Jump {
 
 impl Default for Jump {
     fn default() -> Self {
-        Jump { base_height: 6.0, current_height: 6.0, extra_jumps_remaining: 10, extra_jump_count: 10}
+        Jump { base_height: 6.0, current_height: 6.0, extra_jumps_remaining: 100, extra_jump_count: 100}
     }
 }
