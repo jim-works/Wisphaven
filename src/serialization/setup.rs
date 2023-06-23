@@ -1,14 +1,10 @@
 pub use bevy::prelude::*;
 
-use heed::EnvOpenOptions;
-use heed::types::{SerdeBincode, ByteSlice};
 use std::fs;
 
-use crate::world::chunk::ChunkCoord;
+use crate::serialization::LevelDB;
 use crate::world::LevelLoadState;
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
-
-use super::{ChunkDB, HeedEnv};
 
 pub fn on_level_created(
     mut reader: EventReader<CreateLevelEvent>,
@@ -20,25 +16,14 @@ pub fn on_level_created(
     info!("on_level_created");
     for event in reader.iter() {
         fs::create_dir_all(settings.env_path.as_path()).unwrap();
-        let env = EnvOpenOptions::new()
-            .max_dbs(MAX_DBS)
-            .open(settings.env_path.as_path())
-            .unwrap();
-        let db = env.open_database::<SerdeBincode<ChunkCoord>, ByteSlice>(Some(event.name));
+        let db = LevelDB::new(settings.env_path.join(event.name.to_owned() + ".db").as_path());
         match db {
-            Ok(db_opt) => {
-                let db = match db_opt {
-                    Some(db) => db,
-                    None => match env.create_database::<SerdeBincode<ChunkCoord>, ByteSlice>(Some(event.name)) {
-                        Ok(db) => db,
-                        Err(e) => {
-                            error!("couldn't create world db {}", e);
-                            panic!();
-                        }
-                    }
-                };
-                commands.insert_resource(HeedEnv(env));
-                commands.insert_resource(ChunkDB(db));
+            Ok(mut db) => {
+                if let Some(err) = db.create_chunk_table() {
+                    error!("Error creating chunk table: {:?}", err);
+                    return;
+                }
+                commands.insert_resource(db);
                 commands.insert_resource(Level::new(
                     event.name,
                     settings.init_loader.lod_levels.try_into().unwrap(),

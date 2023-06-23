@@ -22,7 +22,7 @@ impl Default for Settings {
                 radius: 6,
                 lod_levels: 2,
             },
-            env_path: Box::new(Path::new("worlds").join(Path::new("world.mdb")))
+            env_path: Box::new(Path::new("worlds").join("world"))
         }
     }
 }

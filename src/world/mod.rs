@@ -59,14 +59,6 @@ pub struct BlockcastHit {
     pub normal: BlockCoord,
 }
 
-// pub static BLOCK_REGISTRY: BlockRegistry = BlockRegistry {
-//     data: [BlockMesh::MultiTexture([1,0,1,1,3,1]),
-//         BlockMesh::Uniform(3),
-//         BlockMesh::MultiTexture([5,6,5,5,6,5]),
-//         BlockMesh::Uniform(7)
-//         ]
-// };
-
 pub fn get_block_registry() -> &'static BlockRegistry {
     static REGISTRY: OnceLock<BlockRegistry> = OnceLock::new();
     REGISTRY.get_or_init(initialize_block_registry)
