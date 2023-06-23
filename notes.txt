@@ -22,7 +22,8 @@ BEFORE RELEASING DEMOS:
 memory leak? investigate mesh handles
     -   not buffer clearing
     -   not meshes leaking
-    -   https://github.com/fasterthanlime/mevi    
+    -   https://github.com/fasterthanlime/mevi 
+    -   tracy has memory profiling too   
 
 block entities, two approaches:
     1.  each block entity has &'static dyn BlockEntity
@@ -33,3 +34,10 @@ block entities, two approaches:
         -   onplace/ondestroy can be implemented with systems using Added<Component> and Removed<Component>. update Vec<id> in these systems?
         -   serialize can query the entity's blockentity, where each id corresponds to a serializer for a component T which takes in Query<(&BlockEntity, &T)>
         -   placing can be done with id -> bundle map
+    go with (2)
+
+meshing updates:
+    -   create a ChunkBoundary struct that takes copies blocks from each of its neighbors
+        -   https://playspacefarer.com/voxel-meshing-performance/
+        -   then we pass that around and don't have to worry about a separate neighbors array.
+        -   have to use all 26 neighbors for AO, so the resulting buffer would be (SIZE+2)^3

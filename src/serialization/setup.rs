@@ -19,7 +19,7 @@ pub fn on_level_created(
         let db = LevelDB::new(settings.env_path.join(event.name.to_owned() + ".db").as_path());
         match db {
             Ok(mut db) => {
-                if let Some(err) = db.create_chunk_table() {
+                if let Some(err) = db.immediate_create_chunk_table() {
                     error!("Error creating chunk table: {:?}", err);
                     return;
                 }

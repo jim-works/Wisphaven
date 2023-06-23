@@ -39,16 +39,13 @@ pub fn do_saving(
         for coord in to_save {
             if let Some(chunk_ref) = level.get_chunk(coord) {
                 if let ChunkType::Full(chunk) = chunk_ref.value() {
-                    data.push((coord, ChunkSaveFormat::from(chunk).into_bits()));
+                    data.push((super::ChunkTable::Terrain, coord, ChunkSaveFormat::from(chunk).into_bits()));
                     saved += 1;
                 }
             }
         }
-    if let Some(err) = db.save_chunk_data(super::ChunkTable::Terrain, data) {
-        error!("Error saving chunks: {:?}", err);
-        return;
-    }
     if saved > 0 {
-        info!("Saved {} chunks.", saved);
+        db.save_chunk_data(data);
+        info!("Queued saving for {} chunks.", saved);
     }
 }

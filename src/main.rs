@@ -1,7 +1,13 @@
 //disable console window from popping up on windows in release builds
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+//have to enable this because it's a nursery feature
+#![warn(clippy::disallowed_types)]
+//bevy system signatures often violate these rules
+#![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
 //TODO: remove this before release. annoying as balls during development
 #![allow(dead_code)]
+
 
 
 use actors::ActorPlugin;
