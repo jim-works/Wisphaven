@@ -7,7 +7,11 @@ pub use player::*;
 mod combat;
 pub use combat::*;
 
+use self::personality::PersonalityPlugin;
+
 pub mod glowjelly;
+
+pub mod personality;
 
 pub struct ActorPlugin;
 
@@ -15,6 +19,7 @@ impl Plugin for ActorPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(CombatPlugin)
             .add_plugin(BigBrainPlugin)
+            .add_plugin(PersonalityPlugin)
             .add_plugin(glowjelly::GlowjellyPlugin)
             .add_plugin(player::PlayerPlugin)
         ;

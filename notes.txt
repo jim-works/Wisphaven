@@ -49,3 +49,4 @@ villages/NPCs:
         -   hierarchical pathing, jobs
     -   https://www.dwarffortresswiki.org/index.php/DF2014:Attribute
         -   personality, attributes
+    -   look in notebook

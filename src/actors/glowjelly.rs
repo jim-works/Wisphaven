@@ -4,7 +4,7 @@ use big_brain::prelude::*;
 
 use crate::{physics::PhysicsObjectBundle, ui::healthbar::{spawn_billboard_healthbar, HealthbarResources}, world::LevelLoadState};
 
-use super::{CombatInfo, CombatantBundle};
+use super::{CombatInfo, CombatantBundle, personality::*};
 
 #[derive(Resource)]
 pub struct GlowjellyResources {
@@ -106,6 +106,18 @@ pub fn spawn_glowjelly(
                     rigidbody: RigidBody::Dynamic,
                     collider: Collider::cuboid(0.5, 0.5, 0.5),
                     ..default()
+                },
+                PersonalityBundle {
+                    personality: PersonalityValues {
+                        family: FacetValue::new(0.0,1.0).unwrap(),
+                        power: FacetValue::new(0.0,1.0).unwrap(),
+                        tradition: FacetValue::new(0.0,1.0).unwrap(),
+                        wealth: FacetValue::new(0.0,1.0).unwrap(),
+                        status: FacetValue::new(0.0,1.0).unwrap(),
+                    },
+                    mental_attributes: MentalAttributes { willpower: FacetValue::new(0.0,1.0).unwrap(), creativity: FacetValue::new(0.0,1.0).unwrap(), memory: FacetValue::new(0.0,1.0).unwrap(), patience: FacetValue::new(0.0,1.0).unwrap(), empathy: FacetValue::new(0.0,1.0).unwrap(), persistence: FacetValue::new(0.0,1.0).unwrap() },
+                    physical_attributes: PhysicalAttributes { strength: FacetValue::new(0.0,1.0).unwrap(), agility: FacetValue::new(0.0,1.0).unwrap(), disease_resistence: FacetValue::new(0.0,1.0).unwrap(), fortitude: FacetValue::new(0.0,1.0).unwrap() },
+                    tasks: TaskSet { dream: None, long_term: None, short_term: None },
                 },
                 GravityScale(0.1),
                 Glowjelly,
