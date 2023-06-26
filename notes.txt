@@ -1,5 +1,6 @@
 networking (std::net or quinn)
     - https://github.com/naia-lib/naia
+    - https://github.com/Henauxg/bevy_quinnet (looks very promising)
 
 Terrain generation
     -   biome map: look at fast noise lite examples - cellular noise (return type cell value) with simplex domain warp independent
@@ -42,3 +43,9 @@ meshing updates:
         -   https://playspacefarer.com/voxel-meshing-performance/
         -   then we pass that around and don't have to worry about a separate neighbors array.
         -   have to use all 26 neighbors for AO, so the resulting buffer would be (SIZE+2)^3
+
+villages/NPCs:
+    -   https://www.youtube.com/watch?v=GK6Vr9mcgjM
+        -   hierarchical pathing, jobs
+    -   https://www.dwarffortresswiki.org/index.php/DF2014:Attribute
+        -   personality, attributes

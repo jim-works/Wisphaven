@@ -32,10 +32,11 @@ impl Plugin for SerializationPlugin {
                     loading::load_chunk_terrain,
                     loading::queue_terrain_loading,
                     tick_db,
+                    save::do_saving,
+                    save::save_all,
                 )
                     .in_set(LevelSystemSet::LoadingAndMain),
             )
-            .add_systems((save::do_saving, save::save_all).in_set(LevelSystemSet::Main))
             .add_system(finish_up.in_base_set(CoreSet::PostUpdate))
             .add_event::<SaveChunkEvent>()
             .add_event::<DataFromDBEvent>()
@@ -63,13 +64,19 @@ pub struct ChunkSaveFormat {
 
 #[derive(Debug)]
 pub enum ChunkSerializationError {
-    InvalidFormat,
+    InvalidCoordinateFormat,
+    InavlidBlockType(u8),
+    PanicReading,
 }
 
 impl std::fmt::Display for ChunkSerializationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ChunkSerializationError::InvalidFormat => write!(f, "Invalid chunk format"),
+            ChunkSerializationError::InvalidCoordinateFormat => {
+                write!(f, "Invalid coordinate format")
+            }
+            ChunkSerializationError::InavlidBlockType(t) => write!(f, "Invalid block type: {}", t),
+            ChunkSerializationError::PanicReading => write!(f, "Panic reading chunk"),
         }
     }
 }
@@ -112,41 +119,47 @@ impl TryFrom<&[u8]> for ChunkSaveFormat {
     type Error = ChunkSerializationError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        if let Ok(position) = bincode::deserialize(value) {
-            let mut result = Self {
-                position,
-                data: Vec::new(),
-            };
-            let mut idx = size_of::<ChunkCoord>();
-            let caught = catch_unwind(move || {
-                while idx < value.len() {
-                    let length = u16::from_le_bytes([value[idx], value[idx + 1]]);
-                    idx += 2;
-                    let block_type = value[idx];
-                    idx += 1;
-                    match block_type {
-                        0 => result.data.push((BlockType::Empty, length)),
-                        1 => {
-                            let id = u32::from_le_bytes([
-                                value[idx],
-                                value[idx + 1],
-                                value[idx + 2],
-                                value[idx + 3],
-                            ]);
-                            idx += 4;
-                            result.data.push((BlockType::Basic(id), length));
+        match bincode::deserialize(value) {
+            Ok(position) => {
+                let mut result = Self {
+                    position,
+                    data: Vec::new(),
+                };
+                let mut idx = size_of::<ChunkCoord>();
+                let caught = catch_unwind(move || {
+                    while idx < value.len() {
+                        let length = u16::from_le_bytes([value[idx], value[idx + 1]]);
+                        idx += 2;
+                        let block_type = value[idx];
+                        idx += 1;
+                        match block_type {
+                            0 => result.data.push((BlockType::Empty, length)),
+                            1 => {
+                                let id = u32::from_le_bytes([
+                                    value[idx],
+                                    value[idx + 1],
+                                    value[idx + 2],
+                                    value[idx + 3],
+                                ]);
+                                idx += 4;
+                                result.data.push((BlockType::Basic(id), length));
+                            }
+                            t => return Err(ChunkSerializationError::InavlidBlockType(t)),
                         }
-                        _ => return Err(ChunkSerializationError::InvalidFormat),
                     }
-                }
-                Ok(result)
-            });
-            return match caught {
-                Ok(result) => result,
-                Err(_) => Err(ChunkSerializationError::InvalidFormat),
-            };
+                    Ok(result)
+                });
+                return match caught {
+                    Ok(result) => result,
+                    Err(_) => Err(ChunkSerializationError::PanicReading),
+                };
+            }
+            Err(e) => {
+                error!("Error reading chunk coordinates: {:?}", e);
+                info!("chunk len: {}", value.len());
+                Err(ChunkSerializationError::InvalidCoordinateFormat)
+            }
         }
-        Err(ChunkSerializationError::InvalidFormat)
     }
 }
 
@@ -185,14 +198,13 @@ impl ChunkSaveFormat {
 pub struct LevelDB {
     pool: Pool<SqliteConnectionManager>,
     current_task: Option<Task<Result<LevelDBResult, LevelDBErr>>>,
-    //FIFO queue
-    queue: VecDeque<LevelDBCommand>,
+    //FIFO queues, we always save before loading
+    save_queue: VecDeque<SaveCommand>,
+    load_queue: VecDeque<LoadCommand>,
 }
 
-enum LevelDBCommand {
-    Save(Vec<(ChunkTable, ChunkCoord, Vec<u8>)>),
-    Load(Vec<(Vec<ChunkTable>, ChunkCoord)>),
-}
+struct SaveCommand(Vec<(ChunkTable, ChunkCoord, Vec<u8>)>);
+struct LoadCommand(Vec<(Vec<ChunkTable>, ChunkCoord)>);
 
 enum LevelDBResult {
     Save(usize),
@@ -215,16 +227,18 @@ pub enum LevelDBErr {
 
 impl LevelDB {
     pub fn new(path: &Path) -> Result<LevelDB, r2d2::Error> {
-        let manager = SqliteConnectionManager::file(path);
-        // .with_init(|conn| conn.execute_batch(
-        //     "PRAGMA journal_mode=WAL;
-        //      PRAGMA synchronous=NORMAL;",
-        // ));
+        let manager = SqliteConnectionManager::file(path).with_init(|conn| {
+            conn.execute_batch(
+                "PRAGMA journal_mode=WAL;
+             PRAGMA synchronous=NORMAL;",
+            )
+        });
         let pool = Pool::new(manager)?;
         Ok(Self {
             pool,
             current_task: None,
-            queue: VecDeque::new(),
+            save_queue: VecDeque::new(),
+            load_queue: VecDeque::new(),
         })
     }
     pub fn immediate_create_chunk_table(&mut self) -> Option<LevelDBErr> {
@@ -239,14 +253,14 @@ impl LevelDB {
     //adds chunks to the buffer to be saved
     pub fn save_chunk_data(&mut self, data: Vec<(ChunkTable, ChunkCoord, Vec<u8>)>) {
         if !data.is_empty() {
-            self.queue.push_back(LevelDBCommand::Save(data));
+            self.save_queue.push_back(SaveCommand(data));
         }
     }
     //adds chunks to the queue to be loaded, will write to DataFromDBEvent when loaded
     pub fn load_chunk_data(&mut self, data: Vec<(Vec<ChunkTable>, ChunkCoord)>) {
         if !data.is_empty() {
             info!("queued loading for {} chunks", data.len());
-            self.queue.push_back(LevelDBCommand::Load(data));
+            self.load_queue.push_back(LoadCommand(data));
         }
     }
 }
@@ -287,7 +301,9 @@ fn do_loading(
                         });
                     match result {
                         Ok(data) => coord_result.push((tid, data)),
-                        Err(rusqlite::Error::QueryReturnedNoRows) => coord_result.push((tid, Vec::new())),
+                        Err(rusqlite::Error::QueryReturnedNoRows) => {
+                            coord_result.push((tid, Vec::new()))
+                        }
                         Err(e) => return Err(LevelDBErr::Sqlite(e)),
                     }
                 }
@@ -323,19 +339,23 @@ fn tick_db(mut db: ResMut<LevelDB>, mut load_writer: EventWriter<DataFromDBEvent
     }
     //start next task if needed
     if finished || db.current_task.is_none() {
-        if let Some(command) = db.queue.pop_front() {
+        //do saves loads, important for chunk buffers
+        if let Some(save_command) = db.save_queue.pop_front() {
             //work in background
             let pool = AsyncComputeTaskPool::get();
             match db.pool.get() {
-                Ok(conn) => match command {
-                    LevelDBCommand::Save(chunks) => {
-                        db.current_task = Some(pool.spawn(async { do_saving(conn, chunks) }))
-                    }
-
-                    LevelDBCommand::Load(chunks) => {
-                        db.current_task = Some(pool.spawn(async { do_loading(conn, chunks) }))
-                    }
-                },
+                Ok(conn) => {
+                    db.current_task = Some(pool.spawn(async { do_saving(conn, save_command.0) }))
+                }
+                Err(e) => error!("Error establishing DB connection: {:?}", e),
+            }
+        } else if let Some(load_command) = db.load_queue.pop_front() {
+            //work in background
+            let pool = AsyncComputeTaskPool::get();
+            match db.pool.get() {
+                Ok(conn) => {
+                    db.current_task = Some(pool.spawn(async { do_loading(conn, load_command.0) }))
+                }
                 Err(e) => error!("Error establishing DB connection: {:?}", e),
             }
         }
@@ -353,17 +373,12 @@ fn finish_up(mut db: ResMut<LevelDB>, reader: EventReader<AppExit>) {
     }
     let mut saved = 0;
     //run all saving tasks before closing
-    while let Some(command) = db.queue.pop_front() {
-        match command {
-            LevelDBCommand::Save(data) => {
-                if let Ok(conn) = db.pool.get() {
-                    saved += data.len();
-                    if let Err(e) = do_saving(conn, data) {
-                        error!("Error saving chunks: {:?}", e);
-                    }
-                }
+    while let Some(command) = db.save_queue.pop_front() {
+        if let Ok(conn) = db.pool.get() {
+            saved += command.0.len();
+            if let Err(e) = do_saving(conn, command.0) {
+                error!("Error saving chunks: {:?}", e);
             }
-            LevelDBCommand::Load(_) => {}
         }
     }
     info!(

@@ -180,6 +180,9 @@ impl Level {
     ) -> Option<(ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>)> {
         self.buffers.remove(key)
     }
+    pub fn buffer_iter(&self)-> dashmap::iter::Iter<'_, ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>, ahash::RandomState> {
+        self.buffers.iter()
+    }
     pub fn contains_chunk(&self, key: ChunkCoord) -> bool {
         self.chunks.contains_key(&key)
     }

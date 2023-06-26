@@ -8,13 +8,18 @@ use crate::{
     worldgen::{ChunkNeedsGenerated, GeneratedChunk},
 };
 
-use super::{ChunkSaveFormat, ChunkTable, DataFromDBEvent, LevelDB, NeedsLoading};
+use super::{ChunkSaveFormat, ChunkTable, DataFromDBEvent, LevelDB, NeedsLoading, SaveTimer};
 
 pub fn queue_terrain_loading(
     mut commands: Commands,
     mut db: ResMut<LevelDB>,
     query: Query<(Entity, &ChunkCoord), With<NeedsLoading>>,
+    timer: Res<SaveTimer>,
 ) {
+    //timer gets updating in saving system, so loading will happen after
+    if !timer.0.finished() {
+        return;
+    }
     db.load_chunk_data(
         query
             .iter()
@@ -41,9 +46,9 @@ pub fn load_chunk_terrain(
         let buff_data = &data_vec[1].1;
         //first copy over the buffer so that it is applied when the chunk is added right after the terrain loads.
         if !buff_data.is_empty() {
-            match <&[u8] as TryInto<ChunkSaveFormat>>::try_into(terrain_data.as_slice()) {
+            match <&[u8] as TryInto<ChunkSaveFormat>>::try_into(buff_data.as_slice()) {
                 Ok(fmt) => level.add_rle_buffer(*coord, &fmt.data, &mut commands),
-                Err(_) => todo!(),
+                Err(e) => error!("error deserializing chunk buffer at {:?}: {:?}", coord, e),
             }
         }
         //load terrain or mark as needing generation
