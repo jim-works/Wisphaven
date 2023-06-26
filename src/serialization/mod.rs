@@ -40,7 +40,7 @@ impl Plugin for SerializationPlugin {
             .add_system(finish_up.in_base_set(CoreSet::PostUpdate))
             .add_event::<SaveChunkEvent>()
             .add_event::<DataFromDBEvent>()
-            .insert_resource(SaveTimer(Timer::from_seconds(5.0, TimerMode::Repeating)));
+            .insert_resource(SaveTimer(Timer::from_seconds(0.1, TimerMode::Repeating)));
     }
 }
 
@@ -259,7 +259,6 @@ impl LevelDB {
     //adds chunks to the queue to be loaded, will write to DataFromDBEvent when loaded
     pub fn load_chunk_data(&mut self, data: Vec<(Vec<ChunkTable>, ChunkCoord)>) {
         if !data.is_empty() {
-            info!("queued loading for {} chunks", data.len());
             self.load_queue.push_back(LoadCommand(data));
         }
     }
@@ -270,96 +269,102 @@ fn do_saving(
     conn: PooledConnection<SqliteConnectionManager>,
     data: Vec<(ChunkTable, ChunkCoord, Vec<u8>)>,
 ) -> Result<LevelDBResult, LevelDBErr> {
-    match conn.prepare_cached(SAVE_CHUNK_DATA) {
-        Ok(mut stmt) => {
-            let len = data.len();
-            for (tid, coord, blob) in data {
-                if let Err(e) = stmt.execute(params![tid as i32, coord.x, coord.y, coord.z, blob]) {
-                    return Err(LevelDBErr::Sqlite(e));
-                }
-            }
-            Ok(LevelDBResult::Save(len))
-        }
-        Err(e) => Err(LevelDBErr::Sqlite(e)),
-    }
+    // match conn.prepare_cached(SAVE_CHUNK_DATA) {
+    //     Ok(mut stmt) => {
+    //         let len = data.len();
+    //         for (tid, coord, blob) in data {
+    //             if let Err(e) = stmt.execute(params![tid as i32, coord.x, coord.y, coord.z, blob]) {
+    //                 return Err(LevelDBErr::Sqlite(e));
+    //             }
+    //         }
+    //         Ok(LevelDBResult::Save(len))
+    //     }
+    //     Err(e) => Err(LevelDBErr::Sqlite(e)),
+    // }
+    Ok(LevelDBResult::Save(0))
 }
 
 //contacts the db, should be done in a single thread
 fn do_loading(
-    conn: PooledConnection<SqliteConnectionManager>,
+    //conn: PooledConnection<SqliteConnectionManager>,
     data: Vec<(Vec<ChunkTable>, ChunkCoord)>,
 ) -> Result<LevelDBResult, LevelDBErr> {
-    match conn.prepare_cached(READ_CHUNK_DATA) {
-        Ok(mut stmt) => {
-            let mut results = Vec::new();
-            for (tids, coord) in data {
-                let mut coord_result = Vec::new();
-                for tid in tids {
-                    let result = stmt
-                        .query_row(params![tid as i32, coord.x, coord.y, coord.z], |row| {
-                            Ok(row.get(0)?)
-                        });
-                    match result {
-                        Ok(data) => coord_result.push((tid, data)),
-                        Err(rusqlite::Error::QueryReturnedNoRows) => {
-                            coord_result.push((tid, Vec::new()))
-                        }
-                        Err(e) => return Err(LevelDBErr::Sqlite(e)),
-                    }
-                }
-                results.push(DataFromDBEvent(coord, coord_result));
-            }
-            Ok(LevelDBResult::Load(results))
+    // match conn.prepare_cached(READ_CHUNK_DATA) {
+    // Ok(mut stmt) => {
+    let mut results = Vec::new();
+    for (tids, coord) in data {
+        let mut coord_result = Vec::new();
+        for tid in tids {
+            // let result = stmt
+            //     .query_row(params![tid as i32, coord.x, coord.y, coord.z], |row| {
+            //         Ok(row.get(0)?)
+            //     });
+            // match result {
+            //     Ok(data) => coord_result.push((tid, data)),
+            //     Err(rusqlite::Error::QueryReturnedNoRows) => {
+            //         coord_result.push((tid, Vec::new()))
+            //     }
+            //     Err(e) => return Err(LevelDBErr::Sqlite(e)),
+            // }
+            coord_result.push((tid, Vec::new()));
         }
-        Err(e) => Err(LevelDBErr::Sqlite(e)),
+        results.push(DataFromDBEvent(coord, coord_result));
     }
+    Ok(LevelDBResult::Load(results))
+    // }
+    // Err(e) => Err(LevelDBErr::Sqlite(e)),
+    // }
 }
 
 //checks if the db's current_task is finished, and if so, will send an event depending on the task.
 //if there is no current task or it's finished, it will start a new task from the db's command queue
 fn tick_db(mut db: ResMut<LevelDB>, mut load_writer: EventWriter<DataFromDBEvent>) {
-    let mut finished = false;
     if let Some(ref mut task) = &mut db.current_task {
         if let Some(data) = future::block_on(future::poll_once(task)) {
             //previous task is done
             //output result
             match data {
                 Ok(result) => match result {
-                    LevelDBResult::Save(count) => info!("Saved {} chunks.", count),
+                    LevelDBResult::Save(_) => {},
                     LevelDBResult::Load(events) => {
-                        info!("Loaded {} chunks.", events.len());
                         load_writer.send_batch(events)
                     }
                 },
                 Err(e) => error!("DB Error: {:?}", e),
             }
-            finished = true;
             db.current_task = None;
         }
     }
-    //start next task if needed
-    if finished || db.current_task.is_none() {
-        //do saves loads, important for chunk buffers
-        if let Some(save_command) = db.save_queue.pop_front() {
+    if db.current_task.is_none() {
+        if let Some(load_command) = db.load_queue.pop_front() {
             //work in background
             let pool = AsyncComputeTaskPool::get();
-            match db.pool.get() {
-                Ok(conn) => {
-                    db.current_task = Some(pool.spawn(async { do_saving(conn, save_command.0) }))
-                }
-                Err(e) => error!("Error establishing DB connection: {:?}", e),
-            }
-        } else if let Some(load_command) = db.load_queue.pop_front() {
-            //work in background
-            let pool = AsyncComputeTaskPool::get();
-            match db.pool.get() {
-                Ok(conn) => {
-                    db.current_task = Some(pool.spawn(async { do_loading(conn, load_command.0) }))
-                }
-                Err(e) => error!("Error establishing DB connection: {:?}", e),
-            }
+            db.current_task = Some(pool.spawn(async { do_loading(load_command.0) }))
         }
     }
+    //start next task if needed
+    // if finished || db.current_task.is_none() {
+    //     //do saves loads, important for chunk buffers
+    //     if let Some(save_command) = db.save_queue.pop_front() {
+    //         //work in background
+    //         let pool = AsyncComputeTaskPool::get();
+    //         match db.pool.get() {
+    //             Ok(conn) => {
+    //                 db.current_task = Some(pool.spawn(async { do_saving(conn, save_command.0) }))
+    //             }
+    //             Err(e) => error!("Error establishing DB connection: {:?}", e),
+    //         }
+    //     } else if let Some(load_command) = db.load_queue.pop_front() {
+    //         //work in background
+    //         let pool = AsyncComputeTaskPool::get();
+    //         match db.pool.get() {
+    //             Ok(conn) => {
+    //                 db.current_task = Some(pool.spawn(async { do_loading(conn, load_command.0) }))
+    //             }
+    //             Err(e) => error!("Error establishing DB connection: {:?}", e),
+    //         }
+    //     }
+    // }
 }
 
 //runs all save commands when the app exits
