@@ -12,9 +12,7 @@ impl<const S: usize> Spline<S> {
         match self
             .control_points
             .iter()
-            .enumerate()
-            .filter(|(_, point)| x < point.x)
-            .next()
+            .enumerate().find(|(_, point)| x < point.x)
         {
             Some((i, point)) => {
                 if i == 0 {

@@ -28,7 +28,7 @@ pub fn use_personality_item(
     physics: Res<RapierContext>,
 ) {
     for event in reader.iter() {
-        if let Ok(_) = personality_item.get(event.1.id) {
+        if personality_item.get(event.1.id).is_ok() {
             if let Ok(tf) = tf_query.get(event.0) {
                 let groups = QueryFilter::default().exclude_collider(event.0);
                 if let Some((hit, _)) =

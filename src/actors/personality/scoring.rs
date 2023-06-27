@@ -58,7 +58,7 @@ pub fn score_task(
     physical: &PhysicalAttributes,
     mental: &MentalAttributes,
     values: &PersonalityValues,
-    tasks: &TaskSet,
+    _tasks: &TaskSet,
 ) -> AdjustedTaskScore {
     attribute_adjustment(to_score, physical, mental);
     let score = personality_score(to_score, values);

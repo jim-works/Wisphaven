@@ -38,22 +38,22 @@ pub struct GeneratedChunk;
 #[derive(Component)]
 pub struct GeneratedLODChunk;
 
-pub struct ShaperSettings<const Noise: usize, const Heightmap: usize> {
+pub struct ShaperSettings<const NOISE: usize, const HEIGHTMAP: usize> {
     //3d density "main" noise. value determines if a block is placed or not
-    pub noise: SplineNoise<Noise>,
+    pub noise: SplineNoise<NOISE>,
     //constant. value creates the upper control point for density required over the y axis
     pub upper_density: Vec2,
     //2d heightmap noise. value controls the x-value for the middle control point for density required over the y axis
-    pub heightmap_noise: SplineNoise<Heightmap>,
+    pub heightmap_noise: SplineNoise<HEIGHTMAP>,
     //constant. value controls the y-value for the middle control point for density required over the y axis
     pub mid_density: f32,
     //constant. value creates the lower control point for density required over the y axis
     pub base_density: Vec2
 }
 
-pub fn queue_generating<const Noise: usize, const Heightmap: usize>(
+pub fn queue_generating<const NOISE: usize, const HEIGHTMAP: usize>(
     query: Query<(Entity, &ChunkCoord, &ChunkNeedsGenerated)>,
-    noise: Arc<ShaperSettings<Noise,Heightmap>>, //cannot use a resource since we pass it to other threads
+    noise: Arc<ShaperSettings<NOISE,HEIGHTMAP>>, //cannot use a resource since we pass it to other threads
     mut commands: Commands,
 ) {
     let _my_span = info_span!("queue_generating", name = "queue_generating").entered();
@@ -148,7 +148,7 @@ pub fn poll_gen_lod_queue(
     }
 }
 
-fn gen_chunk<const Noise: usize, const Heightmap: usize>(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<ShaperSettings<Noise,Heightmap>>) -> ArrayChunk {
+fn gen_chunk<const NOISE: usize, const HEIGHTMAP: usize>(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<ShaperSettings<NOISE,HEIGHTMAP>>) -> ArrayChunk {
     let _my_span = info_span!("gen_chunk", name = "gen_chunk").entered();
     let mut chunk = Chunk::new(coord, chunk_entity);
     let noise = &settings.noise;
@@ -170,7 +170,7 @@ fn gen_chunk<const Noise: usize, const Heightmap: usize>(coord: ChunkCoord, chun
     chunk
 }
 
-fn gen_lod_chunk<const Noise: usize, const Heightmap: usize>(coord: ChunkCoord, level: usize, chunk_entity: Entity, settings: Arc<ShaperSettings<Noise,Heightmap>>) -> LODChunk {
+fn gen_lod_chunk<const NOISE: usize, const HEIGHTMAP: usize>(coord: ChunkCoord, level: usize, chunk_entity: Entity, settings: Arc<ShaperSettings<NOISE,HEIGHTMAP>>) -> LODChunk {
     let _my_span = info_span!("gen_lod_chunk", name = "gen_lod_chunk").entered();
     let mut chunk = LODChunk::new(coord, level, chunk_entity);
     let noise = &settings.noise;

@@ -55,19 +55,17 @@ pub fn load_chunk_terrain(
         if let Some(entity) = level.get_chunk_entity(*coord) {
             if terrain_data.is_empty() {
                 commands.entity(entity).insert(ChunkNeedsGenerated::Full);
-            } else {
-                if let Ok(parsed) =
-                    <&[u8] as TryInto<ChunkSaveFormat>>::try_into(terrain_data.as_slice())
-                {
-                    let chunk = parsed.into_chunk(entity);
-                    if let Ok(mut tf) = tf_query.get_mut(entity) {
-                        tf.translation = chunk.position.to_vec3();
-                    }
-                    level.add_chunk(chunk.position, ChunkType::Full(chunk));
-                    Level::update_chunk_only::<false>(entity, &mut commands);
-                    commands.entity(entity).insert(GeneratedChunk);
-                    loaded += 1;
+            } else if let Ok(parsed) =
+                <&[u8] as TryInto<ChunkSaveFormat>>::try_into(terrain_data.as_slice())
+            {
+                let chunk = parsed.into_chunk(entity);
+                if let Ok(mut tf) = tf_query.get_mut(entity) {
+                    tf.translation = chunk.position.to_vec3();
                 }
+                level.add_chunk(chunk.position, ChunkType::Full(chunk));
+                Level::update_chunk_only::<false>(entity, &mut commands);
+                commands.entity(entity).insert(GeneratedChunk);
+                loaded += 1;
             }
         }
     }
