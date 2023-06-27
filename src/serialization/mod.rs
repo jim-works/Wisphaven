@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use std::{collections::VecDeque, mem::size_of, panic::catch_unwind, path::Path};
 
 use bevy::{
@@ -85,23 +86,12 @@ impl std::error::Error for ChunkSerializationError {}
 
 impl From<(ChunkCoord, &[BlockType; BLOCKS_PER_CHUNK])> for ChunkSaveFormat {
     fn from(value: (ChunkCoord, &[BlockType; BLOCKS_PER_CHUNK])) -> Self {
-        let mut data = Vec::new();
-        let mut run = 1;
-        let mut curr_block_opt = None;
-        for block in value.1.into_iter() {
-            match curr_block_opt {
-                None => curr_block_opt = Some(block),
-                Some(curr_block) => {
-                    if curr_block == block {
-                        run += 1;
-                    } else {
-                        data.push((*curr_block, run));
-                        curr_block_opt = Some(block);
-                        run = 1;
-                    }
-                }
-            }
-        }
+        let data = value
+            .1
+            .iter()
+            .dedup_with_count()
+            .map(|(run, block)| (*block, run as u16))
+            .collect();
         Self {
             position: value.0,
             data,
