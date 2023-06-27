@@ -2,9 +2,13 @@ use bevy::{prelude::*, scene::SceneInstance};
 use bevy_rapier3d::prelude::*;
 use big_brain::prelude::*;
 
-use crate::{physics::PhysicsObjectBundle, ui::healthbar::{spawn_billboard_healthbar, HealthbarResources}, world::LevelLoadState};
+use crate::{
+    physics::PhysicsObjectBundle,
+    ui::healthbar::{spawn_billboard_healthbar, HealthbarResources},
+    world::LevelLoadState,
+};
 
-use super::{CombatInfo, CombatantBundle, personality::*};
+use super::{personality::components::*, CombatInfo, CombatantBundle};
 
 #[derive(Resource)]
 pub struct GlowjellyResources {
@@ -34,7 +38,7 @@ impl FloatHeight {
         Self {
             curr_height: 0.0,
             preferred_height,
-            seconds_remaining: 0.0
+            seconds_remaining: 0.0,
         }
     }
 }
@@ -68,13 +72,11 @@ pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     });
 }
 
-fn trigger_spawning (
-    mut writer: EventWriter<SpawnGlowjellyEvent>
-) {
+fn trigger_spawning(mut writer: EventWriter<SpawnGlowjellyEvent>) {
     for i in 0..5 {
         writer.send(SpawnGlowjellyEvent {
-            location: Transform::from_xyz(i as f32*5.0,-45.0,0.0),
-            color: Color::rgb(i as f32, 1.0, 1.0)
+            location: Transform::from_xyz(i as f32 * 5.0, -45.0, 0.0),
+            color: Color::rgb(i as f32, 1.0, 1.0),
         });
     }
 }
@@ -84,7 +86,7 @@ pub fn spawn_glowjelly(
     jelly_res: Res<GlowjellyResources>,
     mut spawn_requests: EventReader<SpawnGlowjellyEvent>,
     healthbar_resources: Res<HealthbarResources>,
-    _children_query: Query<&Children>
+    _children_query: Query<&Children>,
 ) {
     for spawn in spawn_requests.iter() {
         let id = commands
@@ -109,38 +111,64 @@ pub fn spawn_glowjelly(
                 },
                 PersonalityBundle {
                     personality: PersonalityValues {
-                        family: FacetValue::new(0.0,1.0).unwrap(),
-                        power: FacetValue::new(0.0,1.0).unwrap(),
-                        tradition: FacetValue::new(0.0,1.0).unwrap(),
-                        wealth: FacetValue::new(0.0,1.0).unwrap(),
-                        status: FacetValue::new(0.0,1.0).unwrap(),
+                        family: FacetValue::new(0.0, 1.0).unwrap(),
+                        power: FacetValue::new(0.0, 1.0).unwrap(),
+                        tradition: FacetValue::new(0.0, 1.0).unwrap(),
+                        wealth: FacetValue::new(0.0, 1.0).unwrap(),
+                        status: FacetValue::new(0.0, 1.0).unwrap(),
+                        hedonism: FacetValue::new(0.0, 1.0).unwrap(),
+                        excitement: FacetValue::new(0.0, 1.0).unwrap(),
+                        pacifism: FacetValue::new(0.0, 1.0).unwrap(),
                     },
-                    mental_attributes: MentalAttributes { willpower: FacetValue::new(0.0,1.0).unwrap(), creativity: FacetValue::new(0.0,1.0).unwrap(), memory: FacetValue::new(0.0,1.0).unwrap(), patience: FacetValue::new(0.0,1.0).unwrap(), empathy: FacetValue::new(0.0,1.0).unwrap(), persistence: FacetValue::new(0.0,1.0).unwrap() },
-                    physical_attributes: PhysicalAttributes { strength: FacetValue::new(0.0,1.0).unwrap(), agility: FacetValue::new(0.0,1.0).unwrap(), disease_resistence: FacetValue::new(0.0,1.0).unwrap(), fortitude: FacetValue::new(0.0,1.0).unwrap() },
-                    tasks: TaskSet { dream: None, long_term: None, short_term: None },
+                    mental_attributes: MentalAttributes {
+                        willpower: FacetValue::new(0.0, 1.0).unwrap(),
+                        creativity: FacetValue::new(0.0, 1.0).unwrap(),
+                        memory: FacetValue::new(0.0, 1.0).unwrap(),
+                        patience: FacetValue::new(0.0, 1.0).unwrap(),
+                        empathy: FacetValue::new(0.0, 1.0).unwrap(),
+                        persistence: FacetValue::new(0.0, 1.0).unwrap(),
+                        intelligence: FacetValue::new(0.0, 1.0).unwrap(),
+                        social_awareness: FacetValue::new(0.0, 1.0).unwrap(),
+                    },
+                    physical_attributes: PhysicalAttributes {
+                        strength: FacetValue::new(0.0, 1.0).unwrap(),
+                        agility: FacetValue::new(0.0, 1.0).unwrap(),
+                        disease_resistence: FacetValue::new(0.0, 1.0).unwrap(),
+                        fortitude: FacetValue::new(0.0, 1.0).unwrap(),
+                    },
+                    tasks: TaskSet {
+                        dream: None,
+                        long_term: None,
+                        short_term: None,
+                    },
                 },
                 GravityScale(0.1),
                 Glowjelly,
                 FloatHeight::new(20.0),
                 Thinker::build()
                     .label("glowjelly thinker")
-                    .picker(FirstToScore {threshold: 0.5})
-                    .when(FloatScorer, FloatAction)
-            )).id();
+                    .picker(FirstToScore { threshold: 0.5 })
+                    .when(FloatScorer, FloatAction),
+            ))
+            .id();
         //add healthbar
-        spawn_billboard_healthbar(&mut commands, &healthbar_resources, id, Vec3::new(0.0,2.0,0.0));
-            // )).with_children(|cb| {
-            //     cb.spawn(PointLightBundle {
-            //         point_light: PointLight {
-            //             color: spawn.color,
-            //             intensity: 500.0,
-            //             shadows_enabled: true,
-            //             ..default()
-            //         },
-            //         ..default()
-            //     });
-            // });
-
+        spawn_billboard_healthbar(
+            &mut commands,
+            &healthbar_resources,
+            id,
+            Vec3::new(0.0, 2.0, 0.0),
+        );
+        // )).with_children(|cb| {
+        //     cb.spawn(PointLightBundle {
+        //         point_light: PointLight {
+        //             color: spawn.color,
+        //             intensity: 500.0,
+        //             shadows_enabled: true,
+        //             ..default()
+        //         },
+        //         ..default()
+        //     });
+        // });
     }
 }
 
@@ -149,7 +177,7 @@ pub fn setup_glowjelly(
     _commands: Commands,
     _children_query: Query<&Children>,
     glowjelly_query: Query<Entity, (With<Glowjelly>, Added<SceneInstance>)>,
-    _anim_query: Query<&AnimationPlayer>
+    _anim_query: Query<&AnimationPlayer>,
 ) {
     for _parent_id in glowjelly_query.iter() {
         //hierarchy is parent -> scene -> gltfnode (with animation player)
@@ -177,37 +205,43 @@ pub fn setup_glowjelly(
     }
 }
 
-pub fn eval_height (
+pub fn eval_height(
     collision: Res<RapierContext>,
-    mut query: Query<(&mut FloatHeight, &GlobalTransform)>
+    mut query: Query<(&mut FloatHeight, &GlobalTransform)>,
 ) {
     let groups = QueryFilter {
         groups: Some(CollisionGroups::new(
-        Group::ALL,
+            Group::ALL,
             Group::from_bits_truncate(crate::physics::TERRAIN_GROUP),
         )),
         ..default()
     };
     for (mut height, tf) in query.iter_mut() {
-        height.curr_height = if let Some((_,dist)) = collision.cast_ray(tf.translation(), Vec3::NEG_Y, height.preferred_height, true, groups) {
+        height.curr_height = if let Some((_, dist)) = collision.cast_ray(
+            tf.translation(),
+            Vec3::NEG_Y,
+            height.preferred_height,
+            true,
+            groups,
+        ) {
             dist
         } else {
             height.preferred_height
         };
     }
 }
-pub fn float_action_system (
+pub fn float_action_system(
     time: Res<Time>,
     _jelly_anim: Res<GlowjellyResources>,
     mut info: Query<(&mut FloatHeight, &mut ExternalImpulse)>,
-    mut query: Query<(&Actor, &mut ActionState), With<FloatAction>>
+    mut query: Query<(&Actor, &mut ActionState), With<FloatAction>>,
 ) {
     for (Actor(actor), mut state) in query.iter_mut() {
         if let Ok((mut floater, mut impulse)) = info.get_mut(*actor) {
             match *state {
                 ActionState::Requested => {
                     *state = ActionState::Executing;
-                    impulse.impulse += Vec3::Y*5.0;
+                    impulse.impulse += Vec3::Y * 5.0;
                     floater.seconds_remaining = 5.0;
                 }
                 ActionState::Executing => {
@@ -226,13 +260,13 @@ pub fn float_action_system (
     }
 }
 
-pub fn float_scorer_system (
+pub fn float_scorer_system(
     floats: Query<&FloatHeight>,
-    mut query: Query<(&Actor, &mut Score), With<FloatScorer>>
+    mut query: Query<(&Actor, &mut Score), With<FloatScorer>>,
 ) {
     for (Actor(actor), mut score) in query.iter_mut() {
         if let Ok(float) = floats.get(*actor) {
-            score.set((float.preferred_height-float.curr_height)/float.preferred_height);
+            score.set((float.preferred_height - float.curr_height) / float.preferred_height);
         }
     }
 }
@@ -251,5 +285,4 @@ fn keyboard_animation_control(
             impulse.impulse += Vec3::new(0.0, 5.0, 0.0);
         }
     }
-    
 }

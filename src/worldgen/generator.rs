@@ -38,22 +38,22 @@ pub struct GeneratedChunk;
 #[derive(Component)]
 pub struct GeneratedLODChunk;
 
-pub struct ShaperSettings {
+pub struct ShaperSettings<const Noise: usize, const Heightmap: usize> {
     //3d density "main" noise. value determines if a block is placed or not
-    pub noise: SplineNoise,
+    pub noise: SplineNoise<Noise>,
     //constant. value creates the upper control point for density required over the y axis
     pub upper_density: Vec2,
     //2d heightmap noise. value controls the x-value for the middle control point for density required over the y axis
-    pub heightmap_noise: SplineNoise,
+    pub heightmap_noise: SplineNoise<Heightmap>,
     //constant. value controls the y-value for the middle control point for density required over the y axis
     pub mid_density: f32,
     //constant. value creates the lower control point for density required over the y axis
     pub base_density: Vec2
 }
 
-pub fn queue_generating(
+pub fn queue_generating<const Noise: usize, const Heightmap: usize>(
     query: Query<(Entity, &ChunkCoord, &ChunkNeedsGenerated)>,
-    noise: Arc<ShaperSettings>, //cannot use a resource since we pass it to other threads
+    noise: Arc<ShaperSettings<Noise,Heightmap>>, //cannot use a resource since we pass it to other threads
     mut commands: Commands,
 ) {
     let _my_span = info_span!("queue_generating", name = "queue_generating").entered();
@@ -148,7 +148,7 @@ pub fn poll_gen_lod_queue(
     }
 }
 
-fn gen_chunk(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<ShaperSettings>) -> ArrayChunk {
+fn gen_chunk<const Noise: usize, const Heightmap: usize>(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<ShaperSettings<Noise,Heightmap>>) -> ArrayChunk {
     let _my_span = info_span!("gen_chunk", name = "gen_chunk").entered();
     let mut chunk = Chunk::new(coord, chunk_entity);
     let noise = &settings.noise;
@@ -157,7 +157,7 @@ fn gen_chunk(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<ShaperSettin
     for x in 0..CHUNK_SIZE_U8 {
         for y in 0..CHUNK_SIZE_U8 {
             let mut block_pos = Vec3::new(chunk_pos.x+x as f32,chunk_pos.y+y as f32,0.0);
-            let density_map = Spline::new(&[settings.base_density, Vec2::new(settings.heightmap_noise.get_noise2d(block_pos.x, block_pos.y),settings.mid_density), settings.upper_density]);
+            let density_map = Spline::new([settings.base_density, Vec2::new(settings.heightmap_noise.get_noise2d(block_pos.x, block_pos.y),settings.mid_density), settings.upper_density]);
             for z in 0..CHUNK_SIZE_U8 {
                 block_pos.z = chunk_pos.z+z as f32;
                 let density = noise.get_noise3d(block_pos.x,block_pos.y,block_pos.z);
@@ -170,7 +170,7 @@ fn gen_chunk(coord: ChunkCoord, chunk_entity: Entity, settings: Arc<ShaperSettin
     chunk
 }
 
-fn gen_lod_chunk(coord: ChunkCoord, level: usize, chunk_entity: Entity, settings: Arc<ShaperSettings>) -> LODChunk {
+fn gen_lod_chunk<const Noise: usize, const Heightmap: usize>(coord: ChunkCoord, level: usize, chunk_entity: Entity, settings: Arc<ShaperSettings<Noise,Heightmap>>) -> LODChunk {
     let _my_span = info_span!("gen_lod_chunk", name = "gen_lod_chunk").entered();
     let mut chunk = LODChunk::new(coord, level, chunk_entity);
     let noise = &settings.noise;
@@ -178,7 +178,7 @@ fn gen_lod_chunk(coord: ChunkCoord, level: usize, chunk_entity: Entity, settings
     for x in 0..CHUNK_SIZE_U8 {
         for y in 0..CHUNK_SIZE_U8 {
             let mut block_pos = chunk.get_block_pos(ChunkIdx::new(x,y,0));
-            let density_map = Spline::new(&[settings.base_density, Vec2::new(settings.heightmap_noise.get_noise2d(block_pos.x, block_pos.y),settings.mid_density), settings.upper_density]);
+            let density_map = Spline::new([settings.base_density, Vec2::new(settings.heightmap_noise.get_noise2d(block_pos.x, block_pos.y),settings.mid_density), settings.upper_density]);
             for z in 0..CHUNK_SIZE_U8 {
                 block_pos = chunk.get_block_pos(ChunkIdx::new(x,y,z));
                 let density = noise.get_noise3d(block_pos.x,block_pos.y,block_pos.z);

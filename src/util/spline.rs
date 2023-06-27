@@ -1,28 +1,34 @@
 use bevy::prelude::Vec2;
 
-pub struct Spline {
-    control_points: Vec<Vec2>
+pub struct Spline<const S: usize> {
+    control_points: [Vec2; S],
 }
 
-impl Spline {
-    pub fn new(control_points: &[Vec2]) -> Spline {
-        Spline {
-            control_points: Vec::from(control_points)
-        }
+impl<const S: usize> Spline<S> {
+    pub const fn new(control_points: [Vec2; S]) -> Spline<S> {
+        Spline { control_points }
     }
     pub fn map(&self, x: f32) -> f32 {
-        for i in 0..self.control_points.len()
+        match self
+            .control_points
+            .iter()
+            .enumerate()
+            .filter(|(_, point)| x < point.x)
+            .next()
         {
-            if x < self.control_points[i].x
-            {
-                if i == 0 { return self.control_points[i].y }
-                let t = (x-self.control_points[i-1].x)/(self.control_points[i].x-self.control_points[i-1].x);
-                return super::lerp(self.control_points[i-1].y, self.control_points[i].y, t);
+            Some((i, point)) => {
+                if i == 0 {
+                    point.y
+                } else {
+                    let t = (x - self.control_points[i - 1].x)
+                        / (self.control_points[i].x - self.control_points[i - 1].x);
+                    super::lerp(self.control_points[i - 1].y, self.control_points[i].y, t)
+                }
             }
-        }
-        match self.control_points.last() {
-            Some(p) => p.y,
-            _ => x
+            None => match self.control_points.last() {
+                Some(p) => p.y,
+                _ => x,
+            },
         }
     }
 }

@@ -9,6 +9,9 @@ pub use noise::*;
 
 pub mod l_system;
 
+mod numerical_traits;
+pub use numerical_traits::*;
+
 use bevy::prelude::Vec3;
 
 pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
