@@ -11,6 +11,7 @@ use self::personality::PersonalityPlugin;
 
 pub mod glowjelly;
 pub mod personality;
+pub mod behaviors;
 
 #[cfg(test)]
 mod test;
@@ -22,6 +23,7 @@ impl Plugin for ActorPlugin {
         app.add_plugin(CombatPlugin)
             .add_plugin(BigBrainPlugin)
             .add_plugin(PersonalityPlugin)
+            .add_plugin(behaviors::BehaviorsPlugin)
             .add_plugin(glowjelly::GlowjellyPlugin)
             .add_plugin(player::PlayerPlugin)
             .add_system(idle_action_system)
@@ -67,6 +69,64 @@ pub struct DefaultAnimation {
     player: Entity,
     action_time: f32,
     duration: f32,
+    animation_speed: f32,
+    acted: bool,
+    just_acted: bool,
+    time_elapsed: f32,
+}
+
+impl DefaultAnimation {
+    pub fn reset(&mut self) {
+        self.acted = false;
+        self.time_elapsed = 0.0;
+    }
+    pub fn tick(&mut self, dt: f32) {
+        self.time_elapsed += dt;
+        self.just_acted = !self.acted && self.time_elapsed >= self.action_seconds();
+        self.acted = self.time_elapsed >= self.action_seconds();
+    }
+    pub fn scaled_time(&self, time: f32) -> f32 {
+        if self.animation_speed == 0.0 {0.0} else {time/self.animation_speed}
+    }
+    pub fn duration_seconds(&self) -> f32 {
+        self.scaled_time(self.duration)
+    }
+    pub fn action_seconds(&self) -> f32 {
+        self.scaled_time(self.action_time)
+    }
+    pub fn finished(&self) -> bool {
+        self.time_elapsed >= self.duration_seconds()
+    }
+    pub fn just_acted(&self) -> bool {
+        self.just_acted
+    }
+    pub fn new(anim: Handle<AnimationClip>, player: Entity, action_time: f32, duration_seconds: f32) -> Self {
+        Self {
+            anim,
+            player,
+            action_time,
+            duration: duration_seconds,
+            animation_speed: 1.0,
+            acted: false,
+            time_elapsed: 0.0,
+            just_acted: false,
+        }
+    }
+}
+
+pub fn setup_animation(anim_opt: Option<Mut<'_, DefaultAnimation>>, animation_player: &mut Query<&mut AnimationPlayer>) {
+    setup_animation_with_speed(anim_opt, animation_player, 1.0);
+}
+
+pub fn setup_animation_with_speed(anim_opt: Option<Mut<'_, DefaultAnimation>>, animation_player: &mut Query<&mut AnimationPlayer>, speed: f32) {
+    if let Some(mut anim) = anim_opt {
+        if let Ok(mut anim_player) = animation_player.get_mut(anim.player) {
+            anim_player.start(anim.anim.clone_weak());
+            anim_player.set_speed(speed);
+            anim.animation_speed = speed;
+            anim.reset();
+        }
+    }
 }
 
 #[derive(Component)]

@@ -46,9 +46,9 @@ impl RawTaskScore {
 }
 
 impl TaskScore {
-    //returns the average of all scores, rescaled to be 0..1
+    //returns the average of all scores
     pub fn overall(&self) -> f32 {
-        (self.safety+self.ease + self.enjoyment + self.goals+self.loot) / (5.0*5.0)
+        (self.safety+self.ease + self.enjoyment + self.goals+self.loot) / 5.0
     }
 }
 

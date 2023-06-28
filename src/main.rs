@@ -22,6 +22,7 @@ use items::ItemsPlugin;
 
 use mesher::MesherPlugin;
 use physics::PhysicsPlugin;
+use util::plugin::UtilPlugin;
 use world::{*, events::CreateLevelEvent};
 use worldgen::WorldGenPlugin;
 
@@ -41,6 +42,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugin(WorldInspectorPlugin::new())
+        .add_plugin(UtilPlugin)
         .add_plugin(BillboardPlugin)
         .add_plugin(AtmospherePlugin)
         .add_plugin(LevelPlugin)

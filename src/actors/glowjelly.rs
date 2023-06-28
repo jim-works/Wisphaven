@@ -9,8 +9,9 @@ use crate::{
 };
 
 use super::{
-    personality::{components::*, scoring}, CombatInfo, CombatantBundle, DefaultAnimation, IdleAction, Idler,
-    UninitializedActor,
+    behaviors::{FloatAction, FloatHeight, FloatScorer, FloatWander, FloatWanderAction},
+    personality::{components::*, scoring},
+    CombatInfo, CombatantBundle, DefaultAnimation, Idler, UninitializedActor,
 };
 
 #[derive(Resource)]
@@ -32,36 +33,6 @@ pub struct SpawnGlowjellyEvent {
     pub location: Transform,
     pub color: Color,
 }
-#[derive(Component, Debug)]
-pub struct FloatHeight {
-    pub curr_height: f32,
-    pub preferred_height: f32,
-    pub seconds_elapsed: f32,
-    pub floated: bool,
-    pub task: Task
-}
-
-impl FloatHeight {
-    pub fn new(preferred_height: f32) -> Self {
-        Self {
-            curr_height: 0.0,
-            preferred_height,
-            seconds_elapsed: 0.0,
-            floated: false,
-            task: Task {
-                category: TaskCategory::Idle,
-                risks: TaskRisks::default(),
-                outcomes: TaskOutcomes::default()
-            }
-        }
-    }
-}
-
-#[derive(Clone, Component, Debug, ActionBuilder)]
-pub struct FloatAction;
-
-#[derive(Clone, Component, Debug, ScorerBuilder)]
-pub struct FloatScorer;
 
 pub struct GlowjellyPlugin;
 
@@ -70,10 +41,7 @@ impl Plugin for GlowjellyPlugin {
         app.add_startup_system(load_resources)
             .add_system(trigger_spawning.in_schedule(OnEnter(LevelLoadState::Loaded)))
             .add_system(spawn_glowjelly)
-            .add_system(eval_height)
             .add_system(setup_glowjelly)
-            .add_system(float_scorer_system.in_set(BigBrainSet::Scorers))
-            .add_system(float_action_system.in_set(BigBrainSet::Actions))
             .add_event::<SpawnGlowjellyEvent>();
     }
 }
@@ -124,12 +92,16 @@ pub fn spawn_glowjelly(
                 },
                 PersonalityBundle {
                     personality: PersonalityValues {
-                        status: FacetValue::new(100.0,1.0).unwrap(),
+                        status: FacetValue::new(100.0, 1.0).unwrap(),
                         ..default()
                     },
                     ..default()
                 },
-                GravityScale(0.2),
+                GravityScale(0.1),
+                Damping {
+                    linear_damping: 1.0,
+                    ..default()
+                },
                 Glowjelly {
                     color: spawn.color,
                     ..default()
@@ -137,11 +109,26 @@ pub fn spawn_glowjelly(
                 UninitializedActor,
                 FloatHeight::new(20.0),
                 Idler::default(),
+                FloatWander::default(),
                 Thinker::build()
                     .label("glowjelly thinker")
-                    .picker(FirstToScore::new(0.01))
-                    .when(FloatScorer, FloatAction)
-                    .when(FixedScore::build(0.01), IdleAction { seconds: 1.0 }),
+                    .picker(FirstToScore::new(0.005))
+                    .when(
+                        FloatScorer,
+                        FloatAction {
+                            impulse: 5.0,
+                            turn_speed: 2.5,
+                        },
+                    )
+                    .when(
+                        FixedScore::build(0.05),
+                        FloatWanderAction {
+                            impulse: 2.5,
+                            turn_speed: 2.5,
+                            squish_factor: Vec3::new(1.0, 0.33, 1.0),
+                            anim_speed: 0.66
+                        },
+                    ),
             ))
             .id();
         //add healthbar
@@ -179,16 +166,16 @@ pub fn setup_glowjelly(
                             commands
                                 .entity(parent_id)
                                 .remove::<UninitializedActor>()
-                                .insert(DefaultAnimation {
-                                    anim: jelly_res.anim.clone(),
-                                    player: *candidate_anim_player,
-                                    action_time: 1.1,
-                                    duration: if let Some(clip) = animations.get(&jelly_res.anim) {
+                                .insert(DefaultAnimation::new(
+                                    jelly_res.anim.clone(),
+                                    *candidate_anim_player,
+                                    1.1,
+                                    if let Some(clip) = animations.get(&jelly_res.anim) {
                                         clip.duration()
                                     } else {
                                         0.0
                                     },
-                                })
+                                ))
                                 .with_children(|cb| {
                                     cb.spawn(PointLightBundle {
                                         point_light: PointLight {
@@ -213,101 +200,6 @@ pub fn setup_glowjelly(
                     break;
                 }
             }
-        }
-    }
-}
-
-pub fn eval_height(
-    collision: Res<RapierContext>,
-    mut query: Query<(&mut FloatHeight, &GlobalTransform)>,
-) {
-    let groups = QueryFilter {
-        groups: Some(CollisionGroups::new(
-            Group::ALL,
-            Group::from_bits_truncate(crate::physics::TERRAIN_GROUP),
-        )),
-        ..default()
-    };
-    for (mut height, tf) in query.iter_mut() {
-        height.curr_height = if let Some((_, dist)) = collision.cast_ray(
-            tf.translation(),
-            Vec3::NEG_Y,
-            2.0*height.preferred_height,
-            true,
-            groups,
-        ) {
-            dist
-        } else {
-            2.0*height.preferred_height
-        };
-        height.task.outcomes.status = (height.preferred_height-height.curr_height)/height.preferred_height;
-        height.task.risks.physical_danger = (height.curr_height/height.preferred_height).powi(2);
-    }
-}
-//TODO: extract and make generic so we can use it for other ai
-pub fn float_action_system(
-    time: Res<Time>,
-    mut info: Query<(
-        Option<&DefaultAnimation>,
-        &mut FloatHeight,
-        &mut ExternalImpulse,
-    )>,
-    mut query: Query<(&Actor, &mut ActionState), With<FloatAction>>,
-    mut animation_player: Query<&mut AnimationPlayer>,
-) {
-    for (Actor(actor), mut state) in query.iter_mut() {
-        if let Ok((anim_opt, mut floater, mut impulse)) = info.get_mut(*actor) {
-            match *state {
-                ActionState::Requested => {
-                    *state = ActionState::Executing;
-                    floater.seconds_elapsed = 0.0;
-                    floater.floated = false;
-                    if let Some(anim) = anim_opt {
-                        if let Ok(mut anim_player) = animation_player.get_mut(anim.player) {
-                            anim_player.start(anim.anim.clone_weak());
-                        }
-                    }
-                }
-                ActionState::Executing => {
-                    floater.seconds_elapsed += time.delta_seconds();
-                    match anim_opt {
-                        Some(anim) => {
-                            //time according to animation
-                            if !floater.floated
-                                && floater.seconds_elapsed >= anim.action_time
-                            {
-                                impulse.impulse += Vec3::Y * 5.0;
-                                floater.floated = true;
-                            } else if floater.floated && floater.seconds_elapsed >= anim.duration {
-                                *state = ActionState::Success;
-                            }
-                        }
-                        None => {
-                            //no animation, so execute immediately
-                            impulse.impulse += Vec3::Y * 5.0;
-                            floater.floated = true;
-                            *state = ActionState::Success;
-                        }
-                    }
-                }
-                ActionState::Cancelled => {
-                    *state = ActionState::Failure;
-                }
-                _ => {}
-            }
-        }
-    }
-}
-
-pub fn float_scorer_system(
-    floats: Query<(&FloatHeight, &PersonalityValues, &MentalAttributes, &PhysicalAttributes, &TaskSet)>,
-    mut query: Query<(&Actor, &mut Score), With<FloatScorer>>,
-) {
-    for (Actor(actor), mut score) in query.iter_mut() {
-        if let Ok((float, values, mental, physical, tasks)) = floats.get(*actor) {
-            score.set_unchecked(scoring::score_task(&mut float.task.clone(), physical, mental, values, tasks).0.overall());
-            println!("overall score: {}", score.get());
-            // score.set((float.preferred_height - float.curr_height) / float.preferred_height);
         }
     }
 }
