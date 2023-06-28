@@ -3,14 +3,14 @@ use bevy_rapier3d::prelude::*;
 use big_brain::prelude::*;
 
 use crate::{
-    physics::PhysicsObjectBundle,
+    physics::{shape_intersects_with_actors, PhysicsObjectBundle},
     ui::healthbar::{spawn_billboard_healthbar, HealthbarResources},
     world::LevelLoadState,
 };
 
 use super::{
     behaviors::{FloatAction, FloatHeight, FloatScorer, FloatWander, FloatWanderAction},
-    personality::{components::*, scoring},
+    personality::components::*,
     CombatInfo, CombatantBundle, DefaultAnimation, Idler, UninitializedActor,
 };
 
@@ -42,6 +42,7 @@ impl Plugin for GlowjellyPlugin {
             .add_system(trigger_spawning.in_schedule(OnEnter(LevelLoadState::Loaded)))
             .add_system(spawn_glowjelly)
             .add_system(setup_glowjelly)
+            .add_system(social_score)
             .add_event::<SpawnGlowjellyEvent>();
     }
 }
@@ -126,7 +127,7 @@ pub fn spawn_glowjelly(
                             impulse: 2.5,
                             turn_speed: 2.5,
                             squish_factor: Vec3::new(1.0, 0.33, 1.0),
-                            anim_speed: 0.66
+                            anim_speed: 0.66,
                         },
                     ),
             ))
@@ -201,5 +202,34 @@ pub fn setup_glowjelly(
                 }
             }
         }
+    }
+}
+
+#[derive(Clone, Component, Debug, ScorerBuilder)]
+pub struct SocialScorer;
+
+fn social_score(
+    collision: Res<RapierContext>,
+    mut query: Query<(Entity, &mut FloatHeight, &GlobalTransform)>,
+    friend_query: Query<&GlobalTransform, With<Glowjelly>>,
+) {
+    for (entity, mut height, tf) in query.iter_mut() {
+        let mut sum_height_diff = 0.0;
+        let mut count = 0.0;
+        shape_intersects_with_actors(
+            &collision,
+            tf.translation(),
+            Quat::IDENTITY,
+            &Collider::ball(height.preferred_height),
+            Some(entity),
+            |e| {
+                if let Ok(friend) = friend_query.get(e) {
+                    sum_height_diff += tf.translation().y-friend.translation().y;
+                    count += 1.0;
+                }
+                true
+            },
+        );
+        height.task.outcomes.status = if count == 0.0 {0.0} else {-sum_height_diff/count}
     }
 }

@@ -120,8 +120,8 @@ pub fn eval_height(
         } else {
             2.0*height.preferred_height
         };
-        height.task.outcomes.status = (height.preferred_height-height.curr_height)/height.preferred_height;
-        height.task.risks.physical_danger = (height.curr_height/height.preferred_height).powi(2);
+        //height.task.outcomes.status = (height.preferred_height-height.curr_height)/height.preferred_height;
+        //height.task.risks.physical_danger = (height.curr_height/height.preferred_height).powi(2);
     }
 }
 
@@ -214,6 +214,7 @@ pub fn float_scorer_system(
     for (Actor(actor), mut score) in query.iter_mut() {
         if let Ok((float, values, mental, physical, tasks)) = floats.get(*actor) {
             score.set_unchecked(scoring::score_task(&mut float.task.clone(), physical, mental, values, tasks).0.overall());
+            println!("score: {}", score.get());
         }
     }
 }
