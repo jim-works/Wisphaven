@@ -5,7 +5,7 @@ use std::ops::{Deref, DerefMut};
 pub const MAX_ATTRIBUTE_VALUE: f32 = 100.0;
 
 //stats
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, Default)]
 pub struct PhysicalAttributes {
     //physical strength
     //task scoring: reduces effect of strength_difficulty
@@ -19,14 +19,14 @@ pub struct PhysicalAttributes {
 }
 
 //stats - affect a
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, Default)]
 pub struct MentalAttributes {
     //task scoring: reduces the effect of mental_difficulty
     pub intelligence: FacetValue,
     //reduces the importance of enjoyment in task scaling
     //task scoring: reduces the effect of pain
     pub willpower: FacetValue,
-    //task scoring: reduces the effect of ingenuity
+    //task scoring: reduces the efect of mental_difficulty, increases the effect of monotony
     pub creativity: FacetValue,
     pub memory: FacetValue,
     //increases the importance of goals in task scaling
@@ -43,7 +43,7 @@ pub struct MentalAttributes {
 pub type PersonalityValues = GenericPersonality<FacetValue>;
 pub type PersonalityScores = GenericPersonality<f32>;
 
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, Default)]
 pub struct GenericPersonality<T: core::fmt::Debug+Clone> {
     //task scoring: likes approval from family, dislikes violence towards them (TODO: Implement)
     pub family: T,
@@ -74,14 +74,14 @@ pub struct PersonalityBundle {
 #[derive(Debug, Clone)]
 pub struct Task {
     pub category: TaskCategory,
-    pub attributes: TaskAttributes,
+    pub risks: TaskRisks,
     pub outcomes: TaskOutcomes
 }
 
 //NPCs will only look to the next level when evaluating tasks
 //E.g. Will mowing the lawn (short) help me achieve improving my standing with my mom (long)
 //      not will it help me rule the world (dream)
-#[derive(Debug, Clone, Component)]
+#[derive(Debug, Clone, Component, Default)]
 pub struct TaskSet {
     //Lifelong ambition. Most NPCs should only have one or two over the course of their lives
     pub dream: Option<Task>,
@@ -101,11 +101,12 @@ pub enum TaskCategory {
     Idle
 }
 
-pub type TaskAttributes = GenericTaskAttributes<f32>;
-pub type TaskAttriuteScores = GenericTaskAttributes<f32>;
+pub type TaskRisks = GenericTaskRisks<f32>;
+pub type TaskRiskScores = GenericTaskRisks<f32>;
 //levels of what the NPC will have to go through to complete the task
+//positive values are generally detriments to doing the task 
 #[derive(Debug, Clone, Default)]
-pub struct GenericTaskAttributes<T: core::fmt::Debug+Clone+Default> {
+pub struct GenericTaskRisks<T: core::fmt::Debug+Clone+Default> {
     //high: play chess, low: play anarchy chess
     pub mental_difficulty: T,
     //high: lift this boulder, low: lift this pencil
@@ -123,14 +124,15 @@ pub struct GenericTaskAttributes<T: core::fmt::Debug+Clone+Default> {
     //physical pain. high: femur breaker, low: none
     pub pain: T,
     //creativity required. high: design a new novel weapon, low: plow land
-    pub ingenuity: T,
+    pub monotony: T,
     //how delayed the gratification is. high: training for your next performance in a year, low: playing rocket league
-    pub deepness: T,
+    pub shallowness: T,
 }
 
 pub type TaskOutcomes = GenericTaskOutcomes<f32>;
 pub type TaskOutcomeScores = GenericTaskOutcomes<f32>;
 //what the NPC is expecting to get out of this task
+//positive values are generally encouragements to do the task
 #[derive(Debug, Clone, Default)]
 pub struct GenericTaskOutcomes<T: core::fmt::Debug+Clone+Default> {
     //material gains: money, items, etc
@@ -165,6 +167,12 @@ impl Deref for FacetValue {
 impl DerefMut for FacetValue {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+impl Default for FacetValue {
+    fn default() -> Self {
+        Self(Normal::new(0.0, 1.0).unwrap())
     }
 }
 

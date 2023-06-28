@@ -50,7 +50,7 @@ impl FloatHeight {
             floated: false,
             task: Task {
                 category: TaskCategory::Idle,
-                attributes: TaskAttributes::default(),
+                risks: TaskRisks::default(),
                 outcomes: TaskOutcomes::default()
             }
         }
@@ -165,9 +165,9 @@ pub fn spawn_glowjelly(
                 Idler::default(),
                 Thinker::build()
                     .label("glowjelly thinker")
-                    .picker(FirstToScore::new(0.1))
+                    .picker(FirstToScore::new(0.01))
                     .when(FloatScorer, FloatAction)
-                    .otherwise(IdleAction { seconds: 1.0 }),
+                    .when(FixedScore::build(0.01), IdleAction { seconds: 1.0 }),
             ))
             .id();
         //add healthbar
@@ -258,16 +258,17 @@ pub fn eval_height(
         height.curr_height = if let Some((_, dist)) = collision.cast_ray(
             tf.translation(),
             Vec3::NEG_Y,
-            height.preferred_height,
+            2.0*height.preferred_height,
             true,
             groups,
         ) {
             dist
         } else {
-            height.preferred_height
+            2.0*height.preferred_height
         };
-        height.task.attributes.social_danger = (height.preferred_height-height.curr_height)/height.preferred_height;
-        height.task.attributes.physical_danger = height.curr_height/height.preferred_height;
+        height.task.risks.social_danger = ((height.preferred_height-height.curr_height)/height.preferred_height).powi(2);
+        
+        //height.task.attributes.physical_danger = (height.curr_height/height.preferred_height).sqrt();
     }
 }
 //TODO: extract and make generic so we can use it for other ai
@@ -332,7 +333,7 @@ pub fn float_scorer_system(
     for (Actor(actor), mut score) in query.iter_mut() {
         if let Ok((float, values, mental, physical, tasks)) = floats.get(*actor) {
             score.set(scoring::score_task(&mut float.task.clone(), physical, mental, values, tasks).0.overall());
-            println!("score: {}", score.get());
+            println!("overall score: {}", score.get());
             // score.set((float.preferred_height - float.curr_height) / float.preferred_height);
         }
     }

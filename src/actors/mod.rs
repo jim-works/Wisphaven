@@ -10,8 +10,10 @@ pub use combat::*;
 use self::personality::PersonalityPlugin;
 
 pub mod glowjelly;
-pub mod ai;
 pub mod personality;
+
+#[cfg(test)]
+mod test;
 
 pub struct ActorPlugin;
 
