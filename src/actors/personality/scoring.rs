@@ -17,7 +17,7 @@ pub struct TaskScore {
 
 struct RawTaskScore(TaskScore);
 #[derive(Clone, Copy, Default)]
-pub struct AdjustedTaskScore(TaskScore);
+pub struct AdjustedTaskScore(pub TaskScore);
 
 impl RawTaskScore {
     //adjusts scores according to the mean of the attributes in MentalAttributes
@@ -47,9 +47,9 @@ impl RawTaskScore {
 }
 
 impl TaskScore {
-    //returns the average of all scores
+    //returns the average of all scores, rescaled to be 0..1
     pub fn overall(&self) -> f32 {
-        (self.difficulty + self.enjoyment + self.goals) / 3.0
+        (self.difficulty + self.enjoyment + self.goals) / (3.0*5.0)
     }
 }
 

@@ -10,7 +10,7 @@ pub use combat::*;
 use self::personality::PersonalityPlugin;
 
 pub mod glowjelly;
-
+pub mod ai;
 pub mod personality;
 
 pub struct ActorPlugin;
@@ -57,6 +57,14 @@ impl Default for Jump {
     fn default() -> Self {
         Jump { base_height: 6.0, current_height: 6.0, extra_jumps_remaining: 100, extra_jump_count: 100}
     }
+}
+
+#[derive(Component)]
+pub struct DefaultAnimation {
+    anim: Handle<AnimationClip>,
+    player: Entity,
+    action_time: f32,
+    duration: f32,
 }
 
 #[derive(Component)]
