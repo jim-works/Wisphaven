@@ -1,6 +1,6 @@
-use bevy::{prelude::*, scene::SceneInstance};
+use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
-use big_brain::prelude::*;
+use big_brain::{prelude::*, scorers::FixedScorerBuilder};
 
 use crate::{
     physics::PhysicsObjectBundle,
@@ -8,16 +8,22 @@ use crate::{
     world::LevelLoadState,
 };
 
-use super::{personality::components::*, CombatInfo, CombatantBundle};
+use super::{
+    personality::components::*, CombatInfo, CombatantBundle, IdleAction, UninitializedActor, Idler,
+};
 
 #[derive(Resource)]
 pub struct GlowjellyResources {
     pub anim: Handle<AnimationClip>,
     pub scene: Handle<Scene>,
+    pub action_frame: f32,
 }
 
-#[derive(Component)]
-pub struct Glowjelly;
+#[derive(Component, Default)]
+pub struct Glowjelly {
+    scene: Option<Entity>,
+    color: Color
+}
 
 #[derive(Component)]
 pub struct GlowjellyScene;
@@ -30,7 +36,8 @@ pub struct SpawnGlowjellyEvent {
 pub struct FloatHeight {
     pub curr_height: f32,
     pub preferred_height: f32,
-    pub seconds_remaining: f32,
+    pub seconds_elapsed: f32,
+    pub floated: bool
 }
 
 impl FloatHeight {
@@ -38,7 +45,8 @@ impl FloatHeight {
         Self {
             curr_height: 0.0,
             preferred_height,
-            seconds_remaining: 0.0,
+            seconds_elapsed: 0.0,
+            floated: false,
         }
     }
 }
@@ -56,7 +64,6 @@ impl Plugin for GlowjellyPlugin {
         app.add_startup_system(load_resources)
             .add_system(trigger_spawning.in_schedule(OnEnter(LevelLoadState::Loaded)))
             .add_system(spawn_glowjelly)
-            .add_system(keyboard_animation_control)
             .add_system(eval_height)
             .add_system(setup_glowjelly)
             .add_system(float_scorer_system.in_set(BigBrainSet::Scorers))
@@ -69,6 +76,7 @@ pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(GlowjellyResources {
         anim: assets.load("glowjelly/glowjelly.gltf#Animation0"),
         scene: assets.load("glowjelly/glowjelly.gltf#Scene0"),
+        action_frame: 1.1,
     });
 }
 
@@ -142,13 +150,19 @@ pub fn spawn_glowjelly(
                         short_term: None,
                     },
                 },
-                GravityScale(0.1),
-                Glowjelly,
+                GravityScale(0.2),
+                Glowjelly {
+                    color: spawn.color,
+                    ..default()
+                },
+                UninitializedActor,
                 FloatHeight::new(20.0),
+                Idler::default(),
                 Thinker::build()
                     .label("glowjelly thinker")
-                    .picker(FirstToScore { threshold: 0.5 })
-                    .when(FloatScorer, FloatAction),
+                    .picker(FirstToScore::new(0.1))
+                    .when(FloatScorer, FloatAction)
+                    .otherwise(IdleAction {seconds: 1.0})
             ))
             .id();
         //add healthbar
@@ -158,50 +172,57 @@ pub fn spawn_glowjelly(
             id,
             Vec3::new(0.0, 2.0, 0.0),
         );
-        // )).with_children(|cb| {
-        //     cb.spawn(PointLightBundle {
-        //         point_light: PointLight {
-        //             color: spawn.color,
-        //             intensity: 500.0,
-        //             shadows_enabled: true,
-        //             ..default()
-        //         },
-        //         ..default()
-        //     });
-        // });
+
     }
 }
 
-//attach tag component to animator: this is kinda ugly
+//TODO: extract into separate function. all scenes should have this setup
 pub fn setup_glowjelly(
-    _commands: Commands,
-    _children_query: Query<&Children>,
-    glowjelly_query: Query<Entity, (With<Glowjelly>, Added<SceneInstance>)>,
-    _anim_query: Query<&AnimationPlayer>,
+    mut commands: Commands,
+    children_query: Query<&Children>,
+    mut glowjelly_query: Query<(Entity, &mut Glowjelly), With<UninitializedActor>>,
+    anim_query: Query<&AnimationPlayer>,
 ) {
-    for _parent_id in glowjelly_query.iter() {
+    for (parent_id, mut glowjelly) in glowjelly_query.iter_mut() {
         //hierarchy is parent -> scene -> gltfnode (with animation player)
         //find first child with a child that has an animation player
         //not perfect but whatevs
         // info!("glowjelly id: {:?}", parent_id);
-        // for child in children_query.get(parent_id).unwrap() {
-        //     let mut found = false;
-        //     info!("child id: {:?}", child);
-        //     if let Ok(grandchildren) = children_query.get(*child) {
-        //         for candidate_anim_player in grandchildren  {
-        //             info!("grandchild id: {:?}", candidate_anim_player);
-        //             if anim_query.contains(*candidate_anim_player) {
-        //                 info!("found!");
-        //                 commands.entity(*candidate_anim_player).insert(GlowjellyScene);
-        //                 found = true;
-        //                 break;
-        //             }
-        //         }
-        //     }
-        //     if found {
-        //         break;
-        //     }
-        // }
+        if let Ok(children) = children_query.get(parent_id) {
+            for child in children {
+                let mut found = false;
+                if let Ok(grandchildren) = children_query.get(*child) {
+                    for candidate_anim_player in grandchildren {
+                        if anim_query.contains(*candidate_anim_player) {
+                            commands
+                                .entity(*candidate_anim_player)
+                                .insert(GlowjellyScene);
+                            commands.entity(parent_id).remove::<UninitializedActor>()
+                                .with_children(|cb| {
+                                    cb.spawn(PointLightBundle {
+                                        point_light: PointLight {
+                                            color: glowjelly.color,
+                                            intensity: 100.0,
+                                            shadows_enabled: true,
+                                            ..default()
+                                        },
+                                        ..default()
+                                    });
+                                });;
+                            glowjelly.scene = Some(*candidate_anim_player);
+                            
+                            found = true;
+                            break;
+                        } else {
+                            error!("glowjelly animation player not found");
+                        }
+                    }
+                }
+                if found {
+                    break;
+                }
+            }
+        }
     }
 }
 
@@ -230,27 +251,44 @@ pub fn eval_height(
         };
     }
 }
+//TODO: extract and make generic so we can use it for other ai
 pub fn float_action_system(
     time: Res<Time>,
     _jelly_anim: Res<GlowjellyResources>,
-    mut info: Query<(&mut FloatHeight, &mut ExternalImpulse)>,
+    mut info: Query<(&Glowjelly, &mut FloatHeight, &mut ExternalImpulse)>,
     mut query: Query<(&Actor, &mut ActionState), With<FloatAction>>,
+    jelly_anim: Res<GlowjellyResources>,
+    mut animation_player: Query<&mut AnimationPlayer>,
+    animations: Res<Assets<AnimationClip>>,
 ) {
     for (Actor(actor), mut state) in query.iter_mut() {
-        if let Ok((mut floater, mut impulse)) = info.get_mut(*actor) {
+        if let Ok((jelly, mut floater, mut impulse)) = info.get_mut(*actor) {
             match *state {
                 ActionState::Requested => {
                     *state = ActionState::Executing;
-                    impulse.impulse += Vec3::Y * 5.0;
-                    floater.seconds_remaining = 5.0;
+                    floater.seconds_elapsed = 0.0;
+                    floater.floated = false;
+                    if let Some(scene) = jelly.scene {
+                        if let Ok(mut anim_player) = animation_player.get_mut(scene) {
+                            anim_player.start(jelly_anim.anim.clone_weak());
+                        }
+                    }
                 }
                 ActionState::Executing => {
-                    floater.seconds_remaining -= time.delta_seconds();
-                    if floater.seconds_remaining <= 0.0 {
+                    floater.seconds_elapsed += time.delta_seconds();
+                    if !floater.floated && floater.seconds_elapsed >= jelly_anim.action_frame {
+                        impulse.impulse += Vec3::Y * 5.0;
+                        floater.floated = true;
+                    }
+                    //if there's an animation, wait for it to finish
+                    if let Some(anim) = animations.get(&jelly_anim.anim) {
+                        if floater.seconds_elapsed >= anim.duration() {
+                            *state = ActionState::Success;
+                        }
+                    } else {
                         *state = ActionState::Success;
                     }
                 }
-                // All Actions should make sure to handle cancellations!
                 ActionState::Cancelled => {
                     *state = ActionState::Failure;
                 }
@@ -267,22 +305,6 @@ pub fn float_scorer_system(
     for (Actor(actor), mut score) in query.iter_mut() {
         if let Ok(float) = floats.get(*actor) {
             score.set((float.preferred_height - float.curr_height) / float.preferred_height);
-        }
-    }
-}
-
-fn keyboard_animation_control(
-    keyboard_input: Res<Input<KeyCode>>,
-    jelly_anim: Res<GlowjellyResources>,
-    mut animation_player: Query<&mut AnimationPlayer>,
-    mut impulse_query: Query<&mut ExternalImpulse, With<Glowjelly>>,
-) {
-    if keyboard_input.just_pressed(KeyCode::Return) {
-        for mut anim_player in animation_player.iter_mut() {
-            anim_player.start(jelly_anim.anim.clone_weak());
-        }
-        for mut impulse in impulse_query.iter_mut() {
-            impulse.impulse += Vec3::new(0.0, 5.0, 0.0);
         }
     }
 }

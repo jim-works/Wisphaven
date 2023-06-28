@@ -22,6 +22,7 @@ impl Plugin for ActorPlugin {
             .add_plugin(PersonalityPlugin)
             .add_plugin(glowjelly::GlowjellyPlugin)
             .add_plugin(player::PlayerPlugin)
+            .add_system(idle_action_system)
         ;
     }
 }
@@ -55,5 +56,46 @@ pub struct Jump {
 impl Default for Jump {
     fn default() -> Self {
         Jump { base_height: 6.0, current_height: 6.0, extra_jumps_remaining: 100, extra_jump_count: 100}
+    }
+}
+
+#[derive(Component)]
+#[component(storage = "SparseSet")]
+pub struct UninitializedActor;
+
+#[derive(Clone, Component, Debug, ActionBuilder)]
+pub struct IdleAction {
+    pub seconds: f32,
+}
+
+#[derive(Component, Debug, Default)]
+pub struct Idler {
+    pub seconds_remaining: f32
+}
+
+fn idle_action_system (
+    time: Res<Time>,
+    mut info: Query<&mut Idler>,
+    mut actor: Query<(&Actor, &mut ActionState, &IdleAction)>
+) {
+    for (Actor(actor), mut state, action) in actor.iter_mut() {
+        if let Ok(mut idle) = info.get_mut(*actor) {
+            match *state {
+                ActionState::Requested => {
+                    *state = ActionState::Executing;
+                    idle.seconds_remaining = action.seconds;
+                },
+                ActionState::Executing => {
+                    idle.seconds_remaining -= time.delta_seconds();
+                    if idle.seconds_remaining <= 0.0 {
+                        *state = ActionState::Success;
+                    }
+                },
+                ActionState::Cancelled => {
+                    *state = ActionState::Failure;
+                }
+                _ => {}
+            }
+        }
     }
 }
