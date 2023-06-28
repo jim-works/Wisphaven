@@ -124,36 +124,10 @@ pub fn spawn_glowjelly(
                 },
                 PersonalityBundle {
                     personality: PersonalityValues {
-                        family: FacetValue::new(0.0, 1.0).unwrap(),
-                        power: FacetValue::new(0.0, 1.0).unwrap(),
-                        tradition: FacetValue::new(0.0, 1.0).unwrap(),
-                        wealth: FacetValue::new(0.0, 1.0).unwrap(),
-                        status: FacetValue::new(0.0, 1.0).unwrap(),
-                        hedonism: FacetValue::new(0.0, 1.0).unwrap(),
-                        excitement: FacetValue::new(0.0, 1.0).unwrap(),
-                        pacifism: FacetValue::new(0.0, 1.0).unwrap(),
+                        status: FacetValue::new(100.0,1.0).unwrap(),
+                        ..default()
                     },
-                    mental_attributes: MentalAttributes {
-                        willpower: FacetValue::new(0.0, 1.0).unwrap(),
-                        creativity: FacetValue::new(0.0, 1.0).unwrap(),
-                        memory: FacetValue::new(0.0, 1.0).unwrap(),
-                        patience: FacetValue::new(0.0, 1.0).unwrap(),
-                        empathy: FacetValue::new(0.0, 1.0).unwrap(),
-                        persistence: FacetValue::new(0.0, 1.0).unwrap(),
-                        intelligence: FacetValue::new(0.0, 1.0).unwrap(),
-                        social_awareness: FacetValue::new(0.0, 1.0).unwrap(),
-                    },
-                    physical_attributes: PhysicalAttributes {
-                        strength: FacetValue::new(0.0, 1.0).unwrap(),
-                        agility: FacetValue::new(0.0, 1.0).unwrap(),
-                        disease_resistence: FacetValue::new(0.0, 1.0).unwrap(),
-                        fortitude: FacetValue::new(0.0, 1.0).unwrap(),
-                    },
-                    tasks: TaskSet {
-                        dream: None,
-                        long_term: None,
-                        short_term: None,
-                    },
+                    ..default()
                 },
                 GravityScale(0.2),
                 Glowjelly {
@@ -266,9 +240,8 @@ pub fn eval_height(
         } else {
             2.0*height.preferred_height
         };
-        height.task.risks.social_danger = ((height.preferred_height-height.curr_height)/height.preferred_height).powi(2);
-        
-        //height.task.attributes.physical_danger = (height.curr_height/height.preferred_height).sqrt();
+        height.task.outcomes.status = (height.preferred_height-height.curr_height)/height.preferred_height;
+        height.task.risks.physical_danger = (height.curr_height/height.preferred_height).powi(2);
     }
 }
 //TODO: extract and make generic so we can use it for other ai
@@ -332,7 +305,7 @@ pub fn float_scorer_system(
 ) {
     for (Actor(actor), mut score) in query.iter_mut() {
         if let Ok((float, values, mental, physical, tasks)) = floats.get(*actor) {
-            score.set(scoring::score_task(&mut float.task.clone(), physical, mental, values, tasks).0.overall());
+            score.set_unchecked(scoring::score_task(&mut float.task.clone(), physical, mental, values, tasks).0.overall());
             println!("overall score: {}", score.get());
             // score.set((float.preferred_height - float.curr_height) / float.preferred_height);
         }

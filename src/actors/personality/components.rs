@@ -63,7 +63,7 @@ pub struct GenericPersonality<T: core::fmt::Debug+Clone> {
     pub pacifism: T,
 }
 
-#[derive(Bundle)]
+#[derive(Bundle, Default)]
 pub struct PersonalityBundle {
     pub personality: PersonalityValues,
     pub mental_attributes: MentalAttributes,
