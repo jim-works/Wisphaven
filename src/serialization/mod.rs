@@ -41,7 +41,7 @@ impl Plugin for SerializationPlugin {
             .add_system(finish_up.in_base_set(CoreSet::PostUpdate))
             .add_event::<SaveChunkEvent>()
             .add_event::<DataFromDBEvent>()
-            .insert_resource(SaveTimer(Timer::from_seconds(5.0, TimerMode::Repeating)));
+            .insert_resource(SaveTimer(Timer::from_seconds(0.1, TimerMode::Repeating)));
     }
 }
 
@@ -249,7 +249,6 @@ impl LevelDB {
     //adds chunks to the queue to be loaded, will write to DataFromDBEvent when loaded
     pub fn load_chunk_data(&mut self, data: Vec<(Vec<ChunkTable>, ChunkCoord)>) {
         if !data.is_empty() {
-            info!("queued loading for {} chunks", data.len());
             self.load_queue.push_back(LoadCommand(data));
         }
     }

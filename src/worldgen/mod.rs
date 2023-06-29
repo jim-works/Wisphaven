@@ -37,7 +37,7 @@ impl Plugin for WorldGenPlugin {
     }
 }
 
-fn create_shaper_settings(seed: u64) -> ShaperSettings {
+fn create_shaper_settings(seed: u64) -> ShaperSettings<2,3> {
     ShaperSettings {
         noise: create_shaper_noise(seed),
         upper_density: Vec2::new(0.0,-1.0),
@@ -47,7 +47,7 @@ fn create_shaper_settings(seed: u64) -> ShaperSettings {
     }
 }
 
-fn create_shaper_noise(seed: u64) -> SplineNoise {
+fn create_shaper_noise(seed: u64) -> SplineNoise<2> {
     let mut noise = FastNoise::seeded(seed);
     noise.set_noise_type(NoiseType::SimplexFractal);
     noise.set_fractal_type(FractalType::RigidMulti);
@@ -57,14 +57,14 @@ fn create_shaper_noise(seed: u64) -> SplineNoise {
     noise.set_fractal_gain(0.5);
     //freq multiplier
     noise.set_fractal_lacunarity(3.0);
-    let spline = Spline::new(&[Vec2::new(-1.0,-1.0), Vec2::new(1.0,1.0)]);
+    let spline = Spline::new([Vec2::new(-1.0,-1.0), Vec2::new(1.0,1.0)]);
     SplineNoise {
         noise,
         spline
     }
 }
 
-fn create_heighmap_noise(seed: u64) -> SplineNoise {
+fn create_heighmap_noise(seed: u64) -> SplineNoise<3> {
     let mut noise = FastNoise::seeded(seed);
     noise.set_noise_type(NoiseType::SimplexFractal);
     noise.set_fractal_type(FractalType::Billow);
@@ -74,7 +74,7 @@ fn create_heighmap_noise(seed: u64) -> SplineNoise {
     noise.set_fractal_gain(0.5);
     //freq multiplier
     noise.set_fractal_lacunarity(3.0);
-    let spline = Spline::new(&[Vec2::new(-1.0,-50.0), Vec2::new(0.0, 0.0), Vec2::new(1.0,250.0)]);
+    let spline = Spline::new([Vec2::new(-1.0,-50.0), Vec2::new(0.0, 0.0), Vec2::new(1.0,250.0)]);
     SplineNoise {
         noise,
         spline

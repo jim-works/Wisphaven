@@ -2,12 +2,12 @@ use bracket_noise::prelude::*;
 
 use super::Spline;
 
-pub struct SplineNoise {
+pub struct SplineNoise<const S: usize> {
     pub noise: FastNoise,
-    pub spline: Spline,
+    pub spline: Spline<S>,
 }
 
-impl SplineNoise {
+impl<const S: usize> SplineNoise<S> {
     pub fn get_noise3d(&self, x: f32, y: f32, z: f32) -> f32 {
         self.spline.map(self.noise.get_noise3d(x, y, z))
     }

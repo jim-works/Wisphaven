@@ -1,19 +1,30 @@
-use bevy::{prelude::*, scene::SceneInstance};
+use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use big_brain::prelude::*;
 
-use crate::{physics::PhysicsObjectBundle, ui::healthbar::{spawn_billboard_healthbar, HealthbarResources}, world::LevelLoadState};
+use crate::{
+    physics::{shape_intersects_with_actors, PhysicsObjectBundle},
+    ui::healthbar::{spawn_billboard_healthbar, HealthbarResources},
+    world::LevelLoadState,
+};
 
-use super::{CombatInfo, CombatantBundle};
+use super::{
+    behaviors::{FloatAction, FloatHeight, FloatScorer, FloatWander, FloatWanderAction},
+    personality::components::*,
+    CombatInfo, CombatantBundle, DefaultAnimation, Idler, UninitializedActor,
+};
 
 #[derive(Resource)]
 pub struct GlowjellyResources {
-    pub anim: Handle<AnimationClip>,
     pub scene: Handle<Scene>,
+    pub anim: Handle<AnimationClip>,
 }
 
-#[derive(Component)]
-pub struct Glowjelly;
+#[derive(Component, Default)]
+pub struct Glowjelly {
+    scene: Option<Entity>,
+    color: Color,
+}
 
 #[derive(Component)]
 pub struct GlowjellyScene;
@@ -22,28 +33,6 @@ pub struct SpawnGlowjellyEvent {
     pub location: Transform,
     pub color: Color,
 }
-#[derive(Component, Debug)]
-pub struct FloatHeight {
-    pub curr_height: f32,
-    pub preferred_height: f32,
-    pub seconds_remaining: f32,
-}
-
-impl FloatHeight {
-    pub fn new(preferred_height: f32) -> Self {
-        Self {
-            curr_height: 0.0,
-            preferred_height,
-            seconds_remaining: 0.0
-        }
-    }
-}
-
-#[derive(Clone, Component, Debug, ActionBuilder)]
-pub struct FloatAction;
-
-#[derive(Clone, Component, Debug, ScorerBuilder)]
-pub struct FloatScorer;
 
 pub struct GlowjellyPlugin;
 
@@ -52,29 +41,24 @@ impl Plugin for GlowjellyPlugin {
         app.add_startup_system(load_resources)
             .add_system(trigger_spawning.in_schedule(OnEnter(LevelLoadState::Loaded)))
             .add_system(spawn_glowjelly)
-            .add_system(keyboard_animation_control)
-            .add_system(eval_height)
             .add_system(setup_glowjelly)
-            .add_system(float_scorer_system.in_set(BigBrainSet::Scorers))
-            .add_system(float_action_system.in_set(BigBrainSet::Actions))
+            .add_system(social_score)
             .add_event::<SpawnGlowjellyEvent>();
     }
 }
 
 pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(GlowjellyResources {
-        anim: assets.load("glowjelly/glowjelly.gltf#Animation0"),
         scene: assets.load("glowjelly/glowjelly.gltf#Scene0"),
+        anim: assets.load("glowjelly/glowjelly.gltf#Animation0"),
     });
 }
 
-fn trigger_spawning (
-    mut writer: EventWriter<SpawnGlowjellyEvent>
-) {
+fn trigger_spawning(mut writer: EventWriter<SpawnGlowjellyEvent>) {
     for i in 0..5 {
         writer.send(SpawnGlowjellyEvent {
-            location: Transform::from_xyz(i as f32*5.0,-45.0,0.0),
-            color: Color::rgb(i as f32, 1.0, 1.0)
+            location: Transform::from_xyz(i as f32 * 5.0, -45.0, 0.0),
+            color: Color::rgb(i as f32, 1.0, 1.0),
         });
     }
 }
@@ -84,7 +68,7 @@ pub fn spawn_glowjelly(
     jelly_res: Res<GlowjellyResources>,
     mut spawn_requests: EventReader<SpawnGlowjellyEvent>,
     healthbar_resources: Res<HealthbarResources>,
-    _children_query: Query<&Children>
+    _children_query: Query<&Children>,
 ) {
     for spawn in spawn_requests.iter() {
         let id = commands
@@ -107,137 +91,145 @@ pub fn spawn_glowjelly(
                     collider: Collider::cuboid(0.5, 0.5, 0.5),
                     ..default()
                 },
+                PersonalityBundle {
+                    personality: PersonalityValues {
+                        status: FacetValue::new(100.0, 1.0).unwrap(),
+                        ..default()
+                    },
+                    ..default()
+                },
                 GravityScale(0.1),
-                Glowjelly,
+                Damping {
+                    linear_damping: 1.0,
+                    ..default()
+                },
+                Glowjelly {
+                    color: spawn.color,
+                    ..default()
+                },
+                UninitializedActor,
                 FloatHeight::new(20.0),
+                Idler::default(),
+                FloatWander::default(),
                 Thinker::build()
                     .label("glowjelly thinker")
-                    .picker(FirstToScore {threshold: 0.5})
-                    .when(FloatScorer, FloatAction)
-            )).id();
+                    .picker(FirstToScore::new(0.005))
+                    .when(
+                        FloatScorer,
+                        FloatAction {
+                            impulse: 5.0,
+                            turn_speed: 2.5,
+                        },
+                    )
+                    .when(
+                        FixedScore::build(0.05),
+                        FloatWanderAction {
+                            impulse: 2.5,
+                            turn_speed: 2.5,
+                            squish_factor: Vec3::new(1.0, 0.33, 1.0),
+                            anim_speed: 0.66,
+                        },
+                    ),
+            ))
+            .id();
         //add healthbar
-        spawn_billboard_healthbar(&mut commands, &healthbar_resources, id, Vec3::new(0.0,2.0,0.0));
-            // )).with_children(|cb| {
-            //     cb.spawn(PointLightBundle {
-            //         point_light: PointLight {
-            //             color: spawn.color,
-            //             intensity: 500.0,
-            //             shadows_enabled: true,
-            //             ..default()
-            //         },
-            //         ..default()
-            //     });
-            // });
-
+        spawn_billboard_healthbar(
+            &mut commands,
+            &healthbar_resources,
+            id,
+            Vec3::new(0.0, 2.0, 0.0),
+        );
     }
 }
 
-//attach tag component to animator: this is kinda ugly
+//TODO: extract into separate function. all scenes should have this setup
 pub fn setup_glowjelly(
-    _commands: Commands,
-    _children_query: Query<&Children>,
-    glowjelly_query: Query<Entity, (With<Glowjelly>, Added<SceneInstance>)>,
-    _anim_query: Query<&AnimationPlayer>
+    mut commands: Commands,
+    children_query: Query<&Children>,
+    jelly_res: Res<GlowjellyResources>,
+    mut glowjelly_query: Query<(Entity, &mut Glowjelly), With<UninitializedActor>>,
+    anim_query: Query<&AnimationPlayer>,
+    animations: Res<Assets<AnimationClip>>,
 ) {
-    for _parent_id in glowjelly_query.iter() {
+    for (parent_id, mut glowjelly) in glowjelly_query.iter_mut() {
         //hierarchy is parent -> scene -> gltfnode (with animation player)
         //find first child with a child that has an animation player
-        //not perfect but whatevs
-        // info!("glowjelly id: {:?}", parent_id);
-        // for child in children_query.get(parent_id).unwrap() {
-        //     let mut found = false;
-        //     info!("child id: {:?}", child);
-        //     if let Ok(grandchildren) = children_query.get(*child) {
-        //         for candidate_anim_player in grandchildren  {
-        //             info!("grandchild id: {:?}", candidate_anim_player);
-        //             if anim_query.contains(*candidate_anim_player) {
-        //                 info!("found!");
-        //                 commands.entity(*candidate_anim_player).insert(GlowjellyScene);
-        //                 found = true;
-        //                 break;
-        //             }
-        //         }
-        //     }
-        //     if found {
-        //         break;
-        //     }
-        // }
-    }
-}
+        //we have to wait until the children get spawned in (aka the gltf loaded)
+        if let Ok(children) = children_query.get(parent_id) {
+            for child in children {
+                let mut found = false;
+                if let Ok(grandchildren) = children_query.get(*child) {
+                    for candidate_anim_player in grandchildren {
+                        if anim_query.contains(*candidate_anim_player) {
+                            commands
+                                .entity(*candidate_anim_player)
+                                .insert(GlowjellyScene);
+                            commands
+                                .entity(parent_id)
+                                .remove::<UninitializedActor>()
+                                .insert(DefaultAnimation::new(
+                                    jelly_res.anim.clone(),
+                                    *candidate_anim_player,
+                                    1.1,
+                                    if let Some(clip) = animations.get(&jelly_res.anim) {
+                                        clip.duration()
+                                    } else {
+                                        0.0
+                                    },
+                                ))
+                                .with_children(|cb| {
+                                    cb.spawn(PointLightBundle {
+                                        point_light: PointLight {
+                                            color: glowjelly.color,
+                                            intensity: 100.0,
+                                            shadows_enabled: true,
+                                            ..default()
+                                        },
+                                        ..default()
+                                    });
+                                });
+                            glowjelly.scene = Some(*candidate_anim_player);
 
-pub fn eval_height (
-    collision: Res<RapierContext>,
-    mut query: Query<(&mut FloatHeight, &GlobalTransform)>
-) {
-    let groups = QueryFilter {
-        groups: Some(CollisionGroups::new(
-        Group::ALL,
-            Group::from_bits_truncate(crate::physics::TERRAIN_GROUP),
-        )),
-        ..default()
-    };
-    for (mut height, tf) in query.iter_mut() {
-        height.curr_height = if let Some((_,dist)) = collision.cast_ray(tf.translation(), Vec3::NEG_Y, height.preferred_height, true, groups) {
-            dist
-        } else {
-            height.preferred_height
-        };
-    }
-}
-pub fn float_action_system (
-    time: Res<Time>,
-    _jelly_anim: Res<GlowjellyResources>,
-    mut info: Query<(&mut FloatHeight, &mut ExternalImpulse)>,
-    mut query: Query<(&Actor, &mut ActionState), With<FloatAction>>
-) {
-    for (Actor(actor), mut state) in query.iter_mut() {
-        if let Ok((mut floater, mut impulse)) = info.get_mut(*actor) {
-            match *state {
-                ActionState::Requested => {
-                    *state = ActionState::Executing;
-                    impulse.impulse += Vec3::Y*5.0;
-                    floater.seconds_remaining = 5.0;
-                }
-                ActionState::Executing => {
-                    floater.seconds_remaining -= time.delta_seconds();
-                    if floater.seconds_remaining <= 0.0 {
-                        *state = ActionState::Success;
+                            found = true;
+                            break;
+                        } else {
+                            error!("glowjelly animation player not found");
+                        }
                     }
                 }
-                // All Actions should make sure to handle cancellations!
-                ActionState::Cancelled => {
-                    *state = ActionState::Failure;
+                if found {
+                    break;
                 }
-                _ => {}
             }
         }
     }
 }
 
-pub fn float_scorer_system (
-    floats: Query<&FloatHeight>,
-    mut query: Query<(&Actor, &mut Score), With<FloatScorer>>
-) {
-    for (Actor(actor), mut score) in query.iter_mut() {
-        if let Ok(float) = floats.get(*actor) {
-            score.set((float.preferred_height-float.curr_height)/float.preferred_height);
-        }
-    }
-}
+#[derive(Clone, Component, Debug, ScorerBuilder)]
+pub struct SocialScorer;
 
-fn keyboard_animation_control(
-    keyboard_input: Res<Input<KeyCode>>,
-    jelly_anim: Res<GlowjellyResources>,
-    mut animation_player: Query<&mut AnimationPlayer>,
-    mut impulse_query: Query<&mut ExternalImpulse, With<Glowjelly>>,
+fn social_score(
+    collision: Res<RapierContext>,
+    mut query: Query<(Entity, &mut FloatHeight, &GlobalTransform)>,
+    friend_query: Query<&GlobalTransform, With<Glowjelly>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Return) {
-        for mut anim_player in animation_player.iter_mut() {
-            anim_player.start(jelly_anim.anim.clone_weak());
-        }
-        for mut impulse in impulse_query.iter_mut() {
-            impulse.impulse += Vec3::new(0.0, 5.0, 0.0);
-        }
+    for (entity, mut height, tf) in query.iter_mut() {
+        let mut sum_height_diff = 0.0;
+        let mut count = 0.0;
+        shape_intersects_with_actors(
+            &collision,
+            tf.translation(),
+            Quat::IDENTITY,
+            &Collider::ball(height.preferred_height),
+            Some(entity),
+            |e| {
+                if let Ok(friend) = friend_query.get(e) {
+                    sum_height_diff += tf.translation().y-friend.translation().y;
+                    count += 1.0;
+                }
+                true
+            },
+        );
+        height.task.outcomes.status = if count == 0.0 {0.0} else {-sum_height_diff/count}
     }
-    
 }

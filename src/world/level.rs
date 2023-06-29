@@ -174,11 +174,11 @@ impl Level {
             }
         }
     }
-    pub fn take_buffer(
+    pub fn get_buffer(
         &self,
         key: &ChunkCoord,
-    ) -> Option<(ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>)> {
-        self.buffers.remove(key)
+    ) -> Option<dashmap::mapref::one::Ref<'_, ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>, ahash::RandomState>> {
+        self.buffers.get(key)
     }
     pub fn buffer_iter(&self)-> dashmap::iter::Iter<'_, ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>, ahash::RandomState> {
         self.buffers.iter()
@@ -264,7 +264,6 @@ impl Level {
         level: usize,
         position: ChunkCoord,
     ) -> Option<(ChunkCoord, LODChunkType)> {
-        //println!("removed lod chunk {}", level);
         match self.lod_chunks.get(level) {
             None => None,
             Some(map) => map.remove(&position),

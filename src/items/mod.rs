@@ -5,6 +5,7 @@ use crate::world::LevelSystemSet;
 pub mod inventory;
 pub mod block_item;
 pub mod weapons;
+pub mod debug_items;
 
 pub struct ItemsPlugin;
 
@@ -16,6 +17,7 @@ impl Plugin for ItemsPlugin {
             .add_event::<PickupItemEvent>()
             .add_event::<DropItemEvent>()
             .add_event::<AttackItemEvent>()
+            .add_plugin(debug_items::DebugItems)
             .add_system(block_item::use_block_item.in_set(LevelSystemSet::Main))
             .add_system(block_item::use_mega_block_item.in_set(LevelSystemSet::Main))
             .add_system(weapons::equip_unequip_weapon.in_set(LevelSystemSet::Main))

@@ -15,13 +15,13 @@ pub fn process_attacks (
                 impulse.impulse += attack.knockback*target_info.knockback_multiplier;
             }
             target_info.curr_health = (target_info.curr_health-damage_taken).max(0.0);
-            println!("{:?} attacked {:?} for {} damage (inital damage {}). health: {}", attack.attacker, attack.target, damage_taken, attack.damage, target_info.curr_health);
+            info!("{:?} attacked {:?} for {} damage (inital damage {}). health: {}", attack.attacker, attack.target, damage_taken, attack.damage, target_info.curr_health);
             if target_info.curr_health == 0.0 {
                 //die
                 death_writer.send(DeathEvent { final_blow: *attack, damage_taken })
             }
         } else {
-            println!("tried to attack entity without combat info");
+            warn!("tried to attack entity without combat info");
             continue;
         }
     }
