@@ -74,7 +74,7 @@ pub fn queue_gen_physics(
     }
     let duration = Instant::now().duration_since(now).as_millis();
     if len > 0 {
-        println!(
+        info!(
             "queued physics generation for {} chunks in {}ms",
             len, duration
         );
@@ -122,7 +122,7 @@ pub fn poll_gen_physics_queue(
     }
     let duration = Instant::now().duration_since(now).as_millis();
     if len > 0 {
-        println!("spawned {} chunk meshes in {}ms", len, duration);
+        info!("spawned {} chunk meshes in {}ms", len, duration);
     }
 }
 fn get_collider(registry: &BlockRegistry, id: u32, origin: ChunkIdx) -> (Vec3, Quat, Collider) {

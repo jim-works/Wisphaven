@@ -214,7 +214,6 @@ pub fn float_scorer_system(
     for (Actor(actor), mut score) in query.iter_mut() {
         if let Ok((float, values, mental, physical, tasks)) = floats.get(*actor) {
             score.set_unchecked(scoring::score_task(&mut float.task.clone(), physical, mental, values, tasks).0.overall());
-            println!("score: {}", score.get());
         }
     }
 }

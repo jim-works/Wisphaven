@@ -174,7 +174,6 @@ pub fn get_short_tree(seed: u64) -> Box<dyn StructureGenerator+Send+Sync> {
             TreeAlphabet::Replace(x) => {
                 //map from (-1,1) to (0,OPTIONS)
                 let selected = ((random+1.0)*0.5*OPTIONS as f32) as usize;    
-                //println!("idx: {}(sample {},{}) rng: {} selected: {}(float {})", idx, sample_x, sample_y, random, selected, ((random+1.0)*0.5*OPTIONS as f32));
                 Some(get_moves(selected, *x))
             }
             _ => None
