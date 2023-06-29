@@ -16,6 +16,9 @@ mod atmosphere;
 pub mod events;
 pub mod settings;
 
+#[cfg(test)]
+mod test;
+
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum LevelSystemSet {
