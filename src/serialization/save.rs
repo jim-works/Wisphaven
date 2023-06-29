@@ -45,8 +45,8 @@ pub fn do_saving(
                 if let ChunkType::Full(chunk) = chunk_ref.value() {
                     data.push((super::ChunkTable::Terrain, coord, ChunkSaveFormat::from(chunk).into_bits()));
                     saved += 1;
-                } else if let Some(buffer) = level.take_buffer(&coord) {
-                    data.push((super::ChunkTable::Buffers, coord, ChunkSaveFormat::from((coord, buffer.1.as_ref())).into_bits()));
+                } else if let Some(buffer) = level.get_buffer(&coord) {
+                    data.push((super::ChunkTable::Buffers, coord, ChunkSaveFormat::from((coord, buffer.value().as_ref())).into_bits()));
                 }
             }
         }
