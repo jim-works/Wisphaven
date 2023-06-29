@@ -25,7 +25,7 @@ pub fn queue_terrain_loading(
             .iter()
             .map(move |(entity, coord)| {
                 commands.entity(entity).remove::<NeedsLoading>();
-                (vec![ChunkTable::Terrain, ChunkTable::Buffers], *coord)
+                super::LoadCommand{ position: *coord, to_load: vec![ChunkTable::Terrain, ChunkTable::Buffers], to_delete: vec![] }
             })
             .collect(),
     );

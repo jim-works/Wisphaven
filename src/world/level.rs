@@ -3,7 +3,8 @@ use crate::{
     physics::NeedsPhysics,
     serialization::{NeedsLoading, NeedsSaving},
     util::{max_component_norm, Direction},
-    world::BlockcastHit, worldgen::ChunkNeedsGenerated,
+    world::BlockcastHit,
+    worldgen::ChunkNeedsGenerated,
 };
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
@@ -115,7 +116,12 @@ impl Level {
             .id();
         self.add_chunk(coord, ChunkType::Ungenerated(id));
     }
-    pub fn create_lod_chunk(&mut self, coord: ChunkCoord, lod_level: usize, commands: &mut Commands) {
+    pub fn create_lod_chunk(
+        &mut self,
+        coord: ChunkCoord,
+        lod_level: usize,
+        commands: &mut Commands,
+    ) {
         let id = commands
             .spawn((
                 Name::new("LODChunk"),
@@ -177,26 +183,26 @@ impl Level {
                     }
                     Self::update_chunk_only::<true>(c.entity, commands);
                     //self.update_chunk_neighbors_only(c.position, commands);
+                    //we've already spawned in the buffer, so we shouldn't store it
                     return;
                 }
             }
-            //we break if we updated a chunk in the world, so now we merge the buffer
-            //TODO: figure out how to remove this allocation (must keep mutable reference alive for locking)
-            let mut entry = self
-                .buffers
-                .entry(coord)
-                .or_insert(Box::new([BlockType::Empty; BLOCKS_PER_CHUNK]));
-            //copy contents of buf into entry, since they are different buffers
-            let stored_buf = entry.value_mut().as_mut();
-            let mut start = 0;
-            for (block, run) in buf {
-                if !matches!(*block, BlockType::Empty) {
-                    for i in start..start + *run as usize {
-                        stored_buf[i] = *block;
-                    }
+        }
+        //we break if we updated a chunk in the world, so now we merge the buffer
+        let mut entry = self
+            .buffers
+            .entry(coord)
+            .or_insert(Box::new([BlockType::Empty; BLOCKS_PER_CHUNK]));
+        //copy contents of buf into entry, since they are different buffers
+        let stored_buf = entry.value_mut().as_mut();
+        let mut start = 0;
+        for (block, run) in buf {
+            if !matches!(*block, BlockType::Empty) {
+                for i in start..start + *run as usize {
+                    stored_buf[i] = *block;
                 }
-                start += *run as usize;
             }
+            start += *run as usize;
         }
     }
     pub fn get_buffer(

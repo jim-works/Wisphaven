@@ -6,7 +6,7 @@ use crate::{
     worldgen::GeneratedChunk,
 };
 
-use super::{NeedsSaving, SaveChunkEvent, SaveTimer, ChunkSaveFormat, LevelDB};
+use super::{NeedsSaving, SaveChunkEvent, SaveTimer, ChunkSaveFormat, LevelDB, SaveCommand};
 
 pub fn save_all (
     mut save_writer: EventWriter<SaveChunkEvent>,
@@ -39,19 +39,23 @@ pub fn do_saving(
     let to_save = HashSet::from_iter(save_events.iter().map(
         |x| x.0
     ));
-    let mut data = Vec::new();
+    let mut save_data = Vec::new();
         for coord in to_save {
             if let Some(chunk_ref) = level.get_chunk(coord) {
+                let mut invariant = true;
                 if let ChunkType::Full(chunk) = chunk_ref.value() {
-                    data.push((super::ChunkTable::Terrain, coord, ChunkSaveFormat::from(chunk).into_bits()));
+                    save_data.push(SaveCommand(super::ChunkTable::Terrain, coord, ChunkSaveFormat::from(chunk).into_bits()));
                     saved += 1;
-                } else if let Some(buffer) = level.get_buffer(&coord) {
-                    data.push((super::ChunkTable::Buffers, coord, ChunkSaveFormat::from((coord, buffer.value().as_ref())).into_bits()));
+                    invariant = false;
+                }
+                if let Some(buffer) = level.get_buffer(&coord) {
+                    assert!(invariant);
+                    save_data.push(SaveCommand(super::ChunkTable::Buffers, coord, ChunkSaveFormat::from((coord, buffer.value().as_ref())).into_bits()));
                 }
             }
         }
     if saved > 0 {
-        db.save_chunk_data(data);
+        db.save_chunk_data(save_data);
         debug!("Queued saving for {} chunks.", saved);
     }
 }
