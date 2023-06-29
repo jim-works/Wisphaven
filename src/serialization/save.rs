@@ -52,6 +52,6 @@ pub fn do_saving(
         }
     if saved > 0 {
         db.save_chunk_data(data);
-        info!("Queued saving for {} chunks.", saved);
+        debug!("Queued saving for {} chunks.", saved);
     }
 }

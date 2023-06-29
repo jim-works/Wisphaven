@@ -49,7 +49,6 @@ fn spawn_crosshair(
             ..default()
         })
     ).with_children(|children| {children.spawn(resources.0.clone());});
-    info!("\n\nSpawned crosshair\n\n");
     } else {
         warn!("Tried to spawn crosshair when one already exists!");
     }

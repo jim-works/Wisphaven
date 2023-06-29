@@ -1,9 +1,9 @@
 use crate::{
     mesher::NeedsMesh,
     physics::NeedsPhysics,
-    serialization::NeedsSaving,
+    serialization::{NeedsLoading, NeedsSaving},
     util::{max_component_norm, Direction},
-    world::BlockcastHit,
+    world::BlockcastHit, worldgen::ChunkNeedsGenerated,
 };
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
@@ -104,6 +104,31 @@ impl Level {
             }
         }
     }
+    pub fn create_chunk(&self, coord: ChunkCoord, commands: &mut Commands) {
+        let id = commands
+            .spawn((
+                Name::new("Chunk"),
+                coord,
+                SpatialBundle::default(),
+                NeedsLoading,
+            ))
+            .id();
+        self.add_chunk(coord, ChunkType::Ungenerated(id));
+    }
+    pub fn create_lod_chunk(&mut self, coord: ChunkCoord, lod_level: usize, commands: &mut Commands) {
+        let id = commands
+            .spawn((
+                Name::new("LODChunk"),
+                coord,
+                SpatialBundle::default(),
+                ChunkNeedsGenerated::Lod(lod_level),
+            ))
+            .id();
+        self.add_lod_chunk(
+            coord,
+            crate::world::chunk::LODChunkType::Ungenerated(id, lod_level),
+        );
+    }
     pub fn add_buffer(&self, buffer: BlockBuffer, commands: &mut Commands) {
         let _my_span = info_span!("add_buffer", name = "add_buffer").entered();
         for (coord, buf) in buffer.buf {
@@ -144,7 +169,7 @@ impl Level {
                     let mut start = 0;
                     for (block, run) in buf {
                         if !matches!(*block, BlockType::Empty) {
-                            for i in start..start+*run as usize {
+                            for i in start..start + *run as usize {
                                 c[i] = *block;
                             }
                         }
@@ -166,7 +191,7 @@ impl Level {
             let mut start = 0;
             for (block, run) in buf {
                 if !matches!(*block, BlockType::Empty) {
-                    for i in start..start+*run as usize {
+                    for i in start..start + *run as usize {
                         stored_buf[i] = *block;
                     }
                 }
@@ -177,10 +202,20 @@ impl Level {
     pub fn get_buffer(
         &self,
         key: &ChunkCoord,
-    ) -> Option<dashmap::mapref::one::Ref<'_, ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>, ahash::RandomState>> {
+    ) -> Option<
+        dashmap::mapref::one::Ref<
+            '_,
+            ChunkCoord,
+            Box<[BlockType; BLOCKS_PER_CHUNK]>,
+            ahash::RandomState,
+        >,
+    > {
         self.buffers.get(key)
     }
-    pub fn buffer_iter(&self)-> dashmap::iter::Iter<'_, ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>, ahash::RandomState> {
+    pub fn buffer_iter(
+        &self,
+    ) -> dashmap::iter::Iter<'_, ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>, ahash::RandomState>
+    {
         self.buffers.iter()
     }
     pub fn contains_chunk(&self, key: ChunkCoord) -> bool {
@@ -216,6 +251,8 @@ impl Level {
         }
         None
     }
+    /// Replaces the `Chunk` at `key` with `chunk`.
+    /// If `chunk` is `ChunkType::Full`: removes the chunk's buffer and merges it with the chunk
     pub fn add_chunk(&self, key: ChunkCoord, chunk: ChunkType) {
         let _my_span = info_span!("add_chunk", name = "add_chunk").entered();
         //copy contents of buffer into chunk if necessary

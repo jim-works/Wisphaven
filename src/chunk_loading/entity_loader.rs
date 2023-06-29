@@ -1,11 +1,8 @@
 use bevy::{prelude::*, utils::HashSet};
 
-use crate::{
-    world::{
-        chunk::{ChunkCoord, ChunkType, LODChunk, LODChunkType},
-        Level,
-    },
-    worldgen::ChunkNeedsGenerated, serialization::NeedsLoading,
+use crate::world::{
+    chunk::{ChunkCoord, ChunkType, LODChunk, LODChunkType},
+    Level,
 };
 
 #[derive(Component, Clone, Debug)]
@@ -56,10 +53,7 @@ pub fn do_loading(
             loaded_chunks.insert(test_coord);
             if !level.contains_chunk(test_coord) {
                 //chunk not loaded, load it!
-                let id = commands
-                    .spawn((Name::new("Chunk"), test_coord, SpatialBundle::default(), NeedsLoading))
-                    .id();
-                level.add_chunk(test_coord, ChunkType::Ungenerated(id));
+                level.create_chunk(test_coord, &mut commands);
             }
         });
         for i in 1..loader.lod_levels as usize {
@@ -143,18 +137,7 @@ fn load_lod(
                 loaded_list.insert(test_coord);
                 if !level.contains_lod_chunk(lod_level, test_coord) {
                     //chunk not loaded, load it!
-                    let id = commands
-                        .spawn((
-                            Name::new("LODChunk"),
-                            test_coord,
-                            SpatialBundle::default(),
-                            ChunkNeedsGenerated::Lod(lod_level),
-                        ))
-                        .id();
-                    level.add_lod_chunk(
-                        test_coord,
-                        crate::world::chunk::LODChunkType::Ungenerated(id, lod_level),
-                    );
+                    level.create_lod_chunk(test_coord, lod_level, commands);
                 }
             }
         }
@@ -203,8 +186,7 @@ pub fn unload_all(
     }
 }
 
-pub fn despawn_chunks(mut commands: Commands, mut despawn_reader: EventReader<DespawnChunkEvent>,
-) {
+pub fn despawn_chunks(mut commands: Commands, mut despawn_reader: EventReader<DespawnChunkEvent>) {
     let _my_span = info_span!("despawn_chunks", name = "despawn_chunks").entered();
     for e in despawn_reader.iter() {
         if let Some(ec) = commands.get_entity(e.0) {

@@ -39,16 +39,20 @@ pub fn load_chunk_terrain(
 ) {
     let mut loaded = 0;
     for DataFromDBEvent(coord, data_vec) in events.iter().filter(|DataFromDBEvent(_, v)| {
-        //we only want events that have only the terrain and buffer
-        v.len() == 2 && v[0].0 == ChunkTable::Terrain && v[1].0 == ChunkTable::Buffers
+        //we only want events that have only the terrain or buffer
+        v.len() == 1 && v[0].0 == ChunkTable::Terrain
+            || v.len() == 2 && v[0].0 == ChunkTable::Terrain && v[1].0 == ChunkTable::Buffers
     }) {
         let terrain_data = &data_vec[0].1;
-        let buff_data = &data_vec[1].1;
-        //first copy over the buffer so that it is applied when the chunk is added right after the terrain loads.
-        if !buff_data.is_empty() {
-            match <&[u8] as TryInto<ChunkSaveFormat>>::try_into(buff_data.as_slice()) {
-                Ok(fmt) => level.add_rle_buffer(*coord, &fmt.data, &mut commands),
-                Err(e) => error!("error deserializing chunk buffer at {:?}: {:?}", coord, e),
+        if data_vec.len() == 2 {
+            //we have a buffer
+            let buff_data = &data_vec[1].1;
+            //first copy over the buffer so that it is applied when the chunk is added right after the terrain loads.
+            if !buff_data.is_empty() {
+                match <&[u8] as TryInto<ChunkSaveFormat>>::try_into(buff_data.as_slice()) {
+                    Ok(fmt) => level.add_rle_buffer(*coord, &fmt.data, &mut commands),
+                    Err(e) => error!("error deserializing chunk buffer at {:?}: {:?}", coord, e),
+                }
             }
         }
         //load terrain or mark as needing generation

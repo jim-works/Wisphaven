@@ -145,8 +145,7 @@ impl TryFrom<&[u8]> for ChunkSaveFormat {
                 };
             }
             Err(e) => {
-                error!("Error reading chunk coordinates: {:?}", e);
-                info!("chunk len: {}", value.len());
+                error!("Error reading chunk coordinates (chunk len {}): {:?}", value.len(), e);
                 Err(ChunkSerializationError::InvalidCoordinateFormat)
             }
         }

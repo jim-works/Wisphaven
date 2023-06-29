@@ -127,7 +127,7 @@ pub fn queue_meshing(
     }
     let duration = Instant::now().duration_since(now).as_millis();
     if len > 0 {
-        info!(
+        debug!(
             "queued mesh generation for {} chunks in {}ms",
             len, duration
         );
@@ -188,7 +188,7 @@ pub fn poll_mesh_queue(
     }
     let duration = Instant::now().duration_since(now).as_millis();
     if len > 0 {
-        info!("spawned {} chunk meshes in {}ms", len, duration);
+        debug!("spawned {} chunk meshes in {}ms", len, duration);
     }
 }
 

@@ -48,7 +48,7 @@ pub fn queue_meshing_lod(
     }
     let duration = Instant::now().duration_since(now).as_millis();
     if len > 0 {
-        info!(
+        debug!(
             "queued mesh generation for {} lod chunks in {}ms",
             len, duration
         );
