@@ -313,11 +313,11 @@ fn do_loading(
                     }
                     //deleting
                     for tid in to_delete {
-                        if let Err(e) = del_stmt
-                            .execute(params![tid as i32, position.x, position.y, position.z])
-                        {
-                            return Err(LevelDBErr::Sqlite(e));
-                        }
+                        // if let Err(e) = del_stmt
+                        //     .execute(params![tid as i32, position.x, position.y, position.z])
+                        // {
+                        //     return Err(LevelDBErr::Sqlite(e));
+                        // }
                     }
                     results.push(DataFromDBEvent(position, coord_result));
                 }

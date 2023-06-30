@@ -3,6 +3,7 @@ pub mod inventory;
 pub mod healthbar;
 pub mod crosshair;
 pub mod state;
+pub mod debug;
 
 use bevy::prelude::*;
 
@@ -17,6 +18,7 @@ impl Plugin for UIPlugin {
             .add_plugin(inventory::InventoryPlugin)
             .add_plugin(crosshair::CrosshairPlugin)
             .add_plugin(healthbar::HealthbarPlugin)
+            .add_plugin(debug::DebugUIPlugin)
         ;
     }
 }

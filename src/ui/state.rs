@@ -7,3 +7,10 @@ pub enum UIState {
     Default,
     Inventory
 } 
+
+#[derive(States, Default, Debug, Hash,PartialEq, Eq, Clone)]
+pub enum DebugUIState {
+    Hidden,
+    #[default]
+    Shown,
+} 

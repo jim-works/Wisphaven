@@ -9,7 +9,7 @@ pub fn init(asset_server: Res<AssetServer>, mut commands: Commands) {
 
 pub fn get_text_style(asset_server: &Res<AssetServer>) -> TextStyle {
     TextStyle {
-        font: asset_server.load("fonts/Kenney Mini.ttf"),
+        font: asset_server.load("fonts/AvenuePixel1.1/TTF/AvenuePixel-Regular.ttf"),
         font_size: 32.0,
         color: Color::WHITE,
     }
