@@ -1,8 +1,11 @@
 use bevy::{prelude::*, utils::HashSet};
 
-use crate::world::{
-    chunk::{ChunkCoord, ChunkType, LODChunk, LODChunkType},
-    Level,
+use crate::{
+    serialization::NeedsSaving,
+    world::{
+        chunk::{ChunkCoord, ChunkType, LODChunk, LODChunkType},
+        Level,
+    },
 };
 
 #[derive(Component, Clone, Debug)]
@@ -37,6 +40,7 @@ pub fn do_loading(
     loader_query: Query<(&GlobalTransform, &ChunkLoader)>,
     mut timer: ResMut<ChunkLoadingTimer>,
     time: Res<Time>,
+    save_query: Query<&NeedsSaving>,
 ) {
     let _my_span = info_span!("do_loading", name = "do_loading").entered();
     timer.timer.tick(time.delta());
@@ -74,15 +78,23 @@ pub fn do_loading(
     for c in level.chunks_iter() {
         let key = *c.key();
         if !loaded_chunks.contains(&key) {
-            to_unload.push(key);
+            match c.value() {
+                ChunkType::Ungenerated(id) => {
+                    if !save_query.contains(*id) {
+                        to_unload.push((key, *id));
+                    }
+                }
+                ChunkType::Full(c) => {
+                    if !save_query.contains(c.entity) {
+                        to_unload.push((key, c.entity));
+                    }
+                }
+            }
         }
     }
-    for coord in to_unload {
-        if let Some((_, ctype)) = level.remove_chunk(coord) {
-            match ctype {
-                ChunkType::Ungenerated(id) => despawn_writer.send(DespawnChunkEvent(id)),
-                ChunkType::Full(c) => despawn_writer.send(DespawnChunkEvent(c.entity)),
-            }
+    for (coord, entity) in to_unload {
+        if let Some(_) = level.remove_chunk(coord) {
+            despawn_writer.send(DespawnChunkEvent(entity))
         }
     }
     //unload lods (i=lod-1)
@@ -138,48 +150,6 @@ fn load_lod(
                 if !level.contains_lod_chunk(lod_level, test_coord) {
                     //chunk not loaded, load it!
                     level.create_lod_chunk(test_coord, lod_level, commands);
-                }
-            }
-        }
-    }
-}
-
-pub fn unload_all(
-    input: Res<Input<KeyCode>>,
-    mut level: ResMut<Level>,
-    mut despawn_writer: EventWriter<DespawnChunkEvent>,
-) {
-    if input.just_pressed(KeyCode::Apostrophe) {
-        //unload all not in range
-        let mut to_unload = Vec::new();
-        let mut to_unload_lod = Vec::new();
-        for c in level.chunks_iter() {
-            let key = *c.key();
-            to_unload.push(key);
-        }
-        for i in 0..level.get_lod_levels() {
-            for c in level.get_lod_chunks(i).unwrap() {
-                let key = *c.key();
-                let level = c.value();
-                match level {
-                    LODChunkType::Ungenerated(_, level) => to_unload_lod.push((*level, key)),
-                    LODChunkType::Full(f) => to_unload_lod.push((f.level, key)),
-                };
-            }
-        }
-        for coord in to_unload {
-            if let Some((_, ctype)) = level.remove_chunk(coord) {
-                match ctype {
-                    ChunkType::Ungenerated(id) => despawn_writer.send(DespawnChunkEvent(id)),
-                    ChunkType::Full(c) => despawn_writer.send(DespawnChunkEvent(c.entity)),
-                }
-            }
-        }
-        for (lod_level, coord) in to_unload_lod {
-            if let Some((_, lodtype)) = level.remove_lod_chunk(lod_level, coord) {
-                match lodtype {
-                    LODChunkType::Ungenerated(id, _) => despawn_writer.send(DespawnChunkEvent(id)),
-                    LODChunkType::Full(c) => despawn_writer.send(DespawnChunkEvent(c.entity)),
                 }
             }
         }

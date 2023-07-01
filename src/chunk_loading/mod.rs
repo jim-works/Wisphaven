@@ -13,7 +13,7 @@ pub struct ChunkLoaderPlugin;
 
 impl Plugin for ChunkLoaderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems((entity_loader::do_loading,entity_loader::unload_all).in_set(LevelSystemSet::LoadingAndMain))
+        app.add_system(entity_loader::do_loading.in_set(LevelSystemSet::LoadingAndMain))
             .add_system(entity_loader::despawn_chunks.in_set(LevelSystemSet::Despawn))
             .add_system(finish_loading_trigger.in_set(OnUpdate(LevelLoadState::Loading)))
             .add_system(on_load_level.in_schedule(OnEnter(LevelLoadState::Loading)))
@@ -66,7 +66,7 @@ pub fn finish_loading_trigger (
         info!("Finished loading the level! {}/{} Chunks loaded!", loaded, target);
         next_state.set(LevelLoadState::Loaded);
     } else {
-        info!("Loaded {} out of {} chunks", loaded, target);
+        debug!("Loaded {} out of {} chunks", loaded, target);
     }
 }
 

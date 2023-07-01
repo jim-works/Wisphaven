@@ -118,14 +118,14 @@ pub fn spawn_glowjelly(
                         FloatScorer,
                         FloatAction {
                             impulse: 5.0,
-                            turn_speed: 2.5,
+                            turn_speed: 0.5,
                         },
                     )
                     .when(
                         FixedScore::build(0.05),
                         FloatWanderAction {
-                            impulse: 2.5,
-                            turn_speed: 2.5,
+                            impulse: 5.0,
+                            turn_speed: 0.5,
                             squish_factor: Vec3::new(1.0, 0.33, 1.0),
                             anim_speed: 0.66,
                         },

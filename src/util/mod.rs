@@ -46,3 +46,12 @@ pub fn sample_sphere_surface(rng: &mut impl Rng) -> Vec3 {
     //should almost never fail, but provide a point in S^2 just in case
     .unwrap_or(Vec3::new(0.0, 1.0, 0.0))
 }
+
+//use in lerp(x,b,t) where x is current position, b is target dest
+//lerps are exponential functions, so we have to correct the t 
+//speed is proportion that we should travel in 1 second
+//TODO: https://chicounity3d.wordpress.com/2014/05/23/how-to-lerp-like-a-pro/
+pub fn lerp_delta_time(speed: f32, dt: f32) -> f32 {
+    //0.5 is arbitrary
+    1.0-((1.0-speed).powf(dt))
+}

@@ -43,6 +43,7 @@ fn spawn_debug(mut commands: Commands, query: Query<&DebugUI>, resources: Res<De
                         align_items: AlignItems::FlexEnd,
                         flex_direction: FlexDirection::Column,
                         justify_content: JustifyContent::FlexStart,
+                        position_type: PositionType::Absolute,
                         ..default()
                     },
                     ..default()

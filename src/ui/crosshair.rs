@@ -44,6 +44,7 @@ fn spawn_crosshair(
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
+                position_type: PositionType::Absolute,
                 ..default()
             },
             ..default()

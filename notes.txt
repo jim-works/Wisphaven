@@ -50,3 +50,6 @@ villages/NPCs:
     -   https://www.dwarffortresswiki.org/index.php/DF2014:Attribute
         -   personality, attributes
     -   look in notebook
+
+rng
+    -   pcg generator https://www.reedbeta.com/blog/hash-functions-for-gpu-rendering/

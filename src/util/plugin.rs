@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::util::lerp_delta_time;
+
 pub struct UtilPlugin;
 
 impl Plugin for UtilPlugin {
@@ -24,7 +26,7 @@ fn smooth_look_to (
     const TOLERANCE: f32 = 0.01;
     for (entity, mut tf, look) in query.iter_mut() {
         let rot = tf.looking_to(look.to, look.up).rotation;
-        tf.rotation = tf.rotation.slerp(rot, look.speed*time.delta_seconds());
+        tf.rotation = tf.rotation.slerp(rot, lerp_delta_time(look.speed,time.delta_seconds()));
         if tf.rotation.abs_diff_eq(rot, TOLERANCE) {
             tf.rotation = rot;
             if let Some(mut ec) = commands.get_entity(entity) {
