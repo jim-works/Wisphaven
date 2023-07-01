@@ -14,3 +14,11 @@ pub fn get_text_style(asset_server: &Res<AssetServer>) -> TextStyle {
         color: Color::WHITE,
     }
 }
+
+pub fn get_small_text_style(asset_server: &Res<AssetServer>) -> TextStyle {
+    TextStyle {
+        font: asset_server.load("fonts/AvenuePixel1.1/TTF/AvenuePixel-Regular.ttf"),
+        font_size: 8.0,
+        color: Color::WHITE,
+    }
+}

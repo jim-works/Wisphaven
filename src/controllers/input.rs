@@ -12,6 +12,7 @@ pub enum Action {
     Use,
     Look,
     Scroll,
+    ToggleInventory
 }
 
 pub fn get_input_map() -> InputMap<Action> {
@@ -29,6 +30,7 @@ pub fn get_input_map() -> InputMap<Action> {
     map.insert(DualAxis::mouse_motion(), Action::Look);
 
     map.insert(SingleAxis::mouse_wheel_y(), Action::Scroll);
+    map.insert(KeyCode::Escape, Action::ToggleInventory);
 
     map
 }

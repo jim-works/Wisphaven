@@ -5,7 +5,7 @@ use leafwing_input_manager::prelude::ActionState;
 use crate::{
     actors::*,
     physics::JUMPABLE_GROUP,
-    world::Level, items::{inventory::Inventory, UseItemEvent, EquipItemEvent, UnequipItemEvent, AttackItemEvent},
+    world::Level, items::{inventory::Inventory, UseItemEvent, EquipItemEvent, UnequipItemEvent, AttackItemEvent}, ui::{state::UIState, world_mouse_active},
 };
 
 use super::{Action, FrameMovement};
@@ -102,7 +102,11 @@ pub fn jump_player(
 
 pub fn rotate_mouse(
     mut query: Query<(&mut Transform, &mut RotateWithMouse, &ActionState<Action>)>,
+    ui_state: Res<State<UIState>>
 ) {
+    if !world_mouse_active(&ui_state.0) {
+        return;
+    }
     const SENSITIVITY: f32 = 0.01;
     for (mut tf, mut rotation, action) in query.iter_mut() {
         if let Some(delta) = action.axis_pair(Action::Look) {
@@ -157,7 +161,11 @@ pub fn player_punch(
     mut attack_item_writer: EventWriter<AttackItemEvent>,
     level: Res<Level>,
     collision: Res<RapierContext>,
+    ui_state: Res<State<UIState>>
 ) {
+    if !world_mouse_active(&ui_state.0) {
+        return;
+    }
     if let Ok((tf, act)) = camera_query.get_single() {
         if act.just_pressed(Action::Punch) {
             let (player_entity, player, info) = player_query.get_single().unwrap();
@@ -198,7 +206,11 @@ pub fn player_use(
     >,
     player_query: Query<&Inventory, With<LocalPlayer>>,
     mut use_writer: EventWriter<UseItemEvent>,
+    ui_state: Res<State<UIState>>
 ) {
+    if !world_mouse_active(&ui_state.0) {
+        return;
+    }
     if let Ok((tf, act)) = camera_query.get_single() {
         if act.just_pressed(Action::Use) {
             if let Ok(inv) = player_query.get_single() {
@@ -211,8 +223,12 @@ pub fn player_use(
 pub fn player_scroll_inventory(
     mut query: Query<(&mut Inventory, &ActionState<Action>), With<LocalPlayer>>,
     mut equip_writer: EventWriter<EquipItemEvent>,
-    mut unequip_writer: EventWriter<UnequipItemEvent>
+    mut unequip_writer: EventWriter<UnequipItemEvent>,
+    ui_state: Res<State<UIState>>
 ) {
+    if !world_mouse_active(&ui_state.0) {
+        return;
+    }
     const SCROLL_SENSITIVITY: f32 = 0.05;
     if let Ok((mut inv, act)) = query.get_single_mut() {
         let delta = act.value(Action::Scroll);

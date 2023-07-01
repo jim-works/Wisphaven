@@ -35,10 +35,12 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
 
 fn spawn_crosshair(
     mut commands: Commands,
-    query: Query<&Crosshair>,
+    mut query: Query<&mut Visibility, With<Crosshair>>,
     resources: Res<CrosshairResources>
 ) {
-    if query.is_empty() {
+    if let Ok(mut crosshair) = query.get_single_mut() {
+        *crosshair.as_mut() = Visibility::Inherited;
+    } else {
         commands.spawn((Crosshair, NodeBundle {
             style: Style {
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
@@ -50,17 +52,14 @@ fn spawn_crosshair(
             ..default()
         })
     ).with_children(|children| {children.spawn(resources.0.clone());});
-    } else {
-        warn!("Tried to spawn crosshair when one already exists!");
     }
 }
 
 fn despawn_crosshair(
-    mut commands: Commands,
-    query: Query<Entity, With<Crosshair>>
+    mut query: Query<&mut Visibility, With<Crosshair>>
 ) {
-    if let Ok(entity) = query.get_single() {
-        commands.entity(entity).despawn_recursive();
+    if let Ok(mut crosshair) = query.get_single_mut() {
+        *crosshair.as_mut() = Visibility::Hidden;
     } else {
         warn!("Tried to despawn crosshair when one doesn't exist!");
     }

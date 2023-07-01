@@ -64,7 +64,7 @@ pub fn spawn_local_player(
             ..default()
         },
         )).id();
-        let mut inventory = Inventory::new(player_id, 10);
+        let mut inventory = Inventory::new(player_id, 40);
         let grass_item = items::create_item(Item::new("Grass Block", 999), BlockItem(BlockType::Basic(0)), &mut commands);
         let personality_tester = items::create_item(Item::new("Personality Tester", 999), PersonalityTester, &mut commands);
         let log_slab_item = items::create_item(Item::new("Log Slab", 999), BlockItem(BlockType::Basic(5)), &mut commands);

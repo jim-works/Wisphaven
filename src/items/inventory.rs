@@ -124,4 +124,7 @@ impl Inventory {
             writer.send(UseItemEvent(self.owner, item.clone(), use_pos));
         }
     }
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
 }
