@@ -2,12 +2,16 @@ use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
-    actors::LocalPlayer, controllers::Action, items::inventory::Inventory, world::LevelSystemSet,
+    actors::{LocalPlayer, LocalPlayerSpawnedEvent},
+    controllers::Action,
+    items::inventory::Inventory,
+    world::LevelSystemSet,
 };
 
 use super::{state::UIState, styles::get_small_text_style};
 
 pub const SLOTS_PER_ROW: usize = 10;
+pub const HOTBAR_SLOTS: usize = SLOTS_PER_ROW;
 pub const BACKGROUND_COLOR: BackgroundColor = BackgroundColor(Color::Rgba {
     red: 0.15,
     green: 0.15,
@@ -15,22 +19,31 @@ pub const BACKGROUND_COLOR: BackgroundColor = BackgroundColor(Color::Rgba {
     alpha: 0.25,
 });
 
-const ROW_MARGIN_PX: f32 = 1.0;
-const SLOT_MARGIN_PX: f32 = 1.0;
+const MARGIN_PX: f32 = 1.0;
+const SLOT_PX: f32 = 32.0;
+const SELECTOR_PADDING_PX: f32 = 1.0;
 
 pub struct InventoryPlugin;
 
 impl Plugin for InventoryPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(toggle_inventory.in_set(LevelSystemSet::Main))
-            .add_system(show_inventory.in_schedule(OnEnter(UIState::Inventory)))
-            .add_system(hide_inventory.in_schedule(OnExit(UIState::Inventory)))
-            .add_startup_system(init);
+        app.add_systems(
+            (
+                toggle_inventory,
+                place_inventory_selector,
+                spawn_inventory_system,
+            )
+                .in_set(LevelSystemSet::Main),
+        )
+        .add_system(show_inventory.in_schedule(OnEnter(UIState::Inventory)))
+        .add_system(hide_inventory::<false>.in_schedule(OnEnter(UIState::Default)))
+        .add_system(hide_inventory::<true>.in_schedule(OnEnter(UIState::Hidden)))
+        .add_startup_system(init);
     }
 }
 
 #[derive(Resource)]
-struct InventoryResources{
+struct InventoryResources {
     item_counts: TextStyle,
     slot_background: Handle<Image>,
     selection_image: Handle<Image>,
@@ -40,19 +53,19 @@ struct InventoryResources{
 struct InventoryUI;
 
 #[derive(Component)]
+struct InventoryUISlotBackground(usize);
+
+#[derive(Component)]
 struct InventoryUISlot(usize);
 
 #[derive(Component)]
-struct InventoryUIRow(usize);
-
-#[derive(Component)]
-struct InventoryUISelector(usize);
+struct InventoryUISelector;
 
 fn init(assets: Res<AssetServer>, mut commands: Commands) {
     commands.insert_resource(InventoryResources {
         item_counts: get_small_text_style(&assets),
         slot_background: assets.load("textures/inventory_tile.png"),
-        selection_image: assets.load("textures/selection.png")
+        selection_image: assets.load("textures/selection.png"),
     });
 }
 
@@ -72,23 +85,57 @@ fn toggle_inventory(
     }
 }
 
-fn show_inventory(
-    query: Query<&Inventory, With<LocalPlayer>>,
-    mut inventory_query: Query<&mut Visibility, With<InventoryUI>>,
+fn spawn_inventory_system(
+    mut event_reader: EventReader<LocalPlayerSpawnedEvent>,
+    inventory_ui_query: Query<(&InventoryUI, &mut Visibility)>,
+    inventory_query: Query<&Inventory, With<LocalPlayer>>,
     mut commands: Commands,
-    resources: Res<InventoryResources>
+    resources: Res<InventoryResources>,
 ) {
-    if let Ok(mut inv_ui) = inventory_query.get_single_mut() {
-        *inv_ui.as_mut() = Visibility::Inherited;
-    } else if let Ok(inv) = query.get_single() {
-        //spawn inventory since one doesn't exist
-        spawn_inventory(&mut commands, inv.len(), resources.as_ref());
+    if !inventory_ui_query.is_empty() {
+        return;
+    }
+    for LocalPlayerSpawnedEvent(id) in event_reader.iter() {
+        if let Ok(inv) = inventory_query.get(*id) {
+            spawn_inventory(&mut commands, inv.len(), resources.as_ref());
+            return;
+        }
     }
 }
 
-fn hide_inventory(mut inventory_query: Query<&mut Visibility, With<InventoryUI>>) {
-    if let Ok(mut inv_ui) = inventory_query.get_single_mut() {
-        *inv_ui.as_mut() = Visibility::Hidden;
+fn show_inventory(
+    mut inventory_query: Query<(&InventoryUI, &mut Visibility), Without<InventoryUISlotBackground>>,
+    mut slot_query: Query<&mut Visibility, With<InventoryUISlotBackground>>,
+) {
+    if let Ok((_, mut vis)) = inventory_query.get_single_mut() {
+        *vis.as_mut() = Visibility::Inherited;
+        //display all slots
+        for mut slot in slot_query.iter_mut() {
+            *slot.as_mut() = Visibility::Inherited;
+        }
+    }
+}
+
+fn hide_inventory<const HIDE_HOTBAR: bool>(
+    mut slot_query: Query<(&mut Visibility, &InventoryUISlotBackground), Without<InventoryUI>>,
+    mut inventory_query: Query<(&InventoryUI, &mut Visibility), Without<InventoryUISlotBackground>>,
+) {
+    if let Ok((_, mut vis)) = inventory_query.get_single_mut() {
+        *vis.as_mut() = if HIDE_HOTBAR {
+            Visibility::Hidden
+        } else {
+            Visibility::Inherited
+        };
+
+        for (mut vis, slot) in slot_query.iter_mut() {
+            //make sure hotbar slots are shown if needed
+            if !HIDE_HOTBAR && slot.0 < HOTBAR_SLOTS {
+                *vis.as_mut() = Visibility::Inherited;
+            } else {
+                //hide everything else (or hotbar slots too if HIDE_HOTBAR is true)
+                *vis.as_mut() = Visibility::Hidden;
+            }
+        }
     }
 }
 
@@ -108,78 +155,77 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                 ..default()
             },
         ))
-        .with_children(|rows| {
+        .with_children(|slot_background| {
             //spawn rows - round up number of rows
-            for row in 0..(slots+SLOTS_PER_ROW-1)/SLOTS_PER_ROW {
-                rows.spawn((
-                    NodeBundle {
-                        style: Style {
-                            margin: UiRect::all(Val::Px(ROW_MARGIN_PX)),
-                            size: Size::new(Val::Percent(100.0), Val::Px(32.0)),
-                            justify_content: JustifyContent::FlexStart,
+            for slot in 0..slots {
+                slot_background
+                    .spawn((
+                        ImageBundle {
+                            style: Style {
+                                aspect_ratio: Some(1.0),
+                                margin: UiRect::all(Val::Px(1.0)),
+                                size: Size::new(Val::Px(32.0), Val::Px(32.0)),
+                                position: get_slot_coords(slot, 0.0),
+                                position_type: PositionType::Absolute,
+                                align_items: AlignItems::Center,
+                                justify_content: JustifyContent::Center,
+                                ..default()
+                            },
+                            image: UiImage::new(resources.slot_background.clone()),
                             ..default()
                         },
-                        background_color: BACKGROUND_COLOR,
-                        ..default()
-                    },
-                    InventoryUIRow(row),
-                ))
-                .with_children(|slot_background| {
-                    //spawn slot backgrounds
-                    for col in 0..SLOTS_PER_ROW {
-                        let slot_idx = row * SLOTS_PER_ROW + col;
-                        if slot_idx < slots {
-                            slot_background
-                                .spawn(ImageBundle {
-                                    style: Style {
-                                        aspect_ratio: Some(1.0),
-                                        margin: UiRect::all(Val::Px(1.0)),
-                                        size: Size::new(Val::Px(32.0), Val::Px(32.0)),
-                                        align_items: AlignItems::Center,
-                                        justify_content: JustifyContent::Center,
-                                        ..default()
-                                    },
-                                    image: UiImage::new(resources.slot_background.clone()),
+                        InventoryUISlotBackground(slot),
+                    ))
+                    .with_children(|slot_content| {
+                        //spawn the slot content - this is where the item images go
+                        slot_content.spawn((
+                            ImageBundle {
+                                style: Style {
+                                    size: Size::new(Val::Px(32.0), Val::Px(32.0)),
                                     ..default()
-                                })
-                                .with_children(|slot_content| {
-                                    //spawn the slot content - this is where the item images go
-                                    slot_content.spawn((
-                                        ImageBundle {
-                                            style: Style {
-                                                size: Size::new(
-                                                    Val::Px(32.0),
-                                                    Val::Px(32.0),
-                                                ),
-                                                ..default()
-                                            },
-                                            visibility: Visibility::Hidden,
-                                            ..default()
-                                        },
-                                        InventoryUISlot(slot_idx),
-                                    ));
-                                });
-                        }
-                    }
-                });
+                                },
+                                visibility: Visibility::Hidden,
+                                ..default()
+                            },
+                            InventoryUISlot(slot),
+                        ));
+                    });
             }
         })
         .with_children(|selector| {
-            selector.spawn((ImageBundle {
-                style: Style {
-                    position_type: PositionType::Absolute,
-                    size: Size::new(Val::Px(32.0), Val::Px(32.0)),
+            selector.spawn((
+                ImageBundle {
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        size: Size::new(Val::Px(32.0), Val::Px(32.0)),
+                        ..default()
+                    },
+                    image: UiImage::new(resources.selection_image.clone()),
                     ..default()
                 },
-                image: UiImage::new(resources.selection_image.clone()),
-                ..default()
-            }, InventoryUISelector(0)));
+                InventoryUISelector,
+            ));
         });
 }
 
-fn get_slot_coords(slot: usize) -> UiRect {
-    let row = slot/SLOTS_PER_ROW;
-    let col = slot%SLOTS_PER_ROW;
-    let 
+fn get_slot_coords(slot: usize, offset_px: f32) -> UiRect {
+    let row = slot / SLOTS_PER_ROW;
+    let col = slot % SLOTS_PER_ROW;
+    const STRIDE: f32 = MARGIN_PX + SLOT_PX;
+    UiRect {
+        left: Val::Px(offset_px + MARGIN_PX + col as f32 * STRIDE),
+        top: Val::Px(offset_px + MARGIN_PX + row as f32 * STRIDE),
+        ..default()
+    }
 }
 
+fn place_inventory_selector(
+    mut selector_query: Query<&mut Style, With<InventoryUISelector>>,
+    inventory_query: Query<&Inventory, With<LocalPlayer>>,
+) {
+    if let Ok(inv) = inventory_query.get_single() {
+        if let Ok(mut style) = selector_query.get_single_mut() {
+            style.position = get_slot_coords(inv.selected_slot(), SELECTOR_PADDING_PX);
+        }
+    }
+}

@@ -8,6 +8,10 @@ pub mod debug;
 use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
 
+use crate::world::LevelSystemSet;
+
+use self::state::UIState;
+
 
 pub struct UIPlugin;
 
@@ -22,6 +26,7 @@ impl Plugin for UIPlugin {
             .add_plugin(debug::DebugUIPlugin)
             .add_system(capture_mouse.in_schedule(OnEnter(state::UIState::Default)))
             .add_system(release_mouse.in_schedule(OnEnter(state::UIState::Inventory)))
+            .add_system(state::toggle_hidden.in_set(LevelSystemSet::Main))
         ;
     }
 }

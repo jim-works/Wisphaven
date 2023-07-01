@@ -17,11 +17,14 @@ pub struct Player{
 #[derive(Component)]
 pub struct LocalPlayer;
 
+pub struct LocalPlayerSpawnedEvent(pub Entity);
+
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(spawn_local_player.in_schedule(OnEnter(LevelLoadState::Loaded)));
+        app.add_system(spawn_local_player.in_schedule(OnEnter(LevelLoadState::Loaded)))
+        .add_event::<LocalPlayerSpawnedEvent>();
     }
 }
 
@@ -31,6 +34,7 @@ pub fn spawn_local_player(
     level: Res<Level>,
     mut pickup_item: EventWriter<PickupItemEvent>,
     mut equip_item: EventWriter<EquipItemEvent>,
+    mut spawn_event: EventWriter<LocalPlayerSpawnedEvent>,
     item_query: Query<&Item>
 ) {
     info!("Spawning local player!");
@@ -78,8 +82,10 @@ pub fn spawn_local_player(
         commands.entity(player_id).insert(inventory);
         let projection = PerspectiveProjection {
             fov: PI / 2.,
+            far: 1_000_000_000.0,
             ..default()
         };
+        spawn_event.send(LocalPlayerSpawnedEvent(player_id));
         commands.spawn((
             Name::new("Camera"),
             Camera3dBundle {

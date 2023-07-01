@@ -12,16 +12,15 @@ pub struct Settings {
 }
 
 impl Default for Settings {
+
     fn default() -> Self {
+        let loader = ChunkLoader {
+            radius: 6,
+            lod_levels: 2,
+        };
         Self {
-            init_loader: ChunkLoader {
-                radius: 6,
-                lod_levels: 2,
-            },
-            player_loader: ChunkLoader {
-                radius: 6,
-                lod_levels: 2,
-            },
+            init_loader: loader.clone(),
+            player_loader: loader.clone(),
             env_path: Box::new(Path::new("worlds").join("world"))
         }
     }

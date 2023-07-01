@@ -40,7 +40,7 @@ impl Plugin for WorldGenPlugin {
 fn create_shaper_settings(seed: u64) -> ShaperSettings<2,3> {
     ShaperSettings {
         noise: create_shaper_noise(seed),
-        upper_density: Vec2::new(0.0,-1.0),
+        upper_density: Vec2::new(1000.0,-1.0),
         heightmap_noise: create_heighmap_noise(seed^0xCAFEBABEDEAFBEEF), //don't want the seeds to be the same
         mid_density: 0.0,
         base_density: Vec2::new(-100.0,1.0)
@@ -68,8 +68,8 @@ fn create_heighmap_noise(seed: u64) -> SplineNoise<3> {
     let mut noise = FastNoise::seeded(seed);
     noise.set_noise_type(NoiseType::SimplexFractal);
     noise.set_fractal_type(FractalType::Billow);
-    noise.set_frequency(0.002);
-    noise.set_fractal_octaves(1);
+    noise.set_frequency(0.001);
+    noise.set_fractal_octaves(3);
     //amp multiplier
     noise.set_fractal_gain(0.5);
     //freq multiplier
