@@ -4,7 +4,7 @@ use leafwing_input_manager::prelude::ActionState;
 use crate::{
     actors::{LocalPlayer, LocalPlayerSpawnedEvent},
     controllers::Action,
-    items::inventory::Inventory,
+    items::{inventory::Inventory, ItemIcon},
     world::LevelSystemSet,
 };
 
@@ -22,6 +22,7 @@ pub const BACKGROUND_COLOR: BackgroundColor = BackgroundColor(Color::Rgba {
 const MARGIN_PX: f32 = 1.0;
 const SLOT_PX: f32 = 32.0;
 const SELECTOR_PADDING_PX: f32 = 1.0;
+const STACK_SIZE_LABEL_PADDING_PX: f32 = 3.0;
 
 pub struct InventoryPlugin;
 
@@ -32,6 +33,8 @@ impl Plugin for InventoryPlugin {
                 toggle_inventory,
                 place_inventory_selector,
                 spawn_inventory_system,
+                update_counts,
+                update_icons,
             )
                 .in_set(LevelSystemSet::Main),
         )
@@ -182,6 +185,7 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                             ImageBundle {
                                 style: Style {
                                     size: Size::new(Val::Px(32.0), Val::Px(32.0)),
+                                    position_type: PositionType::Absolute,
                                     ..default()
                                 },
                                 visibility: Visibility::Hidden,
@@ -189,6 +193,37 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                             },
                             InventoryUISlot(slot),
                         ));
+                        //this is the stack size label
+                        //making a parent to anchor the label to the bottom right
+                        slot_content
+                            .spawn(NodeBundle {
+                                style: Style {
+                                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                    position_type: PositionType::Absolute,
+                                    justify_content: JustifyContent::FlexEnd,
+                                    align_items: AlignItems::FlexEnd,
+                                    padding: UiRect::right(Val::Px(STACK_SIZE_LABEL_PADDING_PX)),
+                                    ..default()
+                                },
+                                ..default()
+                            })
+                            .with_children(|label| {
+                                label.spawn((
+                                    TextBundle {
+                                        text: Text {
+                                            sections: vec![TextSection::new(
+                                                "0",
+                                                resources.item_counts.clone(),
+                                            )],
+                                            alignment: TextAlignment::Right,
+                                            ..default()
+                                        },
+                                        visibility: Visibility::Hidden,
+                                        ..default()
+                                    },
+                                    InventoryUISlot(slot),
+                                ));
+                            });
                     });
             }
         })
@@ -226,6 +261,50 @@ fn place_inventory_selector(
     if let Ok(inv) = inventory_query.get_single() {
         if let Ok(mut style) = selector_query.get_single_mut() {
             style.position = get_slot_coords(inv.selected_slot(), SELECTOR_PADDING_PX);
+        }
+    }
+}
+
+fn update_counts(
+    mut label_query: Query<(&mut Visibility, &mut Text, &InventoryUISlot)>,
+    inventory_query: Query<&Inventory, (With<LocalPlayer>, Changed<Inventory>)>,
+) {
+    if let Ok(inv) = inventory_query.get_single() {
+        for (mut vis, mut text, ui_slot) in label_query.iter_mut() {
+            match &inv[ui_slot.0] {
+                Some(stack) => {
+                    *vis.as_mut() = Visibility::Inherited;
+                    text.sections[0].value = stack.size.to_string();
+                }
+                None => {
+                    *vis.as_mut() = Visibility::Hidden;
+                }
+            }
+        }
+    }
+}
+
+fn update_icons(
+    mut label_query: Query<(&mut Visibility, &mut UiImage, &InventoryUISlot)>,
+    inventory_query: Query<&Inventory, (With<LocalPlayer>, Changed<Inventory>)>,
+    icon_query: Query<&ItemIcon>,
+) {
+    if let Ok(inv) = inventory_query.get_single() {
+        for (mut vis, mut image, ui_slot) in label_query.iter_mut() {
+            match &inv[ui_slot.0] {
+                Some(stack) => match icon_query.get(stack.id) {
+                    Ok(icon) => {
+                        *vis.as_mut() = Visibility::Inherited;
+                        image.texture = icon.0.clone();
+                    }
+                    Err(_) => {
+                        *vis.as_mut() = Visibility::Hidden;
+                    }
+                },
+                None => {
+                    *vis.as_mut() = Visibility::Hidden;
+                }
+            }
         }
     }
 }

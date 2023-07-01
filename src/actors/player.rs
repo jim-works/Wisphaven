@@ -35,7 +35,8 @@ pub fn spawn_local_player(
     mut pickup_item: EventWriter<PickupItemEvent>,
     mut equip_item: EventWriter<EquipItemEvent>,
     mut spawn_event: EventWriter<LocalPlayerSpawnedEvent>,
-    item_query: Query<&Item>
+    item_query: Query<&Item>,
+    assets: Res<AssetServer>
 ) {
     info!("Spawning local player!");
     let player_id = commands.spawn((
@@ -69,14 +70,12 @@ pub fn spawn_local_player(
         },
         )).id();
         let mut inventory = Inventory::new(player_id, 40);
-        let grass_item = items::create_item(Item::new("Grass Block", 999), BlockItem(BlockType::Basic(0)), &mut commands);
-        let personality_tester = items::create_item(Item::new("Personality Tester", 999), PersonalityTester, &mut commands);
-        let log_slab_item = items::create_item(Item::new("Log Slab", 999), BlockItem(BlockType::Basic(5)), &mut commands);
-        let mega_air_item = items::create_item(Item::new("Mega Air", 999), MegablockItem(BlockType::Empty,10), &mut commands);
-        let dagger_item = items::create_item(Item::new("Dagger", 999), MeleeWeaponItem{damage: 5.0, knockback: 2.0}, &mut commands);
+        let grass_item = items::create_item(Item::new("Grass Block", 999), ItemIcon(assets.load("textures/items/grass_block.png")), BlockItem(BlockType::Basic(0)), &mut commands);
+        let personality_tester = items::create_item(Item::new("Personality Tester", 999), ItemIcon(assets.load("textures/items/personality_tester.png")), PersonalityTester, &mut commands);
+        let mega_air_item = items::create_item(Item::new("Mega Air", 999), ItemIcon(assets.load("textures/items/vacuum.png")), MegablockItem(BlockType::Empty,10), &mut commands);
+        let dagger_item = items::create_item(Item::new("Dagger", 999), ItemIcon(assets.load("textures/items/dagger.png")), MeleeWeaponItem{damage: 5.0, knockback: 2.0}, &mut commands);
         inventory.pickup_item(ItemStack::new(grass_item,1), &item_query, &mut pickup_item, &mut equip_item);
         inventory.pickup_item(ItemStack::new(personality_tester,1), &item_query, &mut pickup_item, &mut equip_item);
-        inventory.pickup_item(ItemStack::new(log_slab_item,1), &item_query, &mut pickup_item, &mut equip_item);
         inventory.pickup_item(ItemStack::new(mega_air_item,1), &item_query, &mut pickup_item, &mut equip_item);
         inventory.pickup_item(ItemStack::new(dagger_item,1), &item_query, &mut pickup_item, &mut equip_item);
         commands.entity(player_id).insert(inventory);

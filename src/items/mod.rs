@@ -51,12 +51,20 @@ impl Item {
     }
 }
 
-pub fn create_item<T: Bundle>(info: Item, bundle: T, commands: &mut Commands) -> Entity {
+pub fn create_item<T: Bundle>(info: Item, icon: ItemIcon, bundle: T, commands: &mut Commands) -> Entity {
+    create_raw_item(info, (icon, bundle), commands)
+}
+
+//lessens the requirements for an item (for example without an icon)
+pub fn create_raw_item<T: Bundle>(info: Item, bundle: T, commands: &mut Commands) -> Entity {
     commands.spawn(
         (info,
         bundle)
     ).id()
 }
+
+#[derive(Component)]
+pub struct ItemIcon(pub Handle<Image>);
 
 pub struct UseItemEvent(pub Entity, pub ItemStack, pub GlobalTransform);
 pub struct AttackItemEvent(pub Entity, pub ItemStack, pub GlobalTransform);

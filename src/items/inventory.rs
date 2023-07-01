@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 use bevy::prelude::*;
 
 use super::*;
@@ -16,6 +18,9 @@ impl Inventory {
             owner,
             selected_slot: 0
         }
+    }
+    pub fn iter(&self) -> std::slice::Iter<'_, Option<ItemStack>> {
+        self.items.iter()
     }
     pub fn selected_slot(&self) -> usize { self.selected_slot }
     //if slot_num is negative or over the number of slots in the inventory, loop back around 
@@ -126,5 +131,13 @@ impl Inventory {
     }
     pub fn len(&self) -> usize {
         self.items.len()
+    }
+}
+
+impl Index<usize> for Inventory {
+    type Output = Option<ItemStack>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.items.get(index).unwrap_or(&None)
     }
 }
