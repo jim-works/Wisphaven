@@ -22,6 +22,9 @@ impl Plugin for ItemsPlugin {
             .add_system(block_item::use_mega_block_item.in_set(LevelSystemSet::Main))
             .add_system(weapons::equip_unequip_weapon.in_set(LevelSystemSet::Main))
             .add_system(weapons::attack_melee.in_set(LevelSystemSet::Main))
+
+            .register_type::<weapons::MeleeWeaponItem>()
+            .register_type::<debug_items::PersonalityTester>()
         ;
     }
 }
@@ -37,13 +40,14 @@ impl ItemStack {
     }
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, Component)]
+#[derive(Clone, Hash, Eq, PartialEq, Component, Reflect, Default)]
+#[reflect(Component)]
 pub struct Item {
-    pub name: &'static str,
+    pub name: String,
     pub max_stack_size: u32
 }
 impl Item {
-    pub fn new(name: &'static str, max_stack_size: u32) -> Self {
+    pub fn new(name: String, max_stack_size: u32) -> Self {
         Self {
             name,
             max_stack_size

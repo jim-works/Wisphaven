@@ -24,6 +24,7 @@ mod loading;
 pub mod queries;
 mod save;
 mod setup;
+mod scenes;
 
 impl Plugin for SerializationPlugin {
     fn build(&self, app: &mut App) {
@@ -39,6 +40,7 @@ impl Plugin for SerializationPlugin {
                     .in_set(LevelSystemSet::LoadingAndMain),
             )
             .add_system(finish_up.in_base_set(CoreSet::PostUpdate))
+            .add_startup_system(scenes::test_save)
             .add_event::<SaveChunkEvent>()
             .add_event::<DataFromDBEvent>()
             .insert_resource(SaveTimer(Timer::from_seconds(0.1, TimerMode::Repeating)));

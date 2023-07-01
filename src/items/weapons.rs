@@ -5,7 +5,8 @@ use crate::actors::{CombatInfo, AttackEvent};
 
 use super::{EquipItemEvent, UnequipItemEvent, AttackItemEvent};
 
-#[derive(Component)]
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
 pub struct MeleeWeaponItem {
     pub damage: f32,
     pub knockback: f32,

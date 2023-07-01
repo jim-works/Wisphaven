@@ -1,0 +1,13 @@
+(
+  entities: {
+    0: (
+      components: {
+        "recursia::items::weapons::MeleeWeaponItem": (
+          damage: 1.0,
+          knockback: 2.0,
+        ),
+        "recursia::items::debug_items::PersonalityTester": (),
+      },
+    ),
+  },
+)

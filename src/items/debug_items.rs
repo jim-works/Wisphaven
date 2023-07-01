@@ -14,7 +14,8 @@ impl Plugin for DebugItems {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
 pub struct PersonalityTester;
 
 pub fn use_personality_item(
