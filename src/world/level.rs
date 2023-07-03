@@ -119,7 +119,7 @@ impl Level {
     pub fn create_lod_chunk(
         &mut self,
         coord: ChunkCoord,
-        lod_level: usize,
+        lod_level: u8,
         commands: &mut Commands,
     ) {
         let id = commands
@@ -135,7 +135,7 @@ impl Level {
             crate::world::chunk::LODChunkType::Ungenerated(id, lod_level),
         );
     }
-    pub fn add_buffer(&self, buffer: BlockBuffer, commands: &mut Commands) {
+    pub fn add_buffer(&self, buffer: BlockBuffer<BlockType>, commands: &mut Commands) {
         let _my_span = info_span!("add_buffer", name = "add_buffer").entered();
         for (coord, buf) in buffer.buf {
             //if the chunk is already generated, add the contents of the buffer to the chunk
@@ -278,8 +278,8 @@ impl Level {
     pub fn add_lod_chunk(&mut self, key: ChunkCoord, chunk: LODChunkType) {
         let _my_span = info_span!("add_lod_chunk", name = "add_lod_chunk").entered();
         match chunk {
-            LODChunkType::Ungenerated(_, level) => self.insert_chunk_at_lod(key, level, chunk),
-            LODChunkType::Full(l) => self.insert_chunk_at_lod(key, l.level, LODChunkType::Full(l)),
+            LODChunkType::Ungenerated(_, level) => self.insert_chunk_at_lod(key, level as usize, chunk),
+            LODChunkType::Full(l) => self.insert_chunk_at_lod(key, l.level as usize, LODChunkType::Full(l)),
         }
     }
     fn insert_chunk_at_lod(&mut self, key: ChunkCoord, level: usize, chunk: LODChunkType) {

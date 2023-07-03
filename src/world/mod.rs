@@ -1,6 +1,6 @@
 pub mod chunk;
 mod level;
-use std::sync::OnceLock;
+use std::sync::{OnceLock, Arc};
 
 pub use level::*;
 
@@ -51,7 +51,7 @@ impl Plugin for LevelPlugin {
             .add_event::<events::CreateLevelEvent>()
             .add_event::<events::OpenLevelEvent>()
             .add_state::<LevelLoadState>()
-            .insert_resource(BlockRegistry::default())
+            .insert_resource(BlockResources {registry: Arc::new(BlockRegistry::default())})
         ;
     }
 }

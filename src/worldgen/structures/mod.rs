@@ -3,9 +3,14 @@ use std::sync::Arc;
 use bracket_noise::prelude::FastNoise;
 use bevy::prelude::*;
 
-use crate::{world::{chunk::{ChunkIdx, CHUNK_SIZE_F32, CHUNK_SIZE_U64, ArrayChunk}, BlockBuffer, BlockCoord}, util::get_next_prng};
+use crate::{world::{chunk::{ChunkIdx, CHUNK_SIZE_F32, CHUNK_SIZE_U64, GeneratingChunk}, BlockBuffer, BlockCoord, BlockId}, util::get_next_prng};
 
 pub mod trees;
+
+#[derive(Resource)]
+pub struct StructureResources {
+    pub settings: Arc<StructureGenerationSettings>
+}
 
 pub struct StructureGenerationSettings {
     pub rolls_per_chunk: i32,
@@ -15,10 +20,10 @@ pub struct StructureGenerationSettings {
 
 pub trait StructureGenerator {
     fn rarity(&self) -> f32;
-    fn generate(&self, buffer: &mut BlockBuffer, world_pos: BlockCoord, local_pos: ChunkIdx, chunk: &ArrayChunk);
+    fn generate(&self, buffer: &mut BlockBuffer<BlockId>, world_pos: BlockCoord, local_pos: ChunkIdx, chunk: &GeneratingChunk);
 }
 
-pub fn gen_small_structures(chunk: ArrayChunk, settings: Arc<StructureGenerationSettings>) -> (ArrayChunk, BlockBuffer) {
+pub fn gen_small_structures(chunk: GeneratingChunk, settings: Arc<StructureGenerationSettings>) -> (GeneratingChunk, BlockBuffer<BlockId>) {
     let _my_span = info_span!("gen_small_structures", name = "gen_small_structures").entered();
     let mut buf = BlockBuffer::new();
     for roll in 0..settings.rolls_per_chunk {

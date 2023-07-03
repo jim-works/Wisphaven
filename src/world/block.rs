@@ -1,9 +1,9 @@
-use std::{ops::AddAssign};
+use std::{ops::AddAssign, sync::Arc};
 
 use crate::util::Direction;
 use bevy::{prelude::*, utils::HashMap};
 
-use super::chunk::{ChunkCoord, CHUNK_SIZE_I32};
+use super::chunk::{ChunkCoord, CHUNK_SIZE_I32, ChunkIdx};
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BlockType {
@@ -44,6 +44,9 @@ pub enum BlockId {
     Dynamic(u32)
 }
 
+#[derive(Resource, Default)]
+pub struct SavedBlockId(pub BlockId);
+
 //used in world generation
 //we need this trait because we can't spawn entities in tasks, so we create an instance of BlockGenerator, which we can use later to create the block entity
 pub trait BlockGenerator: Send + Sync {
@@ -59,8 +62,10 @@ pub enum BlockData {
 #[derive(Component)]
 pub struct BlockEntity(Vec<BlockData>);
 
-#[derive(Component)]
+#[derive(Component, Clone, PartialEq)]
 pub enum BlockMesh {
+    //empty mesh
+    Empty,
     //standard block shape with all sides being the same texture
     Uniform(u32),
     //standard block shape with each side having a unique texture
@@ -70,8 +75,9 @@ pub enum BlockMesh {
 }
 
 impl BlockMesh {
-    pub fn is_mesh_transparent(&self, face: Direction) -> bool {
+    pub fn is_transparent(&self, face: Direction) -> bool {
         match self {
+            BlockMesh::Empty => true,
             BlockMesh::Uniform(_) => false,
             BlockMesh::MultiTexture(_) => false,
             BlockMesh::BottomSlab(_, _) => face != Direction::NegY,
@@ -79,7 +85,12 @@ impl BlockMesh {
     }
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
+pub struct BlockResources {
+    pub registry: Arc<BlockRegistry>
+}
+
+#[derive(Default)]
 pub struct BlockRegistry {
     pub basic_entities: Vec<Entity>,
     pub dynamic_generators: Vec<Box<dyn BlockGenerator>>,
@@ -101,6 +112,20 @@ impl BlockRegistry {
     pub fn create_basic(&mut self, name: BlockName, mesh: BlockMesh, commands: &mut Commands) {
         let entity = commands.spawn((name, mesh)).id();
         self.add_basic(name, entity);
+    }
+    pub fn get_basic(&self, name: &BlockName) -> Option<Entity> {
+        let id = self.id_map.get(&name)?;
+        match id {
+            BlockId::Basic(id) => self.basic_entities.get(*id as usize).copied(),
+            _ => None
+        }
+    }
+    pub fn get_entity(&self, id: BlockId, position: BlockCoord, commands: &mut Commands) -> Option<Entity> {
+        match id {
+            BlockId::Empty => None,
+            BlockId::Basic(id) => self.basic_entities.get(id as usize).copied(),
+            BlockId::Dynamic(id) => self.dynamic_generators.get(id as usize).and_then(|gen| Some(gen.generate(commands, position))),
+        }
     }
 }
 
@@ -187,6 +212,16 @@ impl From<ChunkCoord> for BlockCoord {
             v.x * CHUNK_SIZE_I32,
             v.y * CHUNK_SIZE_I32,
             v.z * CHUNK_SIZE_I32,
+        )
+    }
+}
+
+impl From<ChunkIdx> for BlockCoord {
+    fn from(v: ChunkIdx) -> Self {
+        BlockCoord::new(
+            v.x as i32,
+            v.y as i32,
+            v.z as i32,
         )
     }
 }

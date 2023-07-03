@@ -3,12 +3,12 @@ use std::sync::Arc;
 use bevy::{prelude::*};
 use bracket_noise::prelude::*;
 
-use crate::{world::{chunk::ChunkCoord, LevelSystemSet, Level}, util::{Spline, SplineNoise, get_next_prng}};
+use crate::{world::{chunk::ChunkCoord, LevelSystemSet, BlockRegistry, BlockResources, SavedBlockId}, util::{Spline, SplineNoise, get_next_prng}};
 
 mod generator;
 pub use generator::{ChunkNeedsGenerated, GeneratedChunk, GeneratedLODChunk, ShapingTask, LODShapingTask, ShaperSettings};
 
-use self::{structures::{StructureGenerationSettings, trees::get_short_tree}, generator::GenSmallStructureTask};
+use self::structures::{StructureGenerationSettings, trees::get_short_tree, StructureResources};
 
 pub mod structures;
 
@@ -21,19 +21,14 @@ impl Plugin for WorldGenPlugin {
     fn build(&self, app: &mut App) {
         let build_gen_system = || {
             move |query: Query<(Entity, &ChunkCoord, &ChunkNeedsGenerated)>,
+                    resources: Res<BlockResources>,
+                    id: Local<SavedBlockId>,
                   commands: Commands| {
-                generator::queue_generating(query, Arc::new(create_shaper_settings(8008135)), commands)
+                generator::queue_generating(query, Arc::new(create_shaper_settings(8008135)), resources, id, commands)
             }
         };
-        let build_poll_system = || {
-            move | shaping_query: Query<(Entity, &mut Transform, &mut ShapingTask)>,
-                    structure_query: Query<(Entity, &mut GenSmallStructureTask)>,
-                    level: Res<Level>,
-                  commands: Commands| {
-                generator::poll_gen_queue(Arc::new(create_structure_settings(424242)), commands, shaping_query, structure_query, level)
-            }
-        };
-        app.add_systems((build_poll_system(),build_gen_system(), generator::poll_gen_lod_queue).in_set(LevelSystemSet::LoadingAndMain));
+        app.add_systems((generator::poll_gen_queue,build_gen_system(), generator::poll_gen_lod_queue).in_set(LevelSystemSet::LoadingAndMain))
+            .add_startup_system(create_structure_settings);
     }
 }
 
@@ -81,13 +76,16 @@ fn create_heighmap_noise(seed: u64) -> SplineNoise<3> {
     }
 }
 
-fn create_structure_settings(mut seed: u64) -> StructureGenerationSettings {
+fn create_structure_settings(mut commands: Commands, resources: Res<BlockResources>) {
+    let mut seed = 424242;
     let mut noise = FastNoise::seeded(seed);
     noise.set_noise_type(NoiseType::Value);
     noise.set_frequency(843580.97854);
-    let structures = vec![get_short_tree(get_next_seed(&mut seed))];
+    let structures = vec![get_short_tree(get_next_seed(&mut seed), resources.registry.as_ref())];
 
-    StructureGenerationSettings { rolls_per_chunk: 5, structures, placement_noise: noise}
+    commands.insert_resource(StructureResources{settings:
+        Arc::new(StructureGenerationSettings { rolls_per_chunk: 5, structures, placement_noise: noise})
+    });
 }
 
 fn get_next_seed(seed: &mut u64) -> u64 {

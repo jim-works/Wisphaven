@@ -81,6 +81,7 @@ pub fn queue_meshing(
     query: Query<(Entity, &ChunkCoord), (With<GeneratedChunk>, With<NeedsMesh>)>,
     level: Res<Level>,
     time: Res<Time>,
+    mesh_query: Query<&BlockMesh>,
     mut timer: ResMut<MeshTimer>,
     mut commands: Commands,
 ) {
@@ -102,7 +103,10 @@ pub fn queue_meshing(
                 for dir in Direction::iter() {
                     if let Some(ctype) = level.get_chunk(coord.offset(dir)) {
                         if let ChunkType::Full(neighbor) = ctype.value() {
-                            neighbors[dir.to_idx()] = Some(neighbor.clone());
+                            neighbors[dir.to_idx()] = Some(neighbor.blocks.iter().map(|b| match b {
+                                BlockType::Empty => None,
+                                BlockType::Filled(entity) => mesh_query.get(*entity).ok(),
+                            }));
                             neighbor_count += 1;
                         }
                     }
@@ -221,63 +225,54 @@ pub fn spawn_mesh(
     });
 }
 
-fn mesh_chunk<T: std::ops::IndexMut<usize, Output = BlockType>>(
-    chunk: &Chunk<T,BlockType>,
-    neighbors: &[Option<Chunk<T,BlockType>>; 6],
+fn mesh_chunk<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
+    chunk: &Chunk<T,BlockMesh>,
+    neighbors: &[Option<Chunk<T,BlockMesh>>; 6],
     data: &mut ChunkMesh,
 ) {
     let _my_span = info_span!("mesh_chunk", name = "mesh_chunk").entered();
-    let registry = crate::world::get_block_registry();
     for i in 0..chunk::BLOCKS_PER_CHUNK {
         let coord = ChunkIdx::from_usize(i);
-        let block = chunk[i];
-        match block {
-            BlockType::Empty => {}
-            BlockType::Basic(id) => mesh_block(
+        mesh_block(
                 chunk,
                 neighbors,
-                registry.get_block_mesh(id),
+                &chunk[i],
                 coord,
                 coord.to_vec3() * data.scale,
-                data,
-                registry,
-            ),
-            BlockType::Entity(_) => todo!(),
-        }
+                data
+        );
     }
 }
 pub fn should_mesh_face(
-    registry: &BlockRegistry,
     block: &BlockMesh,
     block_face: Direction,
-    neighbor: BlockType,
+    neighbor: &BlockMesh,
 ) -> bool {
     match block {
         BlockMesh::Uniform(_) | BlockMesh::MultiTexture(_) => {
-            registry.is_block_transparent(neighbor, block_face.opposite())
-        }
+            neighbor.is_transparent(block_face.opposite())
+        },
         BlockMesh::BottomSlab(_, _) => {
             block_face == Direction::PosY
-                || registry.is_block_transparent(neighbor, block_face.opposite())
-        }
+                || neighbor.is_transparent(block_face.opposite())
+        },
+        BlockMesh::Empty => false
     }
 }
-fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
-    chunk: &Chunk<T,BlockType>,
-    neighbors: &[Option<Chunk<T,BlockType>>; 6],
+fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
+    chunk: &Chunk<T,BlockMesh>,
+    neighbors: &[Option<Chunk<T,BlockMesh>>; 6],
     b: &BlockMesh,
     coord: ChunkIdx,
     origin: Vec3,
     data: &mut ChunkMesh,
-    registry: &BlockRegistry,
 ) {
     if coord.z == CHUNK_SIZE_U8 - 1 {
         if match &neighbors[Direction::PosZ.to_idx()] {
             Some(c) => should_mesh_face(
-                registry,
                 b,
                 Direction::PosZ,
-                c[ChunkIdx::new(coord.x, coord.y, 0)],
+                &c[ChunkIdx::new(coord.x, coord.y, 0)],
             ),
             _ => true,
         } {
@@ -287,7 +282,7 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                if registry.is_mesh_transparent(b, Direction::PosZ) {
+                if b.is_transparent(Direction::PosZ) {
                     &mut data.transparent
                 } else {
                     &mut data.opaque
@@ -533,7 +528,7 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
 //TODO: Set uv scale for repeating textures
 pub fn mesh_neg_z(
     b: &BlockMesh,
-    chunk: &impl Index<ChunkIdx, Output = BlockType>,
+    chunk: &impl Index<ChunkIdx, Output = BlockMesh>,
     coord: ChunkIdx,
     origin: Vec3,
     scale: Vec3,
@@ -598,7 +593,9 @@ pub fn mesh_neg_z(
 
             tex[Direction::NegZ.to_idx()] as i32
         }
+        BlockMesh::Empty => {-1}
     };
+    debug_assert_ne!(texture, -1);
     data.layer_idx.push(texture);
     data.layer_idx.push(texture);
     data.layer_idx.push(texture);
@@ -611,7 +608,7 @@ pub fn mesh_neg_z(
 }
 pub fn mesh_pos_z(
     b: &BlockMesh,
-    chunk: &impl Index<ChunkIdx, Output = BlockType>,
+    chunk: &impl Index<ChunkIdx, Output = BlockMesh>,
     coord: ChunkIdx,
     origin: Vec3,
     scale: Vec3,
@@ -676,8 +673,10 @@ pub fn mesh_pos_z(
             data.uvs.push(Vec2::new(0.0, 0.0));
 
             tex[Direction::PosZ.to_idx()] as i32
-        }
+        },
+        BlockMesh::Empty => {-1}
     };
+    debug_assert_ne!(texture, -1);
     data.layer_idx.push(texture);
     data.layer_idx.push(texture);
     data.layer_idx.push(texture);
@@ -690,7 +689,7 @@ pub fn mesh_pos_z(
 
 pub fn mesh_neg_x(
     b: &BlockMesh,
-    chunk: &impl Index<ChunkIdx, Output = BlockType>,
+    chunk: &impl Index<ChunkIdx, Output = BlockMesh>,
     coord: ChunkIdx,
     origin: Vec3,
     scale: Vec3,
@@ -755,7 +754,9 @@ pub fn mesh_neg_x(
 
             tex[Direction::NegX.to_idx()] as i32
         }
+        BlockMesh::Empty => {-1}
     };
+    debug_assert_ne!(texture, -1);
     data.layer_idx.push(texture);
     data.layer_idx.push(texture);
     data.layer_idx.push(texture);
@@ -768,7 +769,7 @@ pub fn mesh_neg_x(
 
 pub fn mesh_pos_x(
     b: &BlockMesh,
-    chunk: &impl Index<ChunkIdx, Output = BlockType>,
+    chunk: &impl Index<ChunkIdx, Output = BlockMesh>,
     coord: ChunkIdx,
     origin: Vec3,
     scale: Vec3,
@@ -835,8 +836,9 @@ pub fn mesh_pos_x(
 
             tex[Direction::PosX.to_idx()] as i32
         }
+        BlockMesh::Empty => {-1}
     };
-
+    debug_assert_ne!(texture, -1);
     data.layer_idx.push(texture);
     data.layer_idx.push(texture);
     data.layer_idx.push(texture);
@@ -849,7 +851,7 @@ pub fn mesh_pos_x(
 
 pub fn mesh_pos_y(
     b: &BlockMesh,
-    chunk: &impl Index<ChunkIdx, Output = BlockType>,
+    chunk: &impl Index<ChunkIdx, Output = BlockMesh>,
     coord: ChunkIdx,
     origin: Vec3,
     scale: Vec3,
@@ -918,7 +920,9 @@ pub fn mesh_pos_y(
 
             tex[Direction::PosY.to_idx()] as i32
         }
+        BlockMesh::Empty => {-1}
     };
+    debug_assert_ne!(texture, -1);
     data.norms.push(Vec3::new(0., 1., 0.));
     data.norms.push(Vec3::new(0., 1., 0.));
     data.norms.push(Vec3::new(0., 1., 0.));
@@ -932,7 +936,7 @@ pub fn mesh_pos_y(
 
 pub fn mesh_neg_y(
     b: &BlockMesh,
-    chunk: &impl Index<ChunkIdx, Output = BlockType>,
+    chunk: &impl Index<ChunkIdx, Output = BlockMesh>,
     coord: ChunkIdx,
     origin: Vec3,
     scale: Vec3,
@@ -993,8 +997,9 @@ pub fn mesh_neg_y(
 
             tex[Direction::NegY.to_idx()] as i32
         }
+        BlockMesh::Empty => {-1}
     };
-
+    debug_assert_ne!(texture, -1);
     data.norms.push(Vec3::new(0., -1., 0.));
     data.norms.push(Vec3::new(0., -1., 0.));
     data.norms.push(Vec3::new(0., -1., 0.));
@@ -1019,7 +1024,7 @@ fn add_tris(tris: &mut Vec<u32>, first_vert_idx: u32) {
 //TODO: add support for chunk neighbors
 //https://0fps.net/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/
 fn add_ao(
-    chunk: &impl Index<ChunkIdx, Output = BlockType>,
+    chunk: &impl Index<ChunkIdx, Output = BlockMesh>,
     //neighbors: &[Option<Chunk>; 6],
     coord: ChunkIdx,
     pos_x: bool,
@@ -1051,13 +1056,13 @@ fn add_ao(
         && side1_coord.y < CHUNK_SIZE_I32
         && side1_coord.y >= 0
     {
-        side1 = matches!(
+        side1 = !matches!(
             chunk[ChunkIdx::new(
                 side1_coord.x as u8,
                 side1_coord.y as u8,
                 side1_coord.z as u8
             )],
-            BlockType::Basic(_)
+            BlockMesh::Empty
         );
     }
     if side2_coord.z < CHUNK_SIZE_I32
@@ -1065,13 +1070,13 @@ fn add_ao(
         && side2_coord.y < CHUNK_SIZE_I32
         && side2_coord.y >= 0
     {
-        side2 = matches!(
+        side2 = !matches!(
             chunk[ChunkIdx::new(
                 side2_coord.x as u8,
                 side2_coord.y as u8,
                 side2_coord.z as u8
             )],
-            BlockType::Basic(_)
+            BlockMesh::Empty
         );
     }
     if corner_coord.x < CHUNK_SIZE_I32
@@ -1081,13 +1086,13 @@ fn add_ao(
         && corner_coord.z < CHUNK_SIZE_I32
         && corner_coord.z >= 0
     {
-        corner = matches!(
+        corner = !matches!(
             chunk[ChunkIdx::new(
                 corner_coord.x as u8,
                 corner_coord.y as u8,
                 corner_coord.z as u8
             )],
-            BlockType::Basic(_)
+            BlockMesh::Empty
         );
     }
 

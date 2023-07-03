@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::util::Direction;
 
-use super::{BlockType, BlockCoord, BlockId};
+use super::{BlockType, BlockCoord, BlockId, BlockRegistry};
 
 pub const CHUNK_SIZE: usize = 16;
 pub const CHUNK_SIZE_F32: f32 = CHUNK_SIZE as f32;
@@ -15,10 +15,12 @@ pub const CHUNK_SIZE_U64: u64 = CHUNK_SIZE as u64;
 pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct LODLevel {pub level: usize}
+pub struct LODLevel {pub level: u8}
 
 pub type ArrayChunk = Chunk<[BlockType; BLOCKS_PER_CHUNK], BlockType>;
+pub type LODChunk = ArrayChunk;
 pub type GeneratingChunk = Chunk<[BlockId; BLOCKS_PER_CHUNK], BlockId>;
+pub type GeneratingLODChunk = GeneratingChunk;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ChunkCoord {
@@ -96,6 +98,7 @@ impl ChunkIdx {
     pub fn to_usize(self) -> usize {
         (self.x as usize)*CHUNK_SIZE*CHUNK_SIZE+(self.y as usize)*CHUNK_SIZE+(self.z as usize)
     }
+    
 }
 
 impl From<BlockCoord> for ChunkIdx {
@@ -120,103 +123,53 @@ pub enum ChunkType {
 }
 
 #[derive(Clone, Debug)]
-pub struct Chunk<Storage, Block> where Storage: Index<usize, Output=Block> + IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + Eq + PartialEq {
-    pub blocks: Box<Storage>,
-    pub position: ChunkCoord,
-    pub entity: Entity
+pub enum LODChunkType {
+    //entity, level
+    Ungenerated(Entity, u8),
+    Full(LODChunk)
 }
 
-impl<Storage: std::ops::IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + Eq + PartialEq> Index<ChunkIdx> for Chunk<Storage, Block> {
+#[derive(Clone, Debug)]
+pub struct Chunk<Storage, Block> where Storage: Index<usize, Output=Block> + IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + PartialEq {
+    pub blocks: Box<Storage>,
+    pub position: ChunkCoord,
+    pub entity: Entity,
+    //lod level, scale of chunk is 2^level
+    pub level: u8
+}
+
+impl<Storage: std::ops::IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + PartialEq> Index<ChunkIdx> for Chunk<Storage, Block> {
     type Output = Block;
     fn index(&self, index: ChunkIdx) -> &Block {
         &self.blocks[index.to_usize()]
     }
 }
 
-impl<Storage: std::ops::IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + Eq + PartialEq> IndexMut<ChunkIdx> for Chunk<Storage, Block> {
+impl<Storage: std::ops::IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + PartialEq> IndexMut<ChunkIdx> for Chunk<Storage, Block> {
     fn index_mut(&mut self, index: ChunkIdx) -> &mut Block {
         &mut self.blocks[index.to_usize()]
     }
 }
 
-impl<Storage: std::ops::IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + Eq + PartialEq> Index<usize> for Chunk<Storage, Block> {
+impl<Storage: std::ops::IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + PartialEq> Index<usize> for Chunk<Storage, Block> {
     type Output = Block;
     fn index(&self, index: usize) -> &Block {
         &self.blocks[index]
     }
 }
 
-impl<Storage: std::ops::IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + Eq + PartialEq> IndexMut<usize> for Chunk<Storage, Block> {
+impl<Storage: std::ops::IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + PartialEq> IndexMut<usize> for Chunk<Storage, Block> {
     fn index_mut(&mut self, index: usize) -> &mut Block {
         &mut self.blocks[index]
     }
 }
 
-impl ArrayChunk {
-    pub fn new(position: ChunkCoord, entity: Entity) -> ArrayChunk {
-        Chunk {
-            blocks: Box::new([BlockType::Empty; BLOCKS_PER_CHUNK]),
-            entity,
-            position
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum LODChunkType {
-    //entity, level
-    Ungenerated(Entity, usize),
-    Full(LODChunk)
-}
-#[derive(Clone, Debug)]
-pub struct LODChunk {
-    blocks: Box<[BlockType; BLOCKS_PER_CHUNK]>,
-    pub position: ChunkCoord,
-    pub entity: Entity,
-    pub level: usize
-}
-
-impl Index<ChunkIdx> for LODChunk {
-    type Output = BlockType;
-    fn index(&self, index: ChunkIdx) -> &BlockType {
-        &self.blocks[index.to_usize()]
-    }
-}
-
-impl IndexMut<ChunkIdx> for LODChunk {
-    fn index_mut(&mut self, index: ChunkIdx) -> &mut BlockType {
-        &mut self.blocks[index.to_usize()]
-    }
-}
-
-impl Index<usize> for LODChunk {
-    type Output = BlockType;
-    fn index(&self, index: usize) -> &BlockType {
-        &self.blocks[index]
-    }
-}
-
-impl IndexMut<usize> for LODChunk {
-    fn index_mut(&mut self, index: usize) -> &mut BlockType {
-        &mut self.blocks[index]
-    }
-}
-
-impl LODChunk {
-    pub fn new(position: ChunkCoord, level: usize, entity: Entity) -> LODChunk {
-        LODChunk {
-            blocks: Box::new([BlockType::Empty; BLOCKS_PER_CHUNK]),
-            entity,
-            position,
-            level
-        }
-    }
-
+impl<Storage: Index<usize, Output=Block> + IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + PartialEq> Chunk<Storage,Block> {
     pub fn scale(&self) -> i32 {
         LODChunk::level_to_scale(self.level)
     }
 
-    pub fn level_to_scale(level: usize) -> i32 {
+    pub fn level_to_scale(level: u8) -> i32 {
         1<<level
     }
 
@@ -225,3 +178,39 @@ impl LODChunk {
         Vec3::new((self.position.x*CHUNK_SIZE_I32*scale+(pos.x as i32)*scale) as f32, (self.position.y*CHUNK_SIZE_I32*scale+(pos.y as i32)*scale) as f32, (self.position.z*CHUNK_SIZE_I32*scale+(pos.z as i32)*scale) as f32)
     }
 }
+impl ArrayChunk {
+    pub fn new(position: ChunkCoord, entity: Entity) -> ArrayChunk {
+        Chunk {
+            blocks: Box::new([BlockType::Empty; BLOCKS_PER_CHUNK]),
+            entity,
+            position,
+            level: 1
+        }
+    }
+}
+
+impl GeneratingChunk {
+    pub fn new(position: ChunkCoord, entity: Entity) -> GeneratingChunk {
+        Chunk {
+            blocks: Box::new([BlockId::default(); BLOCKS_PER_CHUNK]),
+            entity,
+            position,
+            level: 1
+        }
+    }
+
+    pub fn to_array_chunk(self, registry: &BlockRegistry, commands: &mut Commands) -> ArrayChunk {
+        let mut result = ArrayChunk::new(self.position, self.entity);
+        for (i, block) in self.blocks.into_iter().enumerate() {
+            result[i] = match block {
+                BlockId::Empty => BlockType::Empty,
+                id @ BlockId::Basic(_) | id @ BlockId::Dynamic(_) => match registry.get_entity(id, BlockCoord::from(self.position)+ChunkIdx::from_usize(i).into(), commands) {
+                    Some(entity) => BlockType::Filled(entity),
+                    None => BlockType::Empty,
+                },
+            }
+        }
+        result
+    }
+}
+
