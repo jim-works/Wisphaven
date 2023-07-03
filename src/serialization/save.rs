@@ -9,7 +9,8 @@ use crate::{
     worldgen::GeneratedChunk,
 };
 
-use super::{ChunkSaveFormat, LevelDB, NeedsSaving, SaveChunkEvent, SaveCommand, SaveTimer};
+use super::{ChunkSaveFormat, NeedsSaving, SaveChunkEvent, SaveTimer};
+use super::db::*;
 
 pub fn save_all(
     mut save_writer: EventWriter<SaveChunkEvent>,
@@ -47,7 +48,7 @@ pub fn do_saving(
                 ChunkType::Full(chunk) => {
                     if let Some(mut ec) = commands.get_entity(chunk.entity) {
                         save_data.push(SaveCommand(
-                            super::ChunkTable::Terrain,
+                            ChunkTable::Terrain,
                             coord,
                             ChunkSaveFormat::from(chunk).into_bits(),
                         ));
@@ -64,7 +65,7 @@ pub fn do_saving(
         }
         if let Some(buffer) = level.get_buffer(&coord) {
             save_data.push(SaveCommand(
-                super::ChunkTable::Buffers,
+                ChunkTable::Buffers,
                 coord,
                 ChunkSaveFormat::from((coord, buffer.value().as_ref())).into_bits(),
             ));

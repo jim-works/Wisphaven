@@ -3,12 +3,13 @@ use bevy::prelude::*;
 use crate::{
     world::{
         chunk::{ChunkCoord, ChunkType},
-        Level,
+        Level, BlockResources,
     },
     worldgen::{ChunkNeedsGenerated, GeneratedChunk},
 };
 
-use super::{ChunkSaveFormat, ChunkTable, DataFromDBEvent, LevelDB, NeedsLoading, SaveTimer};
+use super::{ChunkSaveFormat, NeedsLoading, SaveTimer};
+use super::db::*;
 
 pub fn queue_terrain_loading(
     mut commands: Commands,
@@ -25,7 +26,7 @@ pub fn queue_terrain_loading(
             .iter()
             .map(move |(entity, coord)| {
                 commands.entity(entity).remove::<NeedsLoading>();
-                super::LoadCommand {
+                LoadCommand {
                     position: *coord,
                     to_load: vec![ChunkTable::Terrain, ChunkTable::Buffers],
                     to_delete: vec![],
@@ -40,6 +41,7 @@ pub fn load_chunk_terrain(
     mut events: EventReader<DataFromDBEvent>,
     mut tf_query: Query<&mut Transform>,
     level: Res<Level>,
+    resources: Res<BlockResources>,
 ) {
     let mut loaded = 0;
     for DataFromDBEvent(coord, data_vec) in events.iter().filter(|DataFromDBEvent(_, data)| {
@@ -52,7 +54,7 @@ pub fn load_chunk_terrain(
         //first copy over the buffer so that it is applied when the chunk is added right after the terrain loads.
         if !buff_data.is_empty() {
             match <&[u8] as TryInto<ChunkSaveFormat>>::try_into(buff_data.as_slice()) {
-                Ok(fmt) => level.add_rle_buffer(*coord, &fmt.data, &mut commands),
+                Ok(fmt) => level.add_rle_buffer(*coord, &fmt.into_buffer(resources.registry.as_ref(), &mut commands), &mut commands),
                 Err(e) => error!("error deserializing chunk buffer at {:?}: {:?}", coord, e),
             }
         }
@@ -63,7 +65,7 @@ pub fn load_chunk_terrain(
             } else if let Ok(parsed) =
                 <&[u8] as TryInto<ChunkSaveFormat>>::try_into(terrain_data.as_slice())
             {
-                let chunk = parsed.into_chunk(entity);
+                let chunk = parsed.into_chunk(entity, resources.registry.as_ref(), &mut commands);
                 if let Ok(mut tf) = tf_query.get_mut(entity) {
                     tf.translation = chunk.position.to_vec3();
                 }

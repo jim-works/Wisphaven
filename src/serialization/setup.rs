@@ -2,7 +2,7 @@ pub use bevy::prelude::*;
 
 use std::fs;
 
-use crate::serialization::LevelDB;
+use crate::serialization::db::LevelDB;
 use crate::world::{LevelLoadState, BlockName, BlockMesh, BlockResources};
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
 

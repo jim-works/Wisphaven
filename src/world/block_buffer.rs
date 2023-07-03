@@ -17,10 +17,11 @@ impl BlockBuffer<BlockId> {
             let mut new_buf = ChunkBuffer::new();
             for change in buffer.changes.into_iter() {
                 match change.1 {
-                    BlockChange::Set(id) => new_buf.changes.push((change.0, BlockChange::Set(registry.get_entity(id, BlockCoord::from(coord)+ChunkIdx::from_usize(change.0).into(), commands)))),
-                    BlockChange::SetIfEmpty(id) => {}
+                    BlockChange::Set(id) => new_buf.changes.push((change.0, BlockChange::Set(registry.get_block_type(id, BlockCoord::from(coord)+ChunkIdx::from_usize(change.0).into(), commands)))),
+                    BlockChange::SetIfEmpty(id) => new_buf.changes.push((change.0, BlockChange::SetIfEmpty(registry.get_block_type(id, BlockCoord::from(coord)+ChunkIdx::from_usize(change.0).into(), commands))))
+                }
             }
-            }
+            result.buf.insert(coord, new_buf);
         }
         result
     }

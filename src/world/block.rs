@@ -2,6 +2,7 @@ use std::{ops::AddAssign, sync::Arc};
 
 use crate::util::Direction;
 use bevy::{prelude::*, utils::HashMap};
+use serde::{Serialize, Deserialize};
 
 use super::chunk::{ChunkCoord, CHUNK_SIZE_I32, ChunkIdx};
 
@@ -36,7 +37,7 @@ impl BlockName {
 
 //block ids may not be stable across program runs. to get a specific id for a block,
 // use block registry
-#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Default, Component, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BlockId {
     #[default]
     Empty,
@@ -99,8 +100,10 @@ pub struct BlockRegistry {
 }
 
 impl BlockRegistry {
-    pub fn add_basic(&mut self, name: BlockName, entity: Entity) {
+    //inserts the corresponding BlockId component on the block
+    pub fn add_basic(&mut self, name: BlockName, entity: Entity, commands: &mut Commands) {
         let id = BlockId::Basic(self.basic_entities.len() as u32);
+        commands.entity(entity).insert(id);
         self.basic_entities.push(entity);
         self.id_map.insert(name, id);
     }
@@ -111,7 +114,7 @@ impl BlockRegistry {
     }
     pub fn create_basic(&mut self, name: BlockName, mesh: BlockMesh, commands: &mut Commands) {
         let entity = commands.spawn((name, mesh)).id();
-        self.add_basic(name, entity);
+        self.add_basic(name, entity, commands);
     }
     pub fn get_basic(&self, name: &BlockName) -> Option<Entity> {
         let id = self.id_map.get(&name)?;
@@ -125,6 +128,19 @@ impl BlockRegistry {
             BlockId::Empty => None,
             BlockId::Basic(id) => self.basic_entities.get(id as usize).copied(),
             BlockId::Dynamic(id) => self.dynamic_generators.get(id as usize).and_then(|gen| Some(gen.generate(commands, position))),
+        }
+    }
+    pub fn get_block_type(&self, id: BlockId, position: BlockCoord, commands: &mut Commands) -> BlockType {
+        match id {
+            BlockId::Empty => BlockType::Empty,
+            BlockId::Basic(id) => match self.basic_entities.get(id as usize).copied() {
+                Some(id) => BlockType::Filled(id),
+                None => BlockType::Empty,
+            },
+            BlockId::Dynamic(id) => match self.dynamic_generators.get(id as usize).and_then(|gen| Some(gen.generate(commands, position))) {
+                Some(id) => BlockType::Filled(id),
+                None => BlockType::Empty,
+            },
         }
     }
 }
