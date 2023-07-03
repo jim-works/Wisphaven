@@ -40,6 +40,7 @@ impl Plugin for SerializationPlugin {
                     .in_set(LevelSystemSet::LoadingAndMain),
             )
             .add_system(finish_up.in_base_set(CoreSet::PostUpdate))
+            .add_startup_system(setup::load_block_registry)
             .add_startup_system(scenes::test_save)
             .add_event::<SaveChunkEvent>()
             .add_event::<DataFromDBEvent>()

@@ -222,8 +222,8 @@ pub fn spawn_mesh(
 }
 
 fn mesh_chunk<T: std::ops::IndexMut<usize, Output = BlockType>>(
-    chunk: &Chunk<T>,
-    neighbors: &[Option<Chunk<T>>; 6],
+    chunk: &Chunk<T,BlockType>,
+    neighbors: &[Option<Chunk<T,BlockType>>; 6],
     data: &mut ChunkMesh,
 ) {
     let _my_span = info_span!("mesh_chunk", name = "mesh_chunk").entered();
@@ -263,8 +263,8 @@ pub fn should_mesh_face(
     }
 }
 fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockType>>(
-    chunk: &Chunk<T>,
-    neighbors: &[Option<Chunk<T>>; 6],
+    chunk: &Chunk<T,BlockType>,
+    neighbors: &[Option<Chunk<T,BlockType>>; 6],
     b: &BlockMesh,
     coord: ChunkIdx,
     origin: Vec3,

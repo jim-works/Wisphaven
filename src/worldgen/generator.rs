@@ -18,13 +18,13 @@ pub enum ChunkNeedsGenerated {
 //task to generate the overall shape of the terrain
 #[derive(Component)]
 pub struct ShapingTask {
-    pub task: Task<ArrayChunk>,
+    pub task: Task<GeneratingChunk>,
 }
 
 //task to generate small structures (trees, buildings, etc)
 #[derive(Component)]
 pub struct GenSmallStructureTask {
-    pub task: Task<(ArrayChunk, BlockBuffer)>,
+    pub task: Task<(GeneratingChunk, BlockBuffer)>,
 }
 
 #[derive(Component)]

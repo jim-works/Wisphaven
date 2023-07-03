@@ -141,7 +141,7 @@ fn get_collider(registry: &BlockRegistry, id: u32, origin: ChunkIdx) -> (Vec3, Q
         ),
     }
 }
-fn gen_physics<T: std::ops::IndexMut<usize, Output=BlockType>>(chunk: &Chunk<T>, data: &mut PhysicsGenerationData) {
+fn gen_physics<T: std::ops::IndexMut<usize, Output=BlockType>>(chunk: &Chunk<T,BlockType>, data: &mut PhysicsGenerationData) {
     let mut compound = Vec::new();
     let registry = get_block_registry();
     for i in 0..chunk::BLOCKS_PER_CHUNK {

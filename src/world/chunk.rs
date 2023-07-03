@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::util::Direction;
 
-use super::{BlockType, BlockCoord};
+use super::{BlockType, BlockCoord, BlockId};
 
 pub const CHUNK_SIZE: usize = 16;
 pub const CHUNK_SIZE_F32: f32 = CHUNK_SIZE as f32;
@@ -17,7 +17,8 @@ pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE;
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LODLevel {pub level: usize}
 
-pub type ArrayChunk = Chunk<[BlockType; BLOCKS_PER_CHUNK]>;
+pub type ArrayChunk = Chunk<[BlockType; BLOCKS_PER_CHUNK], BlockType>;
+pub type GeneratingChunk = Chunk<[BlockId; BLOCKS_PER_CHUNK], BlockId>;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ChunkCoord {
@@ -119,34 +120,34 @@ pub enum ChunkType {
 }
 
 #[derive(Clone, Debug)]
-pub struct Chunk<T> where T: Index<usize, Output=BlockType> + IndexMut<usize, Output=BlockType> {
-    pub blocks: Box<T>,
+pub struct Chunk<Storage, Block> where Storage: Index<usize, Output=Block> + IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + Eq + PartialEq {
+    pub blocks: Box<Storage>,
     pub position: ChunkCoord,
     pub entity: Entity
 }
 
-impl<T: std::ops::IndexMut<usize, Output=BlockType>> Index<ChunkIdx> for Chunk<T> {
-    type Output = BlockType;
-    fn index(&self, index: ChunkIdx) -> &BlockType {
+impl<Storage: std::ops::IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + Eq + PartialEq> Index<ChunkIdx> for Chunk<Storage, Block> {
+    type Output = Block;
+    fn index(&self, index: ChunkIdx) -> &Block {
         &self.blocks[index.to_usize()]
     }
 }
 
-impl<T: std::ops::IndexMut<usize, Output=BlockType>> IndexMut<ChunkIdx> for Chunk<T> {
-    fn index_mut(&mut self, index: ChunkIdx) -> &mut BlockType {
+impl<Storage: std::ops::IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + Eq + PartialEq> IndexMut<ChunkIdx> for Chunk<Storage, Block> {
+    fn index_mut(&mut self, index: ChunkIdx) -> &mut Block {
         &mut self.blocks[index.to_usize()]
     }
 }
 
-impl<T: std::ops::IndexMut<usize, Output=BlockType>> Index<usize> for Chunk<T> {
-    type Output = BlockType;
-    fn index(&self, index: usize) -> &BlockType {
+impl<Storage: std::ops::IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + Eq + PartialEq> Index<usize> for Chunk<Storage, Block> {
+    type Output = Block;
+    fn index(&self, index: usize) -> &Block {
         &self.blocks[index]
     }
 }
 
-impl<T: std::ops::IndexMut<usize, Output=BlockType>> IndexMut<usize> for Chunk<T> {
-    fn index_mut(&mut self, index: usize) -> &mut BlockType {
+impl<Storage: std::ops::IndexMut<usize, Output=Block>, Block: Clone + Send + Sync + Eq + PartialEq> IndexMut<usize> for Chunk<Storage, Block> {
+    fn index_mut(&mut self, index: usize) -> &mut Block {
         &mut self.blocks[index]
     }
 }
