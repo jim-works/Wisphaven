@@ -147,6 +147,15 @@ impl BlockRegistry {
             _ => None
         }
     }
+    pub fn get_id(&self, name: &BlockName) -> BlockId {
+        match self.id_map.get(name) {
+            Some(id) => *id,
+            None => {
+                error!("Couldn't find block id for name {:?}", name);
+                BlockId::Empty
+            },
+        }
+    }
     pub fn get_entity(&self, id: BlockId, position: BlockCoord, commands: &mut Commands) -> Option<Entity> {
         match id {
             BlockId::Empty => None,

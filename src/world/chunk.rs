@@ -193,7 +193,7 @@ impl<'a, Storage: ChunkStorage<BlockType>> Chunk<Storage, BlockType> {
             BlockType::Empty => T::default(),
             BlockType::Filled(entity) => query.get(*entity).unwrap_or(&T::default()).to_owned(),
         }).collect();
-        Chunk::<Vec<T>, T> {blocks: Box::new(data), position: self.position, entity: self.entity, level: 0, _data: PhantomData }
+        Chunk::<Vec<T>, T> {blocks: Box::new(data), position: self.position, entity: self.entity, level: self.level, _data: PhantomData }
     }
 }
 impl ArrayChunk {

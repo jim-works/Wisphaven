@@ -60,7 +60,7 @@ pub fn queue_generating<const NOISE: usize, const HEIGHTMAP: usize>(
 ) {
     let _my_span = info_span!("queue_generating", name = "queue_generating").entered();
     if matches!(id.0, BlockId::Empty) {
-        id.0 = block_resources.registry.id_map.get(&BlockName::core("grass")).copied().unwrap_or_default();
+        id.0 = block_resources.registry.get_id(&BlockName::core("grass"));
     }
     let now = Instant::now();
     let pool = AsyncComputeTaskPool::get();

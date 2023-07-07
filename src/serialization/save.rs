@@ -73,8 +73,8 @@ pub fn do_saving(
             ));
         }
     }
-    if saved > 0 {
-        db.save_chunk_data(save_data);
-        debug!("Queued saving for {} chunks.", saved);
-    }
+    // if saved > 0 {
+    //     db.save_chunk_data(save_data);
+    //     debug!("Queued saving for {} chunks.", saved);
+    // }
 }

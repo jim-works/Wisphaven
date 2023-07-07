@@ -43,6 +43,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(UtilPlugin)
+        .add_plugin(serialization::SerializationPlugin)
         .add_plugin(BillboardPlugin)
         .add_plugin(AtmospherePlugin)
         .add_plugin(LevelPlugin)
@@ -54,7 +55,6 @@ fn main() {
         .add_plugin(ControllersPlugin)
         .add_plugin(ActorPlugin)
         .add_plugin(ItemsPlugin)
-        .add_plugin(serialization::SerializationPlugin)
         .add_plugin(ui::UIPlugin)
         .insert_resource(settings::Settings::default())
         .insert_resource(AmbientLight {

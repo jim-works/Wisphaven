@@ -13,6 +13,7 @@ pub struct LTreeGenerator<P: Fn(&TreeAlphabet, u32) -> Option<Vec<TreeAlphabet>>
     initial_sentence: I,
     block_placer: B,
     leaf_placer: L,
+    spawnable_block: BlockId,
     rng: FastNoise,
 }
 impl<P: Fn(&TreeAlphabet, u32) -> Option<Vec<TreeAlphabet>>, I: Fn(BlockCoord) -> Vec<TreeAlphabet>, B: Fn(&mut BlockBuffer<BlockId>, Vec3, Vec3), L: Fn(&mut BlockBuffer<BlockId>, BlockCoord)> StructureGenerator for LTreeGenerator<P,I,B,L> {
@@ -25,18 +26,18 @@ impl<P: Fn(&TreeAlphabet, u32) -> Option<Vec<TreeAlphabet>>, I: Fn(BlockCoord) -
         buffer: &mut BlockBuffer<BlockId>,
         pos: BlockCoord,
         local_pos: ChunkIdx,
-        chunk: &GeneratingChunk,
+        chunk: &GeneratingChunk
     ) {
-        // let _my_span = info_span!("tree_validate", name = "tree_validate").entered();
-        // //determine if location is suitable for a tree
-        // if !matches!(chunk[local_pos], BlockType::Basic(0)) {
-        //     return;
-        // }
-        // for y in (local_pos.y + 1)..CHUNK_SIZE_U8 {
-        //     if !matches!(chunk[ChunkIdx::new(local_pos.x, y, local_pos.z)], BlockType::Empty) {
-        //         return;
-        //     }
-        // }
+        let _my_span = info_span!("tree_validate", name = "tree_validate").entered();
+        //determine if location is suitable for a tree
+        if chunk[local_pos] != self.spawnable_block {
+            return;
+        }
+        for y in (local_pos.y + 1)..CHUNK_SIZE_U8 {
+            if !matches!(chunk[ChunkIdx::new(local_pos.x, y, local_pos.z)], BlockId::Empty) {
+                return;
+            }
+        }
         let _my_span = info_span!("tree_generate", name = "tree_generate").entered();
         //generate tree
         let vec3_pos = pos.to_vec3();
@@ -73,14 +74,15 @@ impl<P: Fn(&TreeAlphabet, u32) -> Option<Vec<TreeAlphabet>>, I: Fn(BlockCoord) -
     }
 }
 impl<P: Fn(&TreeAlphabet, u32) -> Option<Vec<TreeAlphabet>>, I: Fn(BlockCoord) -> Vec<TreeAlphabet>, B: Fn(&mut BlockBuffer<BlockId>, Vec3, Vec3), L: Fn(&mut BlockBuffer<BlockId>, BlockCoord)> LTreeGenerator<P,I,B,L> {
-    pub fn new(rng: FastNoise, system: LSystem<TreeAlphabet, P>, iterations: u32, initial_sentence: I, block_placer: B, leaf_placer: L) -> Self {
+    pub fn new(rng: FastNoise, system: LSystem<TreeAlphabet, P>, iterations: u32, initial_sentence: I, block_placer: B, leaf_placer: L, spawnable_block: BlockId) -> Self {
         LTreeGenerator {
             rng,
             l_system: system,
             iterations,
             initial_sentence,
             block_placer,
-            leaf_placer
+            leaf_placer,
+            spawnable_block
         }
     }
 }
@@ -90,8 +92,9 @@ pub fn get_short_tree(seed: u64, registry: &BlockRegistry) -> Box<dyn StructureG
     //white noise doesn't work
     noise.set_noise_type(NoiseType::Value);
     noise.set_frequency(436_781.25);
-    let wood = registry.id_map.get(&BlockName::core("wood")).copied().unwrap();
-    let leaves = registry.id_map.get(&BlockName::core("leaves")).copied().unwrap();
+    let wood = registry.get_id(&BlockName::core("log"));
+    let leaves = registry.get_id(&BlockName::core("leaves"));
+    let grass = registry.get_id(&BlockName::core("grass"));
     let mut selection_noise = FastNoise::seeded(seed+1);
     selection_noise.set_noise_type(NoiseType::Value);
     selection_noise.set_frequency(1_230_481.1);
@@ -187,6 +190,7 @@ pub fn get_short_tree(seed: u64, registry: &BlockRegistry) -> Box<dyn StructureG
                             }
                         }
                     }
-        }
+        },
+        grass
     ))
 }
