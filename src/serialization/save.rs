@@ -17,14 +17,14 @@ pub fn save_all(
     mut commands: Commands,
     mut timer: ResMut<SaveTimer>,
     time: Res<Time>,
-    query: Query<(Entity, &ChunkCoord), (With<NeedsSaving>, With<GeneratedChunk>)>,
+    query: Query<&ChunkCoord, (With<NeedsSaving>, With<GeneratedChunk>)>,
     level: Res<Level>,
 ) {
     timer.0.tick(time.delta());
     if !timer.0.just_finished() {
         return;
     }
-    for (entity, coord) in query.iter() {
+    for coord in query.iter() {
         save_writer.send(SaveChunkEvent(*coord));
     }
     for buf_ref in level.buffer_iter() {

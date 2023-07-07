@@ -6,7 +6,7 @@ use crate::{
     world::BlockcastHit,
     worldgen::ChunkNeedsGenerated,
 };
-use bevy::{prelude::*, utils::hashbrown::HashSet, transform::commands};
+use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
 
 use super::{chunk::*, BlockBuffer, BlockCoord, BlockType, BlockId, BlockRegistry};

@@ -96,15 +96,30 @@ pub fn queue_meshing(
     for (entity, coord) in query.iter() {
         if let Some(ctype) = level.get_chunk(*coord) {
             if let ChunkType::Full(chunk) = ctype.value() {
+                let _my_span2 = info_span!("check_chunk", name = "check_chunk").entered();
                 let mut neighbor_count = 0;
                 let mut neighbors = [None, None, None, None, None, None];
                 //i wish i could extrac this if let Some() shit into a function
                 //but that makes the borrow checker angry
+                //check neighbor count first becuase Chunk::get_components is a very expensive operation
+                for dir in Direction::iter() {
+                    if let Some(ctype) = level.get_chunk(coord.offset(dir)) {
+                        if let ChunkType::Full(_) = ctype.value() {
+                            neighbor_count += 1;
+                        }
+                    }
+                }
+                if neighbor_count != 6 {
+                    //don't mesh if all neighbors aren't ready yet
+                    continue;
+                }
+                //we have to check neighbor counts again because a chunk could be removed since the last loop, and we don't clone anything before
+                neighbor_count = 0;
                 for dir in Direction::iter() {
                     if let Some(ctype) = level.get_chunk(coord.offset(dir)) {
                         if let ChunkType::Full(neighbor) = ctype.value() {
-                            neighbors[dir.to_idx()] = Some(neighbor.get_components(neighbor.blocks.iter(), &mesh_query));
                             neighbor_count += 1;
+                            neighbors[dir.to_idx()] = Some(neighbor.get_components(neighbor.blocks.iter(), &mesh_query));
                         }
                     }
                 }
@@ -114,6 +129,7 @@ pub fn queue_meshing(
                 }
                 let meshing = chunk.get_components(chunk.blocks.iter(), &mesh_query);
                 len += 1;
+                let _my_span3 = info_span!("spawn_task", name = "spawn_task").entered();
                 let task = pool.spawn(async move {
                     let mut data = ChunkMesh::new(1.0);
                     mesh_chunk(&meshing, &neighbors, &mut data);
@@ -133,6 +149,7 @@ pub fn queue_meshing(
             len, duration
         );
     }
+
 }
 pub fn poll_mesh_queue(
     mut commands: Commands,

@@ -5,7 +5,7 @@ use leafwing_input_manager::prelude::ActionState;
 use crate::{
     actors::*,
     physics::JUMPABLE_GROUP,
-    world::{Level, BlockResources, BlockId}, items::{inventory::Inventory, UseItemEvent, EquipItemEvent, UnequipItemEvent, AttackItemEvent}, ui::{state::UIState, world_mouse_active},
+    world::{Level, BlockId}, items::{inventory::Inventory, UseItemEvent, EquipItemEvent, UnequipItemEvent, AttackItemEvent}, ui::{state::UIState, world_mouse_active},
 };
 
 use super::{Action, FrameMovement};

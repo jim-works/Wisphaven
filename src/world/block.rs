@@ -136,8 +136,8 @@ impl BlockRegistry {
         self.dynamic_generators.push(generator);
         self.id_map.insert(name, id);
     }
-    pub fn create_basic(&mut self, name: BlockName, mesh: BlockMesh, commands: &mut Commands) {
-        let entity = commands.spawn((name, mesh)).id();
+    pub fn create_basic(&mut self, name: BlockName, mesh: BlockMesh, physics: BlockPhysics, commands: &mut Commands) {
+        let entity = commands.spawn((name, mesh, physics)).id();
         self.add_basic(name, entity, commands);
     }
     pub fn get_basic(&self, name: &BlockName) -> Option<Entity> {

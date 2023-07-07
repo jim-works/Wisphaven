@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bevy::{prelude::*};
 use bracket_noise::prelude::*;
 
-use crate::{world::{chunk::ChunkCoord, LevelSystemSet, BlockRegistry, BlockResources, SavedBlockId}, util::{Spline, SplineNoise, get_next_prng}};
+use crate::{world::{chunk::ChunkCoord, LevelSystemSet, BlockResources, SavedBlockId}, util::{Spline, SplineNoise, get_next_prng}};
 
 mod generator;
 pub use generator::{ChunkNeedsGenerated, GeneratedChunk, GeneratedLODChunk, ShapingTask, LODShapingTask, ShaperSettings};

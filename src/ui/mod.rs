@@ -10,8 +10,6 @@ use bevy::window::CursorGrabMode;
 
 use crate::world::LevelSystemSet;
 
-use self::state::UIState;
-
 
 pub struct UIPlugin;
 

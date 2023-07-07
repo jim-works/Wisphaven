@@ -8,13 +8,18 @@ use crate::world::{Level, *};
 use crate::worldgen::GeneratedLODChunk;
 use bevy::{prelude::*, tasks::AsyncComputeTaskPool};
 
+#[derive(Resource)]
+pub struct LODMeshTimer {
+    pub timer: Timer,
+}
+
 //there may be a cleaner way to do this, with some traits
 //but I expect there will be significant differences between LOD and non-LOD meshing, so probably best to have separate functions entirely
 pub fn queue_meshing_lod(
     query: Query<(Entity, &ChunkCoord, &LODLevel), (With<GeneratedLODChunk>, With<NeedsMesh>)>,
     level: Res<Level>,
     time: Res<Time>,
-    mut timer: ResMut<MeshTimer>,
+    mut timer: ResMut<LODMeshTimer>,
     mut commands: Commands,
     mesh_query: Query<&BlockMesh>
 ) {
@@ -32,6 +37,7 @@ pub fn queue_meshing_lod(
                 if let LODChunkType::Full(chunk) = ctype.value() {
                     //don't wait for neighbors since we won't have all neighbors generated, as there is a big hole in the middle of where we generate
                     //TODO: greedy meshing is very important here
+                    let _lod_components = info_span!("get_lod_components", name = "get_lod_components").entered();
                     let meshing = chunk.get_components(chunk.blocks.iter(), &mesh_query);
                     len += 1;
                     let task = pool.spawn(async move {

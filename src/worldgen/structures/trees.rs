@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use bracket_noise::prelude::{FastNoise, NoiseType};
 
-use crate::{world::{chunk::*, BlockBuffer, BlockCoord, BlockType, BlockChange, BlockId, BlockRegistry, BlockName}, util::l_system::{LSystem, TreeAlphabet}};
+use crate::{world::{chunk::*, BlockBuffer, BlockCoord, BlockChange, BlockId, BlockRegistry, BlockName}, util::l_system::{LSystem, TreeAlphabet}};
 use bevy::prelude::*;
 use super::StructureGenerator;
 

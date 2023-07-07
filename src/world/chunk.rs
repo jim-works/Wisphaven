@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::util::Direction;
 
-use super::{BlockType, BlockCoord, BlockId, BlockRegistry, BlockMesh};
+use super::{BlockType, BlockCoord, BlockId, BlockRegistry};
 
 pub const CHUNK_SIZE: usize = 16;
 pub const CHUNK_SIZE_F32: f32 = CHUNK_SIZE as f32;
