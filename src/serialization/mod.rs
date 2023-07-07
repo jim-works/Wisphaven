@@ -1,14 +1,9 @@
 use itertools::Itertools;
-use std::{collections::VecDeque, mem::size_of, panic::catch_unwind, path::Path};
+use std::{mem::size_of, panic::catch_unwind};
 
 use bevy::{
-    app::AppExit,
     prelude::*,
-    tasks::{AsyncComputeTaskPool, Task},
 };
-use futures_lite::future;
-use r2d2::{Pool, PooledConnection};
-use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::*;
 
 use crate::world::{
@@ -147,6 +142,23 @@ impl TryFrom<&[u8]> for ChunkSaveFormat {
 }
 
 impl ChunkSaveFormat {
+    //creates a save format by extracting the ids from the block array using the provided query
+    //will replace with the empty block if the entities in the block array do not have a BlockId component
+    pub fn ids_only(value: (ChunkCoord, &[BlockType; BLOCKS_PER_CHUNK]), query: &Query<&BlockId>) -> Self {
+                let data = value
+            .1
+            .iter()
+            .dedup_with_count()
+            .map(|(run, block)| (match block {
+                BlockType::Empty => BlockId::Empty,
+                BlockType::Filled(entity) => *query.get(*entity).unwrap_or(&BlockId::Empty),
+            }, run as u16))
+            .collect();
+        Self {
+            position: value.0,
+            data,
+        }
+    }
     pub fn into_chunk(self, chunk_entity: Entity, registry: &BlockRegistry, commands: &mut Commands) -> ArrayChunk {
         let mut curr_idx = 0;
         let mut chunk = ArrayChunk::new(self.position, chunk_entity);

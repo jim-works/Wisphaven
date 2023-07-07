@@ -103,10 +103,7 @@ pub fn queue_meshing(
                 for dir in Direction::iter() {
                     if let Some(ctype) = level.get_chunk(coord.offset(dir)) {
                         if let ChunkType::Full(neighbor) = ctype.value() {
-                            neighbors[dir.to_idx()] = Some(neighbor.blocks.iter().map(|b| match b {
-                                BlockType::Empty => None,
-                                BlockType::Filled(entity) => mesh_query.get(*entity).ok(),
-                            }));
+                            neighbors[dir.to_idx()] = Some(neighbor.get_components(neighbor.blocks.iter(), &mesh_query));
                             neighbor_count += 1;
                         }
                     }
@@ -115,7 +112,7 @@ pub fn queue_meshing(
                     //don't mesh if all neighbors aren't ready yet
                     continue;
                 }
-                let meshing = chunk.clone();
+                let meshing = chunk.get_components(chunk.blocks.iter(), &mesh_query);
                 len += 1;
                 let task = pool.spawn(async move {
                     let mut data = ChunkMesh::new(1.0);
@@ -225,7 +222,7 @@ pub fn spawn_mesh(
     });
 }
 
-fn mesh_chunk<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
+fn mesh_chunk<T: ChunkStorage<BlockMesh>>(
     chunk: &Chunk<T,BlockMesh>,
     neighbors: &[Option<Chunk<T,BlockMesh>>; 6],
     data: &mut ChunkMesh,
@@ -259,7 +256,7 @@ pub fn should_mesh_face(
         BlockMesh::Empty => false
     }
 }
-fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
+fn mesh_block<T: ChunkStorage<BlockMesh>>(
     chunk: &Chunk<T,BlockMesh>,
     neighbors: &[Option<Chunk<T,BlockMesh>>; 6],
     b: &BlockMesh,
@@ -290,10 +287,9 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
             );
         }
     } else if should_mesh_face(
-        registry,
         b,
         Direction::PosZ,
-        chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
+        &chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
     ) {
         mesh_pos_z(
             b,
@@ -301,7 +297,7 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if registry.is_mesh_transparent(b, Direction::PosZ) {
+            if b.is_transparent(Direction::PosZ) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -312,10 +308,9 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
     if coord.z == 0 {
         if match &neighbors[Direction::NegZ.to_idx()] {
             Some(c) => should_mesh_face(
-                registry,
                 b,
                 Direction::NegZ,
-                c[ChunkIdx::new(coord.x, coord.y, CHUNK_SIZE_U8 - 1)],
+                &c[ChunkIdx::new(coord.x, coord.y, CHUNK_SIZE_U8 - 1)],
             ),
             _ => true,
         } {
@@ -325,7 +320,7 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                if registry.is_mesh_transparent(b, Direction::NegZ) {
+                if b.is_transparent(Direction::NegZ) {
                     &mut data.transparent
                 } else {
                     &mut data.opaque
@@ -333,10 +328,9 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
             );
         }
     } else if should_mesh_face(
-        registry,
         b,
         Direction::NegZ,
-        chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
+        &chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
     ) {
         mesh_neg_z(
             b,
@@ -344,7 +338,7 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if registry.is_mesh_transparent(b, Direction::NegZ) {
+            if b.is_transparent(Direction::NegZ) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -355,10 +349,9 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
     if coord.y == CHUNK_SIZE_U8 - 1 {
         if match &neighbors[Direction::PosY.to_idx()] {
             Some(c) => should_mesh_face(
-                registry,
                 b,
                 Direction::PosY,
-                c[ChunkIdx::new(coord.x, 0, coord.z)],
+                &c[ChunkIdx::new(coord.x, 0, coord.z)],
             ),
             _ => true,
         } {
@@ -368,7 +361,7 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                if registry.is_mesh_transparent(b, Direction::PosY) {
+                if b.is_transparent(Direction::PosY) {
                     &mut data.transparent
                 } else {
                     &mut data.opaque
@@ -376,10 +369,9 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
             );
         }
     } else if should_mesh_face(
-        registry,
         b,
         Direction::PosY,
-        chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
+        &chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
     ) {
         mesh_pos_y(
             b,
@@ -387,7 +379,7 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if registry.is_mesh_transparent(b, Direction::PosY) {
+            if b.is_transparent(Direction::PosY) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -398,10 +390,9 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
     if coord.y == 0 {
         if match &neighbors[Direction::NegY.to_idx()] {
             Some(c) => should_mesh_face(
-                registry,
                 b,
                 Direction::NegY,
-                c[ChunkIdx::new(coord.x, CHUNK_SIZE_U8 - 1, coord.z)],
+                &c[ChunkIdx::new(coord.x, CHUNK_SIZE_U8 - 1, coord.z)],
             ),
             _ => true,
         } {
@@ -411,7 +402,7 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                if registry.is_mesh_transparent(b, Direction::NegY) {
+                if b.is_transparent(Direction::NegY) {
                     &mut data.transparent
                 } else {
                     &mut data.opaque
@@ -419,10 +410,9 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
             );
         }
     } else if should_mesh_face(
-        registry,
         b,
         Direction::NegY,
-        chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
+        &chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
     ) {
         mesh_neg_y(
             b,
@@ -430,7 +420,7 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if registry.is_mesh_transparent(b, Direction::NegY) {
+            if b.is_transparent(Direction::NegY) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -441,10 +431,9 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
     if coord.x == CHUNK_SIZE_U8 - 1 {
         if match &neighbors[Direction::PosX.to_idx()] {
             Some(c) => should_mesh_face(
-                registry,
                 b,
                 Direction::PosX,
-                c[ChunkIdx::new(0, coord.y, coord.z)],
+                &c[ChunkIdx::new(0, coord.y, coord.z)],
             ),
             _ => true,
         } {
@@ -454,7 +443,7 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                if registry.is_mesh_transparent(b, Direction::PosX) {
+                if b.is_transparent(Direction::PosX) {
                     &mut data.transparent
                 } else {
                     &mut data.opaque
@@ -462,10 +451,9 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
             );
         }
     } else if should_mesh_face(
-        registry,
         b,
         Direction::PosX,
-        chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
+        &chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
     ) {
         mesh_pos_x(
             b,
@@ -473,7 +461,7 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if registry.is_mesh_transparent(b, Direction::PosX) {
+            if b.is_transparent(Direction::PosX) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -484,10 +472,9 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
     if coord.x == 0 {
         if match &neighbors[Direction::NegX.to_idx()] {
             Some(c) => should_mesh_face(
-                registry,
                 b,
                 Direction::NegX,
-                c[ChunkIdx::new(CHUNK_SIZE_U8 - 1, coord.y, coord.z)],
+                &c[ChunkIdx::new(CHUNK_SIZE_U8 - 1, coord.y, coord.z)],
             ),
             _ => true,
         } {
@@ -497,7 +484,7 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                if registry.is_mesh_transparent(b, Direction::NegX) {
+                if b.is_transparent(Direction::NegX) {
                     &mut data.transparent
                 } else {
                     &mut data.opaque
@@ -505,10 +492,9 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
             );
         }
     } else if should_mesh_face(
-        registry,
         b,
         Direction::NegX,
-        chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
+        &chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
     ) {
         mesh_neg_x(
             b,
@@ -516,7 +502,7 @@ fn mesh_block<T: std::ops::IndexMut<usize, Output = BlockMesh>>(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if registry.is_mesh_transparent(b, Direction::NegX) {
+            if b.is_transparent(Direction::NegX) {
                 &mut data.transparent
             } else {
                 &mut data.opaque

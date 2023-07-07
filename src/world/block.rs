@@ -63,9 +63,11 @@ pub enum BlockData {
 #[derive(Component)]
 pub struct BlockEntity(Vec<BlockData>);
 
-#[derive(Component, Clone, PartialEq)]
+#[derive(Component, Clone, PartialEq, Default)]
+//controls visuals
 pub enum BlockMesh {
     //empty mesh
+    #[default]
     Empty,
     //standard block shape with all sides being the same texture
     Uniform(u32),
@@ -82,6 +84,28 @@ impl BlockMesh {
             BlockMesh::Uniform(_) => false,
             BlockMesh::MultiTexture(_) => false,
             BlockMesh::BottomSlab(_, _) => face != Direction::NegY,
+        }
+    }
+}
+
+#[derive(Component, Clone, PartialEq, Default)]
+//controls collider
+pub enum BlockPhysics {
+    //no collision
+    #[default]
+    Empty,
+    //standard block shape, solid block
+    Solid,
+    //Slab with height from bottom (1.0) is the same as uniform, (0.0) is empty
+    BottomSlab(f32),
+}
+
+impl BlockPhysics {
+    pub fn has_hole(&self, face: Direction) -> bool {
+        match self {
+            BlockPhysics::Empty => true,
+            BlockPhysics::Solid => false,
+            BlockPhysics::BottomSlab(_) => face != Direction::NegY,
         }
     }
 }
@@ -141,6 +165,15 @@ impl BlockRegistry {
                 Some(id) => BlockType::Filled(id),
                 None => BlockType::Empty,
             },
+        }
+    }
+    pub fn remove_entity(id_query: &Query<&BlockId>, b: BlockType, commands: &mut Commands) {
+        match b {
+            BlockType::Filled(entity) => match id_query.get(entity) {
+                Ok(BlockId::Empty) | Ok(BlockId::Basic(_)) | Err(_) => {},
+                Ok(BlockId::Dynamic(_)) => commands.entity(entity).despawn_recursive(),
+            },
+            BlockType::Empty => {}
         }
     }
 }

@@ -51,7 +51,6 @@ impl Plugin for LevelPlugin {
             .add_event::<events::CreateLevelEvent>()
             .add_event::<events::OpenLevelEvent>()
             .add_state::<LevelLoadState>()
-            .insert_resource(BlockResources {registry: Arc::new(BlockRegistry::default())})
         ;
     }
 }

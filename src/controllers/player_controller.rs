@@ -5,7 +5,7 @@ use leafwing_input_manager::prelude::ActionState;
 use crate::{
     actors::*,
     physics::JUMPABLE_GROUP,
-    world::Level, items::{inventory::Inventory, UseItemEvent, EquipItemEvent, UnequipItemEvent, AttackItemEvent}, ui::{state::UIState, world_mouse_active},
+    world::{Level, BlockResources, BlockId}, items::{inventory::Inventory, UseItemEvent, EquipItemEvent, UnequipItemEvent, AttackItemEvent}, ui::{state::UIState, world_mouse_active},
 };
 
 use super::{Action, FrameMovement};
@@ -161,7 +161,8 @@ pub fn player_punch(
     mut attack_item_writer: EventWriter<AttackItemEvent>,
     level: Res<Level>,
     collision: Res<RapierContext>,
-    ui_state: Res<State<UIState>>
+    ui_state: Res<State<UIState>>,
+    id_query: Query<&BlockId>
 ) {
     if !world_mouse_active(&ui_state.0) {
         return;
@@ -189,7 +190,7 @@ pub fn player_punch(
             }
             //if not, break a block
             if let Some(hit) = level.blockcast(tf.translation(), tf.forward() * 10.0) {
-                level.set_block(hit.block_pos, crate::world::BlockType::Empty, &mut commands);
+                level.set_block_entity(hit.block_pos, crate::world::BlockType::Empty, &id_query, &mut commands);
             }
         }
     }

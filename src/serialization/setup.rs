@@ -3,19 +3,20 @@ pub use bevy::prelude::*;
 use std::fs;
 
 use crate::serialization::db::LevelDB;
-use crate::world::{LevelLoadState, BlockName, BlockMesh, BlockResources};
+use crate::world::{LevelLoadState, BlockName, BlockMesh, BlockResources, BlockRegistry};
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
 
 pub fn load_block_registry(
-    mut resources: ResMut<BlockResources>,
     mut commands: Commands
 ) {
-    resources.registry.create_basic(BlockName::core("grass"), BlockMesh::MultiTexture([1,0,1,1,3,1]), &mut commands);
-    resources.registry.create_basic(BlockName::core("dirt"), BlockMesh::Uniform(3), &mut commands);
-    resources.registry.create_basic(BlockName::core("stone"), BlockMesh::Uniform(2), &mut commands);
-    resources.registry.create_basic(BlockName::core("log"), BlockMesh::MultiTexture([5,6,5,5,6,5]), &mut commands);
-    resources.registry.create_basic(BlockName::core("leaves"), BlockMesh::Uniform(7), &mut commands);
-    resources.registry.create_basic(BlockName::core("log slab"), BlockMesh::BottomSlab(0.5, [5,6,5,5,6,5]), &mut commands);
+    let mut registry = BlockRegistry::default();
+    registry.create_basic(BlockName::core("grass"), BlockMesh::MultiTexture([1,0,1,1,3,1]), &mut commands);
+    registry.create_basic(BlockName::core("dirt"), BlockMesh::Uniform(3), &mut commands);
+    registry.create_basic(BlockName::core("stone"), BlockMesh::Uniform(2), &mut commands);
+    registry.create_basic(BlockName::core("log"), BlockMesh::MultiTexture([5,6,5,5,6,5]), &mut commands);
+    registry.create_basic(BlockName::core("leaves"), BlockMesh::Uniform(7), &mut commands);
+    registry.create_basic(BlockName::core("log slab"), BlockMesh::BottomSlab(0.5, [5,6,5,5,6,5]), &mut commands);
+    commands.insert_resource(BlockResources {registry: std::sync::Arc::new(registry)});
 }
 
 pub fn on_level_created(

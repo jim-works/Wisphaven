@@ -149,7 +149,7 @@ fn load_lod(
                 loaded_list.insert(test_coord);
                 if !level.contains_lod_chunk(lod_level, test_coord) {
                     //chunk not loaded, load it!
-                    level.create_lod_chunk(test_coord, lod_level, commands);
+                    level.create_lod_chunk(test_coord, lod_level as u8, commands);
                 }
             }
         }

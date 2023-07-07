@@ -70,13 +70,14 @@ pub fn queue_generating<const NOISE: usize, const HEIGHTMAP: usize>(
         //must be async so that it's a future
         let mut ec = commands.entity(entity);
         ec.remove::<ChunkNeedsGenerated>();
+        let id = id.0.clone();
         match gen_request {
             ChunkNeedsGenerated::Full => {
-                ec.insert(ShapingTask { task: pool.spawn(async move { gen_chunk(gen_coord, entity,gen_noise, id.0) })});
+                ec.insert(ShapingTask { task: pool.spawn(async move { gen_chunk(gen_coord, entity,gen_noise, id) })});
             },
             ChunkNeedsGenerated::Lod(level) => {
                 let gen_level = *level;
-                ec.insert(LODShapingTask {task: pool.spawn(async move { gen_lod_chunk(gen_coord, gen_level, entity,gen_noise, id.0) })});
+                ec.insert(LODShapingTask {task: pool.spawn(async move { gen_lod_chunk(gen_coord, gen_level, entity,gen_noise, id) })});
             },
         };
         let duration = Instant::now().duration_since(now).as_millis();

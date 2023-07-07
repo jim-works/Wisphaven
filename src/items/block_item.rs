@@ -1,26 +1,27 @@
 use bevy::prelude::*;
-use serde::{Serialize, Deserialize};
 
-use crate::world::{Level, BlockCoord, BlockType};
+use crate::world::{Level, BlockCoord, BlockId, BlockResources};
 
 use super::UseItemEvent;
 
 #[derive(Component)]
-pub struct BlockItem(pub BlockType);
+pub struct BlockItem(pub BlockId);
 
 #[derive(Component)]
-pub struct MegablockItem(pub BlockType, pub i32);
+pub struct MegablockItem(pub BlockId, pub i32);
 
 pub fn use_block_item(
     mut reader: EventReader<UseItemEvent>,
     block_query: Query<&BlockItem>,
     level: Res<Level>,
+    resources: Res<BlockResources>,
+    id_query: Query<&BlockId>,
     mut commands: Commands,
 ) {
     for event in reader.iter() {
         if let Ok(block_item) = block_query.get(event.1.id) {
             if let Some(hit) = level.blockcast(event.2.translation(), event.2.forward()*10.0) {
-                level.set_block(hit.block_pos+hit.normal, block_item.0, &mut commands);
+                level.set_block(hit.block_pos+hit.normal, block_item.0, resources.registry.as_ref(), &id_query, &mut commands);
             }
         }
     }
@@ -30,6 +31,8 @@ pub fn use_mega_block_item(
     mut reader: EventReader<UseItemEvent>,
     megablock_query: Query<&MegablockItem>,
     level: Res<Level>,
+    resources: Res<BlockResources>,
+    id_query: Query<&BlockId>,
     mut commands: Commands,
 ) {
     for event in reader.iter() {
@@ -47,7 +50,7 @@ pub fn use_mega_block_item(
                         }
                     }
                 }
-                level.batch_set_block(changes.into_iter(), &mut commands);
+                level.batch_set_block(changes.into_iter(), resources.registry.as_ref(), &id_query, &mut commands);
             }
         }
     }

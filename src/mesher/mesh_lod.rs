@@ -16,6 +16,7 @@ pub fn queue_meshing_lod(
     time: Res<Time>,
     mut timer: ResMut<MeshTimer>,
     mut commands: Commands,
+    mesh_query: Query<&BlockMesh>
 ) {
     let _my_span = info_span!("queue_meshing_lod", name = "queue_meshing_lod").entered();
     timer.timer.tick(time.delta());
@@ -26,12 +27,12 @@ pub fn queue_meshing_lod(
     let pool = AsyncComputeTaskPool::get();
     let mut len = 0;
     for (entity, coord, lod) in query.iter() {
-        if let Some(chunks) = level.get_lod_chunks(lod.level) {
+        if let Some(chunks) = level.get_lod_chunks(lod.level.into()) {
             if let Some(ctype) = chunks.get(coord) {
                 if let LODChunkType::Full(chunk) = ctype.value() {
                     //don't wait for neighbors since we won't have all neighbors generated, as there is a big hole in the middle of where we generate
                     //TODO: greedy meshing is very important here
-                    let meshing = chunk.clone();
+                    let meshing = chunk.get_components(chunk.blocks.iter(), &mesh_query);
                     len += 1;
                     let task = pool.spawn(async move {
                         let mut data = ChunkMesh::new(meshing.scale() as f32);
@@ -55,41 +56,29 @@ pub fn queue_meshing_lod(
     }
 }
 
-fn mesh_chunk_lod(chunk: &LODChunk, data: &mut ChunkMesh) {
+fn mesh_chunk_lod<T: ChunkStorage<BlockMesh>>(chunk: &Chunk<T, BlockMesh>, data: &mut ChunkMesh) {
     let _my_span = info_span!("mesh_chunk_lod", name = "mesh_chunk_lod").entered();
-    let registry = crate::world::get_block_registry();
     for i in 0..chunk::BLOCKS_PER_CHUNK {
         let coord = ChunkIdx::from_usize(i);
-        let block = chunk[i];
-        match block {
-            BlockType::Empty => {}
-            BlockType::Basic(id) => mesh_block_lod(
-                chunk,
-                registry.get_block_mesh(id),
-                coord,
-                coord.to_vec3() * data.scale,
-                data,
-                registry,
-            ),
-            BlockType::Entity(_) => todo!(),
-        }
+        mesh_block_lod(chunk,&chunk[i],coord,coord.to_vec3() * data.scale,data);
     }
 }
 
-fn mesh_block_lod(
-    chunk: &LODChunk,
+fn mesh_block_lod<T: ChunkStorage<BlockMesh>>(
+    chunk: &Chunk<T, BlockMesh>,
     b: &BlockMesh,
     coord: ChunkIdx,
     origin: Vec3,
     data: &mut ChunkMesh,
-    registry: &BlockRegistry,
 ) {
+    if matches!(b, BlockMesh::Empty) {
+        return;
+    }
     if coord.z == CHUNK_SIZE_U8 - 1
         || should_mesh_face(
-            registry,
             b,
             Direction::PosZ,
-            chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
+            &chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
         )
     {
         mesh_pos_z(
@@ -98,7 +87,7 @@ fn mesh_block_lod(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if registry.is_mesh_transparent(b, Direction::PosZ) {
+            if b.is_transparent(Direction::PosZ) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -108,10 +97,9 @@ fn mesh_block_lod(
     //negative z face
     if coord.z == 0
         || should_mesh_face(
-            registry,
             b,
             Direction::NegZ,
-            chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
+            &chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
         )
     {
         mesh_neg_z(
@@ -120,7 +108,7 @@ fn mesh_block_lod(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if registry.is_mesh_transparent(b, Direction::NegZ) {
+            if b.is_transparent(Direction::NegZ) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -130,10 +118,9 @@ fn mesh_block_lod(
     //positive y face
     if coord.y == CHUNK_SIZE_U8 - 1
         || should_mesh_face(
-            registry,
             b,
             Direction::PosY,
-            chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
+            &chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
         )
     {
         mesh_pos_y(
@@ -142,7 +129,7 @@ fn mesh_block_lod(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if registry.is_mesh_transparent(b, Direction::PosY) {
+            if b.is_transparent(Direction::PosY) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -152,10 +139,9 @@ fn mesh_block_lod(
     //negative y face
     if coord.y == 0
         || should_mesh_face(
-            registry,
             b,
             Direction::NegY,
-            chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
+            &chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
         )
     {
         mesh_neg_y(
@@ -164,7 +150,7 @@ fn mesh_block_lod(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if registry.is_mesh_transparent(b, Direction::NegY) {
+            if b.is_transparent(Direction::NegY) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -174,10 +160,9 @@ fn mesh_block_lod(
     //positive x face
     if coord.x == CHUNK_SIZE_U8 - 1
         || should_mesh_face(
-            registry,
             b,
             Direction::PosX,
-            chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
+            &chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
         )
     {
         mesh_pos_x(
@@ -186,7 +171,7 @@ fn mesh_block_lod(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if registry.is_mesh_transparent(b, Direction::PosX) {
+            if b.is_transparent(Direction::PosX) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -196,10 +181,9 @@ fn mesh_block_lod(
     //negative x face
     if coord.x == 0
         || should_mesh_face(
-            registry,
             b,
             Direction::NegX,
-            chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
+            &chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
         )
     {
         mesh_neg_x(
@@ -208,7 +192,7 @@ fn mesh_block_lod(
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if registry.is_mesh_transparent(b, Direction::NegX) {
+            if b.is_transparent(Direction::NegX) {
                 &mut data.transparent
             } else {
                 &mut data.opaque

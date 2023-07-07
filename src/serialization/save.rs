@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::{
     world::{
         chunk::{ChunkCoord, ChunkType},
-        Level,
+        Level, BlockId,
     },
     worldgen::GeneratedChunk,
 };
@@ -32,11 +32,13 @@ pub fn save_all(
     }
 }
 
+//TODO: send commands for saving block data
 pub fn do_saving(
     mut save_events: EventReader<SaveChunkEvent>,
     mut db: ResMut<LevelDB>,
     level: Res<Level>,
     mut commands: Commands,
+    block_query: Query<&BlockId>
 ) {
     let mut saved = 0;
     //get unique coordinates
@@ -50,7 +52,7 @@ pub fn do_saving(
                         save_data.push(SaveCommand(
                             ChunkTable::Terrain,
                             coord,
-                            ChunkSaveFormat::from(chunk).into_bits(),
+                            ChunkSaveFormat::from(ChunkSaveFormat::ids_only((chunk.position, chunk.blocks.as_ref()), &block_query)).into_bits(),
                         ));
                         saved += 1;
                         ec.remove::<NeedsSaving>();
@@ -67,7 +69,7 @@ pub fn do_saving(
             save_data.push(SaveCommand(
                 ChunkTable::Buffers,
                 coord,
-                ChunkSaveFormat::from((coord, buffer.value().as_ref())).into_bits(),
+                ChunkSaveFormat::ids_only((coord, buffer.value().as_ref()), &block_query).into_bits(),
             ));
         }
     }

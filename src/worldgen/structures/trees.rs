@@ -175,8 +175,8 @@ pub fn get_short_tree(seed: u64, registry: &BlockRegistry) -> Box<dyn StructureG
         }}),
         3,
         |_| vec![TreeAlphabet::Rotate(Quat::from_euler(EulerRot::XYZ, PI*0.5, 0.0, 0.0)), TreeAlphabet::Move(5.0), TreeAlphabet::Replace(10.0)],
-        |p,a,b| p.place_descending(BlockChange::Set(wood), a.into(), b.into()),
-        |buffer, pos| {
+        move |p,a,b| p.place_descending(BlockChange::Set(wood), a.into(), b.into()),
+        move |buffer, pos| {
                     const LEAF_SIZE: i32 = 2;
                     for x in -LEAF_SIZE..LEAF_SIZE+1 {
                         for y in -LEAF_SIZE..LEAF_SIZE+1 {
