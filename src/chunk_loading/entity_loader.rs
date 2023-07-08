@@ -130,7 +130,7 @@ fn load_lod(
 ) {
     let _my_span = info_span!("load_lod", name = "load_lod").entered();
     let base_coord =
-        ChunkCoord::from(transform.translation() / LODChunk::level_to_scale(lod_level) as f32);
+        ChunkCoord::from(transform.translation() / LODChunk::level_to_scale(lod_level as u8) as f32);
     for x in (base_coord.x - loader.radius)..(base_coord.x + loader.radius + 1) {
         for y in (base_coord.y - loader.radius)..(base_coord.y + loader.radius + 1) {
             for z in (base_coord.z - loader.radius)..(base_coord.z + loader.radius + 1) {
@@ -149,7 +149,7 @@ fn load_lod(
                 loaded_list.insert(test_coord);
                 if !level.contains_lod_chunk(lod_level, test_coord) {
                     //chunk not loaded, load it!
-                    level.create_lod_chunk(test_coord, lod_level, commands);
+                    level.create_lod_chunk(test_coord, lod_level as u8, commands);
                 }
             }
         }

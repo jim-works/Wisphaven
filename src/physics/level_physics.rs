@@ -10,7 +10,7 @@ use futures_lite::future;
 use crate::{
     world::{
         chunk::{self, *},
-        BlockType, Level, BlockMesh, BlockRegistry, get_block_registry,
+        Level, BlockPhysics,
     },
     worldgen::GeneratedChunk,
 };
@@ -43,21 +43,19 @@ pub fn queue_gen_physics(
     query: Query<(Entity, &ChunkCoord), (With<GeneratedChunk>, With<NeedsPhysics>)>,
     level: Res<Level>,
     time: Res<Time>,
+    block_query: Query<&BlockPhysics>,
     mut timer: ResMut<GeneratePhysicsTimer>,
-    mut commands: Commands,
+    commands: ParallelCommands,
 ) {
     timer.timer.tick(time.delta());
     if !timer.timer.just_finished() {
         return;
     }
-    let now = Instant::now();
     let pool = AsyncComputeTaskPool::get();
-    let mut len = 0;
-    for (entity, coord) in query.iter() {
+    query.par_iter().for_each(|(entity, coord)| {
         if let Some(ctype) = level.get_chunk(*coord) {
             if let ChunkType::Full(chunk) = ctype.value() {
-                let meshing = chunk.clone();
-                len += 1;
+                let meshing = chunk.get_components(chunk.blocks.iter(), &block_query);
                 let task = pool.spawn(async move {
                     let mut data = PhysicsGenerationData {
                         colliders: Vec::new(),
@@ -65,20 +63,14 @@ pub fn queue_gen_physics(
                     gen_physics(&meshing, &mut data);
                     data
                 });
-                commands
-                    .entity(entity)
+                commands.command_scope(|mut commands| {
+                    commands.entity(entity)
                     .remove::<NeedsPhysics>()
                     .insert(GeneratePhysicsTask { task });
+                });
             }
         }
-    }
-    let duration = Instant::now().duration_since(now).as_millis();
-    if len > 0 {
-        debug!(
-            "queued physics generation for {} chunks in {}ms",
-            len, duration
-        );
-    }
+    });
 }
 
 pub fn poll_gen_physics_queue(
@@ -90,8 +82,6 @@ pub fn poll_gen_physics_queue(
         &mut GeneratePhysicsTask,
     )>,
 ) {
-    //todo: parallelize this
-    //(can't right now as Commands does not implement clone)
     let mut len = 0;
     let now = Instant::now();
     for (entity, opt_collider, tf, mut task) in query.iter_mut() {
@@ -125,34 +115,32 @@ pub fn poll_gen_physics_queue(
         debug!("spawned {} chunk meshes in {}ms", len, duration);
     }
 }
-fn get_collider(registry: &BlockRegistry, id: u32, origin: ChunkIdx) -> (Vec3, Quat, Collider) {
-    match &registry.get_block_mesh(id) {
-        BlockMesh::Uniform(_) | BlockMesh::MultiTexture(_) => (
+fn get_collider(block: &BlockPhysics, origin: ChunkIdx) -> Option<(Vec3, Quat, Collider)> {
+    match block {
+        BlockPhysics::Solid => Some((
             origin.get_block_center(),
             Quat::IDENTITY,
             //half-extents
             Collider::cuboid(0.5, 0.5, 0.5),
-        ),
-        BlockMesh::BottomSlab(height, _) => (
+        )),
+        BlockPhysics::BottomSlab(height) => Some((
             origin.get_block_center()-Vec3::new(0.0,0.5-height*0.5,0.0),
             Quat::IDENTITY,
             //half-extents
             Collider::cuboid(0.5, 0.5*height, 0.5),
-        ),
+        )),
+        BlockPhysics::Empty => None
     }
 }
-fn gen_physics<T: std::ops::IndexMut<usize, Output=BlockType>>(chunk: &Chunk<T>, data: &mut PhysicsGenerationData) {
+fn gen_physics<T: ChunkStorage<BlockPhysics>>(chunk: &Chunk<T,BlockPhysics>, data: &mut PhysicsGenerationData) {
     let mut compound = Vec::new();
-    let registry = get_block_registry();
     for i in 0..chunk::BLOCKS_PER_CHUNK {
         let coord = ChunkIdx::from_usize(i);
         //TODO: greedy meshing
-        let b = chunk[i];
-        let id = match b {
-            BlockType::Empty => continue,
-            BlockType::Basic(id) => id,
-            BlockType::Entity(_) => todo!(),
-        };
+        let b = &chunk[i];
+        if matches!(b, BlockPhysics::Empty) {
+            continue;
+        }
         //on edge or has air neighbor, generate collider
         if coord.x == CHUNK_SIZE_U8 - 1
             || coord.y == CHUNK_SIZE_U8 - 1
@@ -160,27 +148,16 @@ fn gen_physics<T: std::ops::IndexMut<usize, Output=BlockType>>(chunk: &Chunk<T>,
             || coord.x == 0
             || coord.y == 0
             || coord.z == 0
-            ||matches!(
-                chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
-                BlockType::Empty
-            ) || matches!(
-                chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
-                BlockType::Empty
-            ) || matches!(
-                chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
-                BlockType::Empty
-            ) || matches!(
-                chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
-                BlockType::Empty
-            ) || matches!(
-                chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
-                BlockType::Empty
-            ) || matches!(
-                chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
-                BlockType::Empty
-            ) 
+            || chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)].has_hole(crate::util::Direction::NegZ)
+            || chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)].has_hole(crate::util::Direction::PosZ)
+            || chunk[ChunkIdx::new(coord.x, coord.y+1, coord.z)].has_hole(crate::util::Direction::NegY)
+            || chunk[ChunkIdx::new(coord.x, coord.y-1, coord.z)].has_hole(crate::util::Direction::PosY)
+            || chunk[ChunkIdx::new(coord.x+1, coord.y, coord.z)].has_hole(crate::util::Direction::NegX)
+            || chunk[ChunkIdx::new(coord.x-1, coord.y, coord.z)].has_hole(crate::util::Direction::PosX)
         {
-            compound.push(get_collider(registry, id, coord))
+            if let Some(col) = get_collider(&b, coord) {
+                compound.push(col);
+            }
         }
     }
     if !compound.is_empty() {

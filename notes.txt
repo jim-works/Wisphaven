@@ -37,6 +37,12 @@ block entities, two approaches:
         -   serialize can query the entity's blockentity, where each id corresponds to a serializer for a component T which takes in Query<(&BlockEntity, &T)>
         -   placing can be done with id -> bundle map
     go with (2)
+Player interactions with block entities (see https://docs.rs/bevy/latest/bevy/ecs/prelude/struct.EventWriter.html):
+Use InterationComponent(Box<dyn FnMut(&mut commands)>)
+where the supplied function sends a type-erased event: commands.add(|w: &mut World| {
+        w.send_event(MyEvent);
+    });
+
 
 meshing updates:
     -   create a ChunkBoundary struct that takes copies blocks from each of its neighbors

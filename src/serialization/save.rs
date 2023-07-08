@@ -4,26 +4,26 @@ use bevy::prelude::*;
 use crate::{
     world::{
         chunk::{ChunkCoord, ChunkType},
-        Level,
+        Level, BlockId,
     },
     worldgen::GeneratedChunk,
 };
 
-use super::{ChunkSaveFormat, LevelDB, NeedsSaving, SaveChunkEvent, SaveCommand, SaveTimer};
+use super::{ChunkSaveFormat, NeedsSaving, SaveChunkEvent, SaveTimer};
+use super::db::*;
 
 pub fn save_all(
     mut save_writer: EventWriter<SaveChunkEvent>,
-    mut commands: Commands,
     mut timer: ResMut<SaveTimer>,
     time: Res<Time>,
-    query: Query<(Entity, &ChunkCoord), (With<NeedsSaving>, With<GeneratedChunk>)>,
+    query: Query<&ChunkCoord, (With<NeedsSaving>, With<GeneratedChunk>)>,
     level: Res<Level>,
 ) {
     timer.0.tick(time.delta());
     if !timer.0.just_finished() {
         return;
     }
-    for (entity, coord) in query.iter() {
+    for coord in query.iter() {
         save_writer.send(SaveChunkEvent(*coord));
     }
     for buf_ref in level.buffer_iter() {
@@ -31,11 +31,13 @@ pub fn save_all(
     }
 }
 
+//TODO: send commands for saving block data
 pub fn do_saving(
     mut save_events: EventReader<SaveChunkEvent>,
     mut db: ResMut<LevelDB>,
     level: Res<Level>,
     mut commands: Commands,
+    block_query: Query<&BlockId>
 ) {
     let mut saved = 0;
     //get unique coordinates
@@ -47,9 +49,9 @@ pub fn do_saving(
                 ChunkType::Full(chunk) => {
                     if let Some(mut ec) = commands.get_entity(chunk.entity) {
                         save_data.push(SaveCommand(
-                            super::ChunkTable::Terrain,
+                            ChunkTable::Terrain,
                             coord,
-                            ChunkSaveFormat::from(chunk).into_bits(),
+                            bincode::serialize(&ChunkSaveFormat::ids_only((chunk.position, chunk.blocks.as_ref()), &block_query)).unwrap(),
                         ));
                         saved += 1;
                         ec.remove::<NeedsSaving>();
@@ -64,9 +66,9 @@ pub fn do_saving(
         }
         if let Some(buffer) = level.get_buffer(&coord) {
             save_data.push(SaveCommand(
-                super::ChunkTable::Buffers,
+                ChunkTable::Buffers,
                 coord,
-                ChunkSaveFormat::from((coord, buffer.value().as_ref())).into_bits(),
+                bincode::serialize(&ChunkSaveFormat::ids_only((coord, buffer.value().as_ref()), &block_query)).unwrap(),
             ));
         }
     }

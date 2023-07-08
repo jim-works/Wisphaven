@@ -15,7 +15,7 @@ impl Default for Settings {
 
     fn default() -> Self {
         let loader = ChunkLoader {
-            radius: 6,
+            radius: 4,
             lod_levels: 2,
         };
         Self {

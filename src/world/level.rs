@@ -9,7 +9,7 @@ use crate::{
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
 
-use super::{chunk::*, BlockBuffer, BlockCoord, BlockType};
+use super::{chunk::*, BlockBuffer, BlockCoord, BlockType, BlockId, BlockRegistry, events::BlockUsedEvent, UsableBlock};
 
 #[derive(Resource)]
 pub struct Level {
@@ -38,10 +38,52 @@ impl Level {
         }
         None
     }
+    pub fn get_block_entity(&self, key: BlockCoord) -> Option<Entity> {
+        match self.get_block(key) {
+            Some(block_type) => match block_type {
+                BlockType::Empty => None,
+                BlockType::Filled(entity) => Some(entity)
+            },
+            None => None,
+        }
+    }
+    //returns true if the targeted block could be used, false otherwise
+    pub fn use_block(&self, key: BlockCoord, user: Entity, query: &Query<&UsableBlock>, writer: &mut EventWriter<BlockUsedEvent>) -> bool {
+        match self.get_block_entity(key) {
+            Some(entity) => match query.get(entity) {
+                Ok(_) => {
+                    writer.send(BlockUsedEvent {
+                        block_position: key,
+                        user,
+                        block_used: entity
+                    });
+                    true
+                },
+                Err(_) => false,
+            },
+            None => false,
+        }
+    }
     //doesn't mesh or update physics
-    pub fn set_block_noupdate(&self, key: BlockCoord, val: BlockType) -> Option<Entity> {
+    pub fn set_block_noupdate(&self, key: BlockCoord, val: BlockId, registry: &BlockRegistry, id_query: &Query<&BlockId>, commands: &mut Commands) -> Option<Entity> {
         if let Some(mut r) = self.get_chunk_mut(ChunkCoord::from(key)) {
             if let ChunkType::Full(ref mut chunk) = r.value_mut() {
+                let block = match registry.get_entity(val, key, commands) {
+                    Some(entity) => BlockType::Filled(entity),
+                    None => BlockType::Empty,
+                };
+                BlockRegistry::remove_entity(id_query, chunk[ChunkIdx::from(key)], commands);
+                chunk[ChunkIdx::from(key)] = block;
+                return Some(chunk.entity);
+            }
+        }
+        None
+    }
+    //doesn't mesh or update physics
+    pub fn set_block_entity_noupdate(&self, key: BlockCoord, val: BlockType, id_query: &Query<&BlockId>, commands: &mut Commands) -> Option<Entity> {
+        if let Some(mut r) = self.get_chunk_mut(ChunkCoord::from(key)) {
+            if let ChunkType::Full(ref mut chunk) = r.value_mut() {
+                BlockRegistry::remove_entity(id_query, chunk[ChunkIdx::from(key)], commands);
                 chunk[ChunkIdx::from(key)] = val;
                 return Some(chunk.entity);
             }
@@ -77,17 +119,26 @@ impl Level {
             }
         }
     }
-    //updates chunk and neighbors
-    pub fn set_block(&self, key: BlockCoord, val: BlockType, commands: &mut Commands) {
-        self.batch_set_block(std::iter::once((key, val)), commands);
+    pub fn set_block(&self, key: BlockCoord, val: BlockId, registry: &BlockRegistry, id_query: &Query<&BlockId>, commands: &mut Commands) {
+        match val {
+            id @ BlockId::Basic(_) | id @ BlockId::Dynamic(_) => {
+                if let Some(entity) = registry.get_entity(val, key, commands) {
+                    self.set_block_entity(key, BlockType::Filled(entity), id_query, commands);
+                } else {
+                    error!("Tried to set a block with id: {:?} that has no entity!", id);
+                }
+            },
+            BlockId::Empty => self.set_block_entity(key, BlockType::Empty, id_query, commands)
+        }
     }
-    //meshes and updates physics
-    pub fn batch_set_block<I: Iterator<Item = (BlockCoord, BlockType)>>(
+    pub fn batch_set_block<I: Iterator<Item = (BlockCoord, BlockId)>>(
         &self,
         to_set: I,
+        registry: &BlockRegistry,
+        id_query: &Query<&BlockId>,
         commands: &mut Commands,
     ) {
-        let _my_span = info_span!("batch_set_block", name = "batch_set_block").entered();
+        let _my_span = info_span!("batch_set_block_entities", name = "batch_set_block_entities").entered();
         let mut to_update = HashSet::new();
         for (coord, block) in to_set {
             let chunk_coord: ChunkCoord = coord.into();
@@ -96,7 +147,36 @@ impl Level {
             for dir in Direction::iter() {
                 to_update.insert(chunk_coord.offset(dir));
             }
-            self.set_block_noupdate(coord, block);
+            self.set_block_noupdate(coord, block, registry, id_query, commands);
+        }
+        //update chunk info: meshes and physics
+        for chunk_coord in to_update {
+            if let Some(entity) = self.get_chunk_entity(chunk_coord) {
+                Self::update_chunk_only::<true>(entity, commands);
+            }
+        }
+    }
+    //updates chunk and neighbors
+    pub fn set_block_entity(&self, key: BlockCoord, val: BlockType, id_query: &Query<&BlockId>, commands: &mut Commands) {
+        self.batch_set_block_entities(std::iter::once((key, val)), id_query, commands);
+    }
+    //meshes and updates physics
+    pub fn batch_set_block_entities<I: Iterator<Item = (BlockCoord, BlockType)>>(
+        &self,
+        to_set: I,
+        id_query: &Query<&BlockId>,
+        commands: &mut Commands,
+    ) {
+        let _my_span = info_span!("batch_set_block_entities", name = "batch_set_block_entities").entered();
+        let mut to_update = HashSet::new();
+        for (coord, block) in to_set {
+            let chunk_coord: ChunkCoord = coord.into();
+            //add chunk and neighbors
+            to_update.insert(chunk_coord);
+            for dir in Direction::iter() {
+                to_update.insert(chunk_coord.offset(dir));
+            }
+            self.set_block_entity_noupdate(coord, block, id_query, commands);
         }
         //update chunk info: meshes and physics
         for chunk_coord in to_update {
@@ -119,7 +199,7 @@ impl Level {
     pub fn create_lod_chunk(
         &mut self,
         coord: ChunkCoord,
-        lod_level: usize,
+        lod_level: u8,
         commands: &mut Commands,
     ) {
         let id = commands
@@ -135,7 +215,7 @@ impl Level {
             crate::world::chunk::LODChunkType::Ungenerated(id, lod_level),
         );
     }
-    pub fn add_buffer(&self, buffer: BlockBuffer, commands: &mut Commands) {
+    pub fn add_buffer(&self, buffer: BlockBuffer<BlockType>, commands: &mut Commands) {
         let _my_span = info_span!("add_buffer", name = "add_buffer").entered();
         for (coord, buf) in buffer.buf {
             //if the chunk is already generated, add the contents of the buffer to the chunk
@@ -278,8 +358,8 @@ impl Level {
     pub fn add_lod_chunk(&mut self, key: ChunkCoord, chunk: LODChunkType) {
         let _my_span = info_span!("add_lod_chunk", name = "add_lod_chunk").entered();
         match chunk {
-            LODChunkType::Ungenerated(_, level) => self.insert_chunk_at_lod(key, level, chunk),
-            LODChunkType::Full(l) => self.insert_chunk_at_lod(key, l.level, LODChunkType::Full(l)),
+            LODChunkType::Ungenerated(_, level) => self.insert_chunk_at_lod(key, level as usize, chunk),
+            LODChunkType::Full(l) => self.insert_chunk_at_lod(key, l.level as usize, LODChunkType::Full(l)),
         }
     }
     fn insert_chunk_at_lod(&mut self, key: ChunkCoord, level: usize, chunk: LODChunkType) {
