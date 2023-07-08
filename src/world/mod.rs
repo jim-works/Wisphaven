@@ -14,6 +14,7 @@ mod atmosphere;
 
 pub mod events;
 pub mod settings;
+pub mod blocks;
 
 #[cfg(test)]
 mod test;
@@ -47,8 +48,8 @@ impl Plugin for LevelPlugin {
             .configure_set(LevelSystemSet::Despawn.in_set(OnUpdate(LevelLoadState::Loaded)))
             .configure_set(LevelSystemSet::LoadingAndMain.run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded))))
             .add_plugin(atmosphere::AtmospherePlugin)
-            .add_event::<events::CreateLevelEvent>()
-            .add_event::<events::OpenLevelEvent>()
+            .add_plugin(blocks::BlocksPlugin)
+            .add_plugin(events::WorldEventsPlugin)
             .add_state::<LevelLoadState>()
         ;
     }

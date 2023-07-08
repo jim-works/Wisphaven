@@ -5,7 +5,7 @@ use leafwing_input_manager::prelude::ActionState;
 use crate::{
     actors::*,
     physics::JUMPABLE_GROUP,
-    world::{Level, BlockId}, items::{inventory::Inventory, UseItemEvent, EquipItemEvent, UnequipItemEvent, AttackItemEvent}, ui::{state::UIState, world_mouse_active},
+    world::{Level, BlockId, UsableBlock, events::BlockUsedEvent}, items::{inventory::Inventory, UseItemEvent, EquipItemEvent, UnequipItemEvent, AttackItemEvent}, ui::{state::UIState, world_mouse_active},
 };
 
 use super::{Action, FrameMovement};
@@ -205,17 +205,29 @@ pub fn player_use(
             Without<LocalPlayer>,
         ),
     >,
-    player_query: Query<&Inventory, With<LocalPlayer>>,
-    mut use_writer: EventWriter<UseItemEvent>,
-    ui_state: Res<State<UIState>>
+    player_query: Query<(&Inventory, Entity), With<LocalPlayer>>,
+    mut item_use_writer: EventWriter<UseItemEvent>,
+    ui_state: Res<State<UIState>>,
+    level: Res<Level>,
+    usable_block_query: Query<&UsableBlock>,
+    mut block_use_writer: EventWriter<BlockUsedEvent>
 ) {
     if !world_mouse_active(&ui_state.0) {
         return;
     }
-    if let Ok((tf, act)) = camera_query.get_single() {
-        if act.just_pressed(Action::Use) {
-            if let Ok(inv) = player_query.get_single() {
-                inv.use_item(inv.selected_slot(), *tf,&mut use_writer);
+        if let Ok((inv, entity)) = player_query.get_single() {
+        if let Ok((tf, act)) = camera_query.get_single() {
+            if act.just_pressed(Action::Use) {
+                //first test if we used a block
+                if let Some(hit) = level.blockcast(tf.translation(), tf.forward() * 10.0) {
+                    if level.use_block(hit.block_pos, entity, &usable_block_query, &mut block_use_writer) {
+                        //we used a block, so don't also use an item
+                        println!("Used block!");
+                        return;
+                    }
+                }
+                //we didn't use a block, so try to use an item
+                inv.use_item(inv.selected_slot(), *tf,&mut item_use_writer);
             }
         }
     }

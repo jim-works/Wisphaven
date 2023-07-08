@@ -3,7 +3,8 @@ pub use bevy::prelude::*;
 use std::fs;
 
 use crate::serialization::db::LevelDB;
-use crate::world::{LevelLoadState, BlockName, BlockMesh, BlockResources, BlockRegistry, BlockPhysics};
+use crate::world::blocks::tnt::TNTBlock;
+use crate::world::{LevelLoadState, BlockName, BlockMesh, BlockResources, BlockRegistry, BlockPhysics, UsableBlock};
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
 
 pub fn load_block_registry(
@@ -16,6 +17,9 @@ pub fn load_block_registry(
     registry.create_basic(BlockName::core("log"), BlockMesh::MultiTexture([5,6,5,5,6,5]), BlockPhysics::Solid, &mut commands);
     registry.create_basic(BlockName::core("leaves"), BlockMesh::Uniform(7), BlockPhysics::Solid, &mut commands);
     registry.create_basic(BlockName::core("log slab"), BlockMesh::BottomSlab(0.5, [5,6,5,5,6,5]), BlockPhysics::BottomSlab(0.5), &mut commands);
+    let id = registry.create_basic(BlockName::core("tnt"), BlockMesh::MultiTexture([8,9,8,8,9,8]), BlockPhysics::Solid, &mut commands);
+    commands.entity(id).insert((TNTBlock {explosion_strength: 10.0}, UsableBlock));
+
     commands.insert_resource(BlockResources {registry: std::sync::Arc::new(registry)});
 }
 

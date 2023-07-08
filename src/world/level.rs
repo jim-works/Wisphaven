@@ -9,7 +9,7 @@ use crate::{
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
 
-use super::{chunk::*, BlockBuffer, BlockCoord, BlockType, BlockId, BlockRegistry};
+use super::{chunk::*, BlockBuffer, BlockCoord, BlockType, BlockId, BlockRegistry, events::BlockUsedEvent, UsableBlock};
 
 #[derive(Resource)]
 pub struct Level {
@@ -37,6 +37,32 @@ impl Level {
             }
         }
         None
+    }
+    pub fn get_block_entity(&self, key: BlockCoord) -> Option<Entity> {
+        match self.get_block(key) {
+            Some(block_type) => match block_type {
+                BlockType::Empty => None,
+                BlockType::Filled(entity) => Some(entity)
+            },
+            None => None,
+        }
+    }
+    //returns true if the targeted block could be used, false otherwise
+    pub fn use_block(&self, key: BlockCoord, user: Entity, query: &Query<&UsableBlock>, writer: &mut EventWriter<BlockUsedEvent>) -> bool {
+        match self.get_block_entity(key) {
+            Some(entity) => match query.get(entity) {
+                Ok(_) => {
+                    writer.send(BlockUsedEvent {
+                        block_position: key,
+                        user,
+                        block_used: entity
+                    });
+                    true
+                },
+                Err(_) => false,
+            },
+            None => false,
+        }
     }
     //doesn't mesh or update physics
     pub fn set_block_noupdate(&self, key: BlockCoord, val: BlockId, registry: &BlockRegistry, id_query: &Query<&BlockId>, commands: &mut Commands) -> Option<Entity> {

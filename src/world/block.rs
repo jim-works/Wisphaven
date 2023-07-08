@@ -48,10 +48,13 @@ pub enum BlockId {
 #[derive(Resource, Default)]
 pub struct SavedBlockId(pub BlockId);
 
+#[derive(Component)]
+pub struct UsableBlock;
+
 //used in world generation
 //we need this trait because we can't spawn entities in tasks, so we create an instance of BlockGenerator, which we can use later to create the block entity
 pub trait BlockGenerator: Send + Sync {
-    fn generate(&self, commands: &mut Commands, position: BlockCoord) -> Entity;
+    fn generate(&self, block: Entity, position: BlockCoord, commands: &mut Commands);
 }
 
 //marker for components to look for on a BlockEntity
@@ -136,9 +139,10 @@ impl BlockRegistry {
         self.dynamic_generators.push(generator);
         self.id_map.insert(name, id);
     }
-    pub fn create_basic(&mut self, name: BlockName, mesh: BlockMesh, physics: BlockPhysics, commands: &mut Commands) {
+    pub fn create_basic(&mut self, name: BlockName, mesh: BlockMesh, physics: BlockPhysics, commands: &mut Commands) -> Entity{
         let entity = commands.spawn((name, mesh, physics)).id();
         self.add_basic(name, entity, commands);
+        entity
     }
     pub fn get_basic(&self, name: &BlockName) -> Option<Entity> {
         let id = self.id_map.get(&name)?;
@@ -156,24 +160,24 @@ impl BlockRegistry {
             },
         }
     }
-    pub fn get_entity(&self, id: BlockId, position: BlockCoord, commands: &mut Commands) -> Option<Entity> {
-        match id {
+    pub fn get_entity(&self, block_id: BlockId, position: BlockCoord, commands: &mut Commands) -> Option<Entity> {
+        match block_id {
             BlockId::Empty => None,
             BlockId::Basic(id) => self.basic_entities.get(id as usize).copied(),
-            BlockId::Dynamic(id) => self.dynamic_generators.get(id as usize).and_then(|gen| Some(gen.generate(commands, position))),
+            BlockId::Dynamic(id) => self.dynamic_generators.get(id as usize).and_then(|gen| {
+                let id = Self::setup_block(block_id, commands);
+                gen.generate(id, position, commands);
+                Some(id)
+            }),
         }
     }
+    fn setup_block(id: BlockId, commands: &mut Commands) -> Entity {
+        commands.spawn(id).id()
+    }
     pub fn get_block_type(&self, id: BlockId, position: BlockCoord, commands: &mut Commands) -> BlockType {
-        match id {
-            BlockId::Empty => BlockType::Empty,
-            BlockId::Basic(id) => match self.basic_entities.get(id as usize).copied() {
-                Some(id) => BlockType::Filled(id),
-                None => BlockType::Empty,
-            },
-            BlockId::Dynamic(id) => match self.dynamic_generators.get(id as usize).and_then(|gen| Some(gen.generate(commands, position))) {
-                Some(id) => BlockType::Filled(id),
-                None => BlockType::Empty,
-            },
+        match self.get_entity(id, position, commands) {
+            Some(id) => BlockType::Filled(id),
+            None => BlockType::Empty,
         }
     }
     pub fn remove_entity(id_query: &Query<&BlockId>, b: BlockType, commands: &mut Commands) {
