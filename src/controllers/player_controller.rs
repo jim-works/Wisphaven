@@ -222,7 +222,6 @@ pub fn player_use(
                 if let Some(hit) = level.blockcast(tf.translation(), tf.forward() * 10.0) {
                     if level.use_block(hit.block_pos, entity, &usable_block_query, &mut block_use_writer) {
                         //we used a block, so don't also use an item
-                        println!("Used block!");
                         return;
                     }
                 }

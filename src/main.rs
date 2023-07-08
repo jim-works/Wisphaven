@@ -56,7 +56,6 @@ fn main() {
         .add_plugin(ActorPlugin)
         .add_plugin(ItemsPlugin)
         .add_plugin(ui::UIPlugin)
-        .insert_resource(settings::Settings::default())
         .insert_resource(AmbientLight {
             brightness: 0.3,
             ..default()

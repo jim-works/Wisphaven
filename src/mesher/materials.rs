@@ -7,20 +7,23 @@ use bevy::{
         mesh::{MeshVertexAttribute, MeshVertexBufferLayout},
         render_resource::{
             AddressMode, AsBindGroup, RenderPipelineDescriptor, ShaderRef,
-            SpecializedMeshPipelineError, VertexFormat, Face, TextureFormat, AsBindGroupShaderType, ShaderType,
+            SpecializedMeshPipelineError, VertexFormat, Face, TextureFormat, AsBindGroupShaderType, ShaderType, Extent3d, TextureViewDescriptor, TextureViewDimension,
         },
-        texture::ImageSampler, render_asset::RenderAssets,
+        texture::{ImageSampler, TextureFormatPixelInfo}, render_asset::RenderAssets,
     },
 };
+
+use crate::world::settings::Settings;
+
+use super::TerrainTexture;
 
 pub const PIXELS_PER_BLOCK: u32 = 16;
 
 #[derive(Resource)]
 pub struct ChunkMaterial {
-    tex_handle: Handle<Image>,
+    tex_handle: Option<Handle<Image>>,
     pub opaque_material: Option<Handle<ArrayTextureMaterial>>,
     pub transparent_material: Option<Handle<ArrayTextureMaterial>>,
-    pub layers: u32,
     pub loaded: bool,
 }
 
@@ -280,28 +283,50 @@ impl Default for ArrayTextureMaterial {
     }
 }
 
-pub fn init(mut commands: Commands, assets: Res<AssetServer>) {
+pub fn init(mut commands: Commands) {
     commands.insert_resource(ChunkMaterial {
-        tex_handle: assets.load("textures/tileset.png"),
+        tex_handle: None,
         opaque_material: None,
         transparent_material: None,
-        layers: 0,
         loaded: false,
     });
 }
 
-pub fn create_chunk_material(
-    assets: Res<AssetServer>,
-    mut chunk_material: ResMut<ChunkMaterial>,
-    mut materials: ResMut<Assets<ArrayTextureMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-) {
-    if matches!(chunk_material.opaque_material, Some(_))
-        || assets.get_load_state(chunk_material.tex_handle.clone()) != LoadState::Loaded
-    {
-        return;
+fn create_chunk_texture(
+    settings: &Settings,
+    images: &mut Assets<Image>,
+    textures: &TerrainTexture
+) -> Handle<Image> {
+    let format = TextureFormat::Rgba8UnormSrgb;
+    info!("creating chunk texture with {} images", textures.0.len());
+    //copy texture in order into texture array
+    let mut image_data = Vec::with_capacity(format.pixel_size()*settings.block_tex_size.x as usize * settings.block_tex_size.y as usize * textures.0.len());
+    for handle in textures.0.iter() {
+        let image = images.get(handle).unwrap();
+        assert_eq!(image.size().x, settings.block_tex_size.x);
+        assert_eq!(image.size().y, settings.block_tex_size.y);
+        if format != image.texture_descriptor.format {
+            //automatically convert format if needed
+            warn!("Loading a texture of format '{:?}' when it should have format '{:?}'", image.texture_descriptor.format, format);
+            let converted = image.convert(format).unwrap();
+            image_data.extend(converted.data);
+        } else {
+            image_data.extend(image.data.iter());
+        }
     }
-    let image = images.get_mut(&chunk_material.tex_handle).unwrap();
+    let mut image = Image::new(Extent3d {
+        width: settings.block_tex_size.x as u32,
+        height: settings.block_tex_size.y as u32,
+        depth_or_array_layers: textures.0.len() as u32,
+    },
+    bevy::render::render_resource::TextureDimension::D2,
+        image_data,
+        format
+    );
+    image.texture_view_descriptor = Some(TextureViewDescriptor {
+        dimension: Some(TextureViewDimension::D2Array),
+        ..default()
+    });
     //set filtering for clean pixel art, repeat textures for greedy meshing
     image.sampler_descriptor =
         ImageSampler::Descriptor(bevy::render::render_resource::SamplerDescriptor {
@@ -309,23 +334,38 @@ pub fn create_chunk_material(
             address_mode_v: AddressMode::Repeat,
             address_mode_w: AddressMode::Repeat,
             ..ImageSampler::nearest_descriptor()
-        });
+    });
+    images.add(image)
+}
 
-    // Create a new array texture asset from the loaded texture.
-    let array_layers = image.texture_descriptor.size.height/PIXELS_PER_BLOCK;
-    image.reinterpret_stacked_2d_as_array(array_layers);
+pub fn create_chunk_material(
+    assets: Res<AssetServer>,
+    mut chunk_material: ResMut<ChunkMaterial>,
+    mut materials: ResMut<Assets<ArrayTextureMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    mut block_textures: ResMut<TerrainTexture>,
+    settings: Res<Settings>,
+) {
+    //wait for all block textures to be loaded, or skip if we've already loaded
+    if chunk_material.loaded
+        || block_textures.0.iter().any(|x| assets.get_load_state(x) != LoadState::Loaded)
+    {
+        return;
+    }
+    chunk_material.tex_handle = Some(create_chunk_texture(settings.as_ref(), images.as_mut(), block_textures.as_ref()));
+    block_textures.0.clear();
+    
     chunk_material.opaque_material = Some(materials.add(ArrayTextureMaterial {
-        base_color_texture: Some(chunk_material.tex_handle.clone()),
+        base_color_texture: Some(chunk_material.tex_handle.clone().unwrap()),
         alpha_mode: AlphaMode::Opaque,
         ..default()
     }));
     chunk_material.transparent_material = Some(materials.add(ArrayTextureMaterial {
-        base_color_texture: Some(chunk_material.tex_handle.clone()),
+        base_color_texture: Some(chunk_material.tex_handle.clone().unwrap()),
         //todo: crash when setting alphamode::Blend
         alpha_mode: AlphaMode::Opaque,
         ..default()
     }));
-    chunk_material.layers = array_layers;
     chunk_material.loaded = true;
     info!("Loaded chunk material");
 }

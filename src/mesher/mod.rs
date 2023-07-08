@@ -3,7 +3,7 @@ pub use generator::*;
 
 mod mesh_lod;
 
-mod materials;
+pub mod materials;
 pub use materials::{ChunkMaterial, ArrayTextureMaterial};
 
 use bevy::{
@@ -41,5 +41,8 @@ impl Plugin for MesherPlugin {
             .add_system(materials::create_chunk_material);
     }
 }
+
+#[derive(Resource)]
+pub struct TerrainTexture(pub Vec<Handle<Image>>);
 
 

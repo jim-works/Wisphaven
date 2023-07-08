@@ -1,8 +1,10 @@
+use std::path::PathBuf;
+
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 
 use bevy::{
-    prelude::*,
+    prelude::*, utils::HashMap,
 };
 
 use crate::world::{
@@ -35,13 +37,17 @@ impl Plugin for SerializationPlugin {
                     .in_set(LevelSystemSet::LoadingAndMain),
             )
             .add_system(db::finish_up.in_base_set(CoreSet::PostUpdate))
-            .add_startup_system(setup::load_block_registry.in_base_set(StartupSet::PreStartup))
+            .insert_resource(setup::load_settings())
+            .add_startup_systems((setup::load_terrain_texture, setup::load_block_registry).chain().in_base_set(StartupSet::PreStartup))
             .add_startup_system(scenes::test_save)
             .add_event::<SaveChunkEvent>()
             .add_event::<db::DataFromDBEvent>()
             .insert_resource(SaveTimer(Timer::from_seconds(0.1, TimerMode::Repeating)));
     }
 }
+
+#[derive(Resource)]
+pub struct BlockTextureMap(pub HashMap<PathBuf, u32>);
 
 #[derive(Component)]
 pub struct NeedsSaving;

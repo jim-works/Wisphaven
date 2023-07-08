@@ -1,6 +1,6 @@
-use std::{ops::AddAssign, sync::Arc};
+use std::{ops::AddAssign, sync::Arc, path::PathBuf};
 
-use crate::util::Direction;
+use crate::{util::Direction, serialization::BlockTextureMap};
 use bevy::{prelude::*, utils::HashMap};
 use serde::{Serialize, Deserialize};
 
@@ -65,6 +65,32 @@ pub enum BlockData {
 
 #[derive(Component)]
 pub struct BlockEntity(Vec<BlockData>);
+
+#[derive(Component, Clone, PartialEq, Default)]
+//controls visuals
+//loaded from file, converted to BlockMesh for use in game
+pub enum NamedBlockMesh {
+    //empty mesh
+    #[default]
+    Empty,
+    //standard block shape with all sides being the same texture
+    Uniform(PathBuf),
+    //standard block shape with each side having a unique texture
+    MultiTexture([PathBuf; 6]),
+    //Slab with height from bottom (1.0) is the same as uniform, (0.0) is empty
+    BottomSlab(f32, [PathBuf; 6]),
+}
+
+impl NamedBlockMesh {
+    pub fn to_block_mesh(self, map: &BlockTextureMap) -> BlockMesh {
+        match self {
+            NamedBlockMesh::Empty => BlockMesh::Empty,
+            NamedBlockMesh::Uniform(name) => BlockMesh::Uniform(*map.0.get(&name).unwrap()),
+            NamedBlockMesh::MultiTexture(names) => BlockMesh::MultiTexture(names.map(|name| *map.0.get(&name).unwrap())),
+            NamedBlockMesh::BottomSlab(height, names) => BlockMesh::BottomSlab(height, names.map(|name| *map.0.get(&name).unwrap())),
+        }
+    }
+}
 
 #[derive(Component, Clone, PartialEq, Default)]
 //controls visuals
