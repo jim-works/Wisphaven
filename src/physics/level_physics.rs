@@ -45,20 +45,17 @@ pub fn queue_gen_physics(
     time: Res<Time>,
     block_query: Query<&BlockPhysics>,
     mut timer: ResMut<GeneratePhysicsTimer>,
-    mut commands: Commands,
+    commands: ParallelCommands,
 ) {
     timer.timer.tick(time.delta());
     if !timer.timer.just_finished() {
         return;
     }
-    let now = Instant::now();
     let pool = AsyncComputeTaskPool::get();
-    let mut len = 0;
-    for (entity, coord) in query.iter() {
+    query.par_iter().for_each(|(entity, coord)| {
         if let Some(ctype) = level.get_chunk(*coord) {
             if let ChunkType::Full(chunk) = ctype.value() {
                 let meshing = chunk.get_components(chunk.blocks.iter(), &block_query);
-                len += 1;
                 let task = pool.spawn(async move {
                     let mut data = PhysicsGenerationData {
                         colliders: Vec::new(),
@@ -66,20 +63,14 @@ pub fn queue_gen_physics(
                     gen_physics(&meshing, &mut data);
                     data
                 });
-                commands
-                    .entity(entity)
+                commands.command_scope(|mut commands| {
+                    commands.entity(entity)
                     .remove::<NeedsPhysics>()
                     .insert(GeneratePhysicsTask { task });
+                });
             }
         }
-    }
-    let duration = Instant::now().duration_since(now).as_millis();
-    if len > 0 {
-        debug!(
-            "queued physics generation for {} chunks in {}ms",
-            len, duration
-        );
-    }
+    });
 }
 
 pub fn poll_gen_physics_queue(
@@ -91,8 +82,6 @@ pub fn poll_gen_physics_queue(
         &mut GeneratePhysicsTask,
     )>,
 ) {
-    //todo: parallelize this
-    //(can't right now as Commands does not implement clone)
     let mut len = 0;
     let now = Instant::now();
     for (entity, opt_collider, tf, mut task) in query.iter_mut() {

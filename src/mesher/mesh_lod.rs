@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use super::generator::*;
 
 use crate::util::Direction;
@@ -20,7 +18,7 @@ pub fn queue_meshing_lod(
     level: Res<Level>,
     time: Res<Time>,
     mut timer: ResMut<LODMeshTimer>,
-    mut commands: Commands,
+    commands: ParallelCommands,
     mesh_query: Query<&BlockMesh>
 ) {
     let _my_span = info_span!("queue_meshing_lod", name = "queue_meshing_lod").entered();
@@ -28,37 +26,28 @@ pub fn queue_meshing_lod(
     if !timer.timer.just_finished() {
         return;
     }
-    let now = Instant::now();
     let pool = AsyncComputeTaskPool::get();
-    let mut len = 0;
-    for (entity, coord, lod) in query.iter() {
+    query.par_iter().for_each(|(entity, coord, lod)| {
         if let Some(chunks) = level.get_lod_chunks(lod.level.into()) {
             if let Some(ctype) = chunks.get(coord) {
                 if let LODChunkType::Full(chunk) = ctype.value() {
                     //don't wait for neighbors since we won't have all neighbors generated, as there is a big hole in the middle of where we generate
                     //TODO: greedy meshing is very important here
                     let meshing = chunk.get_components(chunk.blocks.iter(), &mesh_query);
-                    len += 1;
                     let task = pool.spawn(async move {
                         let mut data = ChunkMesh::new(meshing.scale() as f32);
                         mesh_chunk_lod(&meshing, &mut data);
                         data
                     });
-                    commands
-                        .entity(entity)
+                    commands.command_scope(|mut commands| {
+                        commands.entity(entity)
                         .remove::<NeedsMesh>()
                         .insert(MeshTask { task });
+                    }); 
                 }
             }
         }
-    }
-    let duration = Instant::now().duration_since(now).as_millis();
-    if len > 0 {
-        debug!(
-            "queued mesh generation for {} lod chunks in {}ms",
-            len, duration
-        );
-    }
+    });
 }
 
 fn mesh_chunk_lod<T: ChunkStorage<BlockMesh>>(chunk: &Chunk<T, BlockMesh>, data: &mut ChunkMesh) {

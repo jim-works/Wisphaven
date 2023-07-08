@@ -83,17 +83,15 @@ pub fn queue_meshing(
     time: Res<Time>,
     mesh_query: Query<&BlockMesh>,
     mut timer: ResMut<MeshTimer>,
-    mut commands: Commands,
+    commands: ParallelCommands,
 ) {
     let _my_span = info_span!("queue_meshing", name = "queue_meshing").entered();
     timer.timer.tick(time.delta());
     if !timer.timer.just_finished() {
         return;
     }
-    let now = Instant::now();
     let pool = AsyncComputeTaskPool::get();
-    let mut len = 0;
-    for (entity, coord) in query.iter() {
+    query.par_iter().for_each(|(entity, coord)| {
         if let Some(ctype) = level.get_chunk(*coord) {
             if let ChunkType::Full(chunk) = ctype.value() {
                 let mut neighbor_count = 0;
@@ -110,7 +108,7 @@ pub fn queue_meshing(
                 }
                 if neighbor_count != 6 {
                     //don't mesh if all neighbors aren't ready yet
-                    continue;
+                    return;
                 }
                 //we have to check neighbor counts again because a chunk could be removed since the last loop, and we don't clone anything before
                 neighbor_count = 0;
@@ -124,29 +122,22 @@ pub fn queue_meshing(
                 }
                 if neighbor_count != 6 {
                     //don't mesh if all neighbors aren't ready yet
-                    continue;
+                    return;
                 }
                 let meshing = chunk.get_components(chunk.blocks.iter(), &mesh_query);
-                len += 1;
                 let task = pool.spawn(async move {
                     let mut data = ChunkMesh::new(1.0);
                     mesh_chunk(&meshing, &neighbors, &mut data);
                     data
                 });
-                commands
-                    .entity(entity)
+                commands.command_scope(|mut commands| {
+                    commands.entity(entity)
                     .remove::<NeedsMesh>()
                     .insert(MeshTask { task });
+                }); 
             }
         }
-    }
-    let duration = Instant::now().duration_since(now).as_millis();
-    if len > 0 {
-        debug!(
-            "queued mesh generation for {} chunks in {}ms",
-            len, duration
-        );
-    }
+    });
 
 }
 pub fn poll_mesh_queue(
@@ -161,8 +152,6 @@ pub fn poll_mesh_queue(
         warn!("polling mesh queue before chunk material is loaded!");
         return;
     }
-    //todo: parallelize this
-    //(can't right now as Commands and StandardMaterial do not implement clone)
     let mut len = 0;
     let now = Instant::now();
     for (entity, mut task, opt_children) in query.iter_mut() {

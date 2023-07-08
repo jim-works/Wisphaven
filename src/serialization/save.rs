@@ -14,7 +14,6 @@ use super::db::*;
 
 pub fn save_all(
     mut save_writer: EventWriter<SaveChunkEvent>,
-    mut commands: Commands,
     mut timer: ResMut<SaveTimer>,
     time: Res<Time>,
     query: Query<&ChunkCoord, (With<NeedsSaving>, With<GeneratedChunk>)>,
