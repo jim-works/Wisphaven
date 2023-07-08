@@ -37,7 +37,6 @@ pub fn queue_meshing_lod(
                 if let LODChunkType::Full(chunk) = ctype.value() {
                     //don't wait for neighbors since we won't have all neighbors generated, as there is a big hole in the middle of where we generate
                     //TODO: greedy meshing is very important here
-                    let _lod_components = info_span!("get_lod_components", name = "get_lod_components").entered();
                     let meshing = chunk.get_components(chunk.blocks.iter(), &mesh_query);
                     len += 1;
                     let task = pool.spawn(async move {

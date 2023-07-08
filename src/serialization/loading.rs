@@ -53,7 +53,7 @@ pub fn load_chunk_terrain(
         //do buffers before loading terrain, that way if there's both, we only generate the terrain mesh once.
         //first copy over the buffer so that it is applied when the chunk is added right after the terrain loads.
         if !buff_data.is_empty() {
-            match <&[u8] as TryInto<ChunkSaveFormat>>::try_into(buff_data.as_slice()) {
+            match bincode::deserialize::<ChunkSaveFormat>(buff_data.as_slice()) {
                 Ok(fmt) => level.add_rle_buffer(*coord, &fmt.into_buffer(resources.registry.as_ref(), &mut commands), &mut commands),
                 Err(e) => error!("error deserializing chunk buffer at {:?}: {:?}", coord, e),
             }
@@ -62,17 +62,22 @@ pub fn load_chunk_terrain(
         if let Some(entity) = level.get_chunk_entity(*coord) {
             if terrain_data.is_empty() {
                 commands.entity(entity).insert(ChunkNeedsGenerated::Full);
-            } else if let Ok(parsed) =
-                <&[u8] as TryInto<ChunkSaveFormat>>::try_into(terrain_data.as_slice())
+            } else 
             {
-                let chunk = parsed.into_chunk(entity, resources.registry.as_ref(), &mut commands);
-                if let Ok(mut tf) = tf_query.get_mut(entity) {
-                    tf.translation = chunk.position.to_vec3();
+                match bincode::deserialize::<ChunkSaveFormat>(terrain_data.as_slice()) {
+                    Ok(parsed) => {
+                        let chunk = parsed.into_chunk(entity, resources.registry.as_ref(), &mut commands);
+                        if let Ok(mut tf) = tf_query.get_mut(entity) {
+                            tf.translation = chunk.position.to_vec3();
+                        }
+                        level.add_chunk(chunk.position, ChunkType::Full(chunk));
+                        Level::update_chunk_only::<false>(entity, &mut commands);
+                        commands.entity(entity).insert(GeneratedChunk);
+                        loaded += 1;
+                    },
+                    Err(e) => error!("error deserializing chunk terrain at {:?}: {:?}", coord, e),
                 }
-                level.add_chunk(chunk.position, ChunkType::Full(chunk));
-                Level::update_chunk_only::<false>(entity, &mut commands);
-                commands.entity(entity).insert(GeneratedChunk);
-                loaded += 1;
+                
             }
         }
     }

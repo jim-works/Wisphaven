@@ -135,7 +135,7 @@ impl<T, Block> ChunkStorage<Block> for T where T: Index<usize, Output=Block> + I
 pub trait ChunkBlock: Clone + Send + Sync + PartialEq {}
 impl<T> ChunkBlock for T where T: Clone + Send + Sync + PartialEq {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Chunk<Storage, Block> where Storage: ChunkStorage<Block>, Block: ChunkBlock {
     pub blocks: Box<Storage>,
     pub position: ChunkCoord,
@@ -189,11 +189,12 @@ impl<Storage: ChunkStorage<Block>, Block: ChunkBlock> Chunk<Storage,Block> {
 
 impl<'a, Storage: ChunkStorage<BlockType>> Chunk<Storage, BlockType> {
     pub fn get_components<T: Component + Clone + PartialEq + Default>(&self, block_iter: impl Iterator<Item = &'a BlockType>, query: &Query<&T>) -> Chunk<Vec<T>, T>{
+        let _span = info_span!("get_components", name = "get_components").entered();
         let data = block_iter.map(|b| match b {
             BlockType::Empty => T::default(),
             BlockType::Filled(entity) => query.get(*entity).unwrap_or(&T::default()).to_owned(),
-        }).collect();
-        Chunk::<Vec<T>, T> {blocks: Box::new(data), position: self.position, entity: self.entity, level: self.level, _data: PhantomData }
+        });
+        Chunk::<Vec<T>, T> {blocks: Box::new(data.collect()), position: self.position, entity: self.entity, level: self.level, _data: PhantomData }
     }
 }
 impl ArrayChunk {

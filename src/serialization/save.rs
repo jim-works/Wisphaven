@@ -52,7 +52,7 @@ pub fn do_saving(
                         save_data.push(SaveCommand(
                             ChunkTable::Terrain,
                             coord,
-                            ChunkSaveFormat::from(ChunkSaveFormat::ids_only((chunk.position, chunk.blocks.as_ref()), &block_query)).into_bits(),
+                            bincode::serialize(&ChunkSaveFormat::ids_only((chunk.position, chunk.blocks.as_ref()), &block_query)).unwrap(),
                         ));
                         saved += 1;
                         ec.remove::<NeedsSaving>();
@@ -69,12 +69,12 @@ pub fn do_saving(
             save_data.push(SaveCommand(
                 ChunkTable::Buffers,
                 coord,
-                ChunkSaveFormat::ids_only((coord, buffer.value().as_ref()), &block_query).into_bits(),
+                bincode::serialize(&ChunkSaveFormat::ids_only((coord, buffer.value().as_ref()), &block_query)).unwrap(),
             ));
         }
     }
-    // if saved > 0 {
-    //     db.save_chunk_data(save_data);
-    //     debug!("Queued saving for {} chunks.", saved);
-    // }
+    if saved > 0 {
+        db.save_chunk_data(save_data);
+        debug!("Queued saving for {} chunks.", saved);
+    }
 }

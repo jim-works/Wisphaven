@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use serde::{Serialize, Deserialize};
 use std::{mem::size_of, panic::catch_unwind};
 
 use bevy::{
@@ -57,6 +58,7 @@ pub struct SaveChunkEvent(ChunkCoord);
 
 //run length encoded format for chunks
 //TODO: figure out how to do entities
+#[derive(Serialize, Deserialize)]
 pub struct ChunkSaveFormat {
     pub position: ChunkCoord,
     pub data: Vec<(BlockId, u16)>,
@@ -98,49 +100,6 @@ impl From<(ChunkCoord, &[BlockId; BLOCKS_PER_CHUNK])> for ChunkSaveFormat {
     }
 }
 
-impl TryFrom<&[u8]> for ChunkSaveFormat {
-    type Error = ChunkSerializationError;
-
-    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        match bincode::deserialize(value) {
-            Ok(position) => {
-                let mut result = Self {
-                    position,
-                    data: Vec::new(),
-                };
-                let mut idx = size_of::<ChunkCoord>();
-                let caught = catch_unwind(move || {
-                    while idx < value.len() {
-                        match bincode::deserialize(&value[idx..]) {
-                            Ok(id) => {
-                                idx += size_of::<BlockId>();
-                                let length = u16::from_le_bytes([value[idx], value[idx + 1]]);
-                                idx += size_of::<u16>();
-                                result.data.push((id, length));
-                            }
-                            Err(_) => return Err(ChunkSerializationError::InavlidBlockType(0))
-                        }
-                        
-                    }
-                    Ok(result)
-                });
-                return match caught {
-                    Ok(result) => result,
-                    Err(_) => Err(ChunkSerializationError::PanicReading),
-                };
-            }
-            Err(e) => {
-                error!(
-                    "Error reading chunk coordinates (chunk len {}): {:?}",
-                    value.len(),
-                    e
-                );
-                Err(ChunkSerializationError::InvalidCoordinateFormat)
-            }
-        }
-    }
-}
-
 impl ChunkSaveFormat {
     //creates a save format by extracting the ids from the block array using the provided query
     //will replace with the empty block if the entities in the block array do not have a BlockId component
@@ -172,15 +131,5 @@ impl ChunkSaveFormat {
     }
     pub fn into_buffer(self, registry: &BlockRegistry, commands: &mut Commands) -> Vec<(BlockType, u16)> {
         self.data.iter().enumerate().map(|(idx, (id, run))| (registry.get_block_type(*id, BlockCoord::from(self.position)+BlockCoord::from(ChunkIdx::from_usize(idx)), commands), *run)).collect()
-    }
-    //position, [(run length (u16), blocktype (u8 then varies))]
-    pub fn into_bits(self) -> Vec<u8> {
-        let mut bits = Vec::new();
-        bits.extend(bincode::serialize(&self.position).unwrap());
-        for (block, length) in self.data.into_iter() {
-            bits.extend(length.to_le_bytes());
-            bits.extend(bincode::serialize(&block).unwrap());
-        }
-        bits
     }
 }

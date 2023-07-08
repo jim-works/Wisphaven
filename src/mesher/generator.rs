@@ -96,7 +96,6 @@ pub fn queue_meshing(
     for (entity, coord) in query.iter() {
         if let Some(ctype) = level.get_chunk(*coord) {
             if let ChunkType::Full(chunk) = ctype.value() {
-                let _my_span2 = info_span!("check_chunk", name = "check_chunk").entered();
                 let mut neighbor_count = 0;
                 let mut neighbors = [None, None, None, None, None, None];
                 //i wish i could extrac this if let Some() shit into a function
@@ -129,7 +128,6 @@ pub fn queue_meshing(
                 }
                 let meshing = chunk.get_components(chunk.blocks.iter(), &mesh_query);
                 len += 1;
-                let _my_span3 = info_span!("spawn_task", name = "spawn_task").entered();
                 let task = pool.spawn(async move {
                     let mut data = ChunkMesh::new(1.0);
                     mesh_chunk(&meshing, &neighbors, &mut data);
