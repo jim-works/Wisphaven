@@ -84,5 +84,15 @@
         "recursia::world::block::NamedBlockMesh": Uniform("snow.png"),
       },
     ),
+    9: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "snow_slab",
+        ),
+        "recursia::world::block::BlockPhysics": BottomSlab(0.5),
+        "recursia::world::block::NamedBlockMesh": MultiTexture(("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
+      },
+    ),
   },
 )

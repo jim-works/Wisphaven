@@ -72,7 +72,7 @@ pub fn spawn_local_player(
         )).id();
         let mut inventory = Inventory::new(player_id, 40);
         let grass_item = items::create_item(Item::new("Grass Block".into(), 999), ItemIcon(assets.load("textures/items/grass_block.png")), BlockItem(block_resources.registry.get_id(&BlockName::core("tnt"))), &mut commands);
-        let snow_item = items::create_item(Item::new("Snow Block".into(), 999), ItemIcon(assets.load("textures/blocks/snow.png")), BlockItem(block_resources.registry.get_id(&BlockName::core("snow"))), &mut commands);
+        let snow_item = items::create_item(Item::new("Snow Block".into(), 999), ItemIcon(assets.load("textures/blocks/snow.png")), BlockItem(block_resources.registry.get_id(&BlockName::core("snow_slab"))), &mut commands);
         
         let personality_tester = items::create_item(Item::new("Personality Tester".into(), 999), ItemIcon(assets.load("textures/items/personality_tester.png")), PersonalityTester, &mut commands);
         let mega_air_item = items::create_item(Item::new("Mega Air".into(), 999), ItemIcon(assets.load("textures/items/vacuum.png")), MegablockItem(BlockId::Empty,10), &mut commands);
