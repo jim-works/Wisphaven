@@ -8,11 +8,13 @@ impl Plugin for TNTPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_system(process_tnt.in_set(LevelSystemSet::Main))
+            .register_type::<TNTBlock>()
         ;
     }
 }
 
-#[derive(Component, Clone, Copy)]
+#[derive(Component, Clone, Copy, Reflect, Default)]
+#[reflect(Component)]
 pub struct TNTBlock {
     pub explosion_strength: f32
 }

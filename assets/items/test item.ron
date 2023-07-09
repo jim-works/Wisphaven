@@ -2,11 +2,106 @@
   entities: {
     0: (
       components: {
-        "recursia::items::weapons::MeleeWeaponItem": (
-          damage: 1.0,
-          knockback: 2.0,
+        "bevy_window::window::Window": (
+          cursor: (
+            icon: Default,
+            visible: true,
+            grab_mode: None,
+            hit_test: true,
+            physical_position: Some((
+              x: 1185.0,
+              y: 171.0,
+            )),
+          ),
+          present_mode: Fifo,
+          mode: Windowed,
+          position: Automatic,
+          resolution: (
+            physical_width: 1280,
+            physical_height: 720,
+            scale_factor_override: None,
+            scale_factor: 1.0,
+          ),
+          title: "Bevy App",
+          composite_alpha_mode: Auto,
+          resize_constraints: (
+            min_width: 180.0,
+            min_height: 120.0,
+            max_width: inf,
+            max_height: inf,
+          ),
+          resizable: true,
+          decorations: true,
+          transparent: false,
+          focused: true,
+          window_level: Normal,
+          canvas: None,
+          fit_canvas_to_parent: false,
+          prevent_default_event_handling: true,
+          internal: (
+            minimize_request: None,
+            maximize_request: None,
+          ),
+          ime_enabled: false,
+          ime_position: (
+            x: 0.0,
+            y: 0.0,
+          ),
         ),
-        "recursia::items::debug_items::PersonalityTester": (),
+      },
+    ),
+    1: (
+      components: {
+        "bevy_transform::components::transform::Transform": (
+          translation: (
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+          ),
+          rotation: (0.0, 0.0, 0.0, 1.0),
+          scale: (
+            x: 1.0,
+            y: 1.0,
+            z: 1.0,
+          ),
+        ),
+        "bevy_transform::components::global_transform::GlobalTransform": ((
+          matrix3: (
+            x_axis: (
+              x: 1.0,
+              y: 0.0,
+              z: 0.0,
+            ),
+            y_axis: (
+              x: 0.0,
+              y: 1.0,
+              z: 0.0,
+            ),
+            z_axis: (
+              x: 0.0,
+              y: 0.0,
+              z: 1.0,
+            ),
+          ),
+          translation: (
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+          ),
+        )),
+        "bevy_asset::handle::Handle<bevy_scene::dynamic_scene::DynamicScene>": (
+          id: AssetPathId(((14710356488168674199), (6298619649789039366))),
+        ),
+        "bevy_render::view::visibility::Visibility": Inherited,
+        "bevy_render::view::visibility::ComputedVisibility": (
+          flags: (
+            bits: 0,
+          ),
+        ),
+        "bevy_core::name::Name": (
+          hash: 9363649583266562749,
+          name: "blocks",
+        ),
       },
     ),
   },

@@ -13,24 +13,25 @@ pub enum BlockType {
     Filled(Entity)
 }
 
-#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Component)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, Hash, Component, Reflect)]
+#[reflect(Component)]
 pub struct BlockName {
-    pub namespace: &'static str,
-    pub name: &'static str
+    pub namespace: String,
+    pub name: String
 }
 
 impl BlockName {
-    pub fn new(namespace: &'static str, name: &'static str) -> Self {
+    pub fn new(namespace: impl Into<String>, name: impl Into<String>) -> Self {
         Self {
-            namespace,
-            name
+            namespace: namespace.into(),
+            name: name.into()
         }
     }
     //creates a name for the core namespace
-    pub fn core(name: &'static str) -> Self {
+    pub fn core(name: impl Into<String>) -> Self {
         Self {
-            namespace: "core",
-            name
+            namespace: "core".into(),
+            name: name.into()
         }
     }
 }
@@ -48,7 +49,8 @@ pub enum BlockId {
 #[derive(Resource, Default)]
 pub struct SavedBlockId(pub BlockId);
 
-#[derive(Component)]
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
 pub struct UsableBlock;
 
 //used in world generation
@@ -66,9 +68,10 @@ pub enum BlockData {
 #[derive(Component)]
 pub struct BlockEntity(Vec<BlockData>);
 
-#[derive(Component, Clone, PartialEq, Default)]
+#[derive(Component, Clone, PartialEq, Default, Reflect)]
 //controls visuals
 //loaded from file, converted to BlockMesh for use in game
+#[reflect(Component)]
 pub enum NamedBlockMesh {
     //empty mesh
     #[default]
@@ -117,7 +120,8 @@ impl BlockMesh {
     }
 }
 
-#[derive(Component, Clone, PartialEq, Default)]
+#[derive(Component, Clone, PartialEq, Default, Reflect)]
+#[reflect(Component)]
 //controls collider
 pub enum BlockPhysics {
     //no collision
@@ -155,6 +159,7 @@ pub struct BlockRegistry {
 impl BlockRegistry {
     //inserts the corresponding BlockId component on the block
     pub fn add_basic(&mut self, name: BlockName, entity: Entity, commands: &mut Commands) {
+        info!("added block {:?}", name);
         let id = BlockId::Basic(self.basic_entities.len() as u32);
         commands.entity(entity).insert(id);
         self.basic_entities.push(entity);
@@ -166,7 +171,7 @@ impl BlockRegistry {
         self.id_map.insert(name, id);
     }
     pub fn create_basic(&mut self, name: BlockName, mesh: BlockMesh, physics: BlockPhysics, commands: &mut Commands) -> Entity{
-        let entity = commands.spawn((name, mesh, physics)).id();
+        let entity = commands.spawn((name.clone(), mesh, physics)).id();
         self.add_basic(name, entity, commands);
         entity
     }

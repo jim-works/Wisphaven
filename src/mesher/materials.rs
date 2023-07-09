@@ -1,5 +1,4 @@
 use bevy::{
-    asset::LoadState,
     pbr::*,
     prelude::*,
     reflect::TypeUuid,
@@ -339,16 +338,14 @@ fn create_chunk_texture(
 }
 
 pub fn create_chunk_material(
-    assets: Res<AssetServer>,
     mut chunk_material: ResMut<ChunkMaterial>,
     mut materials: ResMut<Assets<ArrayTextureMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut block_textures: ResMut<TerrainTexture>,
     settings: Res<Settings>,
 ) {
-    //wait for all block textures to be loaded, or skip if we've already loaded
+    //skip if already loaded
     if chunk_material.loaded
-        || block_textures.0.iter().any(|x| assets.get_load_state(x) != LoadState::Loaded)
     {
         return;
     }

@@ -2,15 +2,17 @@ pub use bevy::prelude::*;
 use bevy::utils::HashMap;
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::mesher::TerrainTexture;
+use crate::serialization::LoadingBlocks;
 use crate::serialization::db::LevelDB;
 use crate::world::blocks::tnt::TNTBlock;
-use crate::world::{LevelLoadState, BlockName, BlockMesh, BlockResources, BlockRegistry, BlockPhysics, UsableBlock, NamedBlockMesh};
+use crate::world::{LevelLoadState, BlockName, BlockResources, BlockRegistry, BlockPhysics, UsableBlock, NamedBlockMesh};
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
 
 use super::BlockTextureMap;
+use super::state::BlockTypesLoaded;
 
 pub fn load_settings() -> Settings {
     Settings::default()
@@ -43,23 +45,74 @@ pub fn load_terrain_texture(
     commands.insert_resource(TerrainTexture(textures));
 }
 
+pub fn start_loading_blocks (
+    assets: Res<AssetServer>,
+    settings: Res<Settings>,
+    mut commands: Commands,
+) {
+    let block_scenes: Vec<Handle<DynamicScene>> = assets.load_folder(settings.block_type_path.as_path())
+                                            .into_iter()
+                                            .flat_map(|v| v.into_iter().map(|t| t.typed()))
+                                            .collect();
+    if block_scenes.len() == 0 {
+        warn!("No blocks found at {}", settings.block_type_path.as_path().display());
+        return;
+    }
+    info!("Spawning {} blocks scenes", block_scenes.len());
+    for block_scene in block_scenes {
+        commands.spawn(
+(DynamicSceneBundle {
+                scene: block_scene,
+                ..default()
+            },
+            Name::new("blocks"),
+            LoadingBlocks
+        ));
+    }
+}
+
 pub fn load_block_registry(
     mut commands: Commands,
-    texture_map: Res<BlockTextureMap>
+    texture_map: Res<BlockTextureMap>,
+    loading_blocks: Query<(Entity, Option<&Children>), With<LoadingBlocks>>,
+    block_name_query: Query<&BlockName>,
+    name_resolution_query: Query<&NamedBlockMesh>,
+    mut progress: ResMut<BlockTypesLoaded>
 ) {
+    //make sure there are no still loading block scenes before we make the registry
+    if progress.0 || loading_blocks.iter().any(|(_, opt_children)| opt_children.is_none()) {
+        return;
+    }
     let mut registry = BlockRegistry::default();
-    
-    
-    registry.create_basic(BlockName::core("grass"), NamedBlockMesh::MultiTexture(["grass_side.png".into(), "grass_top.png".into(), "grass_side.png".into(),"grass_side.png".into(),"dirt.png".into(),"grass_side.png".into()]).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
-    registry.create_basic(BlockName::core("dirt"), NamedBlockMesh::Uniform("dirt.png".into()).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
-    registry.create_basic(BlockName::core("stone"), NamedBlockMesh::Uniform("stone.png".into()).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
-    registry.create_basic(BlockName::core("log"), NamedBlockMesh::MultiTexture(["log_side.png".into(), "log_top.png".into(), "log_side.png".into(),"log_side.png".into(),"log_top.png".into(),"log_side.png".into()]).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
-    registry.create_basic(BlockName::core("leaves"), NamedBlockMesh::Uniform("leaves.png".into()).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
-    registry.create_basic(BlockName::core("log slab"), NamedBlockMesh::BottomSlab(0.5, ["log_side.png".into(), "log_top.png".into(), "log_side.png".into(),"log_side.png".into(),"log_top.png".into(),"log_side.png".into()]).to_block_mesh(texture_map.as_ref()), BlockPhysics::BottomSlab(0.5), &mut commands);
-    let id = registry.create_basic(BlockName::core("tnt"), NamedBlockMesh::MultiTexture(["tnt_side.png".into(), "tnt_top.png".into(), "tnt_side.png".into(),"tnt_side.png".into(),"tnt_top.png".into(),"tnt_side.png".into()]).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
-    commands.entity(id).insert((TNTBlock {explosion_strength: 10.0}, UsableBlock));
+    for (scene_entity, children) in loading_blocks.iter() {
+        info!("Loading block scene");
+        commands.entity(scene_entity).remove::<LoadingBlocks>();
+        for child in children.unwrap() {
+            //do name resolution
+            if let Ok(named_mesh) = name_resolution_query.get(*child) {
+                commands.entity(*child)
+                    .insert(named_mesh.clone().to_block_mesh(texture_map.as_ref()))
+                    .remove::<NamedBlockMesh>();
+            }
+            match block_name_query.get(*child) {
+                Ok(name) => registry.add_basic(name.clone(), *child, &mut commands),
+                Err(e) => warn!("Block doesn't have a name! Error {:?}", e),
+            }
+            
+        }
+    }
+    // registry.create_basic(BlockName::core("grass"), NamedBlockMesh::MultiTexture(["grass_side.png".into(), "grass_top.png".into(), "grass_side.png".into(),"grass_side.png".into(),"dirt.png".into(),"grass_side.png".into()]).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
+    // registry.create_basic(BlockName::core("dirt"), NamedBlockMesh::Uniform("dirt.png".into()).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
+    // registry.create_basic(BlockName::core("stone"), NamedBlockMesh::Uniform("stone.png".into()).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
+    // registry.create_basic(BlockName::core("log"), NamedBlockMesh::MultiTexture(["log_side.png".into(), "log_top.png".into(), "log_side.png".into(),"log_side.png".into(),"log_top.png".into(),"log_side.png".into()]).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
+    // registry.create_basic(BlockName::core("leaves"), NamedBlockMesh::Uniform("leaves.png".into()).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
+    // registry.create_basic(BlockName::core("log slab"), NamedBlockMesh::BottomSlab(0.5, ["log_side.png".into(), "log_top.png".into(), "log_side.png".into(),"log_side.png".into(),"log_top.png".into(),"log_side.png".into()]).to_block_mesh(texture_map.as_ref()), BlockPhysics::BottomSlab(0.5), &mut commands);
+    // let id = registry.create_basic(BlockName::core("tnt"), NamedBlockMesh::MultiTexture(["tnt_side.png".into(), "tnt_top.png".into(), "tnt_side.png".into(),"tnt_side.png".into(),"tnt_top.png".into(),"tnt_side.png".into()]).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
+    // commands.entity(id).insert((TNTBlock {explosion_strength: 10.0}, UsableBlock, NamedBlockMesh::MultiTexture(["tnt_side.png".into(), "tnt_top.png".into(), "tnt_side.png".into(),"tnt_side.png".into(),"tnt_top.png".into(),"tnt_side.png".into()])));
 
+    info!("Finished loading {} block types", registry.id_map.len());
     commands.insert_resource(BlockResources {registry: std::sync::Arc::new(registry)});
+    progress.0 = true;
 }
 
 pub fn on_level_created(

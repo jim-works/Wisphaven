@@ -1,0 +1,78 @@
+(
+  entities: {
+    1: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "grass",
+        ),
+        "recursia::world::block::BlockPhysics": Solid,
+        "recursia::world::block::NamedBlockMesh": MultiTexture(("grass_side.png", "grass_top.png", "grass_side.png", "grass_side.png", "dirt.png", "grass_side.png")),
+      },
+    ),
+    2: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "dirt",
+        ),
+        "recursia::world::block::BlockPhysics": Solid,
+        "recursia::world::block::NamedBlockMesh": Uniform("dirt.png"),
+      },
+    ),
+    3: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "stone",
+        ),
+        "recursia::world::block::BlockPhysics": Solid,
+        "recursia::world::block::NamedBlockMesh": Uniform("stone.png"),
+      },
+    ),
+    4: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "log",
+        ),
+        "recursia::world::block::BlockPhysics": Solid,
+        "recursia::world::block::NamedBlockMesh": MultiTexture(("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
+      },
+    ),
+    5: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "leaves",
+        ),
+        "recursia::world::block::BlockPhysics": Solid,
+        "recursia::world::block::NamedBlockMesh": Uniform("leaves.png"),
+      },
+    ),
+    6: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "log slab",
+        ),
+        "recursia::world::block::BlockPhysics": BottomSlab(0.5),
+        "recursia::world::block::NamedBlockMesh": MultiTexture(("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
+      },
+    ),
+    7: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "tnt",
+        ),
+        "recursia::world::block::BlockPhysics": Solid,
+        "recursia::world::blocks::tnt::TNTBlock": (
+          explosion_strength: 10.0,
+        ),
+        "recursia::world::block::UsableBlock": (),
+        "recursia::world::block::NamedBlockMesh": MultiTexture(("tnt_side.png", "tnt_top.png", "tnt_side.png", "tnt_side.png", "tnt_top.png", "tnt_side.png")),
+      },
+    ),
+  },
+)

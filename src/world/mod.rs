@@ -26,6 +26,8 @@ pub enum LevelSystemSet {
     Main,
     //all the despawning happens in the despawn set. only runs in LevelLoadState::Loaded
     Despawn,
+    //Post-update, runs after both main and despawn, in LevelLoadState::Loaded
+    PostUpdate,
     //like main, but also runs in only runs in LevelLoadState::Loading
     LoadingAndMain,
 }
@@ -43,6 +45,7 @@ pub struct LevelPlugin;
 impl Plugin for LevelPlugin {
     fn build(&self, app: &mut App) {
         app
+            .configure_set(LevelSystemSet::PostUpdate.in_base_set(CoreSet::PostUpdate).run_if(in_state(LevelLoadState::Loaded)))
             .configure_set(LevelSystemSet::Main.in_set(OnUpdate(LevelLoadState::Loaded)))
             .configure_set(LevelSystemSet::Despawn.after(LevelSystemSet::Main).after(LevelSystemSet::LoadingAndMain))
             .configure_set(LevelSystemSet::Despawn.in_set(OnUpdate(LevelLoadState::Loaded)))
@@ -51,6 +54,13 @@ impl Plugin for LevelPlugin {
             .add_plugin(blocks::BlocksPlugin)
             .add_plugin(events::WorldEventsPlugin)
             .add_state::<LevelLoadState>()
+
+            //needed for NamedBlockMesh
+            .register_type::<[std::path::PathBuf; 6]>()
+            .register_type::<BlockName>()
+            .register_type::<UsableBlock>()
+            .register_type::<NamedBlockMesh>()
+            .register_type::<BlockPhysics>()
         ;
     }
 }

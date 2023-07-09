@@ -9,7 +9,7 @@ use bevy::{
 
 use crate::world::{
     chunk::{ArrayChunk, ChunkCoord, BLOCKS_PER_CHUNK, ChunkIdx},
-    BlockType, LevelLoadState, LevelSystemSet, BlockId, BlockRegistry, BlockCoord,
+    BlockType, LevelLoadState, LevelSystemSet, BlockId, BlockRegistry, BlockCoord, events::CreateLevelEvent,
 };
 
 
@@ -19,13 +19,16 @@ pub struct SerializationPlugin;
 mod loading;
 pub mod queries;
 pub mod db;
+pub mod state;
 mod save;
 mod setup;
 mod scenes;
 
 impl Plugin for SerializationPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(setup::on_level_created.in_set(OnUpdate(LevelLoadState::NotLoaded)))
+        app
+            .add_plugin(state::SerializationStatePlugin)
+            .add_system(setup::on_level_created.in_set(OnUpdate(LevelLoadState::NotLoaded)))
             .add_systems(
                 (
                     loading::load_chunk_terrain,
@@ -34,16 +37,24 @@ impl Plugin for SerializationPlugin {
                     save::do_saving,
                     save::save_all,
                 )
-                    .in_set(LevelSystemSet::LoadingAndMain),
+                    .in_set(LevelSystemSet::LoadingAndMain)
             )
-            .add_system(db::finish_up.in_base_set(CoreSet::PostUpdate))
+            .add_system(db::finish_up.in_set(LevelSystemSet::PostUpdate))
             .insert_resource(setup::load_settings())
-            .add_startup_systems((setup::load_terrain_texture, setup::load_block_registry).chain().in_base_set(StartupSet::PreStartup))
+            //must apply_system_buffers before load_block_registry gets called because load_terrain_texture creates a resources that is needed in load_block_registry
+            .add_startup_systems((setup::load_terrain_texture, apply_system_buffers, setup::start_loading_blocks).chain().in_base_set(StartupSet::PreStartup))
             .add_startup_system(scenes::test_save)
+            .add_system(setup::load_block_registry.in_set(OnUpdate(state::GameLoadState::LoadingAssets)))
+            .add_system(create_level.in_schedule(OnEnter(state::GameLoadState::Done)))
             .add_event::<SaveChunkEvent>()
             .add_event::<db::DataFromDBEvent>()
             .insert_resource(SaveTimer(Timer::from_seconds(0.1, TimerMode::Repeating)));
     }
+}
+
+fn create_level(mut writer: EventWriter<CreateLevelEvent>) {
+    writer.send(CreateLevelEvent { name: "level", seed: 8008135 });
+    info!("Sent create level event!");
 }
 
 #[derive(Resource)]
@@ -54,6 +65,9 @@ pub struct NeedsSaving;
 
 #[derive(Component)]
 pub struct NeedsLoading;
+
+#[derive(Component)]
+pub struct LoadingBlocks;
 
 #[derive(Resource)]
 pub struct SaveTimer(Timer);

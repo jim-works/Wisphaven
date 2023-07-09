@@ -23,7 +23,7 @@ use items::ItemsPlugin;
 use mesher::MesherPlugin;
 use physics::PhysicsPlugin;
 use util::plugin::UtilPlugin;
-use world::{*, events::CreateLevelEvent};
+use world::*;
 use worldgen::WorldGenPlugin;
 
 mod actors;
@@ -60,11 +60,5 @@ fn main() {
             brightness: 0.3,
             ..default()
         })
-        .add_startup_system(init)
         .run();
-}
-
-fn init(mut writer: EventWriter<CreateLevelEvent>) {
-    writer.send(CreateLevelEvent { name: "level", seed: 8008135 });
-    info!("Sent create level event!");
 }

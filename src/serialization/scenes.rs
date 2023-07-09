@@ -4,8 +4,9 @@ use bevy::{prelude::*, tasks::IoTaskPool};
 
 use crate::items::{debug_items::PersonalityTester, weapons::MeleeWeaponItem, Item};
 
+
 pub fn test_save(
-    world: &mut World,
+    world: &mut World
 ) {
     let mut scene_world = World::new();
     let mut dagger = MeleeWeaponItem::from_world(world);
@@ -25,13 +26,10 @@ pub fn test_save(
     // The TypeRegistry resource contains information about all registered types (including
     // components). This is used to construct scenes.
     let type_registry = world.resource::<AppTypeRegistry>();
-    let scene = DynamicScene::from_world(&scene_world, type_registry);
+    let scene = DynamicScene::from_world(world, type_registry);
 
     // Scenes can be serialized like this:
     let serialized_scene = scene.serialize_ron(type_registry).unwrap();
-
-    // Showing the scene in the console
-    info!("{}", serialized_scene);
 
     // Writing the scene to a new file. Using a task to avoid calling the filesystem APIs in a system
     // as they are blocking

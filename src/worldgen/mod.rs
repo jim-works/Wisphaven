@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bevy::{prelude::*};
 use bracket_noise::prelude::*;
 
-use crate::{world::{chunk::ChunkCoord, LevelSystemSet, BlockResources, SavedBlockId}, util::{Spline, SplineNoise, get_next_prng}};
+use crate::{world::{chunk::ChunkCoord, LevelSystemSet, BlockResources, SavedBlockId}, util::{Spline, SplineNoise, get_next_prng}, serialization::state::GameLoadState};
 
 mod generator;
 pub use generator::{ChunkNeedsGenerated, GeneratedChunk, GeneratedLODChunk, ShapingTask, LODShapingTask, ShaperSettings};
@@ -28,7 +28,7 @@ impl Plugin for WorldGenPlugin {
             }
         };
         app.add_systems((generator::poll_gen_queue,build_gen_system(), generator::poll_gen_lod_queue).in_set(LevelSystemSet::LoadingAndMain))
-            .add_startup_system(create_structure_settings);
+            .add_system(create_structure_settings.in_schedule(OnEnter(GameLoadState::Done)));
     }
 }
 
@@ -77,6 +77,7 @@ fn create_heighmap_noise(seed: u64) -> SplineNoise<3> {
 }
 
 fn create_structure_settings(mut commands: Commands, resources: Res<BlockResources>) {
+    info!("There are {} blocks in the registry", resources.registry.id_map.len());
     let mut seed = 424242;
     let mut noise = FastNoise::seeded(seed);
     noise.set_noise_type(NoiseType::Value);
