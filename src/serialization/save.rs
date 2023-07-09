@@ -9,7 +9,7 @@ use crate::{
     worldgen::GeneratedChunk,
 };
 
-use super::{ChunkSaveFormat, NeedsSaving, SaveChunkEvent, SaveTimer};
+use super::{ChunkSaveFormat, NeedsSaving, SaveChunkEvent, SaveTimer, LoadedToSavedBlockIdMap};
 use super::db::*;
 
 pub fn save_all(
@@ -37,7 +37,8 @@ pub fn do_saving(
     mut db: ResMut<LevelDB>,
     level: Res<Level>,
     mut commands: Commands,
-    block_query: Query<&BlockId>
+    block_query: Query<&BlockId>,
+    id_map: Res<LoadedToSavedBlockIdMap>
 ) {
     let mut saved = 0;
     //get unique coordinates
@@ -51,7 +52,7 @@ pub fn do_saving(
                         save_data.push(SaveCommand(
                             ChunkTable::Terrain,
                             coord,
-                            bincode::serialize(&ChunkSaveFormat::ids_only((chunk.position, chunk.blocks.as_ref()), &block_query)).unwrap(),
+                            bincode::serialize(&ChunkSaveFormat::ids_only((chunk.position, chunk.blocks.as_ref()), &block_query, id_map.as_ref())).unwrap(),
                         ));
                         saved += 1;
                         ec.remove::<NeedsSaving>();
@@ -68,7 +69,7 @@ pub fn do_saving(
             save_data.push(SaveCommand(
                 ChunkTable::Buffers,
                 coord,
-                bincode::serialize(&ChunkSaveFormat::ids_only((coord, buffer.value().as_ref()), &block_query)).unwrap(),
+                bincode::serialize(&ChunkSaveFormat::ids_only((coord, buffer.value().as_ref()), &block_query, id_map.as_ref())).unwrap(),
             ));
         }
     }

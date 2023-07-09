@@ -13,7 +13,7 @@ pub enum BlockType {
     Filled(Entity)
 }
 
-#[derive(Default, Clone, Debug, PartialEq, Eq, Hash, Component, Reflect)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, Hash, Component, Reflect, Serialize, Deserialize)]
 #[reflect(Component)]
 pub struct BlockName {
     pub namespace: String,
@@ -44,6 +44,16 @@ pub enum BlockId {
     Empty,
     Basic(u32),
     Dynamic(u32)
+}
+
+impl BlockId {
+    pub fn with_id(self, new_id: u32) -> Self {
+        match self {
+            BlockId::Empty => BlockId::Empty,
+            BlockId::Basic(id) => BlockId::Basic(new_id),
+            BlockId::Dynamic(_) => BlockId::Dynamic(new_id)
+        }
+    }
 }
 
 #[derive(Resource, Default)]
@@ -147,6 +157,8 @@ impl BlockPhysics {
 pub struct BlockResources {
     pub registry: Arc<BlockRegistry>
 }
+
+pub type BlockNameIdMap = HashMap<BlockName, BlockId>;
 
 #[derive(Default)]
 pub struct BlockRegistry {

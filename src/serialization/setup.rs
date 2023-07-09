@@ -6,13 +6,12 @@ use std::path::PathBuf;
 
 use crate::mesher::TerrainTexture;
 use crate::serialization::LoadingBlocks;
-use crate::serialization::db::LevelDB;
-use crate::world::blocks::tnt::TNTBlock;
-use crate::world::{LevelLoadState, BlockName, BlockResources, BlockRegistry, BlockPhysics, UsableBlock, NamedBlockMesh};
+use crate::serialization::db::{LevelDB, LevelDBErr};
+use crate::serialization::queries::{CREATE_CHUNK_TABLE, CREATE_WORLD_INFO_TABLE, LOAD_WORLD_INFO, INSERT_WORLD_INFO};
+use crate::world::{LevelLoadState, BlockName, BlockResources, BlockRegistry, NamedBlockMesh, BlockNameIdMap};
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
 
-use super::BlockTextureMap;
-use super::state::BlockTypesLoaded;
+use super::{BlockTextureMap, LoadedToSavedBlockIdMap, SavedToLoadedBlockIdMap};
 
 pub fn load_settings() -> Settings {
     Settings::default()
@@ -77,10 +76,10 @@ pub fn load_block_registry(
     loading_blocks: Query<(Entity, Option<&Children>), With<LoadingBlocks>>,
     block_name_query: Query<&BlockName>,
     name_resolution_query: Query<&NamedBlockMesh>,
-    mut progress: ResMut<BlockTypesLoaded>
+    block_resources: Option<Res<BlockResources>>
 ) {
     //make sure there are no still loading block scenes before we make the registry
-    if progress.0 || loading_blocks.iter().any(|(_, opt_children)| opt_children.is_none()) {
+    if block_resources.is_some() || loading_blocks.iter().any(|(_, opt_children)| opt_children.is_none()) {
         return;
     }
     let mut registry = BlockRegistry::default();
@@ -101,37 +100,71 @@ pub fn load_block_registry(
             
         }
     }
-    // registry.create_basic(BlockName::core("grass"), NamedBlockMesh::MultiTexture(["grass_side.png".into(), "grass_top.png".into(), "grass_side.png".into(),"grass_side.png".into(),"dirt.png".into(),"grass_side.png".into()]).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
-    // registry.create_basic(BlockName::core("dirt"), NamedBlockMesh::Uniform("dirt.png".into()).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
-    // registry.create_basic(BlockName::core("stone"), NamedBlockMesh::Uniform("stone.png".into()).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
-    // registry.create_basic(BlockName::core("log"), NamedBlockMesh::MultiTexture(["log_side.png".into(), "log_top.png".into(), "log_side.png".into(),"log_side.png".into(),"log_top.png".into(),"log_side.png".into()]).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
-    // registry.create_basic(BlockName::core("leaves"), NamedBlockMesh::Uniform("leaves.png".into()).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
-    // registry.create_basic(BlockName::core("log slab"), NamedBlockMesh::BottomSlab(0.5, ["log_side.png".into(), "log_top.png".into(), "log_side.png".into(),"log_side.png".into(),"log_top.png".into(),"log_side.png".into()]).to_block_mesh(texture_map.as_ref()), BlockPhysics::BottomSlab(0.5), &mut commands);
-    // let id = registry.create_basic(BlockName::core("tnt"), NamedBlockMesh::MultiTexture(["tnt_side.png".into(), "tnt_top.png".into(), "tnt_side.png".into(),"tnt_side.png".into(),"tnt_top.png".into(),"tnt_side.png".into()]).to_block_mesh(texture_map.as_ref()), BlockPhysics::Solid, &mut commands);
-    // commands.entity(id).insert((TNTBlock {explosion_strength: 10.0}, UsableBlock, NamedBlockMesh::MultiTexture(["tnt_side.png".into(), "tnt_top.png".into(), "tnt_side.png".into(),"tnt_side.png".into(),"tnt_top.png".into(),"tnt_side.png".into()])));
 
     info!("Finished loading {} block types", registry.id_map.len());
     commands.insert_resource(BlockResources {registry: std::sync::Arc::new(registry)});
-    progress.0 = true;
 }
 
 pub fn on_level_created(
     mut reader: EventReader<CreateLevelEvent>,
     settings: Res<Settings>,
+    resources: Res<BlockResources>,
     mut next_state: ResMut<NextState<LevelLoadState>>,
     mut commands: Commands,
 ) {
     const MAX_DBS: u32 = 1;
     info!("on_level_created");
-    for event in reader.iter() {
+    if let Some(event) = reader.iter().next() {
         fs::create_dir_all(settings.env_path.as_path()).unwrap();
         let db = LevelDB::new(settings.env_path.join(event.name.to_owned() + ".db").as_path());
         match db {
             Ok(mut db) => {
-                if let Some(err) = db.immediate_create_chunk_table() {
+                if let Some(err) = db.immediate_execute_command(|sql| sql.execute(CREATE_CHUNK_TABLE, [])) {
                     error!("Error creating chunk table: {:?}", err);
                     return;
                 }
+                if let Some(err) = db.immediate_execute_command(|sql| sql.execute(CREATE_WORLD_INFO_TABLE, [])) {
+                    error!("Error creating world info table: {:?}", err);
+                    return;
+                }
+                match db.immediate_execute_query(LOAD_WORLD_INFO, rusqlite::params!["block_palette"], |row| Ok(row.get(0)?)) {
+                    Ok(data) => {
+                        match create_block_id_maps_from_palette(&data, resources.registry.as_ref()) {
+                            Some((mut saved_to_loaded, mut loaded_to_saved)) => {
+                                //if we have new blocks that were not in the palette before, add them
+                                let palette = create_palette_from_block_id_map(resources.registry.as_ref(), &mut saved_to_loaded, &mut loaded_to_saved);
+                                if let Some (err) = db.immediate_execute_command(|sql| sql.execute(INSERT_WORLD_INFO, rusqlite::params!["block_palette", palette])) {
+                                    error!("Error updating block palette! {:?}", err);
+                                    return;
+                                }
+                                //put the updated maps in the world
+                                commands.insert_resource(saved_to_loaded);
+                                commands.insert_resource(loaded_to_saved);
+                            },
+                            None => {
+                                error!("Couldn't create saved block id map!");
+                                return;
+                            },
+                        }
+                    },
+                    Err(LevelDBErr::Sqlite(rusqlite::Error::QueryReturnedNoRows)) => {
+                        //there is no palette saved, so we create one using only our current map.
+                        //This happens when a new world is created
+                        let mut saved_to_loaded = SavedToLoadedBlockIdMap::default();
+                        let mut loaded_to_saved = LoadedToSavedBlockIdMap::default();
+                        let palette = create_palette_from_block_id_map(resources.registry.as_ref(), &mut saved_to_loaded, &mut loaded_to_saved);
+                        if let Some (err) = db.immediate_execute_command(|sql| sql.execute(INSERT_WORLD_INFO, rusqlite::params!["block_palette", palette])) {
+                            error!("Error creating block palette! {:?}", err);
+                            return;
+                        }
+                        commands.insert_resource(saved_to_loaded);
+                        commands.insert_resource(loaded_to_saved);
+                    }
+                    Err(e) => {
+                        error!("Error messing with block palette in db: {:?}", e);
+                        return;
+                    },
+                };
                 commands.insert_resource(db);
                 commands.insert_resource(Level::new(
                     event.name,
@@ -145,4 +178,51 @@ pub fn on_level_created(
             }
         }
     }
+}
+
+fn create_block_id_maps_from_palette(data: &Vec<u8>, registry: &BlockRegistry) -> Option<(SavedToLoadedBlockIdMap, LoadedToSavedBlockIdMap)> {
+    match bincode::deserialize::<BlockNameIdMap>(data) {
+        Ok(saved_map) => {
+            let mut saved_to_loaded = SavedToLoadedBlockIdMap::default();
+            let mut loaded_to_saved = LoadedToSavedBlockIdMap::default();
+            for (name, saved_map_id) in saved_map.iter() {
+                match registry.id_map.get(name) {
+                    Some(loaded_map_id) => 
+                    {
+                        info!("Mapped saved block {:?} (id: {:?}) to loaded block id {:?}", name, saved_map_id, loaded_map_id);
+                        saved_to_loaded.insert(*saved_map_id, *loaded_map_id);
+                        loaded_to_saved.insert(*loaded_map_id, *saved_map_id);
+                    },
+                    None => {
+                        error!("Unknown block name in palette: {:?}", name);
+                        return None
+                    },
+                }
+            }
+            Some((saved_to_loaded, loaded_to_saved))
+        },
+        Err(e) => {
+            error!("couldn't load block id map from palette, {}", e);
+            None
+        },
+    }
+}
+
+//if we have loaded blocks that aren't in the world, this will add them to the map.
+//returns the new palette map to be saved to disk
+fn create_palette_from_block_id_map(registry: &BlockRegistry, saved_to_loaded: &mut SavedToLoadedBlockIdMap, loaded_to_saved: &mut LoadedToSavedBlockIdMap) -> Vec<u8> {
+    let mut palette = BlockNameIdMap::new();
+    for (name, id) in registry.id_map.iter() {
+        if !loaded_to_saved.map.contains_key(id) {
+            //this block was not mapped to a saved block id, so its a new block. We set it to itself.
+            //ids are always in the range 0..<block_count, and we verify that we have all saved blocks loaded before this point
+            //so id must be >= saved_block_count, therefore, we aren't overwriting anything with this save_to_loaded.insert
+            let new_id = id.with_id(saved_to_loaded.max_key_id+1);
+            assert_eq!(saved_to_loaded.insert(new_id, *id), None);
+            loaded_to_saved.insert(*id,new_id);
+            info!("Added block {:?} to block palette with id {:?}", name, id);
+        }
+        palette.insert(name.clone(), *loaded_to_saved.get(id).unwrap());
+    }
+    bincode::serialize(&palette).unwrap()
 }

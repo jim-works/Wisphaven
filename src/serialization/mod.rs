@@ -28,7 +28,7 @@ impl Plugin for SerializationPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugin(state::SerializationStatePlugin)
-            .add_system(setup::on_level_created.in_set(OnUpdate(LevelLoadState::NotLoaded)))
+            .add_system(setup::on_level_created.in_set(OnUpdate(LevelLoadState::NotLoaded)).run_if(in_state(state::GameLoadState::Done)))
             .add_systems(
                 (
                     loading::load_chunk_terrain,
@@ -59,6 +59,50 @@ fn create_level(mut writer: EventWriter<CreateLevelEvent>) {
 
 #[derive(Resource)]
 pub struct BlockTextureMap(pub HashMap<PathBuf, u32>);
+
+#[derive(Resource, Default)]
+pub struct SavedToLoadedBlockIdMap {
+    pub map: HashMap<BlockId, BlockId>,
+    pub max_key_id: u32
+}
+
+impl SavedToLoadedBlockIdMap {
+    pub fn insert(&mut self, key: BlockId, val: BlockId) -> Option<BlockId> {
+        match key {
+            BlockId::Empty => {},
+            BlockId::Basic(id) | BlockId::Dynamic(id) => self.max_key_id = self.max_key_id.max(id),
+        }
+        self.map.insert(key, val)
+    }
+    pub fn get(&self, key: &BlockId) -> Option<&BlockId> {
+        match key {
+            BlockId::Empty => Some(&BlockId::Empty),
+            _ => self.map.get(key)
+        }
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct LoadedToSavedBlockIdMap{
+    pub map: HashMap<BlockId, BlockId>,
+    pub max_key_id: u32
+}
+
+impl LoadedToSavedBlockIdMap {
+    pub fn insert(&mut self, key: BlockId, val: BlockId) {
+        match key {
+            BlockId::Empty => {},
+            BlockId::Basic(id) | BlockId::Dynamic(id) => self.max_key_id = self.max_key_id.max(id),
+        }
+        self.map.insert(key, val);
+    }
+        pub fn get(&self, key: &BlockId) -> Option<&BlockId> {
+        match key {
+            BlockId::Empty => Some(&BlockId::Empty),
+            _ => self.map.get(key)
+        }
+    }
+}
 
 #[derive(Component)]
 pub struct NeedsSaving;
@@ -121,14 +165,14 @@ impl From<(ChunkCoord, &[BlockId; BLOCKS_PER_CHUNK])> for ChunkSaveFormat {
 impl ChunkSaveFormat {
     //creates a save format by extracting the ids from the block array using the provided query
     //will replace with the empty block if the entities in the block array do not have a BlockId component
-    pub fn ids_only(value: (ChunkCoord, &[BlockType; BLOCKS_PER_CHUNK]), query: &Query<&BlockId>) -> Self {
+    pub fn ids_only(value: (ChunkCoord, &[BlockType; BLOCKS_PER_CHUNK]), query: &Query<&BlockId>, map: &LoadedToSavedBlockIdMap) -> Self {
                 let data = value
             .1
             .iter()
             .dedup_with_count()
             .map(|(run, block)| (match block {
                 BlockType::Empty => BlockId::Empty,
-                BlockType::Filled(entity) => *query.get(*entity).unwrap_or(&BlockId::Empty),
+                BlockType::Filled(entity) => *map.get(query.get(*entity).unwrap_or(&BlockId::Empty)).unwrap(),
             }, run as u16))
             .collect();
         Self {
@@ -149,5 +193,18 @@ impl ChunkSaveFormat {
     }
     pub fn into_buffer(self, registry: &BlockRegistry, commands: &mut Commands) -> Vec<(BlockType, u16)> {
         self.data.iter().enumerate().map(|(idx, (id, run))| (registry.get_block_type(*id, BlockCoord::from(self.position)+BlockCoord::from(ChunkIdx::from_usize(idx)), commands), *run)).collect()
+    }
+    pub fn map_to_loaded(&mut self, map: &SavedToLoadedBlockIdMap) {
+        for (id, _) in self.data.iter_mut() {
+            match map.get(id).copied() {
+                Some(loaded_id) => {
+                    *id = loaded_id;
+                },
+                None => {
+                    error!("Couldn't map saved block id {:?} to loaded id", id);
+                    *id = BlockId::Empty;
+                },
+            }
+        }
     }
 }

@@ -65,13 +65,19 @@ impl LevelDB {
             load_queue: VecDeque::new(),
         })
     }
-    pub fn immediate_create_chunk_table(&mut self) -> Option<LevelDBErr> {
+    pub fn immediate_execute_command(&mut self, f: impl FnOnce(PooledConnection<SqliteConnectionManager>) -> Result<usize, rusqlite::Error>
+            + Send) -> Option<LevelDBErr> {
         match self.pool.get() {
-            Ok(conn) => conn
-                .execute(CREATE_CHUNK_TABLE, [])
+            Ok(conn) => f(conn)
                 .map_err(LevelDBErr::Sqlite)
                 .err(),
             Err(e) => Some(LevelDBErr::R2D2(e)),
+        }
+    }
+    pub fn immediate_execute_query<T>(&mut self, sql: &str, p: impl Params, f: impl FnOnce(&Row)->Result<T>) -> Result<T, LevelDBErr> {
+        match self.pool.get() {
+            Ok(conn) => conn.query_row(sql, p, f).map_err(LevelDBErr::Sqlite),
+            Err(e) => Err(LevelDBErr::R2D2(e)),
         }
     }
     //adds chunks to the buffer to be saved

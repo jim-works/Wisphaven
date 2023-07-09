@@ -1,6 +1,6 @@
 use bevy::{prelude::*, asset::LoadState};
 
-use crate::mesher::TerrainTexture;
+use crate::{mesher::TerrainTexture, world::BlockResources};
 
 #[derive(States, Default, Debug, Hash, Eq, PartialEq, Clone)]
 pub enum GameLoadState {
@@ -8,9 +8,6 @@ pub enum GameLoadState {
     LoadingAssets,
     Done
 }
-
-#[derive(Resource, Default)]
-pub struct BlockTypesLoaded(pub bool);
 
 #[derive(Resource, Default)]
 pub struct BlockTexturesLoaded(pub bool);
@@ -21,7 +18,6 @@ impl Plugin for SerializationStatePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameLoadState>()
             .insert_resource(BlockTexturesLoaded::default())
-            .insert_resource(BlockTypesLoaded::default())
             .add_systems((check_load_state, check_textures).in_set(OnUpdate(GameLoadState::LoadingAssets)))
         ;
     }
@@ -40,10 +36,10 @@ pub fn check_textures(
 
 pub fn check_load_state(
     mut next: ResMut<NextState<GameLoadState>>,
-    block_types: Res<BlockTypesLoaded>,
+    block_types: Option<Res<BlockResources>>,
     block_textures: Res<BlockTexturesLoaded>
 ) {
-    if block_textures.0 && block_types.0 {
+    if block_textures.0 && block_types.is_some() {
         info!("Finished loading!");
         next.set(GameLoadState::Done)
     }

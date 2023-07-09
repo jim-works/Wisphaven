@@ -8,7 +8,7 @@ use crate::{
     worldgen::{ChunkNeedsGenerated, GeneratedChunk},
 };
 
-use super::{ChunkSaveFormat, NeedsLoading, SaveTimer};
+use super::{ChunkSaveFormat, NeedsLoading, SaveTimer, SavedToLoadedBlockIdMap};
 use super::db::*;
 
 pub fn queue_terrain_loading(
@@ -42,6 +42,7 @@ pub fn load_chunk_terrain(
     mut tf_query: Query<&mut Transform>,
     level: Res<Level>,
     resources: Res<BlockResources>,
+    map: Res<SavedToLoadedBlockIdMap>
 ) {
     let mut loaded = 0;
     for DataFromDBEvent(coord, data_vec) in events.iter().filter(|DataFromDBEvent(_, data)| {
@@ -54,7 +55,10 @@ pub fn load_chunk_terrain(
         //first copy over the buffer so that it is applied when the chunk is added right after the terrain loads.
         if !buff_data.is_empty() {
             match bincode::deserialize::<ChunkSaveFormat>(buff_data.as_slice()) {
-                Ok(fmt) => level.add_rle_buffer(*coord, &fmt.into_buffer(resources.registry.as_ref(), &mut commands), &mut commands),
+                Ok(mut fmt) => {
+                    fmt.map_to_loaded(map.as_ref());
+                    level.add_rle_buffer(*coord, &fmt.into_buffer(resources.registry.as_ref(), &mut commands), &mut commands)
+                },
                 Err(e) => error!("error deserializing chunk buffer at {:?}: {:?}", coord, e),
             }
         }
@@ -65,7 +69,8 @@ pub fn load_chunk_terrain(
             } else 
             {
                 match bincode::deserialize::<ChunkSaveFormat>(terrain_data.as_slice()) {
-                    Ok(parsed) => {
+                    Ok(mut parsed) => {
+                        parsed.map_to_loaded(map.as_ref());
                         let chunk = parsed.into_chunk(entity, resources.registry.as_ref(), &mut commands);
                         if let Ok(mut tf) = tf_query.get_mut(entity) {
                             tf.translation = chunk.position.to_vec3();

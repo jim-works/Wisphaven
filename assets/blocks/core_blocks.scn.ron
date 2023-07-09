@@ -74,5 +74,15 @@
         "recursia::world::block::NamedBlockMesh": MultiTexture(("tnt_side.png", "tnt_top.png", "tnt_side.png", "tnt_side.png", "tnt_top.png", "tnt_side.png")),
       },
     ),
+    8: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "snow",
+        ),
+        "recursia::world::block::BlockPhysics": Solid,
+        "recursia::world::block::NamedBlockMesh": Uniform("snow.png"),
+      },
+    ),
   },
 )
