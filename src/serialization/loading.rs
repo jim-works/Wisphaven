@@ -3,12 +3,12 @@ use bevy::prelude::*;
 use crate::{
     world::{
         chunk::{ChunkCoord, ChunkType},
-        Level, BlockResources,
+        Level, BlockResources, BlockId,
     },
     worldgen::{ChunkNeedsGenerated, GeneratedChunk},
 };
 
-use super::{ChunkSaveFormat, NeedsLoading, SaveTimer, SavedToLoadedBlockIdMap};
+use super::{ChunkSaveFormat, NeedsLoading, SaveTimer, SavedToLoadedIdMap};
 use super::db::*;
 
 pub fn queue_terrain_loading(
@@ -42,7 +42,7 @@ pub fn load_chunk_terrain(
     mut tf_query: Query<&mut Transform>,
     level: Res<Level>,
     resources: Res<BlockResources>,
-    map: Res<SavedToLoadedBlockIdMap>
+    map: Res<SavedToLoadedIdMap<BlockId>>
 ) {
     let mut loaded = 0;
     for DataFromDBEvent(coord, data_vec) in events.iter().filter(|DataFromDBEvent(_, data)| {

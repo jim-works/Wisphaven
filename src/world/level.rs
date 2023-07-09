@@ -9,7 +9,7 @@ use crate::{
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
 
-use super::{chunk::*, BlockBuffer, BlockCoord, BlockType, BlockId, BlockRegistry, events::BlockUsedEvent, UsableBlock};
+use super::{chunk::*, BlockBuffer, BlockCoord, BlockType, BlockId, BlockRegistry, events::BlockUsedEvent, UsableBlock, Id};
 
 #[derive(Resource)]
 pub struct Level {
@@ -121,14 +121,14 @@ impl Level {
     }
     pub fn set_block(&self, key: BlockCoord, val: BlockId, registry: &BlockRegistry, id_query: &Query<&BlockId>, commands: &mut Commands) {
         match val {
-            id @ BlockId::Basic(_) | id @ BlockId::Dynamic(_) => {
+            id @ BlockId(Id::Basic(_)) | id @ BlockId(Id::Dynamic(_)) => {
                 if let Some(entity) = registry.get_entity(val, key, commands) {
                     self.set_block_entity(key, BlockType::Filled(entity), id_query, commands);
                 } else {
                     error!("Tried to set a block with id: {:?} that has no entity!", id);
                 }
             },
-            BlockId::Empty => self.set_block_entity(key, BlockType::Empty, id_query, commands)
+            BlockId(Id::Empty) => self.set_block_entity(key, BlockType::Empty, id_query, commands)
         }
     }
     pub fn batch_set_block<I: Iterator<Item = (BlockCoord, BlockId)>>(

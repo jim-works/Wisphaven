@@ -91,7 +91,7 @@
           name: "snow_slab",
         ),
         "recursia::world::block::BlockPhysics": BottomSlab(0.5),
-        "recursia::world::block::NamedBlockMesh": MultiTexture(("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
+        "recursia::world::block::NamedBlockMesh": BottomSlab(0.5, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
       },
     ),
   },

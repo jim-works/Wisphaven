@@ -1,7 +1,7 @@
 use futures_lite::future;
 use std::{time::Instant, sync::Arc};
 
-use crate::{world::{chunk::*, Level, BlockBuffer, BlockId, BlockName, BlockResources, SavedBlockId}, mesher::NeedsMesh, util::{Spline, SplineNoise}, physics::NeedsPhysics};
+use crate::{world::{chunk::*, Level, BlockBuffer, BlockId, BlockName, BlockResources, SavedBlockId, Id}, mesher::NeedsMesh, util::{Spline, SplineNoise}, physics::NeedsPhysics};
 use bevy::{
     prelude::*,
     tasks::{AsyncComputeTaskPool, Task},
@@ -59,7 +59,7 @@ pub fn queue_generating<const NOISE: usize, const HEIGHTMAP: usize>(
     mut commands: Commands,
 ) {
     let _my_span = info_span!("queue_generating", name = "queue_generating").entered();
-    if matches!(id.0, BlockId::Empty) {
+    if matches!(id.0, BlockId(Id::Empty)) {
         id.0 = block_resources.registry.get_id(&BlockName::core("grass"));
     }
     let now = Instant::now();

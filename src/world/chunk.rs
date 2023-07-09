@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::util::Direction;
 
-use super::{BlockType, BlockCoord, BlockId, BlockRegistry};
+use super::{BlockType, BlockCoord, BlockId, BlockRegistry, Id};
 
 pub const CHUNK_SIZE: usize = 16;
 pub const CHUNK_SIZE_F32: f32 = CHUNK_SIZE as f32;
@@ -224,8 +224,8 @@ impl GeneratingChunk {
         let mut result = ArrayChunk::new(self.position, self.entity);
         for (i, block) in self.blocks.into_iter().enumerate() {
             result[i] = match block {
-                BlockId::Empty => BlockType::Empty,
-                id @ BlockId::Basic(_) | id @ BlockId::Dynamic(_) => match registry.get_entity(id, BlockCoord::from(self.position)+ChunkIdx::from_usize(i).into(), commands) {
+                BlockId(Id::Empty) => BlockType::Empty,
+                id @ BlockId(Id::Basic(_)) | id @ BlockId(Id::Dynamic(_)) => match registry.get_entity(id, BlockCoord::from(self.position)+ChunkIdx::from_usize(i).into(), commands) {
                     Some(entity) => BlockType::Filled(entity),
                     None => BlockType::Empty,
                 },

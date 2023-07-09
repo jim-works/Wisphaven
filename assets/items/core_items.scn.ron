@@ -1,0 +1,65 @@
+(
+  entities: {
+    1: (
+      components: {
+        "recursia::items::ItemName": (
+          namespace: "core",
+          name: "grass_block",
+        ),
+        "recursia::items::NamedItemIcon": (
+            path: "grass_block.png"
+        ),
+        "recursia::items::block_item::BlockItem": (
+          BlockName(
+            namespace: "core",
+            name: "grass"
+          )
+        ),
+      },
+    ),
+    2: (
+      components: {
+        "recursia::items::ItemName": (
+          namespace: "core",
+          name: "tnt_block",
+        ),
+        "recursia::items::NamedItemIcon": (
+            path: "tnt_side.png"
+        ),
+        "recursia::items::block_item::BlockItem": (
+          BlockName(
+            namespace: "core",
+            name: "tnt"
+          )
+        ),
+      },
+    ),
+    3: (
+      components: {
+        "recursia::items::ItemName": (
+          namespace: "core",
+          name: "dagger",
+        ),
+        "recursia::items::NamedItemIcon": (
+            path: "dagger.png"
+        ),
+        "recursia::items::weapons::MeleeWeaponItem": (
+            damage: 5.0,
+            knockback: 5.0,
+        ),
+      },
+    ),
+    4: (
+      components: {
+        "recursia::items::ItemName": (
+          namespace: "core",
+          name: "personality_tester",
+        ),
+        "recursia::items::NamedItemIcon": (
+            path: "personality_tester.png"
+        ),
+        "recursia::items::debug_items::PersonalityTester": (),
+      },
+    ),
+  },
+)

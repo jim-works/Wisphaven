@@ -35,8 +35,8 @@ pub fn spawn_local_player(
     mut pickup_item: EventWriter<PickupItemEvent>,
     mut equip_item: EventWriter<EquipItemEvent>,
     mut spawn_event: EventWriter<LocalPlayerSpawnedEvent>,
-    block_resources: Res<BlockResources>,
-    item_query: Query<&Item>,
+    resources: Res<ItemResources>,
+    item_query: Query<&MaxStackSize>,
     assets: Res<AssetServer>
 ) {
     info!("Spawning local player!");
@@ -71,17 +71,12 @@ pub fn spawn_local_player(
         },
         )).id();
         let mut inventory = Inventory::new(player_id, 40);
-        let grass_item = items::create_item(Item::new("Grass Block".into(), 999), ItemIcon(assets.load("textures/items/grass_block.png")), BlockItem(block_resources.registry.get_id(&BlockName::core("tnt"))), &mut commands);
-        let snow_item = items::create_item(Item::new("Snow Block".into(), 999), ItemIcon(assets.load("textures/blocks/snow.png")), BlockItem(block_resources.registry.get_id(&BlockName::core("snow_slab"))), &mut commands);
-        
-        let personality_tester = items::create_item(Item::new("Personality Tester".into(), 999), ItemIcon(assets.load("textures/items/personality_tester.png")), PersonalityTester, &mut commands);
-        let mega_air_item = items::create_item(Item::new("Mega Air".into(), 999), ItemIcon(assets.load("textures/items/vacuum.png")), MegablockItem(BlockId::Empty,10), &mut commands);
-        let dagger_item = items::create_item(Item::new("Dagger".into(), 999), ItemIcon(assets.load("textures/items/dagger.png")), MeleeWeaponItem{damage: 5.0, knockback: 2.0}, &mut commands);
-        inventory.pickup_item(ItemStack::new(grass_item,1), &item_query, &mut pickup_item, &mut equip_item);
-        inventory.pickup_item(ItemStack::new(personality_tester,1), &item_query, &mut pickup_item, &mut equip_item);
-        inventory.pickup_item(ItemStack::new(mega_air_item,1), &item_query, &mut pickup_item, &mut equip_item);
-        inventory.pickup_item(ItemStack::new(dagger_item,1), &item_query, &mut pickup_item, &mut equip_item);
-        inventory.pickup_item(ItemStack::new(snow_item,1), &item_query, &mut pickup_item, &mut equip_item);
+
+        inventory.pickup_item(ItemStack::new(resources.registry.get_basic(&ItemName::core("grass_block")).unwrap(),100), &item_query, &mut pickup_item, &mut equip_item);
+        inventory.pickup_item(ItemStack::new(resources.registry.get_basic(&ItemName::core("tnt_block")).unwrap(),100), &item_query, &mut pickup_item, &mut equip_item);
+        inventory.pickup_item(ItemStack::new(resources.registry.get_basic(&ItemName::core("personality_tester")).unwrap(),100), &item_query, &mut pickup_item, &mut equip_item);
+        inventory.pickup_item(ItemStack::new(resources.registry.get_basic(&ItemName::core("dagger")).unwrap(),100), &item_query, &mut pickup_item, &mut equip_item);
+
         commands.entity(player_id).insert(inventory);
         let projection = PerspectiveProjection {
             fov: PI / 2.,

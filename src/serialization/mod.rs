@@ -9,7 +9,7 @@ use bevy::{
 
 use crate::world::{
     chunk::{ArrayChunk, ChunkCoord, BLOCKS_PER_CHUNK, ChunkIdx},
-    BlockType, LevelLoadState, LevelSystemSet, BlockId, BlockRegistry, BlockCoord, events::CreateLevelEvent,
+    BlockType, LevelLoadState, LevelSystemSet, BlockId, BlockRegistry, BlockCoord, events::CreateLevelEvent, Id,
 };
 
 
@@ -22,7 +22,6 @@ pub mod db;
 pub mod state;
 mod save;
 mod setup;
-mod scenes;
 
 impl Plugin for SerializationPlugin {
     fn build(&self, app: &mut App) {
@@ -42,9 +41,8 @@ impl Plugin for SerializationPlugin {
             .add_system(db::finish_up.in_set(LevelSystemSet::PostUpdate))
             .insert_resource(setup::load_settings())
             //must apply_system_buffers before load_block_registry gets called because load_terrain_texture creates a resources that is needed in load_block_registry
-            .add_startup_systems((setup::load_terrain_texture, apply_system_buffers, setup::start_loading_blocks).chain().in_base_set(StartupSet::PreStartup))
-            .add_startup_system(scenes::test_save)
-            .add_system(setup::load_block_registry.in_set(OnUpdate(state::GameLoadState::LoadingAssets)))
+            .add_startup_systems((setup::load_terrain_texture, setup::load_item_textures, apply_system_buffers, setup::start_loading_blocks, setup::start_loading_items).chain().in_base_set(StartupSet::PreStartup))
+            .add_systems((setup::load_block_registry, setup::load_item_registry).in_set(OnUpdate(state::GameLoadState::LoadingAssets)))
             .add_system(create_level.in_schedule(OnEnter(state::GameLoadState::Done)))
             .add_event::<SaveChunkEvent>()
             .add_event::<db::DataFromDBEvent>()
@@ -60,46 +58,49 @@ fn create_level(mut writer: EventWriter<CreateLevelEvent>) {
 #[derive(Resource)]
 pub struct BlockTextureMap(pub HashMap<PathBuf, u32>);
 
+#[derive(Resource)]
+pub struct ItemTextureMap(pub HashMap<PathBuf, Handle<Image>>);
+
 #[derive(Resource, Default)]
-pub struct SavedToLoadedBlockIdMap {
-    pub map: HashMap<BlockId, BlockId>,
+pub struct SavedToLoadedIdMap<T: Into<Id> + Clone + From<Id> + std::hash::Hash + Eq + PartialEq>{
+    pub map: HashMap<T, T>,
     pub max_key_id: u32
 }
 
-impl SavedToLoadedBlockIdMap {
-    pub fn insert(&mut self, key: BlockId, val: BlockId) -> Option<BlockId> {
-        match key {
-            BlockId::Empty => {},
-            BlockId::Basic(id) | BlockId::Dynamic(id) => self.max_key_id = self.max_key_id.max(id),
+impl<T: Into<Id> + From<Id> + Clone + std::hash::Hash + Eq + PartialEq> SavedToLoadedIdMap<T> {
+    pub fn insert(&mut self, key: T, val: T) -> Option<T> {
+        match key.clone().into() {
+            Id::Empty => {},
+            Id::Basic(id) | Id::Dynamic(id) => self.max_key_id = self.max_key_id.max(id),
         }
         self.map.insert(key, val)
     }
-    pub fn get(&self, key: &BlockId) -> Option<&BlockId> {
-        match key {
-            BlockId::Empty => Some(&BlockId::Empty),
-            _ => self.map.get(key)
+    pub fn get(&self, key: &T) -> Option<T> {
+        match key.clone().into() {
+            Id::Empty => Some(T::from(Id::Empty)),
+            _ => self.map.get(key).cloned()
         }
     }
 }
 
 #[derive(Resource, Default)]
-pub struct LoadedToSavedBlockIdMap{
-    pub map: HashMap<BlockId, BlockId>,
+pub struct LoadedToSavedIdMap<T: Into<Id> + Clone + From<Id> + std::hash::Hash + Eq + PartialEq>{
+    pub map: HashMap<T, T>,
     pub max_key_id: u32
 }
 
-impl LoadedToSavedBlockIdMap {
-    pub fn insert(&mut self, key: BlockId, val: BlockId) {
-        match key {
-            BlockId::Empty => {},
-            BlockId::Basic(id) | BlockId::Dynamic(id) => self.max_key_id = self.max_key_id.max(id),
+impl<T: Into<Id> + From<Id> + std::hash::Hash + Clone + Eq + PartialEq> LoadedToSavedIdMap<T> {
+    pub fn insert(&mut self, key: T, val: T) -> Option<T> {
+        match key.clone().into() {
+            Id::Empty => {},
+            Id::Basic(id) | Id::Dynamic(id) => self.max_key_id = self.max_key_id.max(id),
         }
-        self.map.insert(key, val);
+        self.map.insert(key, val)
     }
-        pub fn get(&self, key: &BlockId) -> Option<&BlockId> {
-        match key {
-            BlockId::Empty => Some(&BlockId::Empty),
-            _ => self.map.get(key)
+    pub fn get(&self, key: &T) -> Option<T> {
+        match key.clone().into() {
+            Id::Empty => Some(T::from(Id::Empty)),
+            _ => self.map.get(key).cloned()
         }
     }
 }
@@ -112,6 +113,9 @@ pub struct NeedsLoading;
 
 #[derive(Component)]
 pub struct LoadingBlocks;
+
+#[derive(Component)]
+pub struct LoadingItems;
 
 #[derive(Resource)]
 pub struct SaveTimer(Timer);
@@ -165,14 +169,14 @@ impl From<(ChunkCoord, &[BlockId; BLOCKS_PER_CHUNK])> for ChunkSaveFormat {
 impl ChunkSaveFormat {
     //creates a save format by extracting the ids from the block array using the provided query
     //will replace with the empty block if the entities in the block array do not have a BlockId component
-    pub fn ids_only(value: (ChunkCoord, &[BlockType; BLOCKS_PER_CHUNK]), query: &Query<&BlockId>, map: &LoadedToSavedBlockIdMap) -> Self {
+    pub fn ids_only(value: (ChunkCoord, &[BlockType; BLOCKS_PER_CHUNK]), query: &Query<&BlockId>, map: &LoadedToSavedIdMap<BlockId>) -> Self {
                 let data = value
             .1
             .iter()
             .dedup_with_count()
             .map(|(run, block)| (match block {
-                BlockType::Empty => BlockId::Empty,
-                BlockType::Filled(entity) => *map.get(query.get(*entity).unwrap_or(&BlockId::Empty)).unwrap(),
+                BlockType::Empty => BlockId(Id::Empty),
+                BlockType::Filled(entity) => map.get(query.get(*entity).unwrap_or(&BlockId(Id::Empty))).unwrap(),
             }, run as u16))
             .collect();
         Self {
@@ -194,15 +198,15 @@ impl ChunkSaveFormat {
     pub fn into_buffer(self, registry: &BlockRegistry, commands: &mut Commands) -> Vec<(BlockType, u16)> {
         self.data.iter().enumerate().map(|(idx, (id, run))| (registry.get_block_type(*id, BlockCoord::from(self.position)+BlockCoord::from(ChunkIdx::from_usize(idx)), commands), *run)).collect()
     }
-    pub fn map_to_loaded(&mut self, map: &SavedToLoadedBlockIdMap) {
+    pub fn map_to_loaded(&mut self, map: &SavedToLoadedIdMap<BlockId>) {
         for (id, _) in self.data.iter_mut() {
-            match map.get(id).copied() {
+            match map.get(id) {
                 Some(loaded_id) => {
                     *id = loaded_id;
                 },
                 None => {
                     error!("Couldn't map saved block id {:?} to loaded id", id);
-                    *id = BlockId::Empty;
+                    *id = BlockId(Id::Empty);
                 },
             }
         }

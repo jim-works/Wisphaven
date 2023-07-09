@@ -1,4 +1,4 @@
-use super::{BlockCoord, Level, BlockId, BlockResources, LevelSystemSet};
+use super::{BlockCoord, Level, BlockId, BlockResources, LevelSystemSet, Id};
 use bevy::prelude::*;
 
 pub struct WorldEventsPlugin;
@@ -51,7 +51,7 @@ fn process_explosions(
                     if x*x+y*y+z*z <= size*size {
                         changes.push((
                             event.origin + BlockCoord::new(x, y, z),
-                            BlockId::Empty,
+                            BlockId(Id::Empty),
                         ));
                     }
                 }

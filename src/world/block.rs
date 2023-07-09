@@ -4,7 +4,7 @@ use crate::{util::Direction, serialization::BlockTextureMap};
 use bevy::{prelude::*, utils::HashMap};
 use serde::{Serialize, Deserialize};
 
-use super::chunk::{ChunkCoord, CHUNK_SIZE_I32, ChunkIdx};
+use super::{chunk::{ChunkCoord, CHUNK_SIZE_I32, ChunkIdx}, Id};
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BlockType {
@@ -39,20 +39,17 @@ impl BlockName {
 //block ids may not be stable across program runs. to get a specific id for a block,
 // use block registry
 #[derive(Default, Component, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum BlockId {
-    #[default]
-    Empty,
-    Basic(u32),
-    Dynamic(u32)
+pub struct BlockId(pub Id);
+
+impl From<Id> for BlockId {
+    fn from(value: Id) -> Self {
+        Self(value)
+    }
 }
 
-impl BlockId {
-    pub fn with_id(self, new_id: u32) -> Self {
-        match self {
-            BlockId::Empty => BlockId::Empty,
-            BlockId::Basic(id) => BlockId::Basic(new_id),
-            BlockId::Dynamic(_) => BlockId::Dynamic(new_id)
-        }
+impl From<BlockId> for Id {
+    fn from(value: BlockId) -> Self {
+        value.0
     }
 }
 
@@ -172,13 +169,13 @@ impl BlockRegistry {
     //inserts the corresponding BlockId component on the block
     pub fn add_basic(&mut self, name: BlockName, entity: Entity, commands: &mut Commands) {
         info!("added block {:?}", name);
-        let id = BlockId::Basic(self.basic_entities.len() as u32);
+        let id = BlockId(Id::Basic(self.basic_entities.len() as u32));
         commands.entity(entity).insert(id);
         self.basic_entities.push(entity);
         self.id_map.insert(name, id);
     }
     pub fn add_dynamic(&mut self, name: BlockName, generator: Box<dyn BlockGenerator>) {
-        let id = BlockId::Dynamic(self.dynamic_generators.len() as u32);
+        let id = BlockId(Id::Dynamic(self.dynamic_generators.len() as u32));
         self.dynamic_generators.push(generator);
         self.id_map.insert(name, id);
     }
@@ -190,7 +187,7 @@ impl BlockRegistry {
     pub fn get_basic(&self, name: &BlockName) -> Option<Entity> {
         let id = self.id_map.get(&name)?;
         match id {
-            BlockId::Basic(id) => self.basic_entities.get(*id as usize).copied(),
+            BlockId(Id::Basic(id)) => self.basic_entities.get(*id as usize).copied(),
             _ => None
         }
     }
@@ -199,15 +196,15 @@ impl BlockRegistry {
             Some(id) => *id,
             None => {
                 error!("Couldn't find block id for name {:?}", name);
-                BlockId::Empty
+                BlockId(Id::Empty)
             },
         }
     }
     pub fn get_entity(&self, block_id: BlockId, position: BlockCoord, commands: &mut Commands) -> Option<Entity> {
         match block_id {
-            BlockId::Empty => None,
-            BlockId::Basic(id) => self.basic_entities.get(id as usize).copied(),
-            BlockId::Dynamic(id) => self.dynamic_generators.get(id as usize).and_then(|gen| {
+            BlockId(Id::Empty) => None,
+            BlockId(Id::Basic(id)) => self.basic_entities.get(id as usize).copied(),
+            BlockId(Id::Dynamic(id)) => self.dynamic_generators.get(id as usize).and_then(|gen| {
                 let id = Self::setup_block(block_id, commands);
                 gen.generate(id, position, commands);
                 Some(id)
@@ -226,8 +223,8 @@ impl BlockRegistry {
     pub fn remove_entity(id_query: &Query<&BlockId>, b: BlockType, commands: &mut Commands) {
         match b {
             BlockType::Filled(entity) => match id_query.get(entity) {
-                Ok(BlockId::Empty) | Ok(BlockId::Basic(_)) | Err(_) => {},
-                Ok(BlockId::Dynamic(_)) => commands.entity(entity).despawn_recursive(),
+                Ok(BlockId(Id::Empty)) | Ok(BlockId(Id::Basic(_))) | Err(_) => {},
+                Ok(BlockId(Id::Dynamic(_))) => commands.entity(entity).despawn_recursive(),
             },
             BlockType::Empty => {}
         }

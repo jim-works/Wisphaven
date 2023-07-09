@@ -34,7 +34,7 @@ impl<P: Fn(&TreeAlphabet, u32) -> Option<Vec<TreeAlphabet>>, I: Fn(BlockCoord) -
             return;
         }
         for y in (local_pos.y + 1)..CHUNK_SIZE_U8 {
-            if !matches!(chunk[ChunkIdx::new(local_pos.x, y, local_pos.z)], BlockId::Empty) {
+            if !matches!(chunk[ChunkIdx::new(local_pos.x, y, local_pos.z)], BlockId(crate::world::Id::Empty)) {
                 return;
             }
         }

@@ -54,7 +54,7 @@ impl Inventory {
         }).count()
     }
     //returns what's left (if any) of the item stack after picking up
-    pub fn pickup_item(&mut self, mut item: ItemStack, data_query: &Query<&Item>, pickup_writer: &mut EventWriter<PickupItemEvent>, equip_writer: &mut EventWriter<EquipItemEvent>) -> Option<ItemStack> {
+    pub fn pickup_item(&mut self, mut item: ItemStack, data_query: &Query<&MaxStackSize>, pickup_writer: &mut EventWriter<PickupItemEvent>, equip_writer: &mut EventWriter<EquipItemEvent>) -> Option<ItemStack> {
         let initial_size = item.size;
         for i in 0..self.items.len() {
             if item.size == 0 {
@@ -68,7 +68,7 @@ impl Inventory {
                     if stack.id != item.id {
                         continue;
                     }
-                    let picking_up = item.size.min(data_query.get(item.id).unwrap().max_stack_size-item.size);
+                    let picking_up = item.size.min(data_query.get(item.id).unwrap().0-item.size);
                     if picking_up > 0 {
                         item.size -= picking_up;
                         stack.size += picking_up;

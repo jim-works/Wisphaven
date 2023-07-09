@@ -9,6 +9,7 @@ pub use block_buffer::*;
 mod block;
 use bevy::prelude::*;
 pub use block::*;
+use serde::{Serialize, Deserialize};
 
 mod atmosphere;
 
@@ -70,4 +71,24 @@ pub struct BlockcastHit {
     pub block_pos: BlockCoord,
     pub block: BlockType,
     pub normal: BlockCoord,
+}
+
+//ids may not be stable across program runs. to get a specific id for an entity or name,
+// use the corresponding registry. DO NOT HARDCODE (unless the backing id dict is hardcoded)
+#[derive(Default, Component, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Id {
+    #[default]
+    Empty,
+    Basic(u32),
+    Dynamic(u32)
+}
+
+impl Id {
+    pub fn with_id(self, new_id: u32) -> Self {
+        match self {
+            Id::Empty => Id::Empty,
+            Id::Basic(id) => Id::Basic(new_id),
+            Id::Dynamic(_) => Id::Dynamic(new_id)
+        }
+    }
 }

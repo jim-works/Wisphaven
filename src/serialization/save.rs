@@ -4,12 +4,12 @@ use bevy::prelude::*;
 use crate::{
     world::{
         chunk::{ChunkCoord, ChunkType},
-        Level, BlockId,
+        Level, BlockId, BlockCoord,
     },
     worldgen::GeneratedChunk,
 };
 
-use super::{ChunkSaveFormat, NeedsSaving, SaveChunkEvent, SaveTimer, LoadedToSavedBlockIdMap};
+use super::{ChunkSaveFormat, NeedsSaving, SaveChunkEvent, SaveTimer, LoadedToSavedIdMap};
 use super::db::*;
 
 pub fn save_all(
@@ -38,7 +38,7 @@ pub fn do_saving(
     level: Res<Level>,
     mut commands: Commands,
     block_query: Query<&BlockId>,
-    id_map: Res<LoadedToSavedBlockIdMap>
+    id_map: Res<LoadedToSavedIdMap<BlockId>>
 ) {
     let mut saved = 0;
     //get unique coordinates
