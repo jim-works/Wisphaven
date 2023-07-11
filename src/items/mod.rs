@@ -30,7 +30,7 @@ impl Plugin for ItemsPlugin {
             .register_type::<ItemName>()
             .register_type::<weapons::MeleeWeaponItem>()
             .register_type::<block_item::BlockItem>()
-            .register_type::<block_item::MegablockItem>()
+            .register_type::<block_item::MegaBlockItem>()
         ;
     }
 }

@@ -4,6 +4,8 @@ use bevy::prelude::{Resource, Vec2};
 
 use crate::ChunkLoader;
 
+use super::chunk::ChunkCoord;
+
 #[derive(Resource)]
 pub struct Settings {
     pub init_loader: ChunkLoader,
@@ -20,7 +22,7 @@ impl Default for Settings {
 
     fn default() -> Self {
         let loader = ChunkLoader {
-            radius: 2,
+            radius: ChunkCoord::new(12,8,12),
             lod_levels: 0,
         };
         Self {

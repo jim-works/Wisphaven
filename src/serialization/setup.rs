@@ -9,7 +9,7 @@ use crate::mesher::TerrainTexture;
 use crate::serialization::{LoadingBlocks, LoadingItems};
 use crate::serialization::db::{LevelDB, LevelDBErr};
 use crate::serialization::queries::{CREATE_CHUNK_TABLE, CREATE_WORLD_INFO_TABLE, LOAD_WORLD_INFO, INSERT_WORLD_INFO};
-use crate::world::{LevelLoadState, BlockName, BlockResources, BlockRegistry, NamedBlockMesh, BlockNameIdMap, BlockId};
+use crate::world::{LevelLoadState, BlockName, BlockResources, BlockRegistry, NamedBlockMesh, BlockNameIdMap, BlockId, Id};
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
 
 use super::{BlockTextureMap, LoadedToSavedIdMap, ItemTextureMap, SavedToLoadedIdMap};
@@ -136,6 +136,7 @@ pub fn load_block_registry(
         return;
     }
     let mut registry = BlockRegistry::default();
+    registry.id_map.insert(BlockName::core("empty"), BlockId(Id::Empty));
     for (scene_entity, children) in loading_blocks.iter() {
         info!("Loading block scene");
         commands.entity(scene_entity).remove::<LoadingBlocks>();

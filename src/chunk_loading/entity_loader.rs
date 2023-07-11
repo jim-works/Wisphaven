@@ -10,15 +10,15 @@ use crate::{
 
 #[derive(Component, Clone, Debug)]
 pub struct ChunkLoader {
-    pub radius: i32,
+    pub radius: ChunkCoord,
     pub lod_levels: i32,
 }
 
 impl ChunkLoader {
     pub fn for_each_chunk(&self, mut f: impl FnMut(ChunkCoord)) {
-        for x in -self.radius..self.radius + 1 {
-            for y in -self.radius..self.radius + 1 {
-                for z in -self.radius..self.radius + 1 {
+        for x in -self.radius.x..self.radius.x + 1 {
+            for y in -self.radius.y..self.radius.y + 1 {
+                for z in -self.radius.z..self.radius.z + 1 {
                     (f)(ChunkCoord::new(x, y, z));
                 }
             }
@@ -131,17 +131,17 @@ fn load_lod(
     let _my_span = info_span!("load_lod", name = "load_lod").entered();
     let base_coord =
         ChunkCoord::from(transform.translation() / LODChunk::level_to_scale(lod_level as u8) as f32);
-    for x in (base_coord.x - loader.radius)..(base_coord.x + loader.radius + 1) {
-        for y in (base_coord.y - loader.radius)..(base_coord.y + loader.radius + 1) {
-            for z in (base_coord.z - loader.radius)..(base_coord.z + loader.radius + 1) {
+    for x in (base_coord.x - loader.radius.x)..(base_coord.x + loader.radius.x + 1) {
+        for y in (base_coord.y - loader.radius.y)..(base_coord.y + loader.radius.y + 1) {
+            for z in (base_coord.z - loader.radius.z)..(base_coord.z + loader.radius.z + 1) {
                 //don't generate in the center, where more detailed chunks will be
                 let no_radius = loader.radius / 2;
-                if base_coord.x - no_radius <= x
-                    && x <= base_coord.x + no_radius
-                    && base_coord.y - no_radius <= y
-                    && y <= base_coord.y + no_radius
-                    && base_coord.z - no_radius <= z
-                    && z <= base_coord.z + no_radius
+                if base_coord.x - no_radius.x <= x
+                    && x <= base_coord.x + no_radius.x
+                    && base_coord.y - no_radius.y <= y
+                    && y <= base_coord.y + no_radius.y
+                    && base_coord.z - no_radius.z <= z
+                    && z <= base_coord.z + no_radius.z
                 {
                     continue;
                 }

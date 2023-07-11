@@ -41,7 +41,7 @@ mod ui;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
-        .add_plugin(WorldInspectorPlugin::new())
+        //.add_plugin(WorldInspectorPlugin::new())
         .add_plugin(UtilPlugin)
         .add_plugin(serialization::SerializationPlugin)
         .add_plugin(BillboardPlugin)

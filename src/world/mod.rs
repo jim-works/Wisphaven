@@ -87,7 +87,7 @@ impl Id {
     pub fn with_id(self, new_id: u32) -> Self {
         match self {
             Id::Empty => Id::Empty,
-            Id::Basic(id) => Id::Basic(new_id),
+            Id::Basic(_) => Id::Basic(new_id),
             Id::Dynamic(_) => Id::Dynamic(new_id)
         }
     }

@@ -24,7 +24,7 @@ impl Plugin for UIPlugin {
             .add_plugin(debug::DebugUIPlugin)
             .add_system(capture_mouse.in_schedule(OnEnter(state::UIState::Default)))
             .add_system(release_mouse.in_schedule(OnEnter(state::UIState::Inventory)))
-            .add_system(state::toggle_hidden.in_set(LevelSystemSet::Main))
+            .add_systems((state::toggle_hidden, state::toggle_debug).in_set(LevelSystemSet::Main))
         ;
     }
 }

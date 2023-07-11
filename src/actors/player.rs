@@ -5,7 +5,7 @@ use bevy_atmosphere::prelude::AtmosphereCamera;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::InputManagerBundle;
 
-use crate::{world::{*, settings::Settings}, controllers::{*, self}, physics::*, items::{inventory::Inventory, *, self, block_item::*, weapons::MeleeWeaponItem, debug_items::PersonalityTester}};
+use crate::{world::{*, settings::Settings}, controllers::{*, self}, physics::*, items::{inventory::Inventory, *}};
 
 use super::{CombatantBundle, CombatInfo, DeathInfo, Jump};
 
@@ -37,7 +37,6 @@ pub fn spawn_local_player(
     mut spawn_event: EventWriter<LocalPlayerSpawnedEvent>,
     resources: Res<ItemResources>,
     item_query: Query<&MaxStackSize>,
-    assets: Res<AssetServer>
 ) {
     info!("Spawning local player!");
     let player_id = commands.spawn((
@@ -76,6 +75,7 @@ pub fn spawn_local_player(
         inventory.pickup_item(ItemStack::new(resources.registry.get_basic(&ItemName::core("tnt_block")).unwrap(),100), &item_query, &mut pickup_item, &mut equip_item);
         inventory.pickup_item(ItemStack::new(resources.registry.get_basic(&ItemName::core("personality_tester")).unwrap(),100), &item_query, &mut pickup_item, &mut equip_item);
         inventory.pickup_item(ItemStack::new(resources.registry.get_basic(&ItemName::core("dagger")).unwrap(),100), &item_query, &mut pickup_item, &mut equip_item);
+        inventory.pickup_item(ItemStack::new(resources.registry.get_basic(&ItemName::core("mega_air")).unwrap(),100), &item_query, &mut pickup_item, &mut equip_item);
 
         commands.entity(player_id).insert(inventory);
         let projection = PerspectiveProjection {

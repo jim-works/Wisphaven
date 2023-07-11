@@ -13,8 +13,8 @@ pub enum UIState {
 
 #[derive(States, Default, Debug, Hash,PartialEq, Eq, Clone)]
 pub enum DebugUIState {
-    Hidden,
     #[default]
+    Hidden,
     Shown,
 } 
 
@@ -28,6 +28,22 @@ pub fn toggle_hidden (
             match curr_state.0 {
                 UIState::Hidden => next_state.set(UIState::Default),
                 _ => next_state.set(UIState::Hidden)
+            }
+        }
+    }
+    
+}
+
+pub fn toggle_debug (
+    mut next_state: ResMut<NextState<DebugUIState>>,
+    curr_state: Res<State<DebugUIState>>,
+    query: Query<&ActionState<Action>, With<LocalPlayer>>,
+) {
+    if let Ok(action) = query.get_single() {
+        if action.just_pressed(Action::ToggleDebugUIHidden) {
+            match curr_state.0 {
+                DebugUIState::Hidden => next_state.set(DebugUIState::Shown),
+                _ => next_state.set(DebugUIState::Hidden)
             }
         }
     }

@@ -61,5 +61,23 @@
         "recursia::items::debug_items::PersonalityTester": (),
       },
     ),
+    5: (
+      components: {
+        "recursia::items::ItemName": (
+          namespace: "core",
+          name: "mega_air",
+        ),
+        "recursia::items::NamedItemIcon": (
+            path: "vacuum.png"
+        ),
+        "recursia::items::block_item::MegaBlockItem": (
+          BlockName(
+            namespace: "core",
+            name: "empty"
+          ),
+          10
+        ),
+      },
+    ),
   },
 )

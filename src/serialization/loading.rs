@@ -11,6 +11,8 @@ use crate::{
 use super::{ChunkSaveFormat, NeedsLoading, SaveTimer, SavedToLoadedIdMap};
 use super::db::*;
 
+const LOADING_ENABLED: bool = false;
+
 pub fn queue_terrain_loading(
     mut commands: Commands,
     mut db: ResMut<LevelDB>,
@@ -53,7 +55,7 @@ pub fn load_chunk_terrain(
         let buff_data = &data_vec[1].1;
         //do buffers before loading terrain, that way if there's both, we only generate the terrain mesh once.
         //first copy over the buffer so that it is applied when the chunk is added right after the terrain loads.
-        if !buff_data.is_empty() {
+        if LOADING_ENABLED && !buff_data.is_empty() {
             match bincode::deserialize::<ChunkSaveFormat>(buff_data.as_slice()) {
                 Ok(mut fmt) => {
                     fmt.map_to_loaded(map.as_ref());
@@ -64,7 +66,7 @@ pub fn load_chunk_terrain(
         }
         //load terrain or mark as needing generation
         if let Some(entity) = level.get_chunk_entity(*coord) {
-            if terrain_data.is_empty() {
+            if !LOADING_ENABLED || terrain_data.is_empty() {
                 commands.entity(entity).insert(ChunkNeedsGenerated::Full);
             } else 
             {

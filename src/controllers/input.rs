@@ -14,6 +14,7 @@ pub enum Action {
     Scroll,
     ToggleInventory,
     ToggleUIHidden,
+    ToggleDebugUIHidden,
 }
 
 pub fn get_input_map() -> InputMap<Action> {
@@ -33,6 +34,7 @@ pub fn get_input_map() -> InputMap<Action> {
     map.insert(SingleAxis::mouse_wheel_y(), Action::Scroll);
     map.insert(KeyCode::Escape, Action::ToggleInventory);
     map.insert(KeyCode::F1, Action::ToggleUIHidden);
+    map.insert(KeyCode::F3, Action::ToggleDebugUIHidden);
 
     map
 }

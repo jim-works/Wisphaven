@@ -10,7 +10,7 @@ pub struct BlockItem(pub BlockName);
 
 #[derive(Component, Reflect, Default)]
 #[reflect(Component)]
-pub struct MegablockItem(pub BlockName, pub i32);
+pub struct MegaBlockItem(pub BlockName, pub i32);
 
 pub fn use_block_item(
     mut reader: EventReader<UseItemEvent>,
@@ -32,7 +32,7 @@ pub fn use_block_item(
 
 pub fn use_mega_block_item(
     mut reader: EventReader<UseItemEvent>,
-    megablock_query: Query<&MegablockItem>,
+    megablock_query: Query<&MegaBlockItem>,
     level: Res<Level>,
     resources: Res<BlockResources>,
     id_query: Query<&BlockId>,

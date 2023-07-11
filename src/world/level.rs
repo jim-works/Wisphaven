@@ -27,7 +27,7 @@ impl Level {
             chunks: DashMap::with_hasher(ahash::RandomState::new()),
             buffers: DashMap::with_hasher(ahash::RandomState::new()),
             lod_chunks: vec![DashMap::with_hasher(ahash::RandomState::new()); lod_levels],
-            spawn_point: Vec3::ZERO,
+            spawn_point: Vec3::new(0.0,10.0,0.0),
         }
     }
     pub fn get_block(&self, key: BlockCoord) -> Option<BlockType> {

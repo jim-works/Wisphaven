@@ -1,4 +1,4 @@
-use std::{ops::{Index, IndexMut, Add}, marker::PhantomData};
+use std::{ops::{Index, IndexMut, Add, Div}, marker::PhantomData};
 
 use bevy::prelude::*;
 use serde::{Serialize, Deserialize};
@@ -56,6 +56,14 @@ impl Add<ChunkCoord> for ChunkCoord {
 
     fn add(self, rhs: ChunkCoord) -> Self::Output {
         ChunkCoord::new(self.x+rhs.x,self.y+rhs.y,self.z+rhs.z)
+    }
+}
+
+impl Div<i32> for ChunkCoord {
+    type Output = ChunkCoord;
+
+    fn div(self, rhs: i32) -> Self::Output {
+        ChunkCoord::new(self.x/rhs,self.y/rhs,self.z/rhs)
     }
 }
 

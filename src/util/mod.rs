@@ -23,6 +23,38 @@ pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a * (1.0 - t) + b * t
 }
 
+pub fn trilerp<const X: usize, const Y: usize, const Z: usize>(samples: &[[[f32; X]; Y]; Z], x: usize, y: usize, z: usize, sample_interval: usize) -> f32 {
+    let index_x = x % sample_interval;
+    let index_y = y % sample_interval;
+    let index_z = z % sample_interval;
+
+    let factor_x = index_x as f32 / sample_interval as f32;
+    let factor_y = index_y as f32 / sample_interval as f32;
+    let factor_z = index_z as f32 / sample_interval as f32;
+
+    let point = Vec3::new(factor_x, factor_y, factor_z);
+
+    let v000 = samples[x / sample_interval][y / sample_interval][z / sample_interval];
+    let v001 = samples[x / sample_interval][y / sample_interval][z / sample_interval + 1];
+    let v010 = samples[x / sample_interval][y / sample_interval + 1][z / sample_interval];
+    let v011 = samples[x / sample_interval][y / sample_interval + 1][z / sample_interval + 1];
+    let v100 = samples[x / sample_interval + 1][y / sample_interval][z / sample_interval];
+    let v101 = samples[x / sample_interval + 1][y / sample_interval][z / sample_interval + 1];
+    let v110 = samples[x / sample_interval + 1][y / sample_interval + 1][z / sample_interval];
+    let v111 = samples[x / sample_interval + 1][y / sample_interval + 1][z / sample_interval + 1];
+    trilinear_interpolation(point, v000, v001, v010, v011, v100, v101, v110, v111)
+}
+
+pub fn trilinear_interpolation(point: Vec3, v000: f32, v001: f32, v010: f32, v011: f32, v100: f32, v101: f32, v110: f32, v111: f32) -> f32 {
+    let c00 = v000 * (1.0 - point.x) + v100 * point.x;
+    let c01 = v001 * (1.0 - point.x) + v101 * point.x;
+    let c10 = v010 * (1.0 - point.x) + v110 * point.x;
+    let c11 = v011 * (1.0 - point.x) + v111 * point.x;
+    let c0 = c00 * (1.0 - point.y) + c10 * point.y;
+    let c1 = c01 * (1.0 - point.y) + c11 * point.y;
+    c0 * (1.0 - point.z) + c1 * point.z
+}
+
 //if v has maximum element m, returns the vector with m set to sign(m) and all other elements 0.
 pub fn max_component_norm(v: Vec3) -> Vec3 {
     let abs = v.abs();
