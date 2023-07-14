@@ -4,7 +4,7 @@ use std::{sync::Arc, time::Instant};
 use crate::{
     mesher::NeedsMesh,
     physics::NeedsPhysics,
-    util::{Spline, SplineNoise, trilerp},
+    util::{Spline, SplineNoise, trilerp, ClampedSpline},
     world::{chunk::*, BlockBuffer, BlockId, BlockName, BlockResources, Id, Level, SavedBlockId},
 };
 use bevy::{
@@ -14,7 +14,7 @@ use bevy::{
 
 use super::{
     structures::{self, StructureResources},
-    ADD_TIME_BUDGET_MS, QUEUE_GEN_TIME_BUDGET_MS, ShaperResources,
+    ADD_TIME_BUDGET_MS, QUEUE_GEN_TIME_BUDGET_MS, UsedShaperResources,
 };
 
 #[derive(Component)]
@@ -46,9 +46,13 @@ pub struct GeneratedChunk;
 #[derive(Component)]
 pub struct GeneratedLODChunk;
 
-pub struct ShaperSettings<const NOISE: usize, const HEIGHTMAP: usize> {
+pub struct ShaperSettings<const NOISE: usize, const HEIGHTMAP: usize, const LANDMASS: usize, const SQUISH: usize> {
     //3d density "main" noise. value determines if a block is placed or not
     pub density_noise: SplineNoise<NOISE>,
+    //2d low-frequency heightmap noise. creates whole landmasses and determines where oceans are
+    pub landmass_noise: SplineNoise<LANDMASS>,
+    //2d noise that squishes down variances in the heightmap
+    pub squish_noise: SplineNoise<SQUISH>,
     //constant. value creates the upper control point for density required over the y axis
     pub upper_density: Vec2,
     //2d heightmap noise. value controls the x-value for the middle control point for density required over the y axis
@@ -56,12 +60,12 @@ pub struct ShaperSettings<const NOISE: usize, const HEIGHTMAP: usize> {
     //constant. value controls the y-value for the middle control point for density required over the y axis
     pub mid_density: f32,
     //constant. value creates the lower control point for density required over the y axis
-    pub lower_density: Vec2,
+    pub lower_density: Vec2
 }
 
-pub fn queue_generating<const NOISE: usize, const HEIGHTMAP: usize>(
+pub fn queue_generating<const NOISE: usize, const HEIGHTMAP: usize, const LANDMASS: usize, const SQUISH: usize>(
     query: Query<(Entity, &ChunkCoord, &ChunkNeedsGenerated)>,
-    resources: Res<ShaperResources<NOISE,HEIGHTMAP>>,
+    resources: Res<UsedShaperResources>,
     block_resources: Res<BlockResources>,
     mut id: Local<SavedBlockId>,
     mut commands: Commands,
@@ -192,14 +196,16 @@ pub fn poll_gen_lod_queue(
     }
 }
 
-fn shape_chunk<const NOISE: usize, const HEIGHTMAP: usize>(
+fn shape_chunk<const NOISE: usize, const HEIGHTMAP: usize, const LANDMASS: usize, const SQUISH: usize>(
     chunk: &mut Chunk<impl ChunkStorage<BlockId>, BlockId>,
-    settings: Arc<ShaperSettings<NOISE, HEIGHTMAP>>,
+    settings: Arc<ShaperSettings<NOISE, HEIGHTMAP, LANDMASS, SQUISH>>,
     block_id: BlockId,
 ) {
     let _my_span = info_span!("shape_chunk", name = "shape_chunk").entered();
     let heightmap_noise = &settings.heightmap_noise;
     let density_noise = &settings.density_noise;
+    let landmass_noise = &settings.landmass_noise;
+    let squish_noise = &settings.squish_noise;
 
     const LERP_DISTANCE: u8 = 4;
     const SAMPLE_INTERVAL: usize = (CHUNK_SIZE_U8/LERP_DISTANCE) as usize;
@@ -220,16 +226,17 @@ fn shape_chunk<const NOISE: usize, const HEIGHTMAP: usize>(
     for x in 0..CHUNK_SIZE_U8 {
         for z in 0..CHUNK_SIZE_U8 {
             let column_pos = chunk.get_block_pos(ChunkIdx::new(x, 0, z));
-            let height = heightmap_noise.get_noise2d(column_pos.x, column_pos.z);
-            let density_map = Spline::new([
+            let squish = squish_noise.get_noise2d(column_pos.x,column_pos.z);
+            let height = squish*heightmap_noise.get_noise2d(column_pos.x, column_pos.z)+landmass_noise.get_noise2d(column_pos.x, column_pos.z);
+            let density_map = ClampedSpline::new([
                 Vec2::new(settings.lower_density.x+height, settings.lower_density.y),
                 Vec2::new(height,settings.mid_density),
-                Vec2::new(settings.upper_density.x+height, settings.upper_density.y),
+                Vec2::new(crate::util::lerp(0.0,settings.upper_density.x,squish)+height, settings.upper_density.y),
             ]);
             for y in 0..CHUNK_SIZE_U8 {
                 let block_pos = chunk.get_block_pos(ChunkIdx::new(x, y, z));
                 let density = trilerp(&density_samples, x as usize, y as usize, z as usize, SAMPLE_INTERVAL);
-                if 0.0 > density_map.map(block_pos.y) {
+                if density > density_map.map(block_pos.y) {
                     chunk[ChunkIdx::new(x, y, z)] = block_id;
                 }
             }

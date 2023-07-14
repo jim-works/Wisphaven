@@ -39,6 +39,17 @@ pub fn spawn_local_player(
     item_query: Query<&MaxStackSize>,
 ) {
     info!("Spawning local player!");
+    let mut spawn_point = level.spawn_point;
+    const MAX_CHECK_RANGE: i32 = 1000;
+    for _ in 0..MAX_CHECK_RANGE {
+        match level.get_block(spawn_point.into())  {
+            Some(BlockType::Empty) => if let Some(BlockType::Empty) = level.get_block(BlockCoord::from(spawn_point)+BlockCoord::new(0,1,0)) {
+                break;
+            },
+            Some(_) => {spawn_point.y += 1.0;},
+            None => {break;} //into unloaded chunks
+        }
+    }
     let player_id = commands.spawn((
         Name::new("local player"),
         Player {hit_damage: 1.0},
@@ -51,7 +62,7 @@ pub fn spawn_local_player(
             lock_pitch: true,
             ..default()
         },
-        TransformBundle::from_transform(Transform::from_translation(level.spawn_point)),
+        TransformBundle::from_transform(Transform::from_translation(spawn_point)),
         ControllableBundle {
             physics: PhysicsObjectBundle {
                 collision_groups: CollisionGroups::new(
