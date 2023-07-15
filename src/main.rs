@@ -15,7 +15,6 @@ use bevy::prelude::*;
 use bevy_atmosphere::prelude::*;
 use bevy_mod_billboard::prelude::*;
 use bevy_fly_camera::FlyCameraPlugin;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use chunk_loading::{ChunkLoader, ChunkLoaderPlugin};
 use controllers::ControllersPlugin;
 use items::ItemsPlugin;

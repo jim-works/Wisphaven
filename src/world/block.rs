@@ -64,6 +64,7 @@ pub struct UsableBlock;
 //we need this trait because we can't spawn entities in tasks, so we create an instance of BlockGenerator, which we can use later to create the block entity
 pub trait BlockGenerator: Send + Sync {
     fn generate(&self, block: Entity, position: BlockCoord, commands: &mut Commands);
+    fn default(&self, block: Entity, commands: &mut Commands);
 }
 
 //marker for components to look for on a BlockEntity
@@ -200,7 +201,18 @@ impl BlockRegistry {
             },
         }
     }
-    pub fn get_entity(&self, block_id: BlockId, position: BlockCoord, commands: &mut Commands) -> Option<Entity> {
+    pub fn get_entity(&self, block_id: BlockId, commands: &mut Commands) -> Option<Entity> {
+        match block_id {
+            BlockId(Id::Empty) => None,
+            BlockId(Id::Basic(id)) => self.basic_entities.get(id as usize).copied(),
+            BlockId(Id::Dynamic(id)) => self.dynamic_generators.get(id as usize).and_then(|gen| {
+                let id = Self::setup_block(block_id, commands);
+                gen.default(id, commands);
+                Some(id)
+            }),
+        }
+    }
+    pub fn generate_entity(&self, block_id: BlockId, position: BlockCoord, commands: &mut Commands) -> Option<Entity> {
         match block_id {
             BlockId(Id::Empty) => None,
             BlockId(Id::Basic(id)) => self.basic_entities.get(id as usize).copied(),
@@ -214,8 +226,14 @@ impl BlockRegistry {
     fn setup_block(id: BlockId, commands: &mut Commands) -> Entity {
         commands.spawn(id).id()
     }
-    pub fn get_block_type(&self, id: BlockId, position: BlockCoord, commands: &mut Commands) -> BlockType {
-        match self.get_entity(id, position, commands) {
+    pub fn get_block_type(&self, id: BlockId, commands: &mut Commands) -> BlockType {
+        match self.get_entity(id, commands) {
+            Some(id) => BlockType::Filled(id),
+            None => BlockType::Empty,
+        }
+    }
+    pub fn generate_block_type(&self, id: BlockId, pos: BlockCoord, commands: &mut Commands) -> BlockType {
+        match self.generate_entity(id, pos, commands) {
             Some(id) => BlockType::Filled(id),
             None => BlockType::Empty,
         }

@@ -4,7 +4,7 @@ use std::{sync::Arc, time::Instant};
 use crate::{
     mesher::NeedsMesh,
     physics::NeedsPhysics,
-    util::{Spline, SplineNoise, trilerp, ClampedSpline},
+    util::{SplineNoise, trilerp, ClampedSpline},
     world::{chunk::*, BlockBuffer, BlockId, BlockName, BlockResources, Id, Level, SavedBlockId},
 };
 use bevy::{
@@ -61,6 +61,15 @@ pub struct ShaperSettings<const NOISE: usize, const HEIGHTMAP: usize, const LAND
     pub mid_density: f32,
     //constant. value creates the lower control point for density required over the y axis
     pub lower_density: Vec2
+}
+
+pub struct DecorationSettings<const TEMP: usize, const HUMID: usize, const FUNKY: usize> {
+    //2d temperature for biome placement
+    pub temperature_noise: SplineNoise<TEMP>,
+    //2d humidity for biome placement
+    pub humidity_noise: SplineNoise<HUMID>,
+    //3d "funkiness" for biome placement,
+    pub funky_noise: SplineNoise<FUNKY>
 }
 
 pub fn queue_generating<const NOISE: usize, const HEIGHTMAP: usize, const LANDMASS: usize, const SQUISH: usize>(
@@ -197,7 +206,7 @@ pub fn poll_gen_lod_queue(
 }
 
 fn shape_chunk<const NOISE: usize, const HEIGHTMAP: usize, const LANDMASS: usize, const SQUISH: usize>(
-    chunk: &mut Chunk<impl ChunkStorage<BlockId>, BlockId>,
+    chunk: &mut impl ChunkTrait<BlockId>,
     settings: Arc<ShaperSettings<NOISE, HEIGHTMAP, LANDMASS, SQUISH>>,
     block_id: BlockId,
 ) {
@@ -213,7 +222,7 @@ fn shape_chunk<const NOISE: usize, const HEIGHTMAP: usize, const LANDMASS: usize
     const SAMPLES_PER_CHUNK_U8: u8 = SAMPLES_PER_CHUNK as u8;
     let mut density_samples = [[[0.0; SAMPLES_PER_CHUNK]; SAMPLES_PER_CHUNK]; SAMPLES_PER_CHUNK];
 
-    //use lerp points to make the terrain less "blobish"
+    //use lerp points to make the terrain more sharp, less "blobish"
     for x in 0..SAMPLES_PER_CHUNK {
         for y in 0..SAMPLES_PER_CHUNK {
             for z in 0..SAMPLES_PER_CHUNK {
@@ -237,7 +246,7 @@ fn shape_chunk<const NOISE: usize, const HEIGHTMAP: usize, const LANDMASS: usize
                 let block_pos = chunk.get_block_pos(ChunkIdx::new(x, y, z));
                 let density = trilerp(&density_samples, x as usize, y as usize, z as usize, SAMPLE_INTERVAL);
                 if density > density_map.map(block_pos.y) {
-                    chunk[ChunkIdx::new(x, y, z)] = block_id;
+                    chunk.set_block(ChunkIdx::new(x, y, z).into(), block_id);
                 }
             }
         }

@@ -3,7 +3,7 @@ use std::{ops::{Index, IndexMut, Add, Div}, marker::PhantomData};
 use bevy::prelude::*;
 use serde::{Serialize, Deserialize};
 
-use crate::util::Direction;
+use crate::util::{Direction, palette::BlockPalette};
 
 use super::{BlockType, BlockCoord, BlockId, BlockRegistry, Id};
 
@@ -17,9 +17,11 @@ pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE;
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LODLevel {pub level: u8}
 
-pub type ArrayChunk = Chunk<[BlockType; BLOCKS_PER_CHUNK], BlockType>;
+pub type ArrayChunk = Chunk<BlockPalette<BlockType>, BlockType>;
 pub type LODChunk = ArrayChunk;
-pub type GeneratingChunk = Chunk<[BlockId; BLOCKS_PER_CHUNK], BlockId>;
+// pub type GeneratingChunk = Chunk<[BlockId; BLOCKS_PER_CHUNK], BlockId>;
+// pub type GeneratingLODChunk = GeneratingChunk;
+pub type GeneratingChunk = Chunk<BlockPalette<BlockId>, BlockId>;
 pub type GeneratingLODChunk = GeneratingChunk;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -116,6 +118,12 @@ impl From<BlockCoord> for ChunkIdx {
     
 }
 
+impl From<ChunkIdx> for usize {
+    fn from(value: ChunkIdx) -> Self {
+        (value.x as usize)*CHUNK_SIZE*CHUNK_SIZE+(value.y as usize)*CHUNK_SIZE+(value.z as usize)
+    }
+}
+
 impl Add<ChunkIdx> for ChunkIdx {
     type Output = Self;
 
@@ -134,14 +142,31 @@ pub enum ChunkType {
 pub enum LODChunkType {
     //entity, level
     Ungenerated(Entity, u8),
-    Full(LODChunk)
+    Full(ArrayChunk)
 }
 
-pub trait ChunkStorage<Block>: Index<usize, Output=Block> + IndexMut<usize, Output=Block> {}
-impl<T, Block> ChunkStorage<Block> for T where T: Index<usize, Output=Block> + IndexMut<usize, Output=Block> {}
+pub trait ChunkStorage<Block>: Index<usize, Output=Block> {
+    fn set_block(&mut self, index: usize, val: Block);
+}
+impl<T, Block> ChunkStorage<Block> for T where T: Index<usize, Output=Block> + IndexMut<usize, Output=Block> {
+    fn set_block(&mut self, index: usize, val: Block) {
+        self[index] = val;
+    }
+}
+impl<Storage,Block,Idx> IndexMut<Idx> for Chunk<Storage,Block> where Storage: ChunkStorage<Block> + IndexMut<Idx, Output=Block>, Block: ChunkBlock, Chunk<Storage,Block>: Index<Idx, Output=Block> {
+    fn index_mut(&mut self, index: Idx) -> &mut Block {
+        &mut self.blocks[index]
+    }
+}
 
 pub trait ChunkBlock: Clone + Send + Sync + PartialEq {}
 impl<T> ChunkBlock for T where T: Clone + Send + Sync + PartialEq {}
+
+pub trait ChunkTrait<Block: PartialEq>: Index<ChunkIdx> + Index<usize> {
+    fn scale(&self) -> i32;
+    fn get_block_pos(&self, pos: ChunkIdx) -> Vec3;
+    fn set_block(&mut self, idx: usize, block: Block);
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Chunk<Storage, Block> where Storage: ChunkStorage<Block>, Block: ChunkBlock {
@@ -154,6 +179,34 @@ pub struct Chunk<Storage, Block> where Storage: ChunkStorage<Block>, Block: Chun
     _data: PhantomData<Block>
 }
 
+impl<Storage: ChunkStorage<Block>, Block: ChunkBlock> Chunk<Storage, Block> {
+    pub fn with_storage<NewBlock: ChunkBlock, NewStorage: ChunkStorage<NewBlock>>(&self, storage: Box<NewStorage>) -> Chunk<NewStorage,NewBlock> {
+        Chunk {
+            blocks: storage,
+            position: self.position,
+            entity: self.entity,
+            level: self.level,
+            _data: PhantomData
+        }
+    }
+}
+
+impl<Storage: ChunkStorage<Block>, Block: ChunkBlock> ChunkTrait<Block> for Chunk<Storage, Block> {
+    fn scale(&self) -> i32 {
+        LODChunk::level_to_scale(self.level)
+    }
+
+    fn get_block_pos(&self, pos: ChunkIdx) -> Vec3 {
+        let scale = self.scale();
+        Vec3::new((self.position.x*CHUNK_SIZE_I32*scale+(pos.x as i32)*scale) as f32, (self.position.y*CHUNK_SIZE_I32*scale+(pos.y as i32)*scale) as f32, (self.position.z*CHUNK_SIZE_I32*scale+(pos.z as i32)*scale) as f32)
+    }
+
+    fn set_block(&mut self, idx: usize, block: Block) {
+        self.blocks.set_block(idx, block);
+    }
+    
+}
+
 impl<Storage: ChunkStorage<Block>, Block: ChunkBlock> Index<ChunkIdx> for Chunk<Storage, Block> {
     type Output = Block;
     fn index(&self, index: ChunkIdx) -> &Block {
@@ -161,22 +214,10 @@ impl<Storage: ChunkStorage<Block>, Block: ChunkBlock> Index<ChunkIdx> for Chunk<
     }
 }
 
-impl<Storage: ChunkStorage<Block>, Block: ChunkBlock> IndexMut<ChunkIdx> for Chunk<Storage, Block> {
-    fn index_mut(&mut self, index: ChunkIdx) -> &mut Block {
-        &mut self.blocks[index.to_usize()]
-    }
-}
-
 impl<Storage: ChunkStorage<Block>, Block: ChunkBlock> Index<usize> for Chunk<Storage, Block> {
     type Output = Block;
     fn index(&self, index: usize) -> &Block {
         &self.blocks[index]
-    }
-}
-
-impl<Storage: ChunkStorage<Block>, Block: ChunkBlock> IndexMut<usize> for Chunk<Storage, Block> {
-    fn index_mut(&mut self, index: usize) -> &mut Block {
-        &mut self.blocks[index]
     }
 }
 
@@ -194,21 +235,10 @@ impl<Storage: ChunkStorage<Block>, Block: ChunkBlock> Chunk<Storage,Block> {
         Vec3::new((self.position.x*CHUNK_SIZE_I32*scale+(pos.x as i32)*scale) as f32, (self.position.y*CHUNK_SIZE_I32*scale+(pos.y as i32)*scale) as f32, (self.position.z*CHUNK_SIZE_I32*scale+(pos.z as i32)*scale) as f32)
     }
 }
-
-impl<'a, Storage: ChunkStorage<BlockType>> Chunk<Storage, BlockType> {
-    pub fn get_components<T: Component + Clone + PartialEq + Default>(&self, block_iter: impl Iterator<Item = &'a BlockType>, query: &Query<&T>) -> Chunk<Vec<T>, T>{
-        let _span = info_span!("get_components", name = "get_components").entered();
-        let data = block_iter.map(|b| match b {
-            BlockType::Empty => T::default(),
-            BlockType::Filled(entity) => query.get(*entity).unwrap_or(&T::default()).to_owned(),
-        });
-        Chunk::<Vec<T>, T> {blocks: Box::new(data.collect()), position: self.position, entity: self.entity, level: self.level, _data: PhantomData }
-    }
-}
 impl ArrayChunk {
     pub fn new(position: ChunkCoord, entity: Entity) -> ArrayChunk {
         Chunk {
-            blocks: Box::new([BlockType::Empty; BLOCKS_PER_CHUNK]),
+            blocks: Box::new(BlockPalette::new(BlockType::Empty)),
             entity,
             position,
             level: 1,
@@ -220,7 +250,7 @@ impl ArrayChunk {
 impl GeneratingChunk {
     pub fn new(position: ChunkCoord, entity: Entity) -> GeneratingChunk {
         Chunk {
-            blocks: Box::new([BlockId::default(); BLOCKS_PER_CHUNK]),
+            blocks: Box::new(BlockPalette::new(BlockId::default())),
             entity,
             position,
             level: 1,
@@ -229,17 +259,17 @@ impl GeneratingChunk {
     }
 
     pub fn to_array_chunk(self, registry: &BlockRegistry, commands: &mut Commands) -> ArrayChunk {
-        let mut result = ArrayChunk::new(self.position, self.entity);
-        for (i, block) in self.blocks.into_iter().enumerate() {
-            result[i] = match block {
+        let mut mapped_palette = Vec::with_capacity(self.blocks.palette.len());
+        for (key,val,r) in self.blocks.palette.iter() {
+            let block = match val {
                 BlockId(Id::Empty) => BlockType::Empty,
-                id @ BlockId(Id::Basic(_)) | id @ BlockId(Id::Dynamic(_)) => match registry.get_entity(id, BlockCoord::from(self.position)+ChunkIdx::from_usize(i).into(), commands) {
+                id @ BlockId(Id::Basic(_)) | id @ BlockId(Id::Dynamic(_)) => match registry.get_entity(*id, commands) {
                     Some(entity) => BlockType::Filled(entity),
                     None => BlockType::Empty,
                 },
-            }
+            };
+            mapped_palette.push((*key,block,*r));
         }
-        result
+        self.with_storage(Box::new(BlockPalette { data: self.blocks.data.clone(), palette: mapped_palette }))
     }
 }
-

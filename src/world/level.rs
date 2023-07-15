@@ -15,15 +15,17 @@ use super::{chunk::*, BlockBuffer, BlockCoord, BlockType, BlockId, BlockRegistry
 pub struct Level {
     pub name: &'static str,
     pub spawn_point: Vec3,
+    pub seed: u64,
     chunks: DashMap<ChunkCoord, ChunkType, ahash::RandomState>,
     buffers: DashMap<ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>, ahash::RandomState>,
     lod_chunks: Vec<DashMap<ChunkCoord, LODChunkType, ahash::RandomState>>,
 }
 
 impl Level {
-    pub fn new(name: &'static str, lod_levels: usize) -> Level {
+    pub fn new(name: &'static str, lod_levels: usize, seed: u64) -> Level {
         Level {
             name,
+            seed,
             chunks: DashMap::with_hasher(ahash::RandomState::new()),
             buffers: DashMap::with_hasher(ahash::RandomState::new()),
             lod_chunks: vec![DashMap::with_hasher(ahash::RandomState::new()); lod_levels],
@@ -68,12 +70,12 @@ impl Level {
     pub fn set_block_noupdate(&self, key: BlockCoord, val: BlockId, registry: &BlockRegistry, id_query: &Query<&BlockId>, commands: &mut Commands) -> Option<Entity> {
         if let Some(mut r) = self.get_chunk_mut(ChunkCoord::from(key)) {
             if let ChunkType::Full(ref mut chunk) = r.value_mut() {
-                let block = match registry.get_entity(val, key, commands) {
+                let block = match registry.generate_entity(val, key, commands) {
                     Some(entity) => BlockType::Filled(entity),
                     None => BlockType::Empty,
                 };
                 BlockRegistry::remove_entity(id_query, chunk[ChunkIdx::from(key)], commands);
-                chunk[ChunkIdx::from(key)] = block;
+                ChunkTrait::set_block(chunk, ChunkIdx::from(key).into(), block);
                 return Some(chunk.entity);
             }
         }
@@ -84,7 +86,7 @@ impl Level {
         if let Some(mut r) = self.get_chunk_mut(ChunkCoord::from(key)) {
             if let ChunkType::Full(ref mut chunk) = r.value_mut() {
                 BlockRegistry::remove_entity(id_query, chunk[ChunkIdx::from(key)], commands);
-                chunk[ChunkIdx::from(key)] = val;
+                ChunkTrait::set_block(chunk, ChunkIdx::from(key).into(), val);
                 return Some(chunk.entity);
             }
         }
@@ -122,7 +124,7 @@ impl Level {
     pub fn set_block(&self, key: BlockCoord, val: BlockId, registry: &BlockRegistry, id_query: &Query<&BlockId>, commands: &mut Commands) {
         match val {
             id @ BlockId(Id::Basic(_)) | id @ BlockId(Id::Dynamic(_)) => {
-                if let Some(entity) = registry.get_entity(val, key, commands) {
+                if let Some(entity) = registry.generate_entity(val, key, commands) {
                     self.set_block_entity(key, BlockType::Filled(entity), id_query, commands);
                 } else {
                     error!("Tried to set a block with id: {:?} that has no entity!", id);
@@ -223,7 +225,7 @@ impl Level {
                 match chunk_ref.value_mut() {
                     ChunkType::Ungenerated(_) => {}
                     ChunkType::Full(ref mut c) => {
-                        buf.apply_to(c);
+                        buf.apply_to(c.blocks.as_mut());
                         Self::update_chunk_only::<true>(c.entity, commands);
                         //self.update_chunk_neighbors_only(c.position, commands);
                         continue;
@@ -256,7 +258,7 @@ impl Level {
                     for (block, run) in buf {
                         if !matches!(*block, BlockType::Empty) {
                             for i in start..start + *run as usize {
-                                c[i] = *block;
+                                c.set_block(i, *block);
                             }
                         }
                         start += *run as usize;
@@ -346,7 +348,7 @@ impl Level {
             if let Some((_, buf)) = self.buffers.remove(&key) {
                 for i in 0..BLOCKS_PER_CHUNK {
                     if !matches!(buf[i], BlockType::Empty) {
-                        c[i] = buf[i];
+                        c.set_block(i, buf[i]);
                     }
                 }
             }

@@ -55,7 +55,7 @@ pub fn queue_gen_physics(
     query.par_iter().for_each(|(entity, coord)| {
         if let Some(ctype) = level.get_chunk(*coord) {
             if let ChunkType::Full(chunk) = ctype.value() {
-                let meshing = chunk.get_components(chunk.blocks.iter(), &block_query);
+                let meshing = chunk.with_storage(Box::new(chunk.blocks.get_components(&block_query)));
                 let task = pool.spawn(async move {
                     let mut data = PhysicsGenerationData {
                         colliders: Vec::new(),

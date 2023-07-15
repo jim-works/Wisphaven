@@ -13,6 +13,7 @@ mod numerical_traits;
 pub use numerical_traits::*;
 
 pub mod plugin;
+pub mod palette;
 
 use bevy::prelude::Vec3;
 

@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::{
     world::{
         chunk::{ChunkCoord, ChunkType},
-        Level, BlockId, BlockCoord,
+        Level, BlockId,
     },
     worldgen::GeneratedChunk,
 };
@@ -52,7 +52,7 @@ pub fn do_saving(
                         save_data.push(SaveCommand(
                             ChunkTable::Terrain,
                             coord,
-                            bincode::serialize(&ChunkSaveFormat::ids_only((chunk.position, chunk.blocks.as_ref()), &block_query, id_map.as_ref())).unwrap(),
+                            bincode::serialize(&ChunkSaveFormat::palette_ids_only((chunk.position, chunk.blocks.as_ref()), &block_query, id_map.as_ref())).unwrap(),
                         ));
                         saved += 1;
                         ec.remove::<NeedsSaving>();

@@ -4,9 +4,8 @@ use bevy::prelude::*;
 use bracket_noise::prelude::*;
 
 use crate::{
-    serialization::state::GameLoadState,
     util::{get_next_prng, Spline, SplineNoise},
-    world::{chunk::ChunkCoord, BlockResources, LevelSystemSet, SavedBlockId},
+    world::{BlockResources, LevelSystemSet, Level, LevelLoadState},
 };
 
 mod generator;
@@ -15,7 +14,7 @@ pub use generator::{
     ShapingTask,
 };
 
-use self::structures::{trees::get_short_tree, StructureGenerationSettings, StructureResources};
+use self::{structures::{trees::get_short_tree, StructureGenerationSettings, StructureResources}, generator::DecorationSettings};
 
 pub mod structures;
 
@@ -27,13 +26,17 @@ pub const LANDMASS: usize = 5;
 pub const DENSITY: usize = 2;
 pub const SQUISH: usize = 7;
 
+pub const TEMP: usize = 2;
+pub const HUMID: usize = 2;
+pub const FUNKY: usize = 2;
+
 pub type UsedShaperResources = ShaperResources<{ DENSITY }, { HEIGHTMAP }, { LANDMASS }, {SQUISH}>;
 
 pub struct WorldGenPlugin;
 
 impl Plugin for WorldGenPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(ShaperResources(Arc::new(create_shaper_settings(8008135))))
+        app
             .add_systems(
                 (
                     generator::poll_gen_queue,
@@ -42,7 +45,7 @@ impl Plugin for WorldGenPlugin {
                 )
                     .in_set(LevelSystemSet::LoadingAndMain),
             )
-            .add_system(create_structure_settings.in_schedule(OnEnter(GameLoadState::Done)));
+            .add_systems((create_shaper_settings, create_structure_settings).in_schedule(OnEnter(LevelLoadState::Loading)));
     }
 }
 
@@ -51,20 +54,27 @@ pub struct ShaperResources<const D: usize, const H: usize, const L: usize, const
     pub Arc<ShaperSettings<D, H, L, S>>,
 );
 
-fn create_shaper_settings(seed: u64) -> ShaperSettings<DENSITY, HEIGHTMAP, LANDMASS, SQUISH> {
-    ShaperSettings {
+#[derive(Resource)]
+pub struct DecorationResources<const TEMP: usize, const HUMID: usize, const FUNKY: usize>(
+    pub Arc<DecorationSettings<TEMP,HUMID,FUNKY>>,
+);
+
+fn create_shaper_settings(mut commands: Commands, level: Res<Level>) {
+    let mut seed = level.seed^ 0xABDFACDFAEDFA0DF;
+    let settings = ShaperSettings {
         density_noise: create_density_noise(seed),
-        landmass_noise: create_landmass_noise(seed ^ 0xABDFACDFAEDFA0DF),
-        squish_noise: create_squish_noise(seed^0x1826ABCD4782FEDA),
+        landmass_noise: create_landmass_noise(get_next_seed(&mut seed)),
+        squish_noise: create_squish_noise(get_next_seed(&mut seed)),
         //x = terrain height, y = density threshold to place a block
         //this is the maximum height, but an offset: heightmap_noise+upper_density.x = the highest control point on the spline
         upper_density: Vec2::new(25.0, 1.0),
         //this is the middle height: which basically controls the
-        heightmap_noise: create_heightmap_noise(seed ^ 0xCAFEBABEDEAFBEEF), //don't want the seeds to be the same
+        heightmap_noise: create_heightmap_noise(get_next_seed(&mut seed)), //don't want the seeds to be the same
         mid_density: 0.0,
         //this is the minimum height, but an offset: heightmap_noise+lower_density.x = the lowest control point on the spline
         lower_density: Vec2::new(-100.0, -0.2)
-    }
+    };
+    commands.insert_resource(ShaperResources(Arc::new(settings)));
 }
 
 fn create_density_noise(seed: u64) -> SplineNoise<DENSITY> {
@@ -145,12 +155,12 @@ fn create_squish_noise(seed: u64) -> SplineNoise<SQUISH> {
     SplineNoise { noise, spline }
 }
 
-fn create_structure_settings(mut commands: Commands, resources: Res<BlockResources>) {
+fn create_structure_settings(mut commands: Commands, resources: Res<BlockResources>, level: Res<Level>) {
     info!(
         "There are {} blocks in the registry",
         resources.registry.id_map.len()
     );
-    let mut seed = 424242;
+    let mut seed = level.seed ^ 0x545454A0DFEA;
     let mut noise = FastNoise::seeded(seed);
     noise.set_noise_type(NoiseType::Value);
     noise.set_frequency(843580.97854);
@@ -163,6 +173,10 @@ fn create_structure_settings(mut commands: Commands, resources: Res<BlockResourc
             placement_noise: noise,
         }),
     });
+}
+
+fn create_decoration_settings(mut commands: Commands, resources: Res<BlockResources>) {
+
 }
 
 fn get_next_seed(seed: &mut u64) -> u64 {

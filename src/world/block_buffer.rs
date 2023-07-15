@@ -1,5 +1,3 @@
-use std::ops::IndexMut;
-
 use bevy::utils::HashMap;
 use bevy::prelude::*;
 
@@ -17,8 +15,8 @@ impl BlockBuffer<BlockId> {
             let mut new_buf = ChunkBuffer::new();
             for change in buffer.changes.into_iter() {
                 match change.1 {
-                    BlockChange::Set(id) => new_buf.changes.push((change.0, BlockChange::Set(registry.get_block_type(id, BlockCoord::from(coord)+ChunkIdx::from_usize(change.0).into(), commands)))),
-                    BlockChange::SetIfEmpty(id) => new_buf.changes.push((change.0, BlockChange::SetIfEmpty(registry.get_block_type(id, BlockCoord::from(coord)+ChunkIdx::from_usize(change.0).into(), commands))))
+                    BlockChange::Set(id) => new_buf.changes.push((change.0, BlockChange::Set(registry.get_block_type(id, commands)))),
+                    BlockChange::SetIfEmpty(id) => new_buf.changes.push((change.0, BlockChange::SetIfEmpty(registry.get_block_type(id, commands))))
                 }
             }
             result.buf.insert(coord, new_buf);
@@ -62,12 +60,12 @@ impl<T: Clone + Default + PartialEq> ChunkBuffer<T> {
     pub fn new() -> Self {
         Self {changes: Vec::new()}
     }
-    pub fn apply_to(self, arr: &mut impl IndexMut<usize, Output=T>) {
+    pub fn apply_to(self, arr: &mut impl ChunkStorage<T>) {
         for (idx, change) in self.changes {
             match change {
-                BlockChange::Set(b) => arr[idx] = b,
-                BlockChange::SetIfEmpty(b) => if arr[idx] == T::default() {
-                    arr[idx] = b;
+                BlockChange::Set(b) => arr.set_block(idx, b),
+                BlockChange::SetIfEmpty(b) => if std::ops::Index::index(arr, idx) == &T::default() {
+                    arr.set_block(idx,b);
                 }
             }
         }

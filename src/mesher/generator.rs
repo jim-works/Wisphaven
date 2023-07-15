@@ -116,7 +116,7 @@ pub fn queue_meshing(
                     if let Some(ctype) = level.get_chunk(coord.offset(dir)) {
                         if let ChunkType::Full(neighbor) = ctype.value() {
                             neighbor_count += 1;
-                            neighbors[dir.to_idx()] = Some(neighbor.get_components(neighbor.blocks.iter(), &mesh_query));
+                            neighbors[dir.to_idx()] = Some(neighbor.with_storage(Box::new(neighbor.blocks.get_components::<BlockMesh>(&mesh_query))));
                         }
                     }
                 }
@@ -124,7 +124,7 @@ pub fn queue_meshing(
                     //don't mesh if all neighbors aren't ready yet
                     return;
                 }
-                let meshing = chunk.get_components(chunk.blocks.iter(), &mesh_query);
+                let meshing = chunk.with_storage(Box::new(chunk.blocks.get_components(&mesh_query)));
                 let task = pool.spawn(async move {
                     let mut data = ChunkMesh::new(1.0);
                     mesh_chunk(&meshing, &neighbors, &mut data);

@@ -231,6 +231,7 @@ pub fn on_level_created(
                 commands.insert_resource(Level::new(
                     event.name,
                     settings.init_loader.lod_levels.try_into().unwrap(),
+                    8008135,
                 ));
                 next_state.set(LevelLoadState::Loading);
                 info!("in state loading!");
