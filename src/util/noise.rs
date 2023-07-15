@@ -18,16 +18,13 @@ impl<const S: usize> SplineNoise<S> {
 fn rot(x: u64) -> u64 {
     (x << 16) | (x >> 16)
 }
-//https://en.wikipedia.org/wiki/Linear_congruential_generator
-pub fn get_next_prng<const ITERATIONS: u64>(curr: u64) -> u64 {
-    let mut seed = curr;
-    for i in 0..ITERATIONS {
-        seed = seed.wrapping_mul(541).wrapping_add(i);
-        seed = rot(seed);
-        seed = seed.wrapping_mul(809).wrapping_add(i);
-        seed = rot(seed);
-        seed = seed.wrapping_mul(673).wrapping_add(i);
-        seed = rot(seed);
-    }
-    seed
+
+//xqo generator
+//todo: support 64 bit
+pub fn get_next_prng(input: u64) -> u64
+{
+    let input = input as u32;
+    let state = (input | 1) ^ input.wrapping_mul(input);
+    let word = 277803737_u32.wrapping_mul(state.rotate_right((state >> 28).wrapping_add(4)) ^ state);
+    return ((word >> 22) ^ word) as u64;
 }

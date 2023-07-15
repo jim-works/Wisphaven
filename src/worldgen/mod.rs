@@ -5,7 +5,7 @@ use bracket_noise::prelude::*;
 
 use crate::{
     util::{get_next_prng, Spline, SplineNoise},
-    world::{BlockResources, LevelSystemSet, Level, LevelLoadState},
+    world::{BlockResources, Level, LevelLoadState, LevelSystemSet, BlockName},
 };
 
 mod generator;
@@ -14,7 +14,10 @@ pub use generator::{
     ShapingTask,
 };
 
-use self::{structures::{trees::get_short_tree, StructureGenerationSettings, StructureResources}, generator::DecorationSettings};
+use self::{
+    generator::DecorationSettings,
+    structures::{trees::get_short_tree, StructureGenerationSettings, StructureResources},
+};
 
 pub mod structures;
 
@@ -30,22 +33,27 @@ pub const TEMP: usize = 2;
 pub const HUMID: usize = 2;
 pub const FUNKY: usize = 2;
 
-pub type UsedShaperResources = ShaperResources<{ DENSITY }, { HEIGHTMAP }, { LANDMASS }, {SQUISH}>;
+pub type UsedShaperResources =
+    ShaperResources<{ DENSITY }, { HEIGHTMAP }, { LANDMASS }, { SQUISH }>;
+pub type UsedDecorationResources = DecorationResources<{ TEMP }, { HUMID }, { FUNKY }>;
+pub type UsedDecorationSettings = DecorationSettings<{ TEMP }, { HUMID }, { FUNKY }>;
 
 pub struct WorldGenPlugin;
 
 impl Plugin for WorldGenPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(
-                (
-                    generator::poll_gen_queue,
-                    generator::queue_generating::<DENSITY, HEIGHTMAP, LANDMASS, SQUISH>,
-                    generator::poll_gen_lod_queue,
-                )
-                    .in_set(LevelSystemSet::LoadingAndMain),
+        app.add_systems(
+            (
+                generator::poll_gen_queue,
+                generator::queue_generating::<DENSITY, HEIGHTMAP, LANDMASS, SQUISH>,
+                generator::poll_gen_lod_queue,
             )
-            .add_systems((create_shaper_settings, create_structure_settings).in_schedule(OnEnter(LevelLoadState::Loading)));
+                .in_set(LevelSystemSet::LoadingAndMain),
+        )
+        .add_systems(
+            (create_shaper_settings, create_structure_settings, create_decoration_settings)
+                .in_schedule(OnEnter(LevelLoadState::Loading)),
+        );
     }
 }
 
@@ -56,11 +64,11 @@ pub struct ShaperResources<const D: usize, const H: usize, const L: usize, const
 
 #[derive(Resource)]
 pub struct DecorationResources<const TEMP: usize, const HUMID: usize, const FUNKY: usize>(
-    pub Arc<DecorationSettings<TEMP,HUMID,FUNKY>>,
+    pub Arc<UsedDecorationSettings>,
 );
 
 fn create_shaper_settings(mut commands: Commands, level: Res<Level>) {
-    let mut seed = level.seed^ 0xABDFACDFAEDFA0DF;
+    let mut seed = level.seed ^ 0xABDFACDFAEDFA0DF;
     let settings = ShaperSettings {
         density_noise: create_density_noise(seed),
         landmass_noise: create_landmass_noise(get_next_seed(&mut seed)),
@@ -72,7 +80,7 @@ fn create_shaper_settings(mut commands: Commands, level: Res<Level>) {
         heightmap_noise: create_heightmap_noise(get_next_seed(&mut seed)), //don't want the seeds to be the same
         mid_density: 0.0,
         //this is the minimum height, but an offset: heightmap_noise+lower_density.x = the lowest control point on the spline
-        lower_density: Vec2::new(-100.0, -0.2)
+        lower_density: Vec2::new(-100.0, -0.2),
     };
     commands.insert_resource(ShaperResources(Arc::new(settings)));
 }
@@ -124,10 +132,10 @@ fn create_landmass_noise(seed: u64) -> SplineNoise<LANDMASS> {
     noise.set_fractal_lacunarity(3.0);
     let spline = Spline::new([
         Vec2::new(-0.5, -200.0), //deep ocean
-        Vec2::new(-0.2, -25.0), //shallow ocean
-        Vec2::new(-0.1, 0.0), //lower land
-        Vec2::new(0.1, 20.0), //normal land
-        Vec2::new(0.3, 200.0), //continent-defining mountains
+        Vec2::new(-0.2, -25.0),  //shallow ocean
+        Vec2::new(-0.1, 0.0),    //lower land
+        Vec2::new(0.1, 20.0),    //normal land
+        Vec2::new(0.3, 200.0),   //continent-defining mountains
     ]);
     SplineNoise { noise, spline }
 }
@@ -155,7 +163,11 @@ fn create_squish_noise(seed: u64) -> SplineNoise<SQUISH> {
     SplineNoise { noise, spline }
 }
 
-fn create_structure_settings(mut commands: Commands, resources: Res<BlockResources>, level: Res<Level>) {
+fn create_structure_settings(
+    mut commands: Commands,
+    resources: Res<BlockResources>,
+    level: Res<Level>,
+) {
     info!(
         "There are {} blocks in the registry",
         resources.registry.id_map.len()
@@ -168,18 +180,58 @@ fn create_structure_settings(mut commands: Commands, resources: Res<BlockResourc
 
     commands.insert_resource(StructureResources {
         settings: Arc::new(StructureGenerationSettings {
-            rolls_per_chunk: 5,
+            rolls_per_chunk: 1,
             structures,
             placement_noise: noise,
         }),
     });
 }
 
-fn create_decoration_settings(mut commands: Commands, resources: Res<BlockResources>) {
+fn create_decoration_settings(level: Res<Level>, mut commands: Commands, resources: Res<BlockResources>) {
+    let mut seed = level.seed ^ 0x6287192746;
+    let mut noise = FastNoise::seeded(seed);
+    noise.set_noise_type(NoiseType::SimplexFractal);
+    noise.set_frequency(0.001);
+    noise.set_fractal_octaves(2);
+    noise.set_fractal_gain(0.5);
+    noise.set_fractal_lacunarity(3.0);
+    let temperature_noise = SplineNoise {
+        noise,
+        spline: Spline::new([Vec2::new(-1.0,-1.0), Vec2::new(1.0,1.0,)])
+    };
 
+    let mut noise = FastNoise::seeded(get_next_seed(&mut seed));
+    noise.set_noise_type(NoiseType::SimplexFractal);
+    noise.set_frequency(0.001);
+    noise.set_fractal_octaves(2);
+    noise.set_fractal_gain(0.5);
+    noise.set_fractal_lacunarity(3.0);
+    let humidity_noise = SplineNoise {
+        noise,
+        spline: Spline::new([Vec2::new(-1.0,-1.0), Vec2::new(1.0,1.0,)])
+    };
+
+    let mut noise = FastNoise::seeded(get_next_seed(&mut seed));
+    noise.set_noise_type(NoiseType::SimplexFractal);
+    noise.set_frequency(0.001);
+    noise.set_fractal_octaves(2);
+    noise.set_fractal_gain(0.5);
+    noise.set_fractal_lacunarity(3.0);
+    let funky_noise = SplineNoise {
+        noise,
+        spline: Spline::new([Vec2::new(-1.0,-1.0), Vec2::new(1.0,1.0,)])
+    };
+
+    commands.insert_resource(DecorationResources::<{TEMP},{HUMID},{FUNKY}>(Arc::new(UsedDecorationSettings {
+        temperature_noise,
+        humidity_noise,
+        funky_noise,
+        humid_block: resources.registry.get_id(&BlockName::core("dirt")),
+        stone: resources.registry.get_id(&BlockName::core("stone"))
+    })))
 }
 
 fn get_next_seed(seed: &mut u64) -> u64 {
-    *seed = get_next_prng::<16>(*seed);
+    *seed = get_next_prng(*seed);
     *seed
 }

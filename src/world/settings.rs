@@ -22,7 +22,7 @@ impl Default for Settings {
 
     fn default() -> Self {
         let loader = ChunkLoader {
-            radius: ChunkCoord::new(8,6,8),
+            radius: ChunkCoord::new(12,12,12),
             lod_levels: 0,
         };
         Self {

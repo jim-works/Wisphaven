@@ -66,7 +66,7 @@
           namespace: "core",
           name: "tnt",
         ),
-        "recursia::world::block::BlockPhysics": Solid,
+        "recursia::world::block::BlockPhysics": Empty,
         "recursia::world::blocks::tnt::TNTBlock": (
           explosion_strength: 10.0,
         ),
@@ -92,6 +92,26 @@
         ),
         "recursia::world::block::BlockPhysics": BottomSlab(0.5),
         "recursia::world::block::NamedBlockMesh": BottomSlab(0.5, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
+      },
+    ),
+    10: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "ruby_ore",
+        ),
+        "recursia::world::block::BlockPhysics": Solid,
+        "recursia::world::block::NamedBlockMesh": Uniform("ruby_ore.png"),
+      },
+    ),
+    11: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "moldavite_ore",
+        ),
+        "recursia::world::block::BlockPhysics": Solid,
+        "recursia::world::block::NamedBlockMesh": Uniform("moldavite_ore.png"),
       },
     ),
   },

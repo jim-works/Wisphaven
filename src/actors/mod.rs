@@ -12,6 +12,7 @@ use self::personality::PersonalityPlugin;
 pub mod glowjelly;
 pub mod personality;
 pub mod behaviors;
+pub mod block_actors;
 
 #[cfg(test)]
 mod test;
@@ -23,6 +24,7 @@ impl Plugin for ActorPlugin {
         app.add_plugin(CombatPlugin)
             .add_plugin(BigBrainPlugin)
             .add_plugin(PersonalityPlugin)
+            .add_plugin(block_actors::BlockActorPlugin)
             .add_plugin(behaviors::BehaviorsPlugin)
             .add_plugin(glowjelly::GlowjellyPlugin)
             .add_plugin(player::PlayerPlugin)
