@@ -35,7 +35,7 @@ pub struct DespawnChunkEvent(pub Entity);
 
 pub fn do_loading(
     mut commands: Commands,
-    mut level: ResMut<Level>,
+    level: Res<Level>,
     mut despawn_writer: EventWriter<DespawnChunkEvent>,
     loader_query: Query<(&GlobalTransform, &ChunkLoader)>,
     mut timer: ResMut<ChunkLoadingTimer>,
@@ -65,7 +65,7 @@ pub fn do_loading(
             load_lod(
                 i,
                 &mut commands,
-                &mut level,
+                &level,
                 transform,
                 loader,
                 &mut loaded_lod,
@@ -85,6 +85,11 @@ pub fn do_loading(
                     }
                 }
                 ChunkType::Full(c) => {
+                    if !save_query.contains(c.entity) {
+                        to_unload.push((key, c.entity));
+                    }
+                },
+                ChunkType::Generating(_, c) => {
                     if !save_query.contains(c.entity) {
                         to_unload.push((key, c.entity));
                     }
@@ -123,7 +128,7 @@ pub fn do_loading(
 fn load_lod(
     lod_level: usize,
     commands: &mut Commands,
-    level: &mut ResMut<Level>,
+    level: &Level,
     transform: &GlobalTransform,
     loader: &ChunkLoader,
     loaded_list: &mut HashSet<ChunkCoord>,

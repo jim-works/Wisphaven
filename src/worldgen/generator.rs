@@ -333,7 +333,7 @@ pub fn poll_structure_task(
 pub fn poll_gen_lod_queue(
     mut commands: Commands,
     mut query: Query<(Entity, &mut Transform, &mut LODShapingTask)>,
-    mut level: ResMut<Level>,
+    level: Res<Level>,
     resources: Res<BlockResources>,
 ) {
     let _my_span = info_span!("poll_gen_lod_queue", name = "poll_gen_lod_queue").entered();

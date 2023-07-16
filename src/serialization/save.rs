@@ -62,6 +62,11 @@ pub fn do_saving(
                     if let Some(mut ec) = commands.get_entity(*id) {
                         ec.remove::<NeedsSaving>();
                     }
+                },
+                ChunkType::Generating(_, chunk) => {
+                    if let Some(mut ec) = commands.get_entity(chunk.entity) {
+                        ec.remove::<NeedsSaving>();
+                    }
                 }
             }
         }

@@ -53,8 +53,8 @@ pub fn finish_loading_trigger (
             target += 1;
             if let Some(chunk_ref) = level.get_chunk(coord+tf.translation().into()) {
                 match chunk_ref.value() {
-                    crate::world::chunk::ChunkType::Ungenerated(_) => (),
-                    crate::world::chunk::ChunkType::Full(_) => loaded += 1
+                    crate::world::chunk::ChunkType::Full(_) => loaded += 1,
+                    _ => {}
                     // crate::world::chunk::ChunkType::Full(chunk) => if loaded_chunk_query.contains(chunk.entity) {
                     //     loaded += 1;
                     // }

@@ -1,3 +1,5 @@
+use std::{sync::Arc, ops::Deref};
+
 use crate::{
     mesher::NeedsMesh,
     physics::NeedsPhysics,
@@ -12,23 +14,39 @@ use dashmap::DashMap;
 use super::{chunk::*, BlockBuffer, BlockCoord, BlockType, BlockId, BlockRegistry, events::BlockUsedEvent, UsableBlock, Id};
 
 #[derive(Resource)]
-pub struct Level {
+pub struct Level(pub Arc<LevelData>);
+
+impl AsRef<LevelData> for Level {
+    fn as_ref(&self) -> &LevelData {
+        self.0.as_ref()
+    }
+}
+
+impl Deref for Level {
+    type Target = LevelData;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref()
+    }
+}
+
+pub struct LevelData {
     pub name: &'static str,
     pub spawn_point: Vec3,
     pub seed: u64,
     chunks: DashMap<ChunkCoord, ChunkType, ahash::RandomState>,
     buffers: DashMap<ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>, ahash::RandomState>,
-    lod_chunks: Vec<DashMap<ChunkCoord, LODChunkType, ahash::RandomState>>,
+    lod_chunks: DashMap<usize, DashMap<ChunkCoord, LODChunkType, ahash::RandomState>, ahash::RandomState>,
 }
 
-impl Level {
-    pub fn new(name: &'static str, lod_levels: usize, seed: u64) -> Level {
-        Level {
+impl LevelData {
+    pub fn new(name: &'static str, seed: u64) -> LevelData {
+        LevelData {
             name,
             seed,
             chunks: DashMap::with_hasher(ahash::RandomState::new()),
             buffers: DashMap::with_hasher(ahash::RandomState::new()),
-            lod_chunks: vec![DashMap::with_hasher(ahash::RandomState::new()); lod_levels],
+            lod_chunks: DashMap::with_hasher(ahash::RandomState::new()),
             spawn_point: Vec3::new(0.0,10.0,0.0),
         }
     }
@@ -111,12 +129,8 @@ impl Level {
                         commands
                             .entity(c.entity)
                             .insert((NeedsMesh {}, NeedsPhysics {}));
-                    }
-                    ChunkType::Ungenerated(entity) => {
-                        commands
-                            .entity(*entity)
-                            .insert((NeedsMesh {}, NeedsPhysics {}));
-                    }
+                    },
+                    _ => {}
                 }
             }
         }
@@ -199,7 +213,7 @@ impl Level {
         self.add_chunk(coord, ChunkType::Ungenerated(id));
     }
     pub fn create_lod_chunk(
-        &mut self,
+        &self,
         coord: ChunkCoord,
         lod_level: u8,
         commands: &mut Commands,
@@ -223,13 +237,13 @@ impl Level {
             //if the chunk is already generated, add the contents of the buffer to the chunk
             if let Some(mut chunk_ref) = self.get_chunk_mut(coord) {
                 match chunk_ref.value_mut() {
-                    ChunkType::Ungenerated(_) => {}
                     ChunkType::Full(ref mut c) => {
                         buf.apply_to(c.blocks.as_mut());
                         Self::update_chunk_only::<true>(c.entity, commands);
                         //self.update_chunk_neighbors_only(c.position, commands);
                         continue;
-                    }
+                    },
+                    _ => {}
                 }
             }
             //we break if we updated a chunk in the world, so now we merge the buffer
@@ -252,7 +266,6 @@ impl Level {
         //if the chunk is already generated, add the contents of the buffer to the chunk
         if let Some(mut chunk_ref) = self.get_chunk_mut(coord) {
             match chunk_ref.value_mut() {
-                ChunkType::Ungenerated(_) => {}
                 ChunkType::Full(ref mut c) => {
                     let mut start = 0;
                     for (block, run) in buf {
@@ -267,7 +280,8 @@ impl Level {
                     //self.update_chunk_neighbors_only(c.position, commands);
                     //we've already spawned in the buffer, so we shouldn't store it
                     return;
-                }
+                },
+                _ => {}
             }
         }
         //we break if we updated a chunk in the world, so now we merge the buffer
@@ -357,45 +371,44 @@ impl Level {
             self.chunks.insert(key, chunk);
         }
     }
-    pub fn add_lod_chunk(&mut self, key: ChunkCoord, chunk: LODChunkType) {
+    pub fn add_lod_chunk(&self, key: ChunkCoord, chunk: LODChunkType) {
         let _my_span = info_span!("add_lod_chunk", name = "add_lod_chunk").entered();
         match chunk {
             LODChunkType::Ungenerated(_, level) => self.insert_chunk_at_lod(key, level as usize, chunk),
             LODChunkType::Full(l) => self.insert_chunk_at_lod(key, l.level as usize, LODChunkType::Full(l)),
         }
     }
-    fn insert_chunk_at_lod(&mut self, key: ChunkCoord, level: usize, chunk: LODChunkType) {
+    fn insert_chunk_at_lod(&self, key: ChunkCoord, level: usize, chunk: LODChunkType) {
         //expand lod vec if needed
         if self.lod_chunks.len() <= level {
-            let iterations = level - self.lod_chunks.len() + 1;
-            for _ in 0..iterations {
+            for x in self.lod_chunks.len()..level+1 {
                 self.lod_chunks
-                    .push(DashMap::with_hasher(ahash::RandomState::new()))
+                    .insert(x, DashMap::with_hasher(ahash::RandomState::new()));
             }
         }
-        self.lod_chunks[level].insert(key, chunk);
+        self.lod_chunks.get(&level).unwrap().insert(key, chunk);
     }
     pub fn get_lod_chunks(
         &self,
         level: usize,
-    ) -> Option<&DashMap<ChunkCoord, LODChunkType, ahash::RandomState>> {
-        self.lod_chunks.get(level)
+    ) -> Option<dashmap::mapref::one::Ref<'_, usize, DashMap<ChunkCoord, LODChunkType, ahash::RandomState>, ahash::RandomState>> {
+        self.lod_chunks.get(&level)
     }
     pub fn get_lod_levels(&self) -> usize {
         self.lod_chunks.len()
     }
     pub fn remove_lod_chunk(
-        &mut self,
+        &self,
         level: usize,
         position: ChunkCoord,
     ) -> Option<(ChunkCoord, LODChunkType)> {
-        match self.lod_chunks.get(level) {
+        match self.lod_chunks.get(&level) {
             None => None,
             Some(map) => map.remove(&position),
         }
     }
     pub fn contains_lod_chunk(&self, level: usize, position: ChunkCoord) -> bool {
-        match self.lod_chunks.get(level) {
+        match self.lod_chunks.get(&level) {
             None => false,
             Some(map) => map.contains_key(&position),
         }

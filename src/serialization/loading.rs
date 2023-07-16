@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     world::{
         chunk::{ChunkCoord, ChunkType},
-        Level, BlockResources, BlockId,
+        Level, BlockResources, BlockId, LevelData,
     },
     worldgen::{ChunkNeedsGenerated, GeneratedChunk},
 };
@@ -78,7 +78,7 @@ pub fn load_chunk_terrain(
                             tf.translation = chunk.position.to_vec3();
                         }
                         level.add_chunk(chunk.position, ChunkType::Full(chunk));
-                        Level::update_chunk_only::<false>(entity, &mut commands);
+                        LevelData::update_chunk_only::<false>(entity, &mut commands);
                         commands.entity(entity).insert(GeneratedChunk);
                         loaded += 1;
                     },

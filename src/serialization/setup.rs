@@ -3,13 +3,14 @@ use bevy::utils::HashMap;
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use crate::items::{ItemRegistry, ItemResources, ItemName, NamedItemIcon, ItemIcon, ItemId, ItemNameIdMap};
 use crate::mesher::TerrainTexture;
 use crate::serialization::{LoadingBlocks, LoadingItems};
 use crate::serialization::db::{LevelDB, LevelDBErr};
 use crate::serialization::queries::{CREATE_CHUNK_TABLE, CREATE_WORLD_INFO_TABLE, LOAD_WORLD_INFO, INSERT_WORLD_INFO};
-use crate::world::{LevelLoadState, BlockName, BlockResources, BlockRegistry, NamedBlockMesh, BlockNameIdMap, BlockId, Id};
+use crate::world::{LevelLoadState, BlockName, BlockResources, BlockRegistry, NamedBlockMesh, BlockNameIdMap, BlockId, Id, LevelData};
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
 
 use super::{BlockTextureMap, LoadedToSavedIdMap, ItemTextureMap, SavedToLoadedIdMap};
@@ -228,11 +229,10 @@ pub fn on_level_created(
                 load_block_palette(&mut db, &mut commands, block_resources.registry.as_ref());
                 load_item_palette(&mut db, &mut commands, item_resources.registry.as_ref());
                 commands.insert_resource(db);
-                commands.insert_resource(Level::new(
+                commands.insert_resource(Level(Arc::new(LevelData::new(
                     event.name,
-                    settings.init_loader.lod_levels.try_into().unwrap(),
                     8008135,
-                ));
+                ))));
                 next_state.set(LevelLoadState::Loading);
                 info!("in state loading!");
             }
