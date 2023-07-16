@@ -56,3 +56,18 @@ impl Direction {
         DirectionIterator { curr: None }
     }
 }
+
+impl From<u64> for Direction {
+    fn from(value: u64) -> Self {
+        match value % 6 {
+            0 => Direction::PosX,
+            1 => Direction::PosY,
+            2 => Direction::PosZ,
+            3 => Direction::NegX,
+            4 => Direction::NegY,
+            5 => Direction::NegZ,
+            //shouldn't happen
+            _ => unreachable!()
+        }
+    }
+}

@@ -1,10 +1,11 @@
+use bracket_noise::prelude::FastNoise;
 use futures_lite::future;
 use std::{sync::Arc, time::Instant};
 
 use crate::{
     mesher::NeedsMesh,
     physics::NeedsPhysics,
-    util::{trilerp, ClampedSpline, SplineNoise},
+    util::{get_next_prng, trilerp, ClampedSpline, SplineNoise},
     world::{chunk::*, BlockBuffer, BlockId, BlockName, BlockResources, Id, Level, SavedBlockId},
 };
 use bevy::{
@@ -75,6 +76,26 @@ pub struct ShaperSettings<
     pub lower_density: Vec2,
 }
 
+pub struct OreGenerator {
+    pub ore_block: BlockId,
+    pub can_replace: Vec<BlockId>,
+    pub rarity: (u64, u64), //(numerator, denominator) proportion of chunks to generate a vein in
+    pub vein_min: u32,
+    pub vein_max: u32,
+}
+
+impl OreGenerator {
+    pub fn get_ore_placement(&self, rng: u64) -> Option<ChunkIdx> {
+        if rng % self.rarity.1 < self.rarity.0 {
+            return None;
+        }
+        let x = get_next_prng(rng);
+        let y = get_next_prng(x);
+        let z = get_next_prng(y);
+        Some(ChunkIdx::wrapped(x as u8, y as u8, z as u8))
+    }
+}
+
 pub struct DecorationSettings<const TEMP: usize, const HUMID: usize, const FUNKY: usize> {
     //2d temperature for biome placement
     pub temperature_noise: SplineNoise<TEMP>,
@@ -82,8 +103,11 @@ pub struct DecorationSettings<const TEMP: usize, const HUMID: usize, const FUNKY
     pub humidity_noise: SplineNoise<HUMID>,
     //3d "funkiness" for biome placement,
     pub funky_noise: SplineNoise<FUNKY>,
+    //white noise for ores
+    pub ore_noise: FastNoise,
     pub humid_block: BlockId,
     pub stone: BlockId,
+    pub ores: Vec<OreGenerator>,
 }
 
 pub fn queue_generating<
@@ -326,6 +350,27 @@ pub fn gen_decoration(
                         chunk.set_block(idx, settings.humid_block)
                     }
                 }
+            }
+        }
+    }
+    let mut rng = get_next_prng(u32::from_be_bytes(
+        (chunk.position.x.wrapping_mul(123979)
+            ^ chunk.position.y.wrapping_mul(57891311)
+            ^ chunk.position.z.wrapping_mul(7))
+        .to_be_bytes(),
+    ) as u64);
+    for generator in &settings.ores {
+        rng = get_next_prng(rng);
+        if let Some(mut idx) = generator.get_ore_placement(rng) {
+            rng = get_next_prng(rng);
+            let vein_size =
+                generator.vein_min + (rng as u32 % (generator.vein_max - generator.vein_min));
+            for _ in 0..vein_size {
+                if generator.can_replace.contains(&chunk[idx]) {
+                    chunk.set_block(idx.into(), generator.ore_block);
+                }
+                rng = get_next_prng(rng);
+                idx = idx.offset(crate::util::Direction::from(rng));
             }
         }
     }

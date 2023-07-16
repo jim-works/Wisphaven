@@ -90,13 +90,27 @@ pub struct ChunkIdx {
 
 impl ChunkIdx {
     pub fn new (x: u8, y: u8, z: u8) -> ChunkIdx {
-        ChunkIdx { x, y, z }
+        ChunkIdx { x, y ,z }
+    }
+    pub fn wrapped(x: u8, y: u8, z: u8) -> ChunkIdx {
+        ChunkIdx { x: x%CHUNK_SIZE_U8, y: y%CHUNK_SIZE_U8, z: z%CHUNK_SIZE_U8 }
     }
     pub fn from_usize (i: usize) -> ChunkIdx {
         let x = i/(CHUNK_SIZE*CHUNK_SIZE);
         let y = (i-x*CHUNK_SIZE*CHUNK_SIZE)/CHUNK_SIZE;
         let z = i-x*CHUNK_SIZE*CHUNK_SIZE-y*CHUNK_SIZE;
         ChunkIdx { x: x as u8, y: y as u8, z: z as u8 }
+    }
+    //will offset by one unit in the given direction, wrapping if overflow
+    pub fn offset(self, value: Direction) -> Self {
+        match value {
+            Direction::PosX => ChunkIdx { x: (self.x+1)%CHUNK_SIZE_U8, y: 0, z: 0 },
+            Direction::PosY => ChunkIdx { x: 0, y: (self.y+1)%CHUNK_SIZE_U8, z: 0 },
+            Direction::PosZ => ChunkIdx { x: 0, y: 0, z: (self.z+1)%CHUNK_SIZE_U8 },
+            Direction::NegX => ChunkIdx { x: self.x.wrapping_sub(1)%CHUNK_SIZE_U8, y: 0, z: 0 },
+            Direction::NegY => ChunkIdx { x: 0, y: self.y.wrapping_sub(1)%CHUNK_SIZE_U8, z: 0 },
+            Direction::NegZ => ChunkIdx { x: 0, y: 0, z: self.z.wrapping_sub(1)%CHUNK_SIZE_U8 },
+        }
     }
     //on the corner of the block, block extends in positive directions
     pub fn to_vec3(self) -> Vec3 {

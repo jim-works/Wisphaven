@@ -5,7 +5,7 @@ use bracket_noise::prelude::*;
 
 use crate::{
     util::{get_next_prng, Spline, SplineNoise},
-    world::{BlockResources, Level, LevelLoadState, LevelSystemSet, BlockName},
+    world::{BlockName, BlockResources, Level, LevelLoadState, LevelSystemSet},
 };
 
 mod generator;
@@ -15,7 +15,7 @@ pub use generator::{
 };
 
 use self::{
-    generator::DecorationSettings,
+    generator::{DecorationSettings, OreGenerator},
     structures::{trees::get_short_tree, StructureGenerationSettings, StructureResources},
 };
 
@@ -51,7 +51,11 @@ impl Plugin for WorldGenPlugin {
                 .in_set(LevelSystemSet::LoadingAndMain),
         )
         .add_systems(
-            (create_shaper_settings, create_structure_settings, create_decoration_settings)
+            (
+                create_shaper_settings,
+                create_structure_settings,
+                create_decoration_settings,
+            )
                 .in_schedule(OnEnter(LevelLoadState::Loading)),
         );
     }
@@ -187,7 +191,11 @@ fn create_structure_settings(
     });
 }
 
-fn create_decoration_settings(level: Res<Level>, mut commands: Commands, resources: Res<BlockResources>) {
+fn create_decoration_settings(
+    level: Res<Level>,
+    mut commands: Commands,
+    resources: Res<BlockResources>,
+) {
     let mut seed = level.seed ^ 0x6287192746;
     let mut noise = FastNoise::seeded(seed);
     noise.set_noise_type(NoiseType::SimplexFractal);
@@ -197,7 +205,7 @@ fn create_decoration_settings(level: Res<Level>, mut commands: Commands, resourc
     noise.set_fractal_lacunarity(3.0);
     let temperature_noise = SplineNoise {
         noise,
-        spline: Spline::new([Vec2::new(-1.0,-1.0), Vec2::new(1.0,1.0,)])
+        spline: Spline::new([Vec2::new(-1.0, -1.0), Vec2::new(1.0, 1.0)]),
     };
 
     let mut noise = FastNoise::seeded(get_next_seed(&mut seed));
@@ -208,7 +216,7 @@ fn create_decoration_settings(level: Res<Level>, mut commands: Commands, resourc
     noise.set_fractal_lacunarity(3.0);
     let humidity_noise = SplineNoise {
         noise,
-        spline: Spline::new([Vec2::new(-1.0,-1.0), Vec2::new(1.0,1.0,)])
+        spline: Spline::new([Vec2::new(-1.0, -1.0), Vec2::new(1.0, 1.0)]),
     };
 
     let mut noise = FastNoise::seeded(get_next_seed(&mut seed));
@@ -219,16 +227,30 @@ fn create_decoration_settings(level: Res<Level>, mut commands: Commands, resourc
     noise.set_fractal_lacunarity(3.0);
     let funky_noise = SplineNoise {
         noise,
-        spline: Spline::new([Vec2::new(-1.0,-1.0), Vec2::new(1.0,1.0,)])
+        spline: Spline::new([Vec2::new(-1.0, -1.0), Vec2::new(1.0, 1.0)]),
     };
 
-    commands.insert_resource(DecorationResources::<{TEMP},{HUMID},{FUNKY}>(Arc::new(UsedDecorationSettings {
-        temperature_noise,
-        humidity_noise,
-        funky_noise,
-        humid_block: resources.registry.get_id(&BlockName::core("dirt")),
-        stone: resources.registry.get_id(&BlockName::core("stone"))
-    })))
+    let mut ore_noise = FastNoise::seeded(get_next_seed(&mut seed));
+    ore_noise.set_noise_type(NoiseType::Value);
+    ore_noise.set_frequency(132671324.0);
+
+    commands.insert_resource(DecorationResources::<{ TEMP }, { HUMID }, { FUNKY }>(
+        Arc::new(UsedDecorationSettings {
+            temperature_noise,
+            humidity_noise,
+            funky_noise,
+            ore_noise,
+            humid_block: resources.registry.get_id(&BlockName::core("dirt")),
+            stone: resources.registry.get_id(&BlockName::core("stone")),
+            ores: vec![OreGenerator {
+                ore_block: resources.registry.get_id(&BlockName::core("ruby_ore")),
+                can_replace: vec![resources.registry.get_id(&BlockName::core("stone"))],
+                rarity: (0,1),
+                vein_min: 10,
+                vein_max: 20,
+            }],
+        }),
+    ))
 }
 
 fn get_next_seed(seed: &mut u64) -> u64 {
