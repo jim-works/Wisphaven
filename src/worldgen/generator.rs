@@ -26,7 +26,7 @@ pub enum ChunkNeedsGenerated {
 //task to generate the overall shape of the terrain
 #[derive(Component)]
 pub struct ShapingTask {
-    pub task: Task<GeneratingChunk>,
+    pub task: Task<(GeneratingChunk, Heightmap<CHUNK_SIZE>)>,
 }
 
 //task to generate small structures (trees, buildings, etc)
@@ -51,6 +51,8 @@ pub struct GeneratedChunk;
 
 #[derive(Component)]
 pub struct GeneratedLODChunk;
+
+pub struct Heightmap<const SIZE: usize>([[f32; SIZE]; SIZE]);
 
 pub struct ShaperSettings<
     const NOISE: usize,
@@ -124,8 +126,8 @@ pub fn queue_generating<
                 ec.insert(ShapingTask {
                     task: pool.spawn(async move {
                         let mut chunk = GeneratingChunk::new(gen_coord, entity);
-                        shape_chunk(&mut chunk, gen_noise, id);
-                        chunk
+                        let heightmap = shape_chunk(&mut chunk, gen_noise, id);
+                        (chunk, heightmap)
                     }),
                 });
             }
@@ -162,14 +164,14 @@ pub fn poll_gen_queue(
     let now = Instant::now();
     let pool = AsyncComputeTaskPool::get();
     for (entity, mut tf, mut task) in shaping_query.iter_mut() {
-        if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
+        if let Some((data, heightmap)) = future::block_on(future::poll_once(&mut task.task)) {
             tf.translation = data.position.to_vec3();
             let settings = decor_resources.0.clone();
             commands
                 .entity(entity)
                 .remove::<ShapingTask>()
                 .insert(DecorationTask {
-                    task: pool.spawn(async move { gen_decoration(data, settings.as_ref()) }),
+                    task: pool.spawn(async move { gen_decoration(data, heightmap, settings.as_ref()) }),
                 });
             let duration = Instant::now().duration_since(now).as_millis();
             if duration > ADD_TIME_BUDGET_MS {
@@ -258,7 +260,7 @@ fn shape_chunk<
     chunk: &mut impl ChunkTrait<BlockId>,
     settings: Arc<ShaperSettings<NOISE, HEIGHTMAP, LANDMASS, SQUISH>>,
     block_id: BlockId,
-) {
+) -> Heightmap<CHUNK_SIZE> {
     let _my_span = info_span!("shape_chunk", name = "shape_chunk").entered();
     let heightmap_noise = &settings.heightmap_noise;
     let density_noise = &settings.density_noise;
@@ -270,6 +272,7 @@ fn shape_chunk<
     const SAMPLES_PER_CHUNK: usize = 1 + SAMPLE_INTERVAL;
     const SAMPLES_PER_CHUNK_U8: u8 = SAMPLES_PER_CHUNK as u8;
     let mut density_samples = [[[0.0; SAMPLES_PER_CHUNK]; SAMPLES_PER_CHUNK]; SAMPLES_PER_CHUNK];
+    let mut heightmap = Heightmap([[0.0; CHUNK_SIZE]; CHUNK_SIZE]);
 
     //use lerp points to make the terrain more sharp, less "blobish"
     for x in 0..SAMPLES_PER_CHUNK {
@@ -292,6 +295,7 @@ fn shape_chunk<
             let squish = squish_noise.get_noise2d(column_pos.x, column_pos.z);
             let height = squish * heightmap_noise.get_noise2d(column_pos.x, column_pos.z)
                 + landmass_noise.get_noise2d(column_pos.x, column_pos.z);
+            heightmap.0[x as usize][z as usize] = settings.lower_density.x + height;
             let density_map = ClampedSpline::new([
                 Vec2::new(settings.lower_density.x + height, settings.lower_density.y),
                 Vec2::new(height, settings.mid_density),
@@ -315,20 +319,40 @@ fn shape_chunk<
             }
         }
     }
+    heightmap
 }
 
 pub fn gen_decoration(
     mut chunk: GeneratingChunk,
+    heightmap: Heightmap<CHUNK_SIZE>,
     settings: &DecorationSettings,
 ) -> GeneratingChunk {
+    const MID_DEPTH: i32 = 5;
     for x in 0..CHUNK_SIZE_U8 {
         for z in 0..CHUNK_SIZE_U8 {
             let column_pos = chunk.get_block_pos(ChunkIdx::new(x, 0, z));
             let biome = settings.biomes.sample(column_pos);
-            for y in 0..CHUNK_SIZE_U8 {
-                let idx = ChunkIdx::new(x, y, z).into();
-                if chunk[idx] == settings.stone {
-                    chunk.set_block(idx, biome.topsoil)
+            let target_height = heightmap.0[x as usize][z as usize];
+            let mut top_coord = None;
+            //find top block (having open air above it)
+            for y in (0..CHUNK_SIZE_U8-1).rev() {
+                let idx = ChunkIdx::new(x, y, z);
+                let block_pos = chunk.get_block_pos(idx);
+                if block_pos.y >= target_height {
+                    if chunk[idx.to_usize()] == settings.stone && chunk[ChunkIdx::new(x,y+1,z).to_usize()] == BlockId(Id::Empty) {
+                        chunk.set_block(idx.into(), biome.topsoil);
+                        top_coord = Some(idx);
+                        break;
+                    }
+                }
+            }
+            //place midsoil under topsoil
+            if let Some(top) = top_coord {
+                for y in (0.max(top.y as i32-MID_DEPTH)..0.max(top.y as i32-1)).rev() {
+                    let idx = ChunkIdx::new(x,y as u8,z).into();
+                    if chunk[idx] == settings.stone {
+                        chunk.set_block(idx, biome.midsoil);
+                    }
                 }
             }
         }
