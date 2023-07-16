@@ -33,17 +33,24 @@ pub struct BiomeMap<const TEMP: usize, const HUMID: usize, const FUNKY: usize> {
 }
 
 impl<const TEMP: usize, const HUMID: usize, const FUNKY: usize> BiomeMap<TEMP,HUMID,FUNKY> {
-    pub fn get(&self, temp: f32, humid: f32) -> &Biome {
+    pub fn get_id(&self, temp: f32, humid: f32) -> Option<usize> {
         self.map
             .map(temp)
             .and_then(|b| b.map(humid))
-            .map(|idx| self.biomes.get(*idx).unwrap_or(&self.default_biome))
-            .unwrap_or(&self.default_biome)
+            .copied()
+    }
+    pub fn get(&self, id: Option<usize>) -> &Biome {
+        id.map(|x| self.biomes.get(x).unwrap_or(&self.default_biome)).unwrap_or(&self.default_biome)
     }
     pub fn sample(&self, pos: Vec3) -> &Biome {
         let temp = self.temperature_noise.get_noise2d(pos.x, pos.z);
         let humid = self.humidity_noise.get_noise2d(pos.x, pos.z);
-        self.get(temp, humid)
+        self.get(self.get_id(temp, humid))
+    }
+    pub fn sample_id(&self, pos: Vec3) -> Option<usize> {
+        let temp = self.temperature_noise.get_noise2d(pos.x, pos.z);
+        let humid = self.humidity_noise.get_noise2d(pos.x, pos.z);
+        self.get_id(temp, humid)
     }
 }
 

@@ -26,18 +26,34 @@ pub enum ChunkNeedsGenerated {
 //task to generate the overall shape of the terrain
 #[derive(Component)]
 pub struct ShapingTask {
-    pub task: Task<(GeneratingChunk, Heightmap<CHUNK_SIZE>)>,
+    pub task: Task<WaitingForDecoration>,
 }
 
-//task to generate small structures (trees, buildings, etc)
+//wait for decoration constraints to be satisfied
+#[derive(Component)]
+pub struct WaitingForDecoration {
+    pub chunk: GeneratingChunk,
+    pub heightmap: Heightmap<CHUNK_SIZE>
+}
+
+//task to decorate (topsoil based on biome, flowers, grass, etc)
 #[derive(Component)]
 pub struct DecorationTask {
-    pub task: Task<GeneratingChunk>,
+    pub task: Task<WaitingForStructures>,
+}
+
+//wait for structure constraints to be satisfied
+#[derive(Component)]
+pub struct WaitingForStructures {
+    pub chunk: GeneratingChunk,
+    pub heightmap: Heightmap<CHUNK_SIZE>,
+    pub biome_map: ColumnBiomes<CHUNK_SIZE>,
+    pub structure_id: usize, //TODO: make this a type
 }
 
 //task to generate small structures (trees, buildings, etc)
 #[derive(Component)]
-pub struct GenSmallStructureTask {
+pub struct StructureTask {
     pub task: Task<(GeneratingChunk, BlockBuffer<BlockId>)>,
 }
 
@@ -52,7 +68,10 @@ pub struct GeneratedChunk;
 #[derive(Component)]
 pub struct GeneratedLODChunk;
 
+#[derive(Clone)]
 pub struct Heightmap<const SIZE: usize>([[f32; SIZE]; SIZE]);
+#[derive(Clone)]
+pub struct ColumnBiomes<const SIZE: usize>([[Option<usize>; SIZE]; SIZE]);
 
 pub struct ShaperSettings<
     const NOISE: usize,
@@ -127,7 +146,7 @@ pub fn queue_generating<
                     task: pool.spawn(async move {
                         let mut chunk = GeneratingChunk::new(gen_coord, entity);
                         let heightmap = shape_chunk(&mut chunk, gen_noise, id);
-                        (chunk, heightmap)
+                        WaitingForDecoration {chunk, heightmap}
                     }),
                 });
             }
@@ -150,28 +169,56 @@ pub fn queue_generating<
     }
 }
 
-pub fn poll_gen_queue(
-    structure_resources: Res<StructureResources>,
-    decor_resources: Res<DecorationResources>,
+//ShapingTask -> WaitingForDecoration
+pub fn poll_shaping_task(
     mut commands: Commands,
     mut shaping_query: Query<(Entity, &mut Transform, &mut ShapingTask)>,
-    mut decor_query: Query<(Entity, &mut DecorationTask)>,
-    mut structure_query: Query<(Entity, &mut GenSmallStructureTask)>,
-    resources: Res<BlockResources>,
-    level: Res<Level>,
 ) {
-    let _my_span = info_span!("poll_gen_queue", name = "poll_gen_queue").entered();
+    let _my_span = info_span!("poll_shaping", name = "poll_shaping").entered();
     let now = Instant::now();
-    let pool = AsyncComputeTaskPool::get();
     for (entity, mut tf, mut task) in shaping_query.iter_mut() {
-        if let Some((data, heightmap)) = future::block_on(future::poll_once(&mut task.task)) {
-            tf.translation = data.position.to_vec3();
-            let settings = decor_resources.0.clone();
+        if let Some(next) = future::block_on(future::poll_once(&mut task.task)) {
+            tf.translation = next.chunk.position.to_vec3();
             commands
                 .entity(entity)
                 .remove::<ShapingTask>()
+                .insert(next);
+            let duration = Instant::now().duration_since(now).as_millis();
+            if duration > ADD_TIME_BUDGET_MS {
+                break;
+            }
+        }
+    }
+}
+
+//WaitingForDecoration -> DecorationTask
+pub fn poll_decoration_waiters(
+    decor_resources: Res<DecorationResources>,
+    level: Res<Level>,
+    mut commands: Commands,
+    mut watier_query: Query<(Entity, &WaitingForDecoration)>,
+) {
+    let _my_span = info_span!("poll_decor_waiters", name = "poll_decor_waiters").entered();
+    let now = Instant::now();
+    let pool = AsyncComputeTaskPool::get();
+    for (entity, waiter) in watier_query.iter_mut() {
+        if can_decorate(&waiter.chunk, level.as_ref()) {
+            let settings = decor_resources.0.clone();
+            let chunk = waiter.chunk.clone();
+            let heightmap = waiter.heightmap.clone();
+            commands
+                .entity(entity)
+                .remove::<WaitingForDecoration>()
                 .insert(DecorationTask {
-                    task: pool.spawn(async move { gen_decoration(data, heightmap, settings.as_ref()) }),
+                    task: pool.spawn(async move { 
+                        let (chunk, biome_map) = gen_decoration(chunk, &heightmap, settings.as_ref());
+                        WaitingForStructures {
+                            chunk,
+                            heightmap,
+                            biome_map,
+                            structure_id: 0,
+                        }
+                     }),
                 });
             let duration = Instant::now().duration_since(now).as_millis();
             if duration > ADD_TIME_BUDGET_MS {
@@ -179,15 +226,57 @@ pub fn poll_gen_queue(
             }
         }
     }
-    for (entity, mut task) in decor_query.iter_mut() {
-        if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
-            let settings = structure_resources.settings.clone();
+}
+
+fn can_decorate(
+    _chunk: &GeneratingChunk,
+    _level: &Level
+) -> bool {
+    true
+}
+
+//DecorationTask -> WaitingForStructures
+pub fn poll_decoration_task(
+    mut commands: Commands,
+    mut decoration_query: Query<(Entity, &mut DecorationTask)>,
+) {
+    let _my_span = info_span!("poll_structure_waiters", name = "poll_structure_waiters").entered();
+    let now = Instant::now();
+    for (entity, mut task) in decoration_query.iter_mut() {
+        if let Some(next) = future::block_on(future::poll_once(&mut task.task)) {
             commands
                 .entity(entity)
                 .remove::<DecorationTask>()
-                .insert(GenSmallStructureTask {
-                    task: pool
-                        .spawn(async move { structures::gen_small_structures(data, settings) }),
+                .insert(next);
+            let duration = Instant::now().duration_since(now).as_millis();
+            if duration > ADD_TIME_BUDGET_MS {
+                break;
+            }
+        }
+    }
+}
+
+//WaitingForStructures -> StructureTask
+pub fn poll_structure_waiters(
+    structure_resources: Res<StructureResources>,
+    level: Res<Level>,
+    mut commands: Commands,
+    mut watier_query: Query<(Entity, &WaitingForStructures)>,
+) {
+    let _my_span = info_span!("poll_structure_waiters", name = "poll_structure_waiters").entered();
+    let now = Instant::now();
+    let pool = AsyncComputeTaskPool::get();
+    for (entity, waiter) in watier_query.iter_mut() {
+        if can_structure(&waiter.chunk, level.as_ref()) {
+            let settings = structure_resources.settings.clone();
+            let chunk = waiter.chunk.clone();
+            commands
+                .entity(entity)
+                .remove::<WaitingForStructures>()
+                .insert(StructureTask {
+                    task: pool.spawn(async move { 
+                        structures::gen_small_structures(chunk, settings)
+                     }),
                 });
             let duration = Instant::now().duration_since(now).as_millis();
             if duration > ADD_TIME_BUDGET_MS {
@@ -195,7 +284,25 @@ pub fn poll_gen_queue(
             }
         }
     }
-    for (entity, mut task) in structure_query.iter_mut() {
+}
+
+fn can_structure(
+    _chunk: &GeneratingChunk,
+    _level: &Level
+) -> bool {
+    true
+}
+
+//StructureTask -> finish
+pub fn poll_structure_task(
+    level: Res<Level>,
+    resources: Res<BlockResources>,
+    mut commands: Commands,
+    mut decoration_query: Query<(Entity, &mut StructureTask)>,
+) {
+    let _my_span = info_span!("poll_structure_task", name = "poll_structure_task").entered();
+    let now = Instant::now();
+    for (entity, mut task) in decoration_query.iter_mut() {
         if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
             level.add_buffer(
                 data.1
@@ -211,7 +318,7 @@ pub fn poll_gen_queue(
             );
             commands
                 .entity(entity)
-                .remove::<GenSmallStructureTask>()
+                .remove::<StructureTask>()
                 .insert(GeneratedChunk {})
                 .insert(NeedsMesh {})
                 .insert(NeedsPhysics {});
@@ -324,14 +431,17 @@ fn shape_chunk<
 
 pub fn gen_decoration(
     mut chunk: GeneratingChunk,
-    heightmap: Heightmap<CHUNK_SIZE>,
+    heightmap: &Heightmap<CHUNK_SIZE>,
     settings: &DecorationSettings,
-) -> GeneratingChunk {
+) -> (GeneratingChunk, ColumnBiomes<CHUNK_SIZE>) {
     const MID_DEPTH: i32 = 5;
+    let mut biome_map = ColumnBiomes([[None; CHUNK_SIZE]; CHUNK_SIZE]);
     for x in 0..CHUNK_SIZE_U8 {
         for z in 0..CHUNK_SIZE_U8 {
             let column_pos = chunk.get_block_pos(ChunkIdx::new(x, 0, z));
-            let biome = settings.biomes.sample(column_pos);
+            let biome = settings.biomes.sample_id(column_pos);
+            biome_map.0[x as usize][z as usize] = biome;
+            let biome = settings.biomes.get(biome);
             let target_height = heightmap.0[x as usize][z as usize];
             let mut top_coord = None;
             //find top block (having open air above it)
@@ -378,5 +488,5 @@ pub fn gen_decoration(
             }
         }
     }
-    chunk
+    (chunk, biome_map)
 }

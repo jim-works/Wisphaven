@@ -39,7 +39,11 @@ impl Plugin for WorldGenPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             (
-                generator::poll_gen_queue,
+                generator::poll_shaping_task,
+                generator::poll_decoration_waiters,
+                generator::poll_decoration_task,
+                generator::poll_structure_waiters,
+                generator::poll_structure_task,
                 generator::queue_generating::<DENSITY, HEIGHTMAP, LANDMASS, SQUISH>,
                 generator::poll_gen_lod_queue,
             )
@@ -54,6 +58,13 @@ impl Plugin for WorldGenPlugin {
                 .in_schedule(OnEnter(LevelLoadState::Loading)),
         );
     }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub enum GenerationPhase {
+    Shaping,
+    Decorating,
+    Structuring,
 }
 
 #[derive(Resource)]

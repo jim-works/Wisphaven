@@ -149,6 +149,7 @@ impl Add<ChunkIdx> for ChunkIdx {
 #[derive(Clone, Debug)]
 pub enum ChunkType {
     Ungenerated(Entity),
+    Generating(crate::worldgen::GenerationPhase, GeneratingChunk),
     Full(ArrayChunk)
 }
 
