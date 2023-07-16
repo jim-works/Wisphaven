@@ -52,7 +52,7 @@ pub fn do_saving(
                         save_data.push(SaveCommand(
                             ChunkTable::Terrain,
                             coord,
-                            bincode::serialize(&ChunkSaveFormat::palette_ids_only((chunk.position, chunk.blocks.as_ref()), &block_query, id_map.as_ref())).unwrap(),
+                            bincode::serialize(&ChunkSaveFormat::palette_ids_only((chunk.position, &chunk.blocks), &block_query, &id_map)).unwrap(),
                         ));
                         saved += 1;
                         ec.remove::<NeedsSaving>();
@@ -74,7 +74,7 @@ pub fn do_saving(
             save_data.push(SaveCommand(
                 ChunkTable::Buffers,
                 coord,
-                bincode::serialize(&ChunkSaveFormat::ids_only((coord, buffer.value().as_ref()), &block_query, id_map.as_ref())).unwrap(),
+                bincode::serialize(&ChunkSaveFormat::ids_only((coord, &buffer.value()), &block_query, &id_map)).unwrap(),
             ));
         }
     }

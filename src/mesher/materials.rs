@@ -349,7 +349,7 @@ pub fn create_chunk_material(
     {
         return;
     }
-    chunk_material.tex_handle = Some(create_chunk_texture(settings.as_ref(), images.as_mut(), block_textures.as_ref()));
+    chunk_material.tex_handle = Some(create_chunk_texture(&settings, images.as_mut(), &block_textures));
     block_textures.0.clear();
     
     chunk_material.opaque_material = Some(materials.add(ArrayTextureMaterial {

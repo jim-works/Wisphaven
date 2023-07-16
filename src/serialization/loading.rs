@@ -58,8 +58,8 @@ pub fn load_chunk_terrain(
         if LOADING_ENABLED && !buff_data.is_empty() {
             match bincode::deserialize::<ChunkSaveFormat>(buff_data.as_slice()) {
                 Ok(mut fmt) => {
-                    fmt.map_to_loaded(map.as_ref());
-                    level.add_rle_buffer(*coord, &fmt.into_buffer(resources.registry.as_ref(), &mut commands), &mut commands)
+                    fmt.map_to_loaded(&map);
+                    level.add_rle_buffer(*coord, &fmt.into_buffer(&resources.registry, &mut commands), &mut commands)
                 },
                 Err(e) => error!("error deserializing chunk buffer at {:?}: {:?}", coord, e),
             }
@@ -72,8 +72,8 @@ pub fn load_chunk_terrain(
             {
                 match bincode::deserialize::<ChunkSaveFormat>(terrain_data.as_slice()) {
                     Ok(mut parsed) => {
-                        parsed.map_to_loaded(map.as_ref());
-                        let chunk = parsed.into_chunk(entity, resources.registry.as_ref(), &mut commands);
+                        parsed.map_to_loaded(&map);
+                        let chunk = parsed.into_chunk(entity, &resources.registry, &mut commands);
                         if let Ok(mut tf) = tf_query.get_mut(entity) {
                             tf.translation = chunk.position.to_vec3();
                         }

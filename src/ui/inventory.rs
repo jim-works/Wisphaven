@@ -100,7 +100,7 @@ fn spawn_inventory_system(
     }
     for LocalPlayerSpawnedEvent(id) in event_reader.iter() {
         if let Ok(inv) = inventory_query.get(*id) {
-            spawn_inventory(&mut commands, inv.len(), resources.as_ref());
+            spawn_inventory(&mut commands, inv.len(), &resources);
             return;
         }
     }

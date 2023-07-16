@@ -24,7 +24,7 @@ pub fn use_block_item(
         if let Ok(block_item) = block_query.get(event.1.id) {
             if let Some(hit) = level.blockcast(event.2.translation(), event.2.forward()*10.0) {
                 let id = resources.registry.get_id(&block_item.0);
-                level.set_block(hit.block_pos+hit.normal, id, resources.registry.as_ref(), &id_query, &mut commands);
+                level.set_block(hit.block_pos+hit.normal, id, &resources.registry, &id_query, &mut commands);
             }
         }
     }
@@ -54,7 +54,7 @@ pub fn use_mega_block_item(
                         }
                     }
                 }
-                level.batch_set_block(changes.into_iter(), resources.registry.as_ref(), &id_query, &mut commands);
+                level.batch_set_block(changes.into_iter(), &resources.registry, &id_query, &mut commands);
             }
         }
     }

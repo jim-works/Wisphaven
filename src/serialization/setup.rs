@@ -145,7 +145,7 @@ pub fn load_block_registry(
             //do name resolution
             if let Ok(named_mesh) = name_resolution_query.get(*child) {
                 commands.entity(*child)
-                    .insert(named_mesh.clone().to_block_mesh(texture_map.as_ref()))
+                    .insert(named_mesh.clone().to_block_mesh(&texture_map))
                     .remove::<NamedBlockMesh>();
             }
             match block_name_query.get(*child) {
@@ -226,8 +226,8 @@ pub fn on_level_created(
                     error!("Error creating world info table: {:?}", err);
                     return;
                 }
-                load_block_palette(&mut db, &mut commands, block_resources.registry.as_ref());
-                load_item_palette(&mut db, &mut commands, item_resources.registry.as_ref());
+                load_block_palette(&mut db, &mut commands, &block_resources.registry);
+                load_item_palette(&mut db, &mut commands, &item_resources.registry);
                 commands.insert_resource(db);
                 commands.insert_resource(Level(Arc::new(LevelData::new(
                     event.name,

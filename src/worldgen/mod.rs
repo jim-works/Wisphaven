@@ -194,7 +194,7 @@ fn create_structure_settings(
     let mut noise = FastNoise::seeded(seed);
     noise.set_noise_type(NoiseType::Value);
     noise.set_frequency(843580.97854);
-    let structures = Vec::new(); //vec![get_short_tree(get_next_seed(&mut seed), resources.registry.as_ref())];
+    let structures = Vec::new(); //vec![get_short_tree(get_next_seed(&mut seed), &resources.registry)];
 
     commands.insert_resource(StructureResources {
         settings: Arc::new(StructureGenerationSettings {

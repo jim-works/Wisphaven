@@ -18,7 +18,7 @@ pub struct Level(pub Arc<LevelData>);
 
 impl AsRef<LevelData> for Level {
     fn as_ref(&self) -> &LevelData {
-        self.0.as_ref()
+        &self.0
     }
 }
 
@@ -26,7 +26,7 @@ impl Deref for Level {
     type Target = LevelData;
 
     fn deref(&self) -> &Self::Target {
-        self.0.as_ref()
+        &self.0
     }
 }
 

@@ -57,6 +57,6 @@ fn process_explosions(
                 }
             }
         }
-        level.batch_set_block(changes.into_iter(), resources.registry.as_ref(), &id_query, &mut commands);
+        level.batch_set_block(changes.into_iter(), &resources.registry, &id_query, &mut commands);
     }
 }

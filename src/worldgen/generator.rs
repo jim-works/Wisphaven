@@ -5,7 +5,7 @@ use crate::{
     mesher::NeedsMesh,
     physics::NeedsPhysics,
     util::{get_next_prng, trilerp, ClampedSpline, SplineNoise},
-    world::{chunk::*, BlockBuffer, BlockId, BlockName, BlockResources, Id, Level, SavedBlockId},
+    world::{chunk::*, BlockBuffer, BlockId, BlockName, BlockResources, Id, Level, SavedBlockId, LevelData},
 };
 use bevy::{
     prelude::*,
@@ -202,16 +202,17 @@ pub fn poll_decoration_waiters(
     let now = Instant::now();
     let pool = AsyncComputeTaskPool::get();
     for (entity, waiter) in watier_query.iter_mut() {
-        if can_decorate(&waiter.chunk, level.as_ref()) {
+        if can_decorate(&waiter.chunk, &level) {
             let settings = decor_resources.0.clone();
             let chunk = waiter.chunk.clone();
             let heightmap = waiter.heightmap.clone();
+            let level = level.0.clone();
             commands
                 .entity(entity)
                 .remove::<WaitingForDecoration>()
                 .insert(DecorationTask {
                     task: pool.spawn(async move { 
-                        let (chunk, biome_map) = gen_decoration(chunk, &heightmap, settings.as_ref());
+                        let (chunk, biome_map) = gen_decoration(chunk, &level, &heightmap, &settings);
                         WaitingForStructures {
                             chunk,
                             heightmap,
@@ -267,7 +268,7 @@ pub fn poll_structure_waiters(
     let now = Instant::now();
     let pool = AsyncComputeTaskPool::get();
     for (entity, waiter) in watier_query.iter_mut() {
-        if can_structure(&waiter.chunk, level.as_ref()) {
+        if can_structure(&waiter.chunk, &level) {
             let settings = structure_resources.settings.clone();
             let chunk = waiter.chunk.clone();
             commands
@@ -306,14 +307,14 @@ pub fn poll_structure_task(
         if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
             level.add_buffer(
                 data.1
-                    .to_block_type(resources.registry.as_ref(), &mut commands),
+                    .to_block_type(&resources.registry, &mut commands),
                 &mut commands,
             );
             level.add_chunk(
                 data.0.position,
                 ChunkType::Full(
                     data.0
-                        .to_array_chunk(resources.registry.as_ref(), &mut commands),
+                        .to_array_chunk(&resources.registry, &mut commands),
                 ),
             );
             commands
@@ -348,7 +349,7 @@ pub fn poll_gen_lod_queue(
             ));
             level.add_lod_chunk(
                 data.position,
-                LODChunkType::Full(data.to_array_chunk(resources.registry.as_ref(), &mut commands)),
+                LODChunkType::Full(data.to_array_chunk(&resources.registry, &mut commands)),
             );
             let duration = Instant::now().duration_since(now).as_millis();
             if duration > ADD_TIME_BUDGET_MS {
@@ -431,6 +432,7 @@ fn shape_chunk<
 
 pub fn gen_decoration(
     mut chunk: GeneratingChunk,
+    level: &LevelData,
     heightmap: &Heightmap<CHUNK_SIZE>,
     settings: &DecorationSettings,
 ) -> (GeneratingChunk, ColumnBiomes<CHUNK_SIZE>) {
