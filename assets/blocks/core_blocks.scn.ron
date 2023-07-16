@@ -114,5 +114,15 @@
         "recursia::world::block::NamedBlockMesh": Uniform("moldavite_ore.png"),
       },
     ),
+    12: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "sand",
+        ),
+        "recursia::world::block::BlockPhysics": Solid,
+        "recursia::world::block::NamedBlockMesh": Uniform("sand.png"),
+      },
+    ),
   },
 )

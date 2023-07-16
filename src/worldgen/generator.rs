@@ -1,4 +1,3 @@
-use bracket_noise::prelude::FastNoise;
 use futures_lite::future;
 use std::{sync::Arc, time::Instant};
 
@@ -15,8 +14,7 @@ use bevy::{
 
 use super::{
     structures::{self, StructureResources},
-    UsedDecorationResources, UsedDecorationSettings, UsedShaperResources, ADD_TIME_BUDGET_MS,
-    QUEUE_GEN_TIME_BUDGET_MS,
+    DecorationResources, UsedShaperResources, ADD_TIME_BUDGET_MS, QUEUE_GEN_TIME_BUDGET_MS, DecorationSettings,
 };
 
 #[derive(Component)]
@@ -96,20 +94,6 @@ impl OreGenerator {
     }
 }
 
-pub struct DecorationSettings<const TEMP: usize, const HUMID: usize, const FUNKY: usize> {
-    //2d temperature for biome placement
-    pub temperature_noise: SplineNoise<TEMP>,
-    //2d humidity for biome placement
-    pub humidity_noise: SplineNoise<HUMID>,
-    //3d "funkiness" for biome placement,
-    pub funky_noise: SplineNoise<FUNKY>,
-    //white noise for ores
-    pub ore_noise: FastNoise,
-    pub humid_block: BlockId,
-    pub stone: BlockId,
-    pub ores: Vec<OreGenerator>,
-}
-
 pub fn queue_generating<
     const NOISE: usize,
     const HEIGHTMAP: usize,
@@ -166,7 +150,7 @@ pub fn queue_generating<
 
 pub fn poll_gen_queue(
     structure_resources: Res<StructureResources>,
-    decor_resources: Res<UsedDecorationResources>,
+    decor_resources: Res<DecorationResources>,
     mut commands: Commands,
     mut shaping_query: Query<(Entity, &mut Transform, &mut ShapingTask)>,
     mut decor_query: Query<(Entity, &mut DecorationTask)>,
@@ -335,20 +319,16 @@ fn shape_chunk<
 
 pub fn gen_decoration(
     mut chunk: GeneratingChunk,
-    settings: &UsedDecorationSettings,
+    settings: &DecorationSettings,
 ) -> GeneratingChunk {
     for x in 0..CHUNK_SIZE_U8 {
         for z in 0..CHUNK_SIZE_U8 {
             let column_pos = chunk.get_block_pos(ChunkIdx::new(x, 0, z));
-            let humidity = settings
-                .humidity_noise
-                .get_noise2d(column_pos.x, column_pos.z);
-            if humidity > 0.0 {
-                for y in 0..CHUNK_SIZE_U8 {
-                    let idx = ChunkIdx::new(x, y, z).into();
-                    if chunk[idx] == settings.stone {
-                        chunk.set_block(idx, settings.humid_block)
-                    }
+            let biome = settings.biomes.sample(column_pos);
+            for y in 0..CHUNK_SIZE_U8 {
+                let idx = ChunkIdx::new(x, y, z).into();
+                if chunk[idx] == settings.stone {
+                    chunk.set_block(idx, biome.topsoil)
                 }
             }
         }

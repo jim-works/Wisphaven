@@ -3,9 +3,9 @@ use std::sync::Arc;
 use bracket_noise::prelude::FastNoise;
 use bevy::prelude::*;
 
-use crate::{world::{chunk::{ChunkIdx, CHUNK_SIZE_F32, CHUNK_SIZE_U64, GeneratingChunk, ArrayChunk}, BlockBuffer, BlockCoord, BlockId}, util::get_next_prng};
+use crate::{world::{chunk::{ChunkIdx, CHUNK_SIZE_F32, CHUNK_SIZE_U64, GeneratingChunk}, BlockBuffer, BlockCoord, BlockId}, util::get_next_prng};
 
-use super::{generator::DecorationSettings, UsedDecorationSettings};
+use super::DecorationSettings;
 
 pub mod trees;
 

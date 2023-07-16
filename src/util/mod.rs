@@ -2,6 +2,7 @@ mod direction;
 pub use direction::*;
 
 mod spline;
+use itertools::Itertools;
 pub use spline::*;
 
 mod noise;
@@ -12,8 +13,8 @@ pub mod l_system;
 mod numerical_traits;
 pub use numerical_traits::*;
 
-pub mod plugin;
 pub mod palette;
+pub mod plugin;
 
 use bevy::prelude::Vec3;
 
@@ -24,7 +25,13 @@ pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a * (1.0 - t) + b * t
 }
 
-pub fn trilerp<const X: usize, const Y: usize, const Z: usize>(samples: &[[[f32; X]; Y]; Z], x: usize, y: usize, z: usize, sample_interval: usize) -> f32 {
+pub fn trilerp<const X: usize, const Y: usize, const Z: usize>(
+    samples: &[[[f32; X]; Y]; Z],
+    x: usize,
+    y: usize,
+    z: usize,
+    sample_interval: usize,
+) -> f32 {
     let index_x = x % sample_interval;
     let index_y = y % sample_interval;
     let index_z = z % sample_interval;
@@ -46,7 +53,17 @@ pub fn trilerp<const X: usize, const Y: usize, const Z: usize>(samples: &[[[f32;
     trilinear_interpolation(point, v000, v001, v010, v011, v100, v101, v110, v111)
 }
 
-pub fn trilinear_interpolation(point: Vec3, v000: f32, v001: f32, v010: f32, v011: f32, v100: f32, v101: f32, v110: f32, v111: f32) -> f32 {
+pub fn trilinear_interpolation(
+    point: Vec3,
+    v000: f32,
+    v001: f32,
+    v010: f32,
+    v011: f32,
+    v100: f32,
+    v101: f32,
+    v110: f32,
+    v111: f32,
+) -> f32 {
     let c00 = v000 * (1.0 - point.x) + v100 * point.x;
     let c01 = v001 * (1.0 - point.x) + v101 * point.x;
     let c10 = v010 * (1.0 - point.x) + v110 * point.x;
@@ -81,10 +98,32 @@ pub fn sample_sphere_surface(rng: &mut impl Rng) -> Vec3 {
 }
 
 //use in lerp(x,b,t) where x is current position, b is target dest
-//lerps are exponential functions, so we have to correct the t 
+//lerps are exponential functions, so we have to correct the t
 //speed is proportion that we should travel in 1 second
 //TODO: https://chicounity3d.wordpress.com/2014/05/23/how-to-lerp-like-a-pro/
 pub fn lerp_delta_time(speed: f32, dt: f32) -> f32 {
     //0.5 is arbitrary
-    1.0-((1.0-speed).powf(dt))
+    1.0 - ((1.0 - speed).powf(dt))
+}
+
+//this is used to make a continuous distribution discrete
+//we find the smallest index of buckets greater than a given value
+//buckets should be sorted in increasing order
+pub struct Buckets<T> {
+    pub buckets: Vec<(f32,T)>,
+}
+
+impl<T> Buckets<T> {
+    //returns the first bucket with value greater than x
+    //if buckets is non-empty and x is larger than all elements in the array, the last bucket is returned
+    pub fn map(&self, x: f32) -> Option<&T> {
+        self
+            .buckets
+            .iter()
+            .find_or_last(|(b, _)| *b > x)
+            .map(|(_, v)| v)
+    }
+    pub fn new(buckets: Vec<(f32,T)>) -> Self {
+        Self {buckets}
+    }
 }

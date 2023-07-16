@@ -5,7 +5,7 @@ use bracket_noise::prelude::*;
 
 use crate::{
     util::{get_next_prng, Spline, SplineNoise},
-    world::{BlockName, BlockResources, Level, LevelLoadState, LevelSystemSet},
+    world::{BlockName, BlockResources, Level, LevelLoadState, LevelSystemSet, BlockId},
 };
 
 mod generator;
@@ -15,11 +15,12 @@ pub use generator::{
 };
 
 use self::{
-    generator::{DecorationSettings, OreGenerator},
-    structures::{trees::get_short_tree, StructureGenerationSettings, StructureResources},
+    generator::OreGenerator,
+    structures::{trees::get_short_tree, StructureGenerationSettings, StructureResources}, biomes::UsedBiomeMap,
 };
 
 pub mod structures;
+pub mod biomes;
 
 const QUEUE_GEN_TIME_BUDGET_MS: u128 = 10;
 const ADD_TIME_BUDGET_MS: u128 = 10;
@@ -29,14 +30,8 @@ pub const LANDMASS: usize = 5;
 pub const DENSITY: usize = 2;
 pub const SQUISH: usize = 7;
 
-pub const TEMP: usize = 2;
-pub const HUMID: usize = 2;
-pub const FUNKY: usize = 2;
-
 pub type UsedShaperResources =
     ShaperResources<{ DENSITY }, { HEIGHTMAP }, { LANDMASS }, { SQUISH }>;
-pub type UsedDecorationResources = DecorationResources<{ TEMP }, { HUMID }, { FUNKY }>;
-pub type UsedDecorationSettings = DecorationSettings<{ TEMP }, { HUMID }, { FUNKY }>;
 
 pub struct WorldGenPlugin;
 
@@ -67,9 +62,17 @@ pub struct ShaperResources<const D: usize, const H: usize, const L: usize, const
 );
 
 #[derive(Resource)]
-pub struct DecorationResources<const TEMP: usize, const HUMID: usize, const FUNKY: usize>(
-    pub Arc<UsedDecorationSettings>,
+pub struct DecorationResources(
+    pub Arc<DecorationSettings>,
 );
+
+pub struct DecorationSettings {
+    pub biomes: UsedBiomeMap,
+    //white noise for ores
+    pub ore_noise: FastNoise,
+    pub stone: BlockId,
+    pub ores: Vec<OreGenerator>,
+}
 
 fn create_shaper_settings(mut commands: Commands, level: Res<Level>) {
     let mut seed = level.seed ^ 0xABDFACDFAEDFA0DF;
@@ -197,50 +200,16 @@ fn create_decoration_settings(
     resources: Res<BlockResources>,
 ) {
     let mut seed = level.seed ^ 0x6287192746;
-    let mut noise = FastNoise::seeded(seed);
-    noise.set_noise_type(NoiseType::SimplexFractal);
-    noise.set_frequency(0.001);
-    noise.set_fractal_octaves(2);
-    noise.set_fractal_gain(0.5);
-    noise.set_fractal_lacunarity(3.0);
-    let temperature_noise = SplineNoise {
-        noise,
-        spline: Spline::new([Vec2::new(-1.0, -1.0), Vec2::new(1.0, 1.0)]),
-    };
 
-    let mut noise = FastNoise::seeded(get_next_seed(&mut seed));
-    noise.set_noise_type(NoiseType::SimplexFractal);
-    noise.set_frequency(0.001);
-    noise.set_fractal_octaves(2);
-    noise.set_fractal_gain(0.5);
-    noise.set_fractal_lacunarity(3.0);
-    let humidity_noise = SplineNoise {
-        noise,
-        spline: Spline::new([Vec2::new(-1.0, -1.0), Vec2::new(1.0, 1.0)]),
-    };
-
-    let mut noise = FastNoise::seeded(get_next_seed(&mut seed));
-    noise.set_noise_type(NoiseType::SimplexFractal);
-    noise.set_frequency(0.001);
-    noise.set_fractal_octaves(2);
-    noise.set_fractal_gain(0.5);
-    noise.set_fractal_lacunarity(3.0);
-    let funky_noise = SplineNoise {
-        noise,
-        spline: Spline::new([Vec2::new(-1.0, -1.0), Vec2::new(1.0, 1.0)]),
-    };
 
     let mut ore_noise = FastNoise::seeded(get_next_seed(&mut seed));
     ore_noise.set_noise_type(NoiseType::Value);
     ore_noise.set_frequency(132671324.0);
 
-    commands.insert_resource(DecorationResources::<{ TEMP }, { HUMID }, { FUNKY }>(
-        Arc::new(UsedDecorationSettings {
-            temperature_noise,
-            humidity_noise,
-            funky_noise,
+    commands.insert_resource(DecorationResources(
+        Arc::new(DecorationSettings {
+            biomes: UsedBiomeMap::default(&resources.registry, seed),
             ore_noise,
-            humid_block: resources.registry.get_id(&BlockName::core("dirt")),
             stone: resources.registry.get_id(&BlockName::core("stone")),
             ores: vec![OreGenerator {
                 ore_block: resources.registry.get_id(&BlockName::core("ruby_ore")),
