@@ -190,7 +190,7 @@ pub fn player_punch(
             }
             //if not, break a block
             if let Some(hit) = level.blockcast(tf.translation(), tf.forward() * 10.0) {
-                level.set_block_entity(hit.block_pos, crate::world::BlockType::Empty, &id_query, &mut commands);
+                level.damage_block(hit.block_pos, 0.5, &id_query, &mut commands);
             }
         }
     }

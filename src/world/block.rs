@@ -151,6 +151,11 @@ impl BlockPhysics {
     }
 }
 
+//0 = healthy, 1 = broken
+#[derive(Clone, Copy)]
+pub struct BlockDamage(pub f32);
+
+
 #[derive(Resource)]
 pub struct BlockResources {
     pub registry: Arc<BlockRegistry>

@@ -8,6 +8,7 @@ use crate::world::{LevelSystemSet, Id};
 pub mod inventory;
 pub mod block_item;
 pub mod weapons;
+pub mod tools;
 pub mod debug_items;
 
 pub struct ItemsPlugin;
@@ -21,6 +22,7 @@ impl Plugin for ItemsPlugin {
             .add_event::<DropItemEvent>()
             .add_event::<AttackItemEvent>()
             .add_plugin(debug_items::DebugItems)
+            .add_plugin(tools::ToolsPlugin)
             .add_system(block_item::use_block_item.in_set(LevelSystemSet::Main))
             .add_system(block_item::use_mega_block_item.in_set(LevelSystemSet::Main))
             .add_system(weapons::equip_unequip_weapon.in_set(LevelSystemSet::Main))
@@ -31,6 +33,8 @@ impl Plugin for ItemsPlugin {
             .register_type::<weapons::MeleeWeaponItem>()
             .register_type::<block_item::BlockItem>()
             .register_type::<block_item::MegaBlockItem>()
+            .register_type::<ItemSwingSpeed>()
+            .register_type::<ItemUseSpeed>()
         ;
     }
 }
@@ -51,6 +55,20 @@ impl ItemStack {
 pub struct ItemName {
     pub namespace: String,
     pub name: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
+#[reflect(Component)]
+pub struct ItemSwingSpeed {
+    pub windup: f32,
+    pub backswing: f32,
+}
+
+#[derive(Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
+#[reflect(Component)]
+pub struct ItemUseSpeed {
+    pub windup: f32,
+    pub backswing: f32,
 }
 
 #[derive(Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]

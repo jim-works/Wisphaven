@@ -1,4 +1,4 @@
-use std::{sync::Arc, ops::Deref};
+use std::{ops::Deref, sync::Arc};
 
 use crate::{
     mesher::NeedsMesh,
@@ -11,7 +11,10 @@ use crate::{
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
 
-use super::{chunk::*, BlockBuffer, BlockCoord, BlockType, BlockId, BlockRegistry, events::BlockUsedEvent, UsableBlock, Id};
+use super::{
+    chunk::*, events::BlockUsedEvent, BlockBuffer, BlockCoord, BlockDamage, BlockId, BlockRegistry,
+    BlockType, Id, UsableBlock,
+};
 
 #[derive(Resource)]
 pub struct Level(pub Arc<LevelData>);
@@ -36,7 +39,9 @@ pub struct LevelData {
     pub seed: u64,
     chunks: DashMap<ChunkCoord, ChunkType, ahash::RandomState>,
     buffers: DashMap<ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>, ahash::RandomState>,
-    lod_chunks: DashMap<usize, DashMap<ChunkCoord, LODChunkType, ahash::RandomState>, ahash::RandomState>,
+    block_damages: DashMap<BlockCoord, BlockDamage, ahash::RandomState>,
+    lod_chunks:
+        DashMap<usize, DashMap<ChunkCoord, LODChunkType, ahash::RandomState>, ahash::RandomState>,
 }
 
 impl LevelData {
@@ -46,8 +51,9 @@ impl LevelData {
             seed,
             chunks: DashMap::with_hasher(ahash::RandomState::new()),
             buffers: DashMap::with_hasher(ahash::RandomState::new()),
+            block_damages: DashMap::with_hasher(ahash::RandomState::new()),
             lod_chunks: DashMap::with_hasher(ahash::RandomState::new()),
-            spawn_point: Vec3::new(0.0,10.0,0.0),
+            spawn_point: Vec3::new(0.0, 10.0, 0.0),
         }
     }
     pub fn get_block(&self, key: BlockCoord) -> Option<BlockType> {
@@ -62,30 +68,92 @@ impl LevelData {
         match self.get_block(key) {
             Some(block_type) => match block_type {
                 BlockType::Empty => None,
-                BlockType::Filled(entity) => Some(entity)
+                BlockType::Filled(entity) => Some(entity),
             },
             None => None,
         }
     }
+    //adds damage to the block at `key`. damage ranges from 0-1, with 1 destroying the block
+    //returns the block's entity if it's destroyed
+    pub fn damage_block(
+        &self,
+        key: BlockCoord,
+        amount: f32,
+        id_query: &Query<&BlockId>,
+        commands: &mut Commands,
+    ) -> Option<Entity> {
+        let mut remove_block = false;
+        let mut remove_damage = false;
+        match self.block_damages.get_mut(&key) {
+            Some(mut dam) => {
+                let mut damage = *dam.value();
+                damage.0 = (damage.0 + amount).clamp(0.0, 1.0);
+                *dam.value_mut() = damage;
+                if damage.0 == 1.0 {
+                    //total damage = 1, remove the block
+                    remove_block = true;
+                } else if damage.0 == 0.0 {
+                    //no more damage, so remove the damage value
+                    remove_damage = true;
+                }
+            }
+            None => {
+                if amount < 1.0 {
+                    self.block_damages.insert(key, BlockDamage(amount));
+                } else {
+                    remove_block = true;
+                }
+            }
+        }
+        if remove_block || remove_damage {
+            self.block_damages.remove(&key);
+        }
+        if remove_block {
+            let entity = self.get_block_entity(key);
+            self.set_block_entity(key, BlockType::Empty, id_query, commands);
+            return entity;
+        }
+        None
+    }
+    //heals all block damages by amount
+    pub fn heal_block_damages(&self, amount: f32) {
+        self.block_damages.retain(|_, damage| {
+            damage.0 -= amount;
+            damage.0 > 0.0
+        });
+    }
     //returns true if the targeted block could be used, false otherwise
-    pub fn use_block(&self, key: BlockCoord, user: Entity, query: &Query<&UsableBlock>, writer: &mut EventWriter<BlockUsedEvent>) -> bool {
+    pub fn use_block(
+        &self,
+        key: BlockCoord,
+        user: Entity,
+        query: &Query<&UsableBlock>,
+        writer: &mut EventWriter<BlockUsedEvent>,
+    ) -> bool {
         match self.get_block_entity(key) {
             Some(entity) => match query.get(entity) {
                 Ok(_) => {
                     writer.send(BlockUsedEvent {
                         block_position: key,
                         user,
-                        block_used: entity
+                        block_used: entity,
                     });
                     true
-                },
+                }
                 Err(_) => false,
             },
             None => false,
         }
     }
     //doesn't mesh or update physics
-    pub fn set_block_noupdate(&self, key: BlockCoord, val: BlockId, registry: &BlockRegistry, id_query: &Query<&BlockId>, commands: &mut Commands) -> Option<Entity> {
+    pub fn set_block_noupdate(
+        &self,
+        key: BlockCoord,
+        val: BlockId,
+        registry: &BlockRegistry,
+        id_query: &Query<&BlockId>,
+        commands: &mut Commands,
+    ) -> Option<Entity> {
         if let Some(mut r) = self.get_chunk_mut(ChunkCoord::from(key)) {
             if let ChunkType::Full(ref mut chunk) = r.value_mut() {
                 let block = match registry.generate_entity(val, key, commands) {
@@ -100,7 +168,13 @@ impl LevelData {
         None
     }
     //doesn't mesh or update physics
-    pub fn set_block_entity_noupdate(&self, key: BlockCoord, val: BlockType, id_query: &Query<&BlockId>, commands: &mut Commands) -> Option<Entity> {
+    pub fn set_block_entity_noupdate(
+        &self,
+        key: BlockCoord,
+        val: BlockType,
+        id_query: &Query<&BlockId>,
+        commands: &mut Commands,
+    ) -> Option<Entity> {
         if let Some(mut r) = self.get_chunk_mut(ChunkCoord::from(key)) {
             if let ChunkType::Full(ref mut chunk) = r.value_mut() {
                 BlockRegistry::remove_entity(id_query, chunk[ChunkIdx::from(key)], commands);
@@ -129,13 +203,20 @@ impl LevelData {
                         commands
                             .entity(c.entity)
                             .insert((NeedsMesh {}, NeedsPhysics {}));
-                    },
+                    }
                     _ => {}
                 }
             }
         }
     }
-    pub fn set_block(&self, key: BlockCoord, val: BlockId, registry: &BlockRegistry, id_query: &Query<&BlockId>, commands: &mut Commands) {
+    pub fn set_block(
+        &self,
+        key: BlockCoord,
+        val: BlockId,
+        registry: &BlockRegistry,
+        id_query: &Query<&BlockId>,
+        commands: &mut Commands,
+    ) {
         match val {
             id @ BlockId(Id::Basic(_)) | id @ BlockId(Id::Dynamic(_)) => {
                 if let Some(entity) = registry.generate_entity(val, key, commands) {
@@ -143,8 +224,8 @@ impl LevelData {
                 } else {
                     error!("Tried to set a block with id: {:?} that has no entity!", id);
                 }
-            },
-            BlockId(Id::Empty) => self.set_block_entity(key, BlockType::Empty, id_query, commands)
+            }
+            BlockId(Id::Empty) => self.set_block_entity(key, BlockType::Empty, id_query, commands),
         }
     }
     pub fn batch_set_block<I: Iterator<Item = (BlockCoord, BlockId)>>(
@@ -154,7 +235,11 @@ impl LevelData {
         id_query: &Query<&BlockId>,
         commands: &mut Commands,
     ) {
-        let _my_span = info_span!("batch_set_block_entities", name = "batch_set_block_entities").entered();
+        let _my_span = info_span!(
+            "batch_set_block_entities",
+            name = "batch_set_block_entities"
+        )
+        .entered();
         let mut to_update = HashSet::new();
         for (coord, block) in to_set {
             let chunk_coord: ChunkCoord = coord.into();
@@ -173,7 +258,13 @@ impl LevelData {
         }
     }
     //updates chunk and neighbors
-    pub fn set_block_entity(&self, key: BlockCoord, val: BlockType, id_query: &Query<&BlockId>, commands: &mut Commands) {
+    pub fn set_block_entity(
+        &self,
+        key: BlockCoord,
+        val: BlockType,
+        id_query: &Query<&BlockId>,
+        commands: &mut Commands,
+    ) {
         self.batch_set_block_entities(std::iter::once((key, val)), id_query, commands);
     }
     //meshes and updates physics
@@ -183,7 +274,11 @@ impl LevelData {
         id_query: &Query<&BlockId>,
         commands: &mut Commands,
     ) {
-        let _my_span = info_span!("batch_set_block_entities", name = "batch_set_block_entities").entered();
+        let _my_span = info_span!(
+            "batch_set_block_entities",
+            name = "batch_set_block_entities"
+        )
+        .entered();
         let mut to_update = HashSet::new();
         for (coord, block) in to_set {
             let chunk_coord: ChunkCoord = coord.into();
@@ -212,12 +307,7 @@ impl LevelData {
             .id();
         self.add_chunk(coord, ChunkType::Ungenerated(id));
     }
-    pub fn create_lod_chunk(
-        &self,
-        coord: ChunkCoord,
-        lod_level: u8,
-        commands: &mut Commands,
-    ) {
+    pub fn create_lod_chunk(&self, coord: ChunkCoord, lod_level: u8, commands: &mut Commands) {
         let id = commands
             .spawn((
                 Name::new("LODChunk"),
@@ -242,7 +332,7 @@ impl LevelData {
                         Self::update_chunk_only::<true>(c.entity, commands);
                         //self.update_chunk_neighbors_only(c.position, commands);
                         continue;
-                    },
+                    }
                     _ => {}
                 }
             }
@@ -280,7 +370,7 @@ impl LevelData {
                     //self.update_chunk_neighbors_only(c.position, commands);
                     //we've already spawned in the buffer, so we shouldn't store it
                     return;
-                },
+                }
                 _ => {}
             }
         }
@@ -357,15 +447,26 @@ impl LevelData {
         let _my_span = info_span!("update_chunk_phase", name = "update_chunk_phase").entered();
         if let Some(mut c) = self.get_chunk_mut(key) {
             match c.value_mut() {
-                ChunkType::Generating(old_phase, _) => if phase > *old_phase {
-                    *old_phase = phase;
-                },
-                _ => {},
+                ChunkType::Generating(old_phase, _) => {
+                    if phase > *old_phase {
+                        *old_phase = phase;
+                    }
+                }
+                _ => {}
             }
         }
     }
-    pub fn promote_generating_to_full(&self, key: ChunkCoord, registry: &BlockRegistry, commands: &mut Commands) {
-        let _my_span = info_span!("promote_generating_to_full", name = "promote_generating_to_full").entered();
+    pub fn promote_generating_to_full(
+        &self,
+        key: ChunkCoord,
+        registry: &BlockRegistry,
+        commands: &mut Commands,
+    ) {
+        let _my_span = info_span!(
+            "promote_generating_to_full",
+            name = "promote_generating_to_full"
+        )
+        .entered();
         if let Some(mut c) = self.get_chunk_mut(key) {
             if let ChunkType::Generating(_, chunk) = c.value_mut() {
                 *c = ChunkType::Full(chunk.to_array_chunk(registry, commands));
@@ -395,14 +496,18 @@ impl LevelData {
     pub fn add_lod_chunk(&self, key: ChunkCoord, chunk: LODChunkType) {
         let _my_span = info_span!("add_lod_chunk", name = "add_lod_chunk").entered();
         match chunk {
-            LODChunkType::Ungenerated(_, level) => self.insert_chunk_at_lod(key, level as usize, chunk),
-            LODChunkType::Full(l) => self.insert_chunk_at_lod(key, l.level as usize, LODChunkType::Full(l)),
+            LODChunkType::Ungenerated(_, level) => {
+                self.insert_chunk_at_lod(key, level as usize, chunk)
+            }
+            LODChunkType::Full(l) => {
+                self.insert_chunk_at_lod(key, l.level as usize, LODChunkType::Full(l))
+            }
         }
     }
     fn insert_chunk_at_lod(&self, key: ChunkCoord, level: usize, chunk: LODChunkType) {
         //expand lod vec if needed
         if self.lod_chunks.len() <= level {
-            for x in self.lod_chunks.len()..level+1 {
+            for x in self.lod_chunks.len()..level + 1 {
                 self.lod_chunks
                     .insert(x, DashMap::with_hasher(ahash::RandomState::new()));
             }
@@ -412,7 +517,14 @@ impl LevelData {
     pub fn get_lod_chunks(
         &self,
         level: usize,
-    ) -> Option<dashmap::mapref::one::Ref<'_, usize, DashMap<ChunkCoord, LODChunkType, ahash::RandomState>, ahash::RandomState>> {
+    ) -> Option<
+        dashmap::mapref::one::Ref<
+            '_,
+            usize,
+            DashMap<ChunkCoord, LODChunkType, ahash::RandomState>,
+            ahash::RandomState,
+        >,
+    > {
         self.lod_chunks.get(&level)
     }
     pub fn get_lod_levels(&self) -> usize {
