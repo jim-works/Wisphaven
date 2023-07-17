@@ -25,7 +25,7 @@ pub trait StructureGenerator {
     fn generate(&self, buffer: &mut BlockBuffer<BlockId>, world_pos: BlockCoord, local_pos: ChunkIdx, chunk: &GeneratingChunk);
 }
 
-pub fn gen_small_structures(chunk: GeneratingChunk, settings: Arc<StructureGenerationSettings>) -> (GeneratingChunk, BlockBuffer<BlockId>) {
+pub fn gen_small_structures(chunk: &mut GeneratingChunk, settings: Arc<StructureGenerationSettings>) -> BlockBuffer<BlockId> {
     let _my_span = info_span!("gen_small_structures", name = "gen_small_structures").entered();
     let mut buf = BlockBuffer::new();
     for roll in 0..settings.rolls_per_chunk {
@@ -40,5 +40,5 @@ pub fn gen_small_structures(chunk: GeneratingChunk, settings: Arc<StructureGener
         }
     }
     
-    (chunk, buf)
+    buf
 }

@@ -62,7 +62,7 @@ pub fn finish_loading_trigger (
             }
         });
     }
-    if loaded == target && !init_loader.is_empty() {
+    if loaded > 0 && !init_loader.is_empty() {
         info!("Finished loading the level! {}/{} Chunks loaded!", loaded, target);
         next_state.set(LevelLoadState::Loaded);
     } else {

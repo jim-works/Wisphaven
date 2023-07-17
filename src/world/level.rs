@@ -6,7 +6,7 @@ use crate::{
     serialization::{NeedsLoading, NeedsSaving},
     util::{max_component_norm, Direction},
     world::BlockcastHit,
-    worldgen::ChunkNeedsGenerated,
+    worldgen::{ChunkNeedsGenerated, GenerationPhase},
 };
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
@@ -353,22 +353,43 @@ impl LevelData {
         }
         None
     }
+    pub fn update_chunk_phase(&self, key: ChunkCoord, phase: GenerationPhase) {
+        let _my_span = info_span!("update_chunk_phase", name = "update_chunk_phase").entered();
+        if let Some(mut c) = self.get_chunk_mut(key) {
+            match c.value_mut() {
+                ChunkType::Generating(old_phase, _) => if phase > *old_phase {
+                    *old_phase = phase;
+                },
+                _ => {},
+            }
+        }
+    }
+    pub fn promote_generating_to_full(&self, key: ChunkCoord, registry: &BlockRegistry, commands: &mut Commands) {
+        let _my_span = info_span!("promote_generating_to_full", name = "promote_generating_to_full").entered();
+        if let Some(mut c) = self.get_chunk_mut(key) {
+            if let ChunkType::Generating(_, chunk) = c.value_mut() {
+                *c = ChunkType::Full(chunk.to_array_chunk(registry, commands));
+                self.apply_buffer(c.value_mut())
+            }
+        }
+    }
     /// Replaces the `Chunk` at `key` with `chunk`.
     /// If `chunk` is `ChunkType::Full`: removes the chunk's buffer and merges it with the chunk
-    pub fn add_chunk(&self, key: ChunkCoord, chunk: ChunkType) {
+    pub fn add_chunk(&self, key: ChunkCoord, mut chunk: ChunkType) {
         let _my_span = info_span!("add_chunk", name = "add_chunk").entered();
         //copy contents of buffer into chunk if necessary
-        if let ChunkType::Full(mut c) = chunk {
-            if let Some((_, buf)) = self.buffers.remove(&key) {
+        self.apply_buffer(&mut chunk);
+        self.chunks.insert(key, chunk);
+    }
+    pub fn apply_buffer(&self, chunk: &mut ChunkType) {
+        if let ChunkType::Full(ref mut c) = chunk {
+            if let Some((_, buf)) = self.buffers.remove(&c.position) {
                 for i in 0..BLOCKS_PER_CHUNK {
                     if !matches!(buf[i], BlockType::Empty) {
                         c.set_block(i, buf[i]);
                     }
                 }
             }
-            self.chunks.insert(key, ChunkType::Full(c));
-        } else {
-            self.chunks.insert(key, chunk);
         }
     }
     pub fn add_lod_chunk(&self, key: ChunkCoord, chunk: LODChunkType) {

@@ -273,7 +273,7 @@ impl GeneratingChunk {
         }
     }
 
-    pub fn to_array_chunk(self, registry: &BlockRegistry, commands: &mut Commands) -> ArrayChunk {
+    pub fn to_array_chunk(&mut self, registry: &BlockRegistry, commands: &mut Commands) -> ArrayChunk {
         let mut mapped_palette = Vec::with_capacity(self.blocks.palette.len());
         for (key,val,r) in self.blocks.palette.iter() {
             let block = match val {

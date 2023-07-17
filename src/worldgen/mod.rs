@@ -8,14 +8,15 @@ use crate::{
     world::{BlockName, BlockResources, Level, LevelLoadState, LevelSystemSet, BlockId},
 };
 
+mod pipeline;
 mod generator;
-pub use generator::{
+pub use pipeline::{
     ChunkNeedsGenerated, GeneratedChunk, GeneratedLODChunk, LODShapingTask, ShaperSettings,
     ShapingTask,
 };
 
 use self::{
-    generator::OreGenerator,
+    pipeline::OreGenerator,
     structures::{trees::get_short_tree, StructureGenerationSettings, StructureResources}, biomes::UsedBiomeMap,
 };
 
@@ -39,13 +40,13 @@ impl Plugin for WorldGenPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             (
-                generator::poll_shaping_task,
-                generator::poll_decoration_waiters,
-                generator::poll_decoration_task,
-                generator::poll_structure_waiters,
-                generator::poll_structure_task,
-                generator::queue_generating::<DENSITY, HEIGHTMAP, LANDMASS, SQUISH>,
-                generator::poll_gen_lod_queue,
+                pipeline::poll_shaping_task,
+                pipeline::poll_decoration_waiters,
+                pipeline::poll_decoration_task,
+                pipeline::poll_structure_waiters,
+                pipeline::poll_structure_task,
+                pipeline::queue_generating::<DENSITY, HEIGHTMAP, LANDMASS, SQUISH>,
+                pipeline::poll_gen_lod_queue,
             )
                 .in_set(LevelSystemSet::LoadingAndMain),
         )
@@ -60,11 +61,11 @@ impl Plugin for WorldGenPlugin {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
 pub enum GenerationPhase {
-    Shaping,
-    Decorating,
-    Structuring,
+    Shaped=0,
+    Decorated=1,
+    Structured=2,
 }
 
 #[derive(Resource)]
