@@ -24,6 +24,16 @@ impl ChunkLoader {
             }
         }
     }
+    //doesn't include chunks on the edge of the loader
+    pub fn for_each_center_chunk(&self, mut f: impl FnMut(ChunkCoord)) {
+        for x in -self.radius.x+1..self.radius.x {
+            for y in -self.radius.y+1..self.radius.y {
+                for z in -self.radius.z+1..self.radius.z {
+                    (f)(ChunkCoord::new(x, y, z));
+                }
+            }
+        }
+    }
 }
 
 #[derive(Resource)]

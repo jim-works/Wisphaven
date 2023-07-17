@@ -1,4 +1,6 @@
 mod direction;
+use std::time::Duration;
+
 pub use direction::*;
 
 mod spline;
@@ -16,7 +18,7 @@ pub use numerical_traits::*;
 pub mod palette;
 pub mod plugin;
 
-use bevy::prelude::Vec3;
+use bevy::{prelude::{Vec3, DerefMut, Deref}, time::Timer};
 
 use rand::prelude::*;
 use rand_distr::StandardNormal;
@@ -125,5 +127,16 @@ impl<T> Buckets<T> {
     }
     pub fn new(buckets: Vec<(f32,T)>) -> Self {
         Self {buckets}
+    }
+}
+
+//for use in systems that need a local timer
+//use in `Local<LocalRepeatingTimer<...>>`
+#[derive(DerefMut, Deref)]
+pub struct LocalRepeatingTimer<const INTERVAL_MS: u64>(pub Timer);
+
+impl<const INTERVAL_MS: u64> Default for LocalRepeatingTimer<INTERVAL_MS> {
+    fn default() -> Self {
+        Self(Timer::new(Duration::from_millis(INTERVAL_MS), bevy::time::TimerMode::Repeating))
     }
 }

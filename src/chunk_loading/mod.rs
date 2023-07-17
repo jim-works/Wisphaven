@@ -4,7 +4,7 @@ pub use entity_loader::ChunkLoader;
 
 use bevy::prelude::*;
 
-use crate::{world::{LevelSystemSet, LevelLoadState, Level, settings::Settings}, actors::spawn_local_player};
+use crate::{world::{LevelSystemSet, LevelLoadState, Level, settings::Settings}, actors::spawn_local_player, util::LocalRepeatingTimer, physics::ChunkColliderGenerated};
 
 use self::entity_loader::{DespawnChunkEvent, ChunkLoadingTimer};
 
@@ -43,30 +43,38 @@ pub fn on_load_level (
 pub fn finish_loading_trigger (
     mut next_state: ResMut<NextState<LevelLoadState>>,
     level: Res<Level>,
+    //check loading every 100 ms
+    mut timer: Local<LocalRepeatingTimer<100>>,
+    time: Res<Time>,
     init_loader: Query<(Entity, &ChunkLoader, &GlobalTransform), With<InitialLoader>>,
-//    loaded_chunk_query: Query<&ChunkColliderGenerated>
+   loaded_chunk_query: Query<&ChunkColliderGenerated>
 ) {
+    timer.tick(time.delta());
+    if !timer.just_finished() {
+        return;
+    }
     let mut loaded = 0;
     let mut target = 0;
     for (_, loader, tf) in init_loader.iter() {
-        loader.for_each_chunk(|coord| {
+        loader.for_each_center_chunk(|coord| {
             target += 1;
             if let Some(chunk_ref) = level.get_chunk(coord+tf.translation().into()) {
                 match chunk_ref.value() {
-                    crate::world::chunk::ChunkType::Full(_) => loaded += 1,
+                    crate::world::chunk::ChunkType::Full(chunk) => if loaded_chunk_query.contains(chunk.entity) {
+                        loaded += 1;
+                    },
                     _ => {}
-                    // crate::world::chunk::ChunkType::Full(chunk) => if loaded_chunk_query.contains(chunk.entity) {
-                    //     loaded += 1;
-                    // }
+                    
                 }
             }
         });
     }
-    if loaded > 0 && !init_loader.is_empty() {
+    //we not all chunks will be loaded (due to some boundary chunks waiting during world generation), so approximate with target/2
+    if loaded >= target && !init_loader.is_empty() {
         info!("Finished loading the level! {}/{} Chunks loaded!", loaded, target);
         next_state.set(LevelLoadState::Loaded);
     } else {
-        debug!("Loaded {} out of {} chunks", loaded, target);
+        info!("Loaded {} out of {} chunks", loaded, target);
     }
 }
 
