@@ -4,17 +4,17 @@ use bevy::prelude::*;
 
 //https://en.wikipedia.org/wiki/L-system
 
-pub struct LSystem<Alphabet: Clone, P: Fn(&Alphabet, u32) -> Option<Vec<Alphabet>>> {
+pub struct LSystem<Alphabet: Clone, P: Fn(&Alphabet, u64) -> Option<Vec<Alphabet>>> {
     producer: P,
     phantom: PhantomData<Alphabet>
 }
 
-impl<Alphabet: Clone, P: Fn(&Alphabet, u32) -> Option<Vec<Alphabet>>> LSystem<Alphabet, P> {
-    pub fn apply_to(&self, sentence: &[Alphabet], seed: u32) -> Vec<Alphabet> {
+impl<Alphabet: Clone, P: Fn(&Alphabet, u64) -> Option<Vec<Alphabet>>> LSystem<Alphabet, P> {
+    pub fn apply_to(&self, sentence: &[Alphabet], seed: u64) -> Vec<Alphabet> {
         let _my_span = info_span!("l_structure_apply_to", name = "l_structure_apply_to").entered();
         let mut new_sentence = Vec::new(); 
         for (i, letter) in sentence.iter().enumerate() {
-            if let Some(mut rhs) = (self.producer)(letter, seed+i as u32) {
+            if let Some(mut rhs) = (self.producer)(letter, seed+i as u64) {
                 new_sentence.append(&mut rhs);
             } else {
                 new_sentence.push(letter.clone());
@@ -23,7 +23,7 @@ impl<Alphabet: Clone, P: Fn(&Alphabet, u32) -> Option<Vec<Alphabet>>> LSystem<Al
         new_sentence
     }
 
-    pub fn iterate(&self, sentence: &Vec<Alphabet>, iterations: u32, seed: u32) -> Vec<Alphabet> {
+    pub fn iterate(&self, sentence: &Vec<Alphabet>, iterations: u64, seed: u64) -> Vec<Alphabet> {
         let mut curr_sentence = sentence;
         let mut ret_sentence = Vec::new();
         for _ in 0..iterations {

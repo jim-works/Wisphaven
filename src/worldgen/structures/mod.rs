@@ -3,9 +3,9 @@ use std::sync::Arc;
 use bracket_noise::prelude::FastNoise;
 use bevy::prelude::*;
 
-use crate::{world::{chunk::{ChunkIdx, CHUNK_SIZE_F32, CHUNK_SIZE_U64, GeneratingChunk}, BlockBuffer, BlockCoord, BlockId}, util::get_next_prng};
+use crate::{world::{chunk::*, BlockBuffer, BlockCoord, BlockId}, util::get_next_prng};
 
-use super::DecorationSettings;
+use super::{DecorationSettings, pipeline::ColumnBiomes, biomes::UsedBiomeMap};
 
 pub mod trees;
 
@@ -22,22 +22,20 @@ pub struct StructureGenerationSettings {
 
 pub trait StructureGenerator {
     fn rarity(&self) -> f32;
-    fn generate(&self, buffer: &mut BlockBuffer<BlockId>, world_pos: BlockCoord, local_pos: ChunkIdx, chunk: &GeneratingChunk);
+    //returns false if chunk is outside of the structure's bounds.
+    fn generate(&self, buffer: &mut BlockBuffer<BlockId>, world_pos: BlockCoord, local_pos: ChunkIdx, chunk: &GeneratingChunk) -> bool;
 }
 
-pub fn gen_small_structures(chunk: &mut GeneratingChunk, settings: Arc<StructureGenerationSettings>) -> BlockBuffer<BlockId> {
+pub trait LargeStructureGenerator: StructureGenerator {
+    fn setup(&mut self, world_pos: BlockCoord);
+}
+
+pub fn gen_structures(chunk: &mut GeneratingChunk, biomes: ColumnBiomes<CHUNK_SIZE>, biome_map: &UsedBiomeMap, settings: Arc<StructureGenerationSettings>) -> BlockBuffer<BlockId> {
     let _my_span = info_span!("gen_small_structures", name = "gen_small_structures").entered();
     let mut buf = BlockBuffer::new();
-    for roll in 0..settings.rolls_per_chunk {
-        //rescale from [-1,1] to [0,CHUNK_SIZE]
-        let t = (settings.placement_noise.get_noise3d((chunk.position.x+roll) as f32, (chunk.position.y+roll) as f32, (chunk.position.z+roll) as f32)+1.0)*CHUNK_SIZE_F32/2.0;
-        let x = get_next_prng(t as u64);
-        let y = get_next_prng(x);
-        let z = get_next_prng(y);
-        for structure in &settings.structures {
-            let pos = ChunkIdx::new((x%CHUNK_SIZE_U64) as u8, (y%CHUNK_SIZE_U64) as u8, (z%CHUNK_SIZE_U64) as u8);
-            structure.generate(&mut buf, BlockCoord::from(chunk.position)+BlockCoord::new(pos.x as i32, pos.y as i32, pos.z as i32), pos, &chunk)
-        }
+    let biome = biome_map.get(biomes.0[0][0]);
+    if let Some(gen) = &biome.fallback_generator {
+        gen.generate(&mut buf, chunk.position.into(), ChunkIdx::new(0,0,0), chunk);
     }
     
     buf

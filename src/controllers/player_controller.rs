@@ -244,7 +244,7 @@ pub fn player_scroll_inventory(
     const SCROLL_SENSITIVITY: f32 = 0.05;
     if let Ok((mut inv, act)) = query.get_single_mut() {
         let delta = act.value(Action::Scroll);
-        let slot_diff = if delta > SCROLL_SENSITIVITY {1} else if delta < -SCROLL_SENSITIVITY {-1} else {0};
+        let slot_diff = if delta > SCROLL_SENSITIVITY {-1} else if delta < -SCROLL_SENSITIVITY {1} else {0};
         let curr_slot = inv.selected_slot();
         inv.select_slot(curr_slot as i32 + slot_diff, &mut equip_writer, &mut unequip_writer);
     }

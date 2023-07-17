@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
 
-    util::{get_next_prng, trilerp, ClampedSpline},
+    util::{get_next_prng, trilerp, ClampedSpline, ToSeed},
     world::{
         chunk::*, BlockId, BlockType, Id
     }, worldgen::pipeline::ColumnBiomes,
@@ -89,9 +89,7 @@ pub fn gen_decoration(
     heightmap: &Heightmap<CHUNK_SIZE>,
     settings: &DecorationSettings,
 ) -> ColumnBiomes<CHUNK_SIZE> {
-    const SOIL_DEPTH: u8 = 5;
-    //guarantee we only need to look one chunk up
-    assert!(SOIL_DEPTH<CHUNK_SIZE_U8);
+
     let mut biome_map = ColumnBiomes([[None; CHUNK_SIZE]; CHUNK_SIZE]);
 
     for x in 0..CHUNK_SIZE_U8 {
@@ -102,11 +100,14 @@ pub fn gen_decoration(
             let biome = settings.biomes.get(biome);
             let target_height = heightmap.0[x as usize][z as usize];
             let mut top_coord = None;
-            let soil_bottom = target_height-SOIL_DEPTH as f32;
+            let soil_depth = biome.soil_depth;
+            let soil_bottom = target_height-soil_depth as f32;
+            //guarantee we only need to look one chunk up
+            assert!(soil_depth<CHUNK_SIZE_U8);
             const MID_DEPTH: i32 = 5;
 
             // find lowest air block in chunk above (add 1 because we want to look past the topsoil layer)
-            for y in 0..SOIL_DEPTH+1 {
+            for y in 0..soil_depth+1 {
                 let block_idx = ChunkIdx::new(x, y, z);
                 let air = match chunk_above {
                     ChunkType::Ungenerated(_) => unreachable!(),
@@ -144,7 +145,7 @@ pub fn gen_decoration(
                     if let Some(top) = top_coord {
                         if y+1 == top.y {
                             chunk.set_block(block_idx.into(), biome.topsoil);
-                        } else if y+SOIL_DEPTH+1 >= top.y {
+                        } else if y+soil_depth+1 > top.y {
                             chunk.set_block(block_idx.into(), biome.midsoil);
                         }
                     }
@@ -152,12 +153,7 @@ pub fn gen_decoration(
             }
         }
     }
-    let mut rng = get_next_prng(u32::from_be_bytes(
-        (chunk.position.x.wrapping_mul(123979)
-            ^ chunk.position.y.wrapping_mul(57891311)
-            ^ chunk.position.z.wrapping_mul(7))
-        .to_be_bytes(),
-    ) as u64);
+    let mut rng = get_next_prng(chunk.position.to_seed());
     for generator in &settings.ores {
         rng = get_next_prng(rng);
         if let Some(mut idx) = generator.get_ore_placement(rng) {

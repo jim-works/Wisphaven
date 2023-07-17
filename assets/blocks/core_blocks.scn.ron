@@ -90,8 +90,8 @@
           namespace: "core",
           name: "snow_slab",
         ),
-        "recursia::world::block::BlockPhysics": BottomSlab(0.5),
-        "recursia::world::block::NamedBlockMesh": BottomSlab(0.5, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
+        "recursia::world::block::BlockPhysics": BottomSlab(0.25),
+        "recursia::world::block::NamedBlockMesh": BottomSlab(0.25, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
       },
     ),
     10: (
@@ -122,6 +122,26 @@
         ),
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": Uniform("sand.png"),
+      },
+    ),
+    13: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "cactus",
+        ),
+        "recursia::world::block::BlockPhysics": Solid,
+        "recursia::world::block::NamedBlockMesh": Uniform("cactus.png"),
+      },
+    ),
+    14: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "cactus_flower",
+        ),
+        "recursia::world::block::BlockPhysics": Solid,
+        "recursia::world::block::NamedBlockMesh": Uniform("cactus_flower.png"),
       },
     ),
   },

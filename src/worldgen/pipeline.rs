@@ -233,6 +233,7 @@ pub fn poll_decoration_waiters(
                             if decor_requirements.is_some() {
                                 break;
                             }
+                            //haven't had this happen, but if we hold this reference and then await it may cause a deadlock
                             drop(decor_requirements);
                             Delay::new(POLL_INTERVAL).await;
                         }
@@ -322,6 +323,7 @@ pub fn poll_decoration_task(
 //WaitingForStructures -> StructureTask
 pub fn poll_structure_waiters(
     structure_resources: Res<StructureResources>,
+    decor_resources: Res<DecorationResources>,
     level: Res<Level>,
     mut commands: Commands,
     mut watier_query: Query<(Entity, &WaitingForStructures)>,
@@ -332,6 +334,8 @@ pub fn poll_structure_waiters(
     for (entity, waiter) in watier_query.iter_mut() {
         if can_structure(waiter.chunk, &level).is_some() {
             let settings = structure_resources.settings.clone();
+            let decor_settings = decor_resources.0.clone();
+            let biomes = waiter.biome_map.clone();
             let level = level.0.clone();
             let pos = waiter.chunk;
             commands
@@ -347,12 +351,13 @@ pub fn poll_structure_waiters(
                                 if structure_requirements.is_some() {
                                     break;
                                 }
+                                //haven't had this happen, but if we hold this reference and then await it may cause a deadlock
                                 drop(structure_requirements);
                                 Delay::new(POLL_INTERVAL).await;
                             }
                             let mut c = structure_requirements.unwrap();
                             if let ChunkType::Generating(_, ref mut chunk) = c.value_mut() {
-                                let buf = structures::gen_small_structures(chunk, settings);
+                                let buf = structures::gen_structures(chunk, biomes, &decor_settings.biomes, settings);
                                 return (pos, buf)
                             }
                             unreachable!()
