@@ -17,7 +17,7 @@ use bevy::{
 };
 
 use super::{
-    structures::{self, StructureResources},
+    structures,
     DecorationResources, GenerationPhase, UsedShaperResources,
     ADD_TIME_BUDGET_MS, QUEUE_GEN_TIME_BUDGET_MS,
 };
@@ -322,7 +322,6 @@ pub fn poll_decoration_task(
 
 //WaitingForStructures -> StructureTask
 pub fn poll_structure_waiters(
-    structure_resources: Res<StructureResources>,
     decor_resources: Res<DecorationResources>,
     level: Res<Level>,
     mut commands: Commands,
@@ -333,7 +332,6 @@ pub fn poll_structure_waiters(
     let pool = AsyncComputeTaskPool::get();
     for (entity, waiter) in watier_query.iter_mut() {
         if can_structure(waiter.chunk, &level).is_some() {
-            let settings = structure_resources.settings.clone();
             let decor_settings = decor_resources.0.clone();
             let biomes = waiter.biome_map.clone();
             let level = level.0.clone();
@@ -357,7 +355,7 @@ pub fn poll_structure_waiters(
                             }
                             let mut c = structure_requirements.unwrap();
                             if let ChunkType::Generating(_, ref mut chunk) = c.value_mut() {
-                                let buf = structures::gen_structures(chunk, biomes, &decor_settings.biomes, settings);
+                                let buf = structures::gen_structures(chunk, biomes, &decor_settings.biomes);
                                 return (pos, buf)
                             }
                             unreachable!()

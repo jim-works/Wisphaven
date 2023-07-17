@@ -95,10 +95,12 @@ pub fn gen_decoration(
     for x in 0..CHUNK_SIZE_U8 {
         for z in 0..CHUNK_SIZE_U8 {
             let column_pos = chunk.get_block_pos(ChunkIdx::new(x, 0, z));
-            let biome = settings.biomes.sample_id(column_pos);
+            let target_height = heightmap.0[x as usize][z as usize];
+            
+            let biome = settings.biomes.sample_id(target_height, column_pos);
             biome_map.0[x as usize][z as usize] = biome;
             let biome = settings.biomes.get(biome);
-            let target_height = heightmap.0[x as usize][z as usize];
+            
             let mut top_coord = None;
             let soil_depth = biome.soil_depth;
             let soil_bottom = target_height-soil_depth as f32;

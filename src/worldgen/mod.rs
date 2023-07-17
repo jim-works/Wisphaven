@@ -17,7 +17,7 @@ pub use pipeline::{
 
 use self::{
     pipeline::OreGenerator,
-    structures::{trees::get_short_tree, StructureGenerationSettings, StructureResources}, biomes::UsedBiomeMap,
+    biomes::UsedBiomeMap,
 };
 
 pub mod structures;
@@ -53,7 +53,6 @@ impl Plugin for WorldGenPlugin {
         .add_systems(
             (
                 create_shaper_settings,
-                create_structure_settings,
                 create_decoration_settings,
             )
                 .in_schedule(OnEnter(LevelLoadState::Loading)),
@@ -180,30 +179,6 @@ fn create_squish_noise(seed: u64) -> SplineNoise<SQUISH> {
         Vec2::new(0.4, 1.2),
     ]);
     SplineNoise { noise, spline }
-}
-
-fn create_structure_settings(
-    mut commands: Commands,
-    resources: Res<BlockResources>,
-    level: Res<Level>,
-) {
-    info!(
-        "There are {} blocks in the registry",
-        resources.registry.id_map.len()
-    );
-    let mut seed = level.seed ^ 0x545454A0DFEA;
-    let mut noise = FastNoise::seeded(seed);
-    noise.set_noise_type(NoiseType::Value);
-    noise.set_frequency(843580.97854);
-    let structures = Vec::new(); //vec![get_short_tree(get_next_seed(&mut seed), &resources.registry)];
-
-    commands.insert_resource(StructureResources {
-        settings: Arc::new(StructureGenerationSettings {
-            rolls_per_chunk: 1,
-            structures,
-            placement_noise: noise,
-        }),
-    });
 }
 
 fn create_decoration_settings(

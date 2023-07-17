@@ -34,9 +34,9 @@ pub struct Biome {
 
 pub struct BiomeMap<const TEMP: usize, const HUMID: usize, const FUNKY: usize> {
     //maps to index in biomes array based on temperature and humidity
-    pub map: Buckets<Buckets<usize>>,
+    pub map: Buckets<Buckets<Buckets<usize>>>,
     pub biomes: Vec<Biome>,
-    pub default_biome: Biome,
+    pub default_biome: usize,
     //2d temperature for biome placement
     pub temperature_noise: SplineNoise<TEMP>,
     //2d humidity for biome placement
@@ -46,22 +46,29 @@ pub struct BiomeMap<const TEMP: usize, const HUMID: usize, const FUNKY: usize> {
 }
 
 impl<const TEMP: usize, const HUMID: usize, const FUNKY: usize> BiomeMap<TEMP, HUMID, FUNKY> {
-    pub fn get_id(&self, temp: f32, humid: f32) -> Option<usize> {
-        self.map.map(temp).and_then(|b| b.map(humid)).copied()
+    pub fn get_id(&self, heightmap: f32, temp: f32, humid: f32) -> Option<usize> {
+        self.map
+            .map(heightmap)
+            .and_then(|b| b.map(temp).and_then(|b| b.map(humid)))
+            .copied()
     }
     pub fn get(&self, id: Option<usize>) -> &Biome {
-        id.map(|x| self.biomes.get(x).unwrap_or(&self.default_biome))
-            .unwrap_or(&self.default_biome)
+        id.map(|x| {
+            self.biomes
+                .get(x)
+                .unwrap_or(&self.biomes[self.default_biome])
+        })
+        .unwrap_or(&self.biomes[self.default_biome])
     }
-    pub fn sample(&self, pos: Vec3) -> &Biome {
+    pub fn sample(&self, heightmap: f32, pos: Vec3) -> &Biome {
         let temp = self.temperature_noise.get_noise2d(pos.x, pos.z);
         let humid = self.humidity_noise.get_noise2d(pos.x, pos.z);
-        self.get(self.get_id(temp, humid))
+        self.get(self.get_id(heightmap, temp, humid))
     }
-    pub fn sample_id(&self, pos: Vec3) -> Option<usize> {
+    pub fn sample_id(&self, heightmap: f32, pos: Vec3) -> Option<usize> {
         let temp = self.temperature_noise.get_noise2d(pos.x, pos.z);
         let humid = self.humidity_noise.get_noise2d(pos.x, pos.z);
-        self.get_id(temp, humid)
+        self.get_id(heightmap, temp, humid)
     }
 }
 
@@ -141,13 +148,44 @@ impl UsedBiomeMap {
             soil_depth: 0,
             fallback_generator: None,
         };
+        let snowy_mountains = Biome {
+            topsoil: registry.get_id(&BlockName::core("snow_sheet")),
+            midsoil: registry.get_id(&BlockName::core("snow")),
+            soil_depth: 2,
+            fallback_generator: None,
+        };
         Self {
-            biomes: vec![meadow, desert],
+            biomes: vec![meadow, desert, snowy_mountains, rocks],
             map: Buckets::new(vec![
-                (-0.1, Buckets::new(vec![(0.1, 0), (0.3, 1)])),
-                (0.1, Buckets::new(vec![(0.0, 0), (0.3, 1)])),
+                (
+                    150.0,
+                    Buckets::new(vec![
+                        (-0.1, Buckets::new(vec![(0.1, 0), (0.3, 1)])),
+                        (0.1, Buckets::new(vec![(0.0, 0), (0.3, 1)])),
+                    ]),
+                ),
+                (
+                    200.0,
+                    Buckets::new(vec![
+                        (-0.1, Buckets::new(vec![(-0.2, 3), (0.1, 0), (0.3, 1)])),
+                        (0.1, Buckets::new(vec![(-0.3, 3), (0.0, 0), (0.3, 1)])),
+                    ]),
+                ),
+                (
+                    250.0,
+                    Buckets::new(vec![
+                        (-0.1, Buckets::new(vec![(0.2, 2), (0.3, 0), (0.4, 1)])),
+                        (0.1, Buckets::new(vec![(0.0, 3), (0.1, 0), (0.3, 1)])),
+                    ]),
+                ),
+                (
+                    300.0,
+                    Buckets::new(vec![
+                        (0.0, Buckets::new(vec![(0.0, 2)])),
+                    ]),
+                ),
             ]),
-            default_biome: rocks,
+            default_biome: 0,
             temperature_noise,
             humidity_noise,
             funky_noise,

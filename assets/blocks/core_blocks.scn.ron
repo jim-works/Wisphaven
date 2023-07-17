@@ -88,7 +88,7 @@
       components: {
         "recursia::world::block::BlockName": (
           namespace: "core",
-          name: "snow_slab",
+          name: "snow_sheet",
         ),
         "recursia::world::block::BlockPhysics": BottomSlab(0.25),
         "recursia::world::block::NamedBlockMesh": BottomSlab(0.25, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
