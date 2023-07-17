@@ -89,8 +89,11 @@ pub fn gen_decoration(
     heightmap: &Heightmap<CHUNK_SIZE>,
     settings: &DecorationSettings,
 ) -> ColumnBiomes<CHUNK_SIZE> {
-    const MID_DEPTH: i32 = 5;
+    const SOIL_DEPTH: u8 = 5;
+    //guarantee we only need to look one chunk up
+    assert!(SOIL_DEPTH<CHUNK_SIZE_U8);
     let mut biome_map = ColumnBiomes([[None; CHUNK_SIZE]; CHUNK_SIZE]);
+
     for x in 0..CHUNK_SIZE_U8 {
         for z in 0..CHUNK_SIZE_U8 {
             let column_pos = chunk.get_block_pos(ChunkIdx::new(x, 0, z));
@@ -99,47 +102,51 @@ pub fn gen_decoration(
             let biome = settings.biomes.get(biome);
             let target_height = heightmap.0[x as usize][z as usize];
             let mut top_coord = None;
-            //find top block (having open air above it)
-            let top_block_idx = ChunkIdx::new(x, CHUNK_SIZE_U8 - 1, z);
-            if chunk[top_block_idx.to_usize()] == settings.stone
-                && chunk.get_block_pos(top_block_idx).y >= target_height
-            {
-                //top block of the chunk is sufficiently high, so check if there's air in the chunk above
+            let soil_bottom = target_height-SOIL_DEPTH as f32;
+            const MID_DEPTH: i32 = 5;
+
+            // find lowest air block in chunk above (add 1 because we want to look past the topsoil layer)
+            for y in 0..SOIL_DEPTH+1 {
+                let block_idx = ChunkIdx::new(x, y, z);
                 let air = match chunk_above {
                     ChunkType::Ungenerated(_) => unreachable!(),
-                    ChunkType::Generating(_, chunk) => {
-                        chunk[ChunkIdx::new(x, 0, z).to_usize()] == BlockId(Id::Empty)
+                    ChunkType::Generating(_, top_chunk) => {
+                        if top_chunk.get_block_pos(block_idx).y < soil_bottom {
+                            break;
+                        }
+                        top_chunk[block_idx.to_usize()] == BlockId(Id::Empty)
                     }
-                    ChunkType::Full(chunk) => {
-                        chunk[ChunkIdx::new(x, 0, z).to_usize()] == BlockType::Empty
+                    ChunkType::Full(top_chunk) => {
+                        if top_chunk.get_block_pos(block_idx).y < soil_bottom {
+                            break;
+                        }
+                        top_chunk[block_idx.to_usize()] == BlockType::Empty
                     }
                 };
                 if air {
-                    chunk.set_block(top_block_idx.into(), biome.topsoil);
-                    top_coord = Some(top_block_idx);
+                    //found air block in chunk above
+                    top_coord = Some(block_idx+ChunkIdx::new(0,CHUNK_SIZE_U8,0));
+                    break;
                 }
             }
-            if top_coord.is_none() {
-                for y in (0..CHUNK_SIZE_U8 - 1).rev() {
-                    let idx = ChunkIdx::new(x, y, z);
-                    let block_pos = chunk.get_block_pos(idx);
-                    if block_pos.y >= target_height {
-                        if chunk[idx.to_usize()] == settings.stone
-                            && chunk[ChunkIdx::new(x, y + 1, z).to_usize()] == BlockId(Id::Empty)
-                        {
-                            chunk.set_block(idx.into(), biome.topsoil);
-                            top_coord = Some(idx);
-                            break;
+            //loop down through the column, resetting top_coord whenever we find an empty block
+            for y in (0..CHUNK_SIZE_U8).rev() {
+                let block_idx = ChunkIdx::new(x,y,z);
+                if chunk.get_block_pos(block_idx).y < soil_bottom {
+                    break;
+                }
+                if chunk[block_idx.to_usize()] == BlockId(Id::Empty) {
+                    top_coord = Some(block_idx);
+                    continue; //not replacing anything here since it's empty
+                }
+                //we only replace stone
+                if chunk[block_idx.to_usize()] == settings.stone {
+                    if let Some(top) = top_coord {
+                        if y+1 == top.y {
+                            chunk.set_block(block_idx.into(), biome.topsoil);
+                        } else if y+SOIL_DEPTH+1 >= top.y {
+                            chunk.set_block(block_idx.into(), biome.midsoil);
                         }
-                    }
-                }
-            }
-            //place midsoil under topsoil
-            if let Some(top) = top_coord {
-                for y in (0.max(top.y as i32 - MID_DEPTH)..0.max(top.y as i32 - 1)).rev() {
-                    let idx = ChunkIdx::new(x, y as u8, z).into();
-                    if chunk[idx] == settings.stone {
-                        chunk.set_block(idx, biome.midsoil);
                     }
                 }
             }
