@@ -106,7 +106,7 @@ pub fn spawn_local_player(
             FogSettings {
                 color: Color::rgba(1.0, 1.0, 1.0, 0.5),
                 falloff: FogFalloff::from_visibility_colors(
-                    500.0, // distance in world units up to which objects retain visibility (>= 5% contrast)
+                    1000.0, // distance in world units up to which objects retain visibility (>= 5% contrast)
                     Color::rgba(0.35, 0.5, 0.5, 0.5), // atmospheric extinction color (after light is lost due to absorption by atmospheric particles)
                     Color::rgba(0.8, 0.844, 1.0, 0.5), // atmospheric inscattering color (light gained due to scattering from the sun)
                 ),

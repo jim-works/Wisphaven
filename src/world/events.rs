@@ -1,4 +1,4 @@
-use super::{BlockCoord, Level, BlockId, BlockResources, LevelSystemSet, Id};
+use super::{BlockCoord, Level, BlockId, BlockResources, LevelSystemSet, Id, BlockDamage};
 use bevy::prelude::*;
 
 pub struct WorldEventsPlugin;
@@ -10,6 +10,7 @@ impl Plugin for WorldEventsPlugin {
             .add_event::<OpenLevelEvent>()
             .add_event::<ExplosionEvent>()
             .add_event::<BlockUsedEvent>()
+            .add_event::<BlockDamageSetEvent>()
             .add_systems(Update, process_explosions.in_set(LevelSystemSet::Main))
         ;
     }
@@ -31,6 +32,12 @@ pub struct BlockUsedEvent {
     pub block_position: BlockCoord,
     pub user: Entity,
     pub block_used: Entity,
+}
+
+#[derive(Event)]
+pub struct BlockDamageSetEvent {
+    pub block_position: BlockCoord,
+    pub damage: BlockDamage
 }
 
 #[derive(Event)]

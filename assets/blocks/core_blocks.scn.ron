@@ -9,7 +9,6 @@
         ),
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
-            use_transparent_shader: false,
             shape: MultiTexture(("grass_side.png", "grass_top.png", "grass_side.png", "grass_side.png", "dirt.png", "grass_side.png")),
         )
       },
@@ -22,7 +21,6 @@
         ),
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
-            use_transparent_shader: false,
             shape: Uniform("dirt.png"),
         )
       },
@@ -35,7 +33,6 @@
         ),
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
-            use_transparent_shader: false,
             shape: Uniform("stone.png"),
         )
       },
@@ -48,7 +45,6 @@
         ),
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
-            use_transparent_shader: false,
             shape: MultiTexture(("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
         )
       },
@@ -61,7 +57,6 @@
         ),
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
-            use_transparent_shader: false,
             shape: Uniform("leaves.png"),
         )
       },
@@ -74,7 +69,6 @@
         ),
         "recursia::world::block::BlockPhysics": BottomSlab(0.5),
         "recursia::world::block::NamedBlockMesh": (
-            use_transparent_shader: false,
             shape: BottomSlab(0.5, ("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
         )
       },
@@ -91,7 +85,6 @@
         ),
         "recursia::world::block::UsableBlock": (),
         "recursia::world::block::NamedBlockMesh": (
-            use_transparent_shader: false,
             shape: MultiTexture(("tnt_side.png", "tnt_top.png", "tnt_side.png", "tnt_side.png", "tnt_top.png", "tnt_side.png")),
         )
       },
@@ -104,7 +97,6 @@
         ),
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
-            use_transparent_shader: false,
             shape: Uniform("snow.png"),
         )
       },
@@ -117,7 +109,6 @@
         ),
         "recursia::world::block::BlockPhysics": BottomSlab(0.25),
         "recursia::world::block::NamedBlockMesh": (
-            use_transparent_shader: false,
             shape: BottomSlab(0.25, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
         )
       },
@@ -130,7 +121,6 @@
         ),
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
-            use_transparent_shader: false,
             shape: Uniform("ruby_ore.png"),
         )
       },
@@ -143,7 +133,6 @@
         ),
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
-            use_transparent_shader: false,
             shape: Uniform("moldavite_ore.png"),
         )
       },
@@ -156,7 +145,6 @@
         ),
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
-            use_transparent_shader: false,
             shape: Uniform("sand.png"),
         )
       },
@@ -169,7 +157,6 @@
         ),
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
-            use_transparent_shader: false,
             shape: Uniform("cactus.png"),
         )
       },
@@ -182,8 +169,20 @@
         ),
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
-            use_transparent_shader: false,
             shape: Uniform("cactus_flower.png"),
+        )
+      },
+    ),
+    15: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "water",
+        ),
+        "recursia::world::block::BlockPhysics": Solid,
+        "recursia::world::block::NamedBlockMesh": (
+            shape: Uniform("water.png"),
+            use_transparent_shader: true
         )
       },
     ),

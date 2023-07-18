@@ -10,7 +10,7 @@ use crate::mesher::TerrainTexture;
 use crate::serialization::{LoadingBlocks, LoadingItems};
 use crate::serialization::db::{LevelDB, LevelDBErr};
 use crate::serialization::queries::{CREATE_CHUNK_TABLE, CREATE_WORLD_INFO_TABLE, LOAD_WORLD_INFO, INSERT_WORLD_INFO};
-use crate::world::{LevelLoadState, BlockName, BlockResources, BlockRegistry, NamedBlockMeshShape, BlockNameIdMap, BlockId, Id, LevelData, NamedBlockMesh};
+use crate::world::{LevelLoadState, BlockName, BlockResources, BlockRegistry, BlockNameIdMap, BlockId, Id, LevelData, NamedBlockMesh};
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
 
 use super::{BlockTextureMap, LoadedToSavedIdMap, ItemTextureMap, SavedToLoadedIdMap};

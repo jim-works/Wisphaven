@@ -16,6 +16,7 @@ mod atmosphere;
 pub mod events;
 pub mod settings;
 pub mod blocks;
+pub mod effects;
 
 #[cfg(test)]
 mod test;
@@ -54,6 +55,7 @@ impl Plugin for LevelPlugin {
             .add_plugins(atmosphere::AtmospherePlugin)
             .add_plugins(blocks::BlocksPlugin)
             .add_plugins(events::WorldEventsPlugin)
+            .add_plugins(effects::EffectsPlugin)
             .add_state::<LevelLoadState>()
 
             //needed for NamedBlockMesh

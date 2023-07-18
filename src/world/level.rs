@@ -12,7 +12,7 @@ use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
 
 use super::{
-    chunk::*, events::BlockUsedEvent, BlockBuffer, BlockCoord, BlockDamage, BlockId, BlockRegistry,
+    chunk::*, events::{BlockUsedEvent, BlockDamageSetEvent}, BlockBuffer, BlockCoord, BlockDamage, BlockId, BlockRegistry,
     BlockType, Id, UsableBlock,
 };
 
@@ -32,6 +32,9 @@ impl Deref for Level {
         &self.0
     }
 }
+
+//entity is the cracked visual
+struct DamagedBlock(BlockDamage, Entity);
 
 pub struct LevelData {
     pub name: &'static str,
@@ -80,6 +83,7 @@ impl LevelData {
         key: BlockCoord,
         amount: f32,
         id_query: &Query<&BlockId>,
+        writer: &mut EventWriter<BlockDamageSetEvent>,
         commands: &mut Commands,
     ) -> Option<Entity> {
         let mut remove_block = false;
@@ -96,12 +100,16 @@ impl LevelData {
                     //no more damage, so remove the damage value
                     remove_damage = true;
                 }
+                writer.send(BlockDamageSetEvent { block_position: key, damage });
             }
             None => {
                 if amount < 1.0 {
-                    self.block_damages.insert(key, BlockDamage(amount));
+                    let damage = BlockDamage(amount);
+                    self.block_damages.insert(key, damage);
+                    writer.send(BlockDamageSetEvent { block_position: key, damage });
                 } else {
                     remove_block = true;
+                    writer.send(BlockDamageSetEvent { block_position: key, damage: BlockDamage(1.0) });
                 }
             }
         }
@@ -116,9 +124,10 @@ impl LevelData {
         None
     }
     //heals all block damages by amount
-    pub fn heal_block_damages(&self, amount: f32) {
-        self.block_damages.retain(|_, damage| {
-            damage.0 -= amount;
+    pub fn heal_block_damages(&self, amount: f32, writer: &mut EventWriter<BlockDamageSetEvent>) {
+        self.block_damages.retain(|key, damage| {
+            damage.0 = (damage.0-amount).clamp(0.0,1.0);
+            writer.send(BlockDamageSetEvent { block_position: *key, damage: *damage });
             damage.0 > 0.0
         });
     }
