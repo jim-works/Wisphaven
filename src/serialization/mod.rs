@@ -42,7 +42,7 @@ impl Plugin for SerializationPlugin {
                 )
                     .in_set(LevelSystemSet::LoadingAndMain),
             )
-            .add_systems(PostUpdate, db::finish_up)
+            .add_systems(PostUpdate, db::finish_up.in_set(LevelSystemSet::PostUpdate))
             .insert_resource(setup::load_settings())
             //must apply_system_buffers before load_block_registry gets called because load_terrain_texture creates a resources that is needed in load_block_registry
             .add_systems(

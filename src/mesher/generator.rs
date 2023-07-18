@@ -249,15 +249,20 @@ pub fn should_mesh_face(
     block_face: Direction,
     neighbor: &BlockMesh,
 ) -> bool {
-    match block {
-        BlockMesh::Uniform(_) | BlockMesh::MultiTexture(_) => {
-            neighbor.is_transparent(block_face.opposite())
+    if !block.use_transparent_shader && neighbor.use_transparent_shader {
+        return true;
+    }
+    match block.shape {
+        BlockMeshShape::Uniform(_) | BlockMeshShape::MultiTexture(_) => {
+            block != neighbor && neighbor.shape.is_transparent(block_face.opposite())
         },
-        BlockMesh::BottomSlab(_, _) => {
+        BlockMeshShape::BottomSlab(_, _) => {
             block_face == Direction::PosY
-                || neighbor.is_transparent(block_face.opposite())
+                || block != neighbor && neighbor.shape.is_transparent(block_face.opposite())
         },
-        BlockMesh::Empty => false
+        
+        BlockMeshShape::Empty => false,
+
     }
 }
 fn mesh_block<T: ChunkStorage<BlockMesh>>(
@@ -268,6 +273,9 @@ fn mesh_block<T: ChunkStorage<BlockMesh>>(
     origin: Vec3,
     data: &mut ChunkMesh,
 ) {
+    if matches!(b.shape, BlockMeshShape::Empty) {
+        return;
+    }
     if coord.z == CHUNK_SIZE_U8 - 1 {
         if match &neighbors[Direction::PosZ.to_idx()] {
             Some(c) => should_mesh_face(
@@ -278,12 +286,12 @@ fn mesh_block<T: ChunkStorage<BlockMesh>>(
             _ => true,
         } {
             mesh_pos_z(
-                b,
+                &b.shape,
                 chunk,
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                if b.is_transparent(Direction::PosZ) {
+                if b.use_transparent_shader {
                     &mut data.transparent
                 } else {
                     &mut data.opaque
@@ -296,12 +304,12 @@ fn mesh_block<T: ChunkStorage<BlockMesh>>(
         &chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
     ) {
         mesh_pos_z(
-            b,
+            &b.shape,
             chunk,
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if b.is_transparent(Direction::PosZ) {
+            if b.use_transparent_shader {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -319,12 +327,12 @@ fn mesh_block<T: ChunkStorage<BlockMesh>>(
             _ => true,
         } {
             mesh_neg_z(
-                b,
+                &b.shape,
                 chunk,
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                if b.is_transparent(Direction::NegZ) {
+                if b.use_transparent_shader {
                     &mut data.transparent
                 } else {
                     &mut data.opaque
@@ -337,12 +345,12 @@ fn mesh_block<T: ChunkStorage<BlockMesh>>(
         &chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
     ) {
         mesh_neg_z(
-            b,
+            &b.shape,
             chunk,
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if b.is_transparent(Direction::NegZ) {
+            if b.use_transparent_shader {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -360,12 +368,12 @@ fn mesh_block<T: ChunkStorage<BlockMesh>>(
             _ => true,
         } {
             mesh_pos_y(
-                b,
+                &b.shape,
                 chunk,
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                if b.is_transparent(Direction::PosY) {
+                if b.use_transparent_shader {
                     &mut data.transparent
                 } else {
                     &mut data.opaque
@@ -378,12 +386,12 @@ fn mesh_block<T: ChunkStorage<BlockMesh>>(
         &chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
     ) {
         mesh_pos_y(
-            b,
+            &b.shape,
             chunk,
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if b.is_transparent(Direction::PosY) {
+            if b.use_transparent_shader {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -401,12 +409,12 @@ fn mesh_block<T: ChunkStorage<BlockMesh>>(
             _ => true,
         } {
             mesh_neg_y(
-                b,
+                &b.shape,
                 chunk,
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                if b.is_transparent(Direction::NegY) {
+                if b.use_transparent_shader {
                     &mut data.transparent
                 } else {
                     &mut data.opaque
@@ -419,12 +427,12 @@ fn mesh_block<T: ChunkStorage<BlockMesh>>(
         &chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
     ) {
         mesh_neg_y(
-            b,
+            &b.shape,
             chunk,
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if b.is_transparent(Direction::NegY) {
+            if b.use_transparent_shader {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -442,12 +450,12 @@ fn mesh_block<T: ChunkStorage<BlockMesh>>(
             _ => true,
         } {
             mesh_pos_x(
-                b,
+                &b.shape,
                 chunk,
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                if b.is_transparent(Direction::PosX) {
+                if b.use_transparent_shader {
                     &mut data.transparent
                 } else {
                     &mut data.opaque
@@ -460,12 +468,12 @@ fn mesh_block<T: ChunkStorage<BlockMesh>>(
         &chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
     ) {
         mesh_pos_x(
-            b,
+            &b.shape,
             chunk,
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if b.is_transparent(Direction::PosX) {
+            if b.use_transparent_shader {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -483,12 +491,12 @@ fn mesh_block<T: ChunkStorage<BlockMesh>>(
             _ => true,
         } {
             mesh_neg_x(
-                b,
+                &b.shape,
                 chunk,
                 coord,
                 origin,
                 Vec3::new(data.scale, data.scale, data.scale),
-                if b.is_transparent(Direction::NegX) {
+                if b.use_transparent_shader {
                     &mut data.transparent
                 } else {
                     &mut data.opaque
@@ -501,12 +509,12 @@ fn mesh_block<T: ChunkStorage<BlockMesh>>(
         &chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
     ) {
         mesh_neg_x(
-            b,
+            &b.shape,
             chunk,
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if b.is_transparent(Direction::NegX) {
+            if b.use_transparent_shader {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -517,7 +525,7 @@ fn mesh_block<T: ChunkStorage<BlockMesh>>(
 
 //TODO: Set uv scale for repeating textures
 pub fn mesh_neg_z(
-    b: &BlockMesh,
+    b: &BlockMeshShape,
     chunk: &impl Index<ChunkIdx, Output = BlockMesh>,
     coord: ChunkIdx,
     origin: Vec3,
@@ -526,7 +534,7 @@ pub fn mesh_neg_z(
 ) {
     add_tris(&mut data.tris, data.verts.len() as u32);
     let texture = match b {
-        BlockMesh::Uniform(tex) => {
+        BlockMeshShape::Uniform(tex) => {
             add_ao(chunk, coord, false, false, false, data);
             add_ao(chunk, coord, false, true, false, data);
             add_ao(chunk, coord, true, true, false, data);
@@ -544,7 +552,7 @@ pub fn mesh_neg_z(
 
             *tex as i32
         }
-        BlockMesh::MultiTexture(tex) => {
+        BlockMeshShape::MultiTexture(tex) => {
             add_ao(chunk, coord, false, false, false, data);
             add_ao(chunk, coord, false, true, false, data);
             add_ao(chunk, coord, true, true, false, data);
@@ -562,7 +570,7 @@ pub fn mesh_neg_z(
 
             tex[Direction::NegZ.to_idx()] as i32
         }
-        BlockMesh::BottomSlab(height, tex) => {
+        BlockMeshShape::BottomSlab(height, tex) => {
             //TODO: ao strength should be reduced based on height
             add_ao(chunk, coord, false, false, false, data);
             add_ao(chunk, coord, true, false, false, data);
@@ -583,7 +591,7 @@ pub fn mesh_neg_z(
 
             tex[Direction::NegZ.to_idx()] as i32
         }
-        BlockMesh::Empty => {-1}
+        BlockMeshShape::Empty => {-1}
     };
     debug_assert_ne!(texture, -1);
     data.layer_idx.push(texture);
@@ -597,7 +605,7 @@ pub fn mesh_neg_z(
     data.norms.push(Vec3::new(0., 0., -1.));
 }
 pub fn mesh_pos_z(
-    b: &BlockMesh,
+    b: &BlockMeshShape,
     chunk: &impl Index<ChunkIdx, Output = BlockMesh>,
     coord: ChunkIdx,
     origin: Vec3,
@@ -606,7 +614,7 @@ pub fn mesh_pos_z(
 ) {
     add_tris(&mut data.tris, data.verts.len() as u32);
     let texture = match b {
-        BlockMesh::Uniform(tex) => {
+        BlockMeshShape::Uniform(tex) => {
             add_ao(chunk, coord, false, false, true, data);
             add_ao(chunk, coord, true, false, true, data);
             add_ao(chunk, coord, true, true, true, data);
@@ -625,7 +633,7 @@ pub fn mesh_pos_z(
 
             *tex as i32
         }
-        BlockMesh::MultiTexture(tex) => {
+        BlockMeshShape::MultiTexture(tex) => {
             add_ao(chunk, coord, false, false, true, data);
             add_ao(chunk, coord, true, false, true, data);
             add_ao(chunk, coord, true, true, true, data);
@@ -644,7 +652,7 @@ pub fn mesh_pos_z(
 
             tex[Direction::PosZ.to_idx()] as i32
         }
-        BlockMesh::BottomSlab(height, tex) => {
+        BlockMeshShape::BottomSlab(height, tex) => {
             //TODO: ao strength should be reduced based on height
             add_ao(chunk, coord, false, false, false, data);
             add_ao(chunk, coord, true, false, false, data);
@@ -664,7 +672,7 @@ pub fn mesh_pos_z(
 
             tex[Direction::PosZ.to_idx()] as i32
         },
-        BlockMesh::Empty => {-1}
+        BlockMeshShape::Empty => {-1}
     };
     debug_assert_ne!(texture, -1);
     data.layer_idx.push(texture);
@@ -678,7 +686,7 @@ pub fn mesh_pos_z(
 }
 
 pub fn mesh_neg_x(
-    b: &BlockMesh,
+    b: &BlockMeshShape,
     chunk: &impl Index<ChunkIdx, Output = BlockMesh>,
     coord: ChunkIdx,
     origin: Vec3,
@@ -687,7 +695,7 @@ pub fn mesh_neg_x(
 ) {
     add_tris(&mut data.tris, data.verts.len() as u32);
     let texture = match b {
-        BlockMesh::Uniform(tex) => {
+        BlockMeshShape::Uniform(tex) => {
             add_ao(chunk, coord, false, false, true, data);
             add_ao(chunk, coord, false, true, true, data);
             add_ao(chunk, coord, false, true, false, data);
@@ -705,7 +713,7 @@ pub fn mesh_neg_x(
 
             *tex as i32
         }
-        BlockMesh::MultiTexture(tex) => {
+        BlockMeshShape::MultiTexture(tex) => {
             add_ao(chunk, coord, false, false, true, data);
             add_ao(chunk, coord, false, true, true, data);
             add_ao(chunk, coord, false, true, false, data);
@@ -723,7 +731,7 @@ pub fn mesh_neg_x(
 
             tex[Direction::NegX.to_idx()] as i32
         }
-        BlockMesh::BottomSlab(height, tex) => {
+        BlockMeshShape::BottomSlab(height, tex) => {
             //TODO: ao strength should be reduced based on height
             add_ao(chunk, coord, false, false, false, data);
             add_ao(chunk, coord, true, false, false, data);
@@ -744,7 +752,7 @@ pub fn mesh_neg_x(
 
             tex[Direction::NegX.to_idx()] as i32
         }
-        BlockMesh::Empty => {-1}
+        BlockMeshShape::Empty => {-1}
     };
     debug_assert_ne!(texture, -1);
     data.layer_idx.push(texture);
@@ -758,7 +766,7 @@ pub fn mesh_neg_x(
 }
 
 pub fn mesh_pos_x(
-    b: &BlockMesh,
+    b: &BlockMeshShape,
     chunk: &impl Index<ChunkIdx, Output = BlockMesh>,
     coord: ChunkIdx,
     origin: Vec3,
@@ -767,7 +775,7 @@ pub fn mesh_pos_x(
 ) {
     add_tris(&mut data.tris, data.verts.len() as u32);
     let texture = match b {
-        BlockMesh::Uniform(tex) => {
+        BlockMeshShape::Uniform(tex) => {
             add_ao(chunk, coord, true, true, true, data);
             add_ao(chunk, coord, true, false, true, data);
             add_ao(chunk, coord, true, false, false, data);
@@ -786,7 +794,7 @@ pub fn mesh_pos_x(
 
             *tex as i32
         }
-        BlockMesh::MultiTexture(tex) => {
+        BlockMeshShape::MultiTexture(tex) => {
             add_ao(chunk, coord, true, true, true, data);
             add_ao(chunk, coord, true, false, true, data);
             add_ao(chunk, coord, true, false, false, data);
@@ -805,7 +813,7 @@ pub fn mesh_pos_x(
 
             tex[Direction::PosX.to_idx()] as i32
         }
-        BlockMesh::BottomSlab(height, tex) => {
+        BlockMeshShape::BottomSlab(height, tex) => {
             //TODO: ao strength should be reduced based on height
             add_ao(chunk, coord, false, false, false, data);
             add_ao(chunk, coord, true, false, false, data);
@@ -826,7 +834,7 @@ pub fn mesh_pos_x(
 
             tex[Direction::PosX.to_idx()] as i32
         }
-        BlockMesh::Empty => {-1}
+        BlockMeshShape::Empty => {-1}
     };
     debug_assert_ne!(texture, -1);
     data.layer_idx.push(texture);
@@ -840,7 +848,7 @@ pub fn mesh_pos_x(
 }
 
 pub fn mesh_pos_y(
-    b: &BlockMesh,
+    b: &BlockMeshShape,
     chunk: &impl Index<ChunkIdx, Output = BlockMesh>,
     coord: ChunkIdx,
     origin: Vec3,
@@ -849,7 +857,7 @@ pub fn mesh_pos_y(
 ) {
     add_tris(&mut data.tris, data.verts.len() as u32);
     let texture = match b {
-        BlockMesh::Uniform(tex) => {
+        BlockMeshShape::Uniform(tex) => {
             add_ao(chunk, coord, false, true, false, data);
             add_ao(chunk, coord, false, true, true, data);
             add_ao(chunk, coord, true, true, true, data);
@@ -868,7 +876,7 @@ pub fn mesh_pos_y(
 
             *tex as i32
         }
-        BlockMesh::MultiTexture(tex) => {
+        BlockMeshShape::MultiTexture(tex) => {
             add_ao(chunk, coord, false, true, false, data);
             add_ao(chunk, coord, false, true, true, data);
             add_ao(chunk, coord, true, true, true, data);
@@ -887,7 +895,7 @@ pub fn mesh_pos_y(
 
             tex[Direction::PosY.to_idx()] as i32
         }
-        BlockMesh::BottomSlab(height, tex) => {
+        BlockMeshShape::BottomSlab(height, tex) => {
             //TODO: ao strength should be reduced based on height
             add_ao(chunk, coord, false, false, false, data);
             add_ao(chunk, coord, true, false, false, data);
@@ -910,7 +918,7 @@ pub fn mesh_pos_y(
 
             tex[Direction::PosY.to_idx()] as i32
         }
-        BlockMesh::Empty => {-1}
+        BlockMeshShape::Empty => {-1}
     };
     debug_assert_ne!(texture, -1);
     data.norms.push(Vec3::new(0., 1., 0.));
@@ -925,7 +933,7 @@ pub fn mesh_pos_y(
 }
 
 pub fn mesh_neg_y(
-    b: &BlockMesh,
+    b: &BlockMeshShape,
     chunk: &impl Index<ChunkIdx, Output = BlockMesh>,
     coord: ChunkIdx,
     origin: Vec3,
@@ -934,7 +942,7 @@ pub fn mesh_neg_y(
 ) {
     add_tris(&mut data.tris, data.verts.len() as u32);
     let texture = match b {
-        BlockMesh::Uniform(tex) => {
+        BlockMeshShape::Uniform(tex) => {
             add_ao(chunk, coord, false, false, false, data);
             add_ao(chunk, coord, true, false, false, data);
             add_ao(chunk, coord, true, false, true, data);
@@ -952,7 +960,7 @@ pub fn mesh_neg_y(
 
             *tex as i32
         }
-        BlockMesh::MultiTexture(tex) => {
+        BlockMeshShape::MultiTexture(tex) => {
             add_ao(chunk, coord, false, false, false, data);
             add_ao(chunk, coord, true, false, false, data);
             add_ao(chunk, coord, true, false, true, data);
@@ -970,7 +978,7 @@ pub fn mesh_neg_y(
 
             tex[Direction::NegY.to_idx()] as i32
         }
-        BlockMesh::BottomSlab(_, tex) => {
+        BlockMeshShape::BottomSlab(_, tex) => {
             add_ao(chunk, coord, false, false, false, data);
             add_ao(chunk, coord, true, false, false, data);
             add_ao(chunk, coord, true, false, true, data);
@@ -987,7 +995,7 @@ pub fn mesh_neg_y(
 
             tex[Direction::NegY.to_idx()] as i32
         }
-        BlockMesh::Empty => {-1}
+        BlockMeshShape::Empty => {-1}
     };
     debug_assert_ne!(texture, -1);
     data.norms.push(Vec3::new(0., -1., 0.));
@@ -1022,6 +1030,9 @@ fn add_ao(
     pos_z: bool,
     data: &mut MeshData,
 ) {
+    fn should_add_ao(neighbor: &BlockMesh) -> bool {
+        !matches!(neighbor.shape, BlockMeshShape::Empty) || !neighbor.use_transparent_shader
+    }
     let side1_coord = IVec3::new(
         coord.x as i32 + if pos_x { 1 } else { -1 },
         coord.y as i32 + if pos_y { 1 } else { -1 },
@@ -1046,13 +1057,12 @@ fn add_ao(
         && side1_coord.y < CHUNK_SIZE_I32
         && side1_coord.y >= 0
     {
-        side1 = !matches!(
-            chunk[ChunkIdx::new(
+        side1 = should_add_ao(
+            &chunk[ChunkIdx::new(
                 side1_coord.x as u8,
                 side1_coord.y as u8,
                 side1_coord.z as u8
-            )],
-            BlockMesh::Empty
+            )]
         );
     }
     if side2_coord.z < CHUNK_SIZE_I32
@@ -1060,13 +1070,12 @@ fn add_ao(
         && side2_coord.y < CHUNK_SIZE_I32
         && side2_coord.y >= 0
     {
-        side2 = !matches!(
-            chunk[ChunkIdx::new(
+        side2 = should_add_ao(
+            &chunk[ChunkIdx::new(
                 side2_coord.x as u8,
                 side2_coord.y as u8,
                 side2_coord.z as u8
-            )],
-            BlockMesh::Empty
+            )]
         );
     }
     if corner_coord.x < CHUNK_SIZE_I32
@@ -1076,13 +1085,12 @@ fn add_ao(
         && corner_coord.z < CHUNK_SIZE_I32
         && corner_coord.z >= 0
     {
-        corner = !matches!(
-            chunk[ChunkIdx::new(
+        corner = should_add_ao(
+            &chunk[ChunkIdx::new(
                 corner_coord.x as u8,
                 corner_coord.y as u8,
                 corner_coord.z as u8
-            )],
-            BlockMesh::Empty
+            )]
         );
     }
 

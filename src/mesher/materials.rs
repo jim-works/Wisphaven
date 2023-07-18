@@ -219,7 +219,7 @@ impl Material for ArrayTextureMaterial {
         self.alpha_mode
     }
     fn prepass_fragment_shader() -> ShaderRef {
-        PBR_PREPASS_SHADER_HANDLE.typed().into()
+        "shaders/array_texture_prepass.wgsl".into()
     }
     fn specialize(
         _pipeline: &MaterialPipeline<Self>,
@@ -251,7 +251,7 @@ impl Default for ArrayTextureMaterial {
         ArrayTextureMaterial {
             // White because it gets multiplied with texture values if someone uses
             // a texture.
-            base_color: Color::rgb(1.0, 1.0, 1.0),
+            base_color: Color::rgba(1.0, 1.0, 1.0, 1.0),
             base_color_texture: None,
             emissive: Color::BLACK,
             emissive_texture: None,
@@ -359,8 +359,7 @@ pub fn create_chunk_material(
     }));
     chunk_material.transparent_material = Some(materials.add(ArrayTextureMaterial {
         base_color_texture: Some(chunk_material.tex_handle.clone().unwrap()),
-        //todo: crash when setting alphamode::Blend
-        alpha_mode: AlphaMode::Opaque,
+        alpha_mode: AlphaMode::Blend,
         ..default()
     }));
     chunk_material.loaded = true;

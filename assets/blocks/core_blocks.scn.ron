@@ -8,7 +8,10 @@
           name: "grass",
         ),
         "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": MultiTexture(("grass_side.png", "grass_top.png", "grass_side.png", "grass_side.png", "dirt.png", "grass_side.png")),
+        "recursia::world::block::NamedBlockMesh": (
+            use_transparent_shader: false,
+            shape: MultiTexture(("grass_side.png", "grass_top.png", "grass_side.png", "grass_side.png", "dirt.png", "grass_side.png")),
+        )
       },
     ),
     2: (
@@ -18,7 +21,10 @@
           name: "dirt",
         ),
         "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": Uniform("dirt.png"),
+        "recursia::world::block::NamedBlockMesh": (
+            use_transparent_shader: false,
+            shape: Uniform("dirt.png"),
+        )
       },
     ),
     3: (
@@ -28,7 +34,10 @@
           name: "stone",
         ),
         "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": Uniform("stone.png"),
+        "recursia::world::block::NamedBlockMesh": (
+            use_transparent_shader: false,
+            shape: Uniform("stone.png"),
+        )
       },
     ),
     4: (
@@ -38,7 +47,10 @@
           name: "log",
         ),
         "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": MultiTexture(("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
+        "recursia::world::block::NamedBlockMesh": (
+            use_transparent_shader: false,
+            shape: MultiTexture(("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
+        )
       },
     ),
     5: (
@@ -48,17 +60,23 @@
           name: "leaves",
         ),
         "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": Uniform("leaves.png"),
+        "recursia::world::block::NamedBlockMesh": (
+            use_transparent_shader: false,
+            shape: Uniform("leaves.png"),
+        )
       },
     ),
     6: (
       components: {
         "recursia::world::block::BlockName": (
           namespace: "core",
-          name: "log slab",
+          name: "log_slab",
         ),
         "recursia::world::block::BlockPhysics": BottomSlab(0.5),
-        "recursia::world::block::NamedBlockMesh": MultiTexture(("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
+        "recursia::world::block::NamedBlockMesh": (
+            use_transparent_shader: false,
+            shape: BottomSlab(0.5, ("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
+        )
       },
     ),
     7: (
@@ -72,7 +90,10 @@
           explosion_strength: 10.0,
         ),
         "recursia::world::block::UsableBlock": (),
-        "recursia::world::block::NamedBlockMesh": MultiTexture(("tnt_side.png", "tnt_top.png", "tnt_side.png", "tnt_side.png", "tnt_top.png", "tnt_side.png")),
+        "recursia::world::block::NamedBlockMesh": (
+            use_transparent_shader: false,
+            shape: MultiTexture(("tnt_side.png", "tnt_top.png", "tnt_side.png", "tnt_side.png", "tnt_top.png", "tnt_side.png")),
+        )
       },
     ),
     8: (
@@ -82,7 +103,10 @@
           name: "snow",
         ),
         "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": Uniform("snow.png"),
+        "recursia::world::block::NamedBlockMesh": (
+            use_transparent_shader: false,
+            shape: Uniform("snow.png"),
+        )
       },
     ),
     9: (
@@ -92,7 +116,10 @@
           name: "snow_sheet",
         ),
         "recursia::world::block::BlockPhysics": BottomSlab(0.25),
-        "recursia::world::block::NamedBlockMesh": BottomSlab(0.25, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
+        "recursia::world::block::NamedBlockMesh": (
+            use_transparent_shader: false,
+            shape: BottomSlab(0.25, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
+        )
       },
     ),
     10: (
@@ -102,7 +129,10 @@
           name: "ruby_ore",
         ),
         "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": Uniform("ruby_ore.png"),
+        "recursia::world::block::NamedBlockMesh": (
+            use_transparent_shader: false,
+            shape: Uniform("ruby_ore.png"),
+        )
       },
     ),
     11: (
@@ -112,7 +142,10 @@
           name: "moldavite_ore",
         ),
         "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": Uniform("moldavite_ore.png"),
+        "recursia::world::block::NamedBlockMesh": (
+            use_transparent_shader: false,
+            shape: Uniform("moldavite_ore.png"),
+        )
       },
     ),
     12: (
@@ -122,7 +155,10 @@
           name: "sand",
         ),
         "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": Uniform("sand.png"),
+        "recursia::world::block::NamedBlockMesh": (
+            use_transparent_shader: false,
+            shape: Uniform("sand.png"),
+        )
       },
     ),
     13: (
@@ -132,7 +168,10 @@
           name: "cactus",
         ),
         "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": Uniform("cactus.png"),
+        "recursia::world::block::NamedBlockMesh": (
+            use_transparent_shader: false,
+            shape: Uniform("cactus.png"),
+        )
       },
     ),
     14: (
@@ -142,7 +181,10 @@
           name: "cactus_flower",
         ),
         "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": Uniform("cactus_flower.png"),
+        "recursia::world::block::NamedBlockMesh": (
+            use_transparent_shader: false,
+            shape: Uniform("cactus_flower.png"),
+        )
       },
     ),
   },

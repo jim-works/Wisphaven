@@ -80,7 +80,22 @@ pub struct BlockEntity(Vec<BlockData>);
 //controls visuals
 //loaded from file, converted to BlockMesh for use in game
 #[reflect(Component)]
-pub enum NamedBlockMesh {
+pub struct NamedBlockMesh {
+    pub use_transparent_shader: bool,
+    pub shape: NamedBlockMeshShape
+}
+
+impl NamedBlockMesh {
+    pub fn to_block_mesh(self, map: &BlockTextureMap) -> BlockMesh {
+        BlockMesh {
+            use_transparent_shader: self.use_transparent_shader,
+            shape: self.shape.to_block_mesh(map)
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Default, Reflect)]
+pub enum NamedBlockMeshShape {
     //empty mesh
     #[default]
     Empty,
@@ -92,20 +107,26 @@ pub enum NamedBlockMesh {
     BottomSlab(f32, [PathBuf; 6]),
 }
 
-impl NamedBlockMesh {
-    pub fn to_block_mesh(self, map: &BlockTextureMap) -> BlockMesh {
+impl NamedBlockMeshShape {
+    pub fn to_block_mesh(self, map: &BlockTextureMap) -> BlockMeshShape {
         match self {
-            NamedBlockMesh::Empty => BlockMesh::Empty,
-            NamedBlockMesh::Uniform(name) => BlockMesh::Uniform(*map.0.get(&name).unwrap()),
-            NamedBlockMesh::MultiTexture(names) => BlockMesh::MultiTexture(names.map(|name| *map.0.get(&name).unwrap())),
-            NamedBlockMesh::BottomSlab(height, names) => BlockMesh::BottomSlab(height, names.map(|name| *map.0.get(&name).unwrap())),
+            NamedBlockMeshShape::Empty => BlockMeshShape::Empty,
+            NamedBlockMeshShape::Uniform(name) => BlockMeshShape::Uniform(*map.0.get(&name).unwrap()),
+            NamedBlockMeshShape::MultiTexture(names) => BlockMeshShape::MultiTexture(names.map(|name| *map.0.get(&name).unwrap())),
+            NamedBlockMeshShape::BottomSlab(height, names) => BlockMeshShape::BottomSlab(height, names.map(|name| *map.0.get(&name).unwrap())),
         }
     }
 }
 
-#[derive(Component, Clone, PartialEq, Default)]
+#[derive(Component, Default, Clone, PartialEq)]
+pub struct BlockMesh {
+    pub use_transparent_shader: bool,
+    pub shape: BlockMeshShape,
+}
+
+#[derive(Clone, PartialEq, Default)]
 //controls visuals
-pub enum BlockMesh {
+pub enum BlockMeshShape {
     //empty mesh
     #[default]
     Empty,
@@ -117,13 +138,15 @@ pub enum BlockMesh {
     BottomSlab(f32, [u32; 6]),
 }
 
-impl BlockMesh {
-    pub fn is_transparent(&self, face: Direction) -> bool {
+impl BlockMeshShape {
+    //if this face of the block does not occlude the entirety of the world behind it
+    //sides of slabs, tranparent blocks, etc
+    pub fn is_transparent(&self, _face: Direction) -> bool {
         match self {
-            BlockMesh::Empty => true,
-            BlockMesh::Uniform(_) => false,
-            BlockMesh::MultiTexture(_) => false,
-            BlockMesh::BottomSlab(_, _) => face != Direction::NegY,
+            BlockMeshShape::Empty => true,
+            BlockMeshShape::Uniform(_) => false,
+            BlockMeshShape::MultiTexture(_) => false,
+            BlockMeshShape::BottomSlab(_, _) => true,
         }
     }
 }

@@ -61,6 +61,7 @@ impl Plugin for LevelPlugin {
             .register_type::<BlockName>()
             .register_type::<UsableBlock>()
             .register_type::<NamedBlockMesh>()
+            .register_type::<NamedBlockMeshShape>()
             .register_type::<BlockPhysics>()
         ;
     }

@@ -65,7 +65,7 @@ fn mesh_block_lod<T: ChunkStorage<BlockMesh>>(
     origin: Vec3,
     data: &mut ChunkMesh,
 ) {
-    if matches!(b, BlockMesh::Empty) {
+    if matches!(b.shape, BlockMeshShape::Empty) {
         return;
     }
     if coord.z == CHUNK_SIZE_U8 - 1
@@ -76,12 +76,12 @@ fn mesh_block_lod<T: ChunkStorage<BlockMesh>>(
         )
     {
         mesh_pos_z(
-            b,
+            &b.shape,
             chunk,
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if b.is_transparent(Direction::PosZ) {
+            if b.shape.is_transparent(Direction::PosZ) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -97,12 +97,12 @@ fn mesh_block_lod<T: ChunkStorage<BlockMesh>>(
         )
     {
         mesh_neg_z(
-            b,
+            &b.shape,
             chunk,
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if b.is_transparent(Direction::NegZ) {
+            if b.shape.is_transparent(Direction::NegZ) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -118,12 +118,12 @@ fn mesh_block_lod<T: ChunkStorage<BlockMesh>>(
         )
     {
         mesh_pos_y(
-            b,
+            &b.shape,
             chunk,
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if b.is_transparent(Direction::PosY) {
+            if b.shape.is_transparent(Direction::PosY) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -139,12 +139,12 @@ fn mesh_block_lod<T: ChunkStorage<BlockMesh>>(
         )
     {
         mesh_neg_y(
-            b,
+            &b.shape,
             chunk,
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if b.is_transparent(Direction::NegY) {
+            if b.shape.is_transparent(Direction::NegY) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -160,12 +160,12 @@ fn mesh_block_lod<T: ChunkStorage<BlockMesh>>(
         )
     {
         mesh_pos_x(
-            b,
+            &b.shape,
             chunk,
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if b.is_transparent(Direction::PosX) {
+            if b.shape.is_transparent(Direction::PosX) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
@@ -181,12 +181,12 @@ fn mesh_block_lod<T: ChunkStorage<BlockMesh>>(
         )
     {
         mesh_neg_x(
-            b,
+            &b.shape,
             chunk,
             coord,
             origin,
             Vec3::new(data.scale, data.scale, data.scale),
-            if b.is_transparent(Direction::NegX) {
+            if b.shape.is_transparent(Direction::NegX) {
                 &mut data.transparent
             } else {
                 &mut data.opaque
