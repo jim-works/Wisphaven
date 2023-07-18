@@ -12,9 +12,6 @@
 
 use actors::ActorPlugin;
 use bevy::prelude::*;
-use bevy_atmosphere::prelude::*;
-use bevy_mod_billboard::prelude::*;
-use bevy_fly_camera::FlyCameraPlugin;
 use chunk_loading::{ChunkLoader, ChunkLoaderPlugin};
 use controllers::ControllersPlugin;
 use items::ItemsPlugin;
@@ -40,21 +37,18 @@ mod ui;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
-        //.add_plugin(WorldInspectorPlugin::new())
-        .add_plugin(UtilPlugin)
-        .add_plugin(serialization::SerializationPlugin)
-        .add_plugin(BillboardPlugin)
-        .add_plugin(AtmospherePlugin)
-        .add_plugin(LevelPlugin)
-        .add_plugin(FlyCameraPlugin)
-        .add_plugin(MesherPlugin)
-        .add_plugin(WorldGenPlugin)
-        .add_plugin(ChunkLoaderPlugin)
-        .add_plugin(PhysicsPlugin)
-        .add_plugin(ControllersPlugin)
-        .add_plugin(ActorPlugin)
-        .add_plugin(ItemsPlugin)
-        .add_plugin(ui::UIPlugin)
+        //.add_plugins(WorldInspectorPlugin::new())
+        .add_plugins(UtilPlugin)
+        .add_plugins(serialization::SerializationPlugin)
+        .add_plugins(LevelPlugin)
+        .add_plugins(MesherPlugin)
+        .add_plugins(WorldGenPlugin)
+        .add_plugins(ChunkLoaderPlugin)
+        .add_plugins(PhysicsPlugin)
+        .add_plugins(ControllersPlugin)
+        .add_plugins(ActorPlugin)
+        .add_plugins(ItemsPlugin)
+        .add_plugins(ui::UIPlugin)
         .insert_resource(AmbientLight {
             brightness: 0.3,
             ..default()

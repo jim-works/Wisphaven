@@ -12,9 +12,9 @@ pub struct BehaviorsPlugin;
 impl Plugin for BehaviorsPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_system(float_scorer_system.in_set(BigBrainSet::Scorers))
-            .add_systems((float_wander_action_system, float_action_system).in_set(BigBrainSet::Actions))
-            .add_system(eval_height)
+            .add_systems(PreUpdate, float_scorer_system.in_set(BigBrainSet::Scorers))
+            .add_systems(PreUpdate, (float_wander_action_system, float_action_system).in_set(BigBrainSet::Actions))
+            .add_systems(PreUpdate, eval_height)
         ;
     }
 }

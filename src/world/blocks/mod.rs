@@ -11,8 +11,8 @@ pub mod tnt;
 impl Plugin for BlocksPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_plugin(tnt::TNTPlugin)
-            .add_system(heal_block_damages.in_set(LevelSystemSet::Main))
+            .add_plugins(tnt::TNTPlugin)
+            .add_systems(Update, heal_block_damages.in_set(LevelSystemSet::Main))
         ;
     }
 }

@@ -18,19 +18,20 @@ pub const ACTOR_GROUP: u32 = 1 << 3;
 
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
-            //.add_plugin(RapierDebugRenderPlugin::default())
+        app.add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+            //.add_plugins(RapierDebugRenderPlugin::default())
             .insert_resource(GeneratePhysicsTimer {
                 timer: Timer::from_seconds(0.25, TimerMode::Repeating),
             })
             .add_systems(
+                Update,
                 (
                     level_physics::queue_gen_physics,
                     level_physics::poll_gen_physics_queue,
                 )
                     .in_set(LevelSystemSet::LoadingAndMain),
             )
-            .add_startup_system(configure_physics);
+            .add_systems(Startup, configure_physics);
     }
 }
 

@@ -191,7 +191,7 @@ impl BlockRegistry {
         entity
     }
     pub fn get_basic(&self, name: &BlockName) -> Option<Entity> {
-        let id = self.id_map.get(&name)?;
+        let id = self.id_map.get(name)?;
         match id {
             BlockId(Id::Basic(id)) => self.basic_entities.get(*id as usize).copied(),
             _ => None

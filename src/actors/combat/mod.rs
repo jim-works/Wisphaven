@@ -11,9 +11,7 @@ impl Plugin for CombatPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<AttackEvent>()
             .add_event::<DeathEvent>()
-            .add_system(process_attacks.in_base_set(CoreSet::PostUpdate))
-            .add_system(do_death.in_base_set(CoreSet::PostUpdate).after(process_attacks))
-            // .add_system(test_attack.in_base_set(CoreSet::Update))
+            .add_systems(PostUpdate, (process_attacks, do_death).chain())
         ;
     }
 }
@@ -73,7 +71,7 @@ pub enum DeathType {
     Immortal,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Event)]
 pub struct AttackEvent {
     pub attacker: Entity,
     pub target: Entity,
@@ -81,7 +79,7 @@ pub struct AttackEvent {
     pub knockback: Vec3,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Event)]
 pub struct DeathEvent {
     pub final_blow: AttackEvent,
     pub damage_taken: f32,

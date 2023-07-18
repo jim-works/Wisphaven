@@ -11,8 +11,6 @@ use bevy::prelude::*;
 pub use block::*;
 use serde::{Serialize, Deserialize};
 
-use crate::util::LocalRepeatingTimer;
-
 mod atmosphere;
 
 pub mod events;
@@ -48,14 +46,14 @@ pub struct LevelPlugin;
 impl Plugin for LevelPlugin {
     fn build(&self, app: &mut App) {
         app
-            .configure_set(LevelSystemSet::PostUpdate.in_base_set(CoreSet::PostUpdate).run_if(in_state(LevelLoadState::Loaded)))
-            .configure_set(LevelSystemSet::Main.in_set(OnUpdate(LevelLoadState::Loaded)))
-            .configure_set(LevelSystemSet::Despawn.after(LevelSystemSet::Main).after(LevelSystemSet::LoadingAndMain))
-            .configure_set(LevelSystemSet::Despawn.in_set(OnUpdate(LevelLoadState::Loaded)))
-            .configure_set(LevelSystemSet::LoadingAndMain.run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded))))
-            .add_plugin(atmosphere::AtmospherePlugin)
-            .add_plugin(blocks::BlocksPlugin)
-            .add_plugin(events::WorldEventsPlugin)
+            .configure_set(PostUpdate, LevelSystemSet::PostUpdate.run_if(in_state(LevelLoadState::Loaded)))
+            .configure_set(Update, LevelSystemSet::Main.run_if(in_state(LevelLoadState::Loaded)))
+            .configure_set(Update, LevelSystemSet::Despawn.after(LevelSystemSet::Main).after(LevelSystemSet::LoadingAndMain))
+            .configure_set(Update, LevelSystemSet::Despawn.run_if(in_state(LevelLoadState::Loaded)))
+            .configure_set(Update, LevelSystemSet::LoadingAndMain.run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded))))
+            .add_plugins(atmosphere::AtmospherePlugin)
+            .add_plugins(blocks::BlocksPlugin)
+            .add_plugins(events::WorldEventsPlugin)
             .add_state::<LevelLoadState>()
 
             //needed for NamedBlockMesh

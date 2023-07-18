@@ -14,11 +14,11 @@ pub struct ControllersPlugin;
 
 impl Plugin for ControllersPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(InputManagerPlugin::<Action>::default())
+        app.add_plugins(InputManagerPlugin::<Action>::default())
         //player
-        .add_systems((rotate_mouse,jump_player,move_player,follow_local_player,player_punch,player_use,player_scroll_inventory).in_set(LevelSystemSet::Main))
+        .add_systems(Update, (rotate_mouse,jump_player,move_player,follow_local_player,player_punch,player_use,player_scroll_inventory).in_set(LevelSystemSet::Main))
         //common
-        .add_system(do_planar_movement.in_set(LevelSystemSet::Main))
+        .add_systems(Update, do_planar_movement.in_set(LevelSystemSet::Main))
         ;
     }
 }

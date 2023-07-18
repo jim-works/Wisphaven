@@ -35,6 +35,7 @@ enum LevelDBResult {
     Load(Vec<DataFromDBEvent>),
 }
 
+#[derive(Event)]
 pub struct DataFromDBEvent(pub ChunkCoord, pub Vec<(ChunkTable, Vec<u8>)>);
 
 #[derive(Copy, Clone, PartialEq, Eq)]

@@ -6,7 +6,7 @@ pub struct UtilPlugin;
 
 impl Plugin for UtilPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(smooth_look_to);
+        app.add_systems(Update, smooth_look_to);
     }
 }
 

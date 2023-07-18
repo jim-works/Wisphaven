@@ -29,6 +29,7 @@ pub struct Glowjelly {
 #[derive(Component)]
 pub struct GlowjellyScene;
 
+#[derive(Event)]
 pub struct SpawnGlowjellyEvent {
     pub location: Transform,
     pub color: Color,
@@ -38,11 +39,9 @@ pub struct GlowjellyPlugin;
 
 impl Plugin for GlowjellyPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(load_resources)
-            .add_system(trigger_spawning.in_schedule(OnEnter(LevelLoadState::Loaded)))
-            .add_system(spawn_glowjelly)
-            .add_system(setup_glowjelly)
-            .add_system(social_score)
+        app.add_systems(Startup, load_resources)
+            .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
+            .add_systems(Update, (spawn_glowjelly, setup_glowjelly, social_score))
             .add_event::<SpawnGlowjellyEvent>();
     }
 }

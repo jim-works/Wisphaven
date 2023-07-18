@@ -11,7 +11,7 @@ impl Plugin for ToolsPlugin {
     }
 }
 
-#[derive(Clone, Hash, Eq, Debug, PartialEq, Component, FromReflect, Reflect, Default, Serialize, Deserialize)]
+#[derive(Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
 pub enum ToolPower {
     #[default]
     None,

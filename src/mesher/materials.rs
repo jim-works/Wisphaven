@@ -57,7 +57,7 @@ pub struct ArrayTextureMaterialKey {
     depth_bias: i32,
 }
 
-#[derive(AsBindGroup, Reflect, FromReflect, Debug, Clone, TypeUuid)]
+#[derive(AsBindGroup, Reflect, Debug, Clone, TypeUuid)]
 //https://www.uuidtools.com/generate/v4
 #[uuid = "c275fe2c-7500-46b2-a43d-e3ec8a76f4e4"]
 //taken from bevy's StandardMaterial (https://github.com/bevyengine/bevy/blob/a1494e53dfa90e56bd14452b1efb930bd3e79821/crates/bevy_pbr/src/pbr_material.rs#L23)

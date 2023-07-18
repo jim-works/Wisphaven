@@ -25,13 +25,14 @@ pub mod state;
 
 impl Plugin for SerializationPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(state::SerializationStatePlugin)
-            .add_system(
+        app.add_plugins(state::SerializationStatePlugin)
+            .add_systems(
+                Update,
                 setup::on_level_created
-                    .in_set(OnUpdate(LevelLoadState::NotLoaded))
-                    .run_if(in_state(state::GameLoadState::Done)),
+                    .run_if(in_state(state::GameLoadState::Done).and_then(in_state(LevelLoadState::NotLoaded))),
             )
             .add_systems(
+                Update,
                 (
                     loading::load_chunk_terrain,
                     loading::queue_terrain_loading,
@@ -41,25 +42,25 @@ impl Plugin for SerializationPlugin {
                 )
                     .in_set(LevelSystemSet::LoadingAndMain),
             )
-            .add_system(db::finish_up.in_set(LevelSystemSet::PostUpdate))
+            .add_systems(PostUpdate, db::finish_up)
             .insert_resource(setup::load_settings())
             //must apply_system_buffers before load_block_registry gets called because load_terrain_texture creates a resources that is needed in load_block_registry
-            .add_startup_systems(
+            .add_systems(
+                PreStartup,
                 (
                     setup::load_terrain_texture,
                     setup::load_item_textures,
-                    apply_system_buffers,
+                    apply_deferred,
                     setup::start_loading_blocks,
                     setup::start_loading_items,
                 )
                     .chain()
-                    .in_base_set(StartupSet::PreStartup),
             )
             .add_systems(
-                (setup::load_block_registry, setup::load_item_registry)
-                    .in_set(OnUpdate(state::GameLoadState::LoadingAssets)),
+                Update,
+                (setup::load_block_registry, setup::load_item_registry).run_if(in_state(state::GameLoadState::LoadingAssets))
             )
-            .add_system(create_level.in_schedule(OnEnter(state::GameLoadState::Done)))
+            .add_systems(OnEnter(state::GameLoadState::Done), create_level)
             .add_event::<SaveChunkEvent>()
             .add_event::<db::DataFromDBEvent>()
             .insert_resource(SaveTimer(Timer::from_seconds(0.1, TimerMode::Repeating)));
@@ -139,6 +140,7 @@ pub struct LoadingItems;
 #[derive(Resource)]
 pub struct SaveTimer(Timer);
 
+#[derive(Event)]
 pub struct SaveChunkEvent(ChunkCoord);
 
 //run length encoded format for chunks

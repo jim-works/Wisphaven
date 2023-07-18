@@ -25,7 +25,7 @@ pub fn toggle_hidden (
 ) {
     if let Ok(action) = query.get_single() {
         if action.just_pressed(Action::ToggleUIHidden) {
-            match curr_state.0 {
+            match curr_state.get() {
                 UIState::Hidden => next_state.set(UIState::Default),
                 _ => next_state.set(UIState::Hidden)
             }
@@ -41,7 +41,7 @@ pub fn toggle_debug (
 ) {
     if let Ok(action) = query.get_single() {
         if action.just_pressed(Action::ToggleDebugUIHidden) {
-            match curr_state.0 {
+            match curr_state.get() {
                 DebugUIState::Hidden => next_state.set(DebugUIState::Shown),
                 _ => next_state.set(DebugUIState::Hidden)
             }

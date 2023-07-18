@@ -9,12 +9,11 @@ pub struct DebugUIPlugin;
 impl Plugin for DebugUIPlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<DebugUIState>()
-            .add_startup_system(init)
-            .add_system(spawn_debug.in_schedule(OnEnter(DebugUIState::Shown)))
-            .add_system(despawn_debug.in_schedule(OnEnter(DebugUIState::Hidden)))
-            .add_systems(
-                (update_coords, update_chunk_coords, update_noises)
-                    .in_set(OnUpdate(DebugUIState::Shown)),
+            .add_systems(Startup, init)
+            .add_systems(OnEnter(DebugUIState::Shown), spawn_debug)
+            .add_systems(OnEnter(DebugUIState::Hidden), despawn_debug)
+            .add_systems(Update,
+                (update_coords, update_chunk_coords, update_noises).run_if(in_state(DebugUIState::Shown)),
             );
     }
 }
@@ -43,7 +42,8 @@ fn spawn_debug(mut commands: Commands, query: Query<&DebugUI>, resources: Res<De
                 DebugUI,
                 NodeBundle {
                     style: Style {
-                        size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
                         align_items: AlignItems::FlexEnd,
                         flex_direction: FlexDirection::Column,
                         justify_content: JustifyContent::FlexStart,

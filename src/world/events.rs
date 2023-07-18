@@ -10,26 +10,30 @@ impl Plugin for WorldEventsPlugin {
             .add_event::<OpenLevelEvent>()
             .add_event::<ExplosionEvent>()
             .add_event::<BlockUsedEvent>()
-            .add_system(process_explosions.in_set(LevelSystemSet::Main))
+            .add_systems(Update, process_explosions.in_set(LevelSystemSet::Main))
         ;
     }
 }
 
+#[derive(Event)]
 pub struct CreateLevelEvent {
     pub name: &'static str,
     pub seed: u64,
 }
 
+#[derive(Event)]
 pub struct OpenLevelEvent {
     pub name: &'static str,
 }
 
+#[derive(Event)]
 pub struct BlockUsedEvent {
     pub block_position: BlockCoord,
     pub user: Entity,
     pub block_used: Entity,
 }
 
+#[derive(Event)]
 pub struct ExplosionEvent {
     pub radius: f32,
     pub origin: BlockCoord,

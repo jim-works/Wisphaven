@@ -13,12 +13,12 @@ pub struct ChunkLoaderPlugin;
 
 impl Plugin for ChunkLoaderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(entity_loader::do_loading.in_set(LevelSystemSet::LoadingAndMain))
-            .add_system(entity_loader::despawn_chunks.in_set(LevelSystemSet::Despawn))
-            .add_system(finish_loading_trigger.in_set(OnUpdate(LevelLoadState::Loading)))
-            .add_system(on_load_level.in_schedule(OnEnter(LevelLoadState::Loading)))
+        app.add_systems(Update, entity_loader::do_loading.in_set(LevelSystemSet::LoadingAndMain))
+            .add_systems(PostUpdate, entity_loader::despawn_chunks.in_set(LevelSystemSet::Despawn))
+            .add_systems(Update, finish_loading_trigger.run_if(in_state(LevelLoadState::Loading)))
+            .add_systems(OnEnter(LevelLoadState::Loading), on_load_level)
             //I'm not sure this .after is necessary, since both systems should run the same frame and commands may be applied at the end of that frame
-            .add_system(despawn_initial_loader.in_schedule(OnEnter(LevelLoadState::Loaded)).after(spawn_local_player))
+            .add_systems(OnEnter(LevelLoadState::Loaded), despawn_initial_loader.after(spawn_local_player))
             .insert_resource(ChunkLoadingTimer {
                 timer: Timer::from_seconds(0.1, TimerMode::Repeating)
             })

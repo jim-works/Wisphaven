@@ -1,4 +1,5 @@
 (
+  resources: {},
   entities: {
     1: (
       components: {

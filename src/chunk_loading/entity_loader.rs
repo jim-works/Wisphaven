@@ -41,6 +41,7 @@ pub struct ChunkLoadingTimer {
     pub timer: Timer,
 }
 
+#[derive(Event)]
 pub struct DespawnChunkEvent(pub Entity);
 
 pub fn do_loading(

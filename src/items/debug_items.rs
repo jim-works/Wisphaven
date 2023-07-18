@@ -9,7 +9,7 @@ pub struct DebugItems;
 
 impl Plugin for DebugItems {
     fn build(&self, app: &mut App) {
-        app.add_system(use_personality_item.in_set(LevelSystemSet::Main))
+        app.add_systems(Update, use_personality_item.in_set(LevelSystemSet::Main))
             .register_type::<PersonalityTester>()
         ;
     }

@@ -1,7 +1,6 @@
 use std::f32::consts::PI;
 
 use bevy::{prelude::*, render::{primitives::Frustum, camera::CameraProjection}};
-use bevy_atmosphere::prelude::AtmosphereCamera;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::InputManagerBundle;
 
@@ -17,13 +16,14 @@ pub struct Player{
 #[derive(Component)]
 pub struct LocalPlayer;
 
+#[derive(Event)]
 pub struct LocalPlayerSpawnedEvent(pub Entity);
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(spawn_local_player.in_schedule(OnEnter(LevelLoadState::Loaded)))
+        app.add_systems(OnEnter(LevelLoadState::Loaded), spawn_local_player)
         .add_event::<LocalPlayerSpawnedEvent>();
     }
 }
@@ -103,7 +103,6 @@ pub fn spawn_local_player(
                 frustum: Frustum::from_view_projection(&projection.get_projection_matrix()),
                 ..default()
             },
-            AtmosphereCamera::default(),
             FogSettings {
                 color: Color::rgba(1.0, 1.0, 1.0, 0.5),
                 falloff: FogFalloff::from_visibility_colors(

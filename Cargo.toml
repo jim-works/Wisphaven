@@ -26,20 +26,18 @@ ahash = "0.8.3"
 #TODO: remove dynamic_linking/trace_tracy for releases (automate this)
 #TODO: add features ktx2 and zstd to enable better texture performance and compression when using ktx2 textures
 #TODO: maybe enable wayland feature?
-bevy = { version = "0.10.1", features = ["dynamic_linking", "trace_tracy"] }
-bevy_fly_camera = "0.10.0"
+bevy = { version = "0.11.0", features = ["dynamic_linking", "trace_tracy"] }
 bracket-noise = "0.8.7"
 dashmap = "5.4.0"
 futures-lite = "1.13.0"
 serde = { version = "1.0.162", features = ["derive"] }
-leafwing-input-manager = "0.9.2"
-bevy-inspector-egui = "0.18.3"
-bevy_atmosphere = "0.6.0"
+leafwing-input-manager = "0.10.0"
+bevy-inspector-egui = "0.19.0"
 
 #TODO: check if parallel makes things faster once I have many physics objects
-bevy_rapier3d = { version = "0.21.0", features = [ "simd-stable", "debug-render-3d", "parallel" ] }
+bevy_rapier3d = { version = "0.22.0", features = [ "simd-stable", "debug-render-3d", "parallel" ] }
 big-brain = {git = "https://github.com/jim-works/big-brain_set_unchecked.git" }
-bevy_mod_billboard = "0.3.0"
+#big-brain = "0.18.0"
 bincode = "1.3.3"
 rusqlite = { version = "0.29.0", features = ["bundled"] }
 r2d2_sqlite = "0.22.0"

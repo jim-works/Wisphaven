@@ -20,7 +20,7 @@ impl Plugin for SerializationStatePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameLoadState>()
             .insert_resource(TexturesLoaded::default())
-            .add_systems((check_load_state, check_textures).in_set(OnUpdate(GameLoadState::LoadingAssets)))
+            .add_systems(Update, (check_load_state, check_textures).run_if(in_state(GameLoadState::LoadingAssets)))
         ;
     }
 }

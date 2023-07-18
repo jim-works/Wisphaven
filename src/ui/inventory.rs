@@ -29,6 +29,7 @@ pub struct InventoryPlugin;
 impl Plugin for InventoryPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
+            Update,
             (
                 toggle_inventory,
                 place_inventory_selector,
@@ -38,10 +39,10 @@ impl Plugin for InventoryPlugin {
             )
                 .in_set(LevelSystemSet::Main),
         )
-        .add_system(show_inventory.in_schedule(OnEnter(UIState::Inventory)))
-        .add_system(hide_inventory::<false>.in_schedule(OnEnter(UIState::Default)))
-        .add_system(hide_inventory::<true>.in_schedule(OnEnter(UIState::Hidden)))
-        .add_startup_system(init);
+        .add_systems(OnEnter(UIState::Inventory), show_inventory)
+        .add_systems(OnEnter(UIState::Default), hide_inventory::<false>)
+        .add_systems(OnEnter(UIState::Hidden), hide_inventory::<true>)
+        .add_systems(Startup, init);
     }
 }
 
@@ -79,7 +80,7 @@ fn toggle_inventory(
 ) {
     if let Ok(action) = query.get_single() {
         if action.just_pressed(Action::ToggleInventory) {
-            next_state.set(if state.0 == UIState::Inventory {
+            next_state.set(if *state.get() == UIState::Inventory {
                 UIState::Default
             } else {
                 UIState::Inventory
@@ -148,7 +149,8 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
             InventoryUI,
             NodeBundle {
                 style: Style {
-                    size: Size::new(Val::Px(400.0), Val::Px(200.0)),
+                    width: Val::Px(400.0), 
+                    height: Val::Px(200.0),
                     align_items: AlignItems::FlexStart,
                     flex_direction: FlexDirection::Column,
                     justify_content: JustifyContent::FlexStart,
@@ -161,14 +163,19 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
         .with_children(|slot_background| {
             //spawn rows - round up number of rows
             for slot in 0..slots {
+                let slot_coords = get_slot_coords(slot, 0.0);
                 slot_background
                     .spawn((
                         ImageBundle {
                             style: Style {
                                 aspect_ratio: Some(1.0),
                                 margin: UiRect::all(Val::Px(1.0)),
-                                size: Size::new(Val::Px(32.0), Val::Px(32.0)),
-                                position: get_slot_coords(slot, 0.0),
+                                width: Val::Px(32.0),
+                                height: Val::Px(32.0),
+                                left: slot_coords.left,
+                                right: slot_coords.right,
+                                bottom: slot_coords.bottom,
+                                top: slot_coords.top,
                                 position_type: PositionType::Absolute,
                                 align_items: AlignItems::Center,
                                 justify_content: JustifyContent::Center,
@@ -184,7 +191,8 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                         slot_content.spawn((
                             ImageBundle {
                                 style: Style {
-                                    size: Size::new(Val::Px(32.0), Val::Px(32.0)),
+                                    width: Val::Px(32.0),
+                                    height: Val::Px(32.0),
                                     position_type: PositionType::Absolute,
                                     ..default()
                                 },
@@ -198,7 +206,8 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                         slot_content
                             .spawn(NodeBundle {
                                 style: Style {
-                                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
                                     position_type: PositionType::Absolute,
                                     justify_content: JustifyContent::FlexEnd,
                                     align_items: AlignItems::FlexEnd,
@@ -232,7 +241,8 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                 ImageBundle {
                     style: Style {
                         position_type: PositionType::Absolute,
-                        size: Size::new(Val::Px(32.0), Val::Px(32.0)),
+                        width: Val::Px(32.0),
+                        height: Val::Px(32.0),
                         ..default()
                     },
                     image: UiImage::new(resources.selection_image.clone()),
@@ -260,7 +270,11 @@ fn place_inventory_selector(
 ) {
     if let Ok(inv) = inventory_query.get_single() {
         if let Ok(mut style) = selector_query.get_single_mut() {
-            style.position = get_slot_coords(inv.selected_slot(), SELECTOR_PADDING_PX);
+            let coords = get_slot_coords(inv.selected_slot(), SELECTOR_PADDING_PX);
+            style.left = coords.left;
+            style.right = coords.right;
+            style.top = coords.top;
+            style.bottom = coords.bottom;
         }
     }
 }

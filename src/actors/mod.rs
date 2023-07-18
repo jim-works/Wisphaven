@@ -21,14 +21,14 @@ pub struct ActorPlugin;
 
 impl Plugin for ActorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(CombatPlugin)
-            .add_plugin(BigBrainPlugin)
-            .add_plugin(PersonalityPlugin)
-            .add_plugin(block_actors::BlockActorPlugin)
-            .add_plugin(behaviors::BehaviorsPlugin)
-            .add_plugin(glowjelly::GlowjellyPlugin)
-            .add_plugin(player::PlayerPlugin)
-            .add_system(idle_action_system)
+        app.add_plugins(CombatPlugin)
+            .add_plugins(BigBrainPlugin::new(PreUpdate))
+            .add_plugins(PersonalityPlugin)
+            .add_plugins(block_actors::BlockActorPlugin)
+            .add_plugins(behaviors::BehaviorsPlugin)
+            .add_plugins(glowjelly::GlowjellyPlugin)
+            .add_plugins(player::PlayerPlugin)
+            .add_systems(Update, idle_action_system)
         ;
     }
 }

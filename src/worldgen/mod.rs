@@ -39,6 +39,7 @@ pub struct WorldGenPlugin;
 impl Plugin for WorldGenPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
+            Update,
             (
                 pipeline::poll_shaping_task,
                 pipeline::poll_decoration_waiters,
@@ -51,11 +52,11 @@ impl Plugin for WorldGenPlugin {
                 .in_set(LevelSystemSet::LoadingAndMain),
         )
         .add_systems(
+            OnEnter(LevelLoadState::Loading),
             (
                 create_shaper_settings,
                 create_decoration_settings,
             )
-                .in_schedule(OnEnter(LevelLoadState::Loading)),
         );
     }
 }

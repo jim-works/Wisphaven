@@ -21,12 +21,10 @@ impl Plugin for ItemsPlugin {
             .add_event::<PickupItemEvent>()
             .add_event::<DropItemEvent>()
             .add_event::<AttackItemEvent>()
-            .add_plugin(debug_items::DebugItems)
-            .add_plugin(tools::ToolsPlugin)
-            .add_system(block_item::use_block_item.in_set(LevelSystemSet::Main))
-            .add_system(block_item::use_mega_block_item.in_set(LevelSystemSet::Main))
-            .add_system(weapons::equip_unequip_weapon.in_set(LevelSystemSet::Main))
-            .add_system(weapons::attack_melee.in_set(LevelSystemSet::Main))
+            .add_plugins(debug_items::DebugItems)
+            .add_plugins(tools::ToolsPlugin)
+            .add_systems(Update, (block_item::use_block_item, block_item::use_mega_block_item).in_set(LevelSystemSet::Main))
+            .add_systems(Update, (weapons::equip_unequip_weapon, weapons::attack_melee).in_set(LevelSystemSet::Main))
 
             .register_type::<NamedItemIcon>()
             .register_type::<ItemName>()
@@ -129,11 +127,17 @@ pub fn create_raw_item<T: Bundle>(info: ItemBundle, bundle: T, commands: &mut Co
 #[derive(Component)]
 pub struct ItemIcon(pub Handle<Image>);
 
+#[derive(Event)]
 pub struct UseItemEvent(pub Entity, pub ItemStack, pub GlobalTransform);
+#[derive(Event)]
 pub struct AttackItemEvent(pub Entity, pub ItemStack, pub GlobalTransform);
+#[derive(Event)]
 pub struct EquipItemEvent(pub Entity, pub ItemStack);
+#[derive(Event)]
 pub struct UnequipItemEvent(pub Entity, pub ItemStack);
+#[derive(Event)]
 pub struct PickupItemEvent(pub Entity, pub ItemStack);
+#[derive(Event)]
 pub struct DropItemEvent(pub Entity, pub ItemStack);
 
 #[derive(Resource)]
@@ -177,7 +181,7 @@ impl ItemRegistry {
         entity
     }
     pub fn get_basic(&self, name: &ItemName) -> Option<Entity> {
-        let id = self.id_map.get(&name)?;
+        let id = self.id_map.get(name)?;
         match id {
             ItemId(Id::Basic(id)) => self.basic_entities.get(*id as usize).copied(),
             _ => None

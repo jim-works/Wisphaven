@@ -12,7 +12,7 @@ pub struct TNTPlugin;
 
 impl Plugin for TNTPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems((process_tnt,tnt_landed).in_set(LevelSystemSet::Main))
+        app.add_systems(Update, (process_tnt,tnt_landed).in_set(LevelSystemSet::Main))
             .register_type::<TNTBlock>();
     }
 }

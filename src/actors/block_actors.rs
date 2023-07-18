@@ -15,14 +15,16 @@ impl Plugin for BlockActorPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<SpawnFallingBlockEvent>()
             .add_event::<LandedFallingBlockEvent>()
-            .add_startup_system(setup)
+            .add_systems(Startup, setup)
             .add_systems(
+                Update,
                 (falling_block_spawner, falling_block_placer, on_block_landed)
                     .in_set(LevelSystemSet::Main),
             );
     }
 }
 
+#[derive(Event)]
 pub struct SpawnFallingBlockEvent {
     pub position: Vec3,
     pub initial_velocity: Vec3,
@@ -30,6 +32,7 @@ pub struct SpawnFallingBlockEvent {
     pub place_on_landing: bool,
 }
 
+#[derive(Event)]
 pub struct LandedFallingBlockEvent {
     pub position: BlockCoord,
     pub faller: Entity,

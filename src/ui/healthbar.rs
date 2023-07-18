@@ -1,5 +1,3 @@
-use bevy_mod_billboard::prelude::*;
-
 use bevy::prelude::{shape::Quad, *};
 
 use crate::{actors::CombatInfo, controllers::PlayerActionOrigin};
@@ -8,9 +6,8 @@ pub struct HealthbarPlugin;
 
 impl Plugin for HealthbarPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(init)
-            .add_system(update_healthbar)
-            .add_system(follow_billboard);
+        app.add_systems(Startup, init)
+            .add_systems(Update, (update_healthbar, follow_billboard));
     }
 }
 
@@ -32,8 +29,6 @@ pub struct HealthbarBackground;
 pub struct HealthbarResources {
     foreground_image: Handle<Image>,
     background_image: Handle<Image>,
-    foreground_billboard_texture: Handle<BillboardTexture>,
-    background_billboard_texture: Handle<BillboardTexture>,
     billboard_mesh: Handle<Mesh>,
 }
 
@@ -41,15 +36,12 @@ fn init(
     mut commands: Commands,
     assets: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut billboard_textures: ResMut<Assets<BillboardTexture>>,
 ) {
     let fg: Handle<Image> = assets.load("textures/HealthbarForeground.png");
     let bg: Handle<Image> = assets.load("textures/HealthbarBackground.png");
     commands.insert_resource(HealthbarResources {
         foreground_image: fg.clone(),
         background_image: bg.clone(),
-        foreground_billboard_texture: billboard_textures.add(BillboardTexture::Single(fg)),
-        background_billboard_texture: billboard_textures.add(BillboardTexture::Single(bg)),
         billboard_mesh: meshes.add(Quad::new(Vec2::new(1.0, 0.25)).into()),
     });
 }
@@ -70,21 +62,9 @@ pub fn spawn_billboard_healthbar(
         .with_children(|children| {
             //foreground
             children.spawn((
-                BillboardTextureBundle {
-                    texture: healthbar_resources.foreground_billboard_texture.clone(),
-                    mesh: healthbar_resources.billboard_mesh.clone().into(),
-                    ..default()
-                },
                 Healthbar { tracking },
             ));
             children.spawn((
-                BillboardTextureBundle {
-                    //background should be behind foreground
-                    transform: Transform::from_xyz(0.0, 0.0, 0.01),
-                    texture: healthbar_resources.background_billboard_texture.clone(),
-                    mesh: healthbar_resources.billboard_mesh.clone().into(),
-                    ..default()
-                },
                 HealthbarBackground,
             ));
         })

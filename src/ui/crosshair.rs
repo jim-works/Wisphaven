@@ -2,35 +2,33 @@ use bevy::prelude::*;
 
 use super::state::UIState;
 
-const CROSSHAIR_STYLE: Style = Style {
-    size: Size::new(Val::Px(16.0), Val::Px(16.0)),
-    aspect_ratio: Some(1.0),
-    ..Style::DEFAULT
-};
-
 pub struct CrosshairPlugin;
 
 impl Plugin for CrosshairPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(init)
-            .add_system(spawn_crosshair.in_schedule(OnEnter(UIState::Default)))
-            .add_system(despawn_crosshair.in_schedule(OnExit(UIState::Default)))
+        app.add_systems(Startup, init)
+            .add_systems(OnEnter(UIState::Default), spawn_crosshair)
+            .add_systems(OnExit(UIState::Default), despawn_crosshair)
         ;
     }
 }
 
 #[derive(Resource)]
-struct CrosshairResources(ImageBundle);
+struct CrosshairResources(UiImage, Style);
 
 #[derive(Component)]
 struct Crosshair;
 
 fn init(mut commands: Commands, assets: Res<AssetServer>) {
-    commands.insert_resource(CrosshairResources(ImageBundle {
-        style: CROSSHAIR_STYLE,
-        image: assets.load("textures/crosshair.png").into(),
-        ..default()
-    }));
+    commands.insert_resource(CrosshairResources(
+        assets.load("textures/crosshair.png").into(),
+        Style {
+            width: Val::Px(16.0),
+            height: Val::Px(16.0),
+            aspect_ratio: Some(1.0),
+            ..default()
+        }
+    ));
 }
 
 fn spawn_crosshair(
@@ -43,7 +41,8 @@ fn spawn_crosshair(
     } else {
         commands.spawn((Crosshair, NodeBundle {
             style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
                 position_type: PositionType::Absolute,
@@ -51,7 +50,11 @@ fn spawn_crosshair(
             },
             ..default()
         })
-    ).with_children(|children| {children.spawn(resources.0.clone());});
+    ).with_children(|children| {children.spawn(ImageBundle {
+        style: resources.1.clone(),
+        image: resources.0.clone(),
+        ..default()
+    });});
     }
 }
 

@@ -22,7 +22,7 @@ const SPAWN_MESH_TIME_BUDGET_COUNT: u32 = 1000;
 impl Plugin for MesherPlugin {
     fn build(&self, app: &mut App) {
 
-        app.add_plugin(MaterialPlugin::<ArrayTextureMaterial>::default())
+        app.add_plugins(MaterialPlugin::<ArrayTextureMaterial>::default())
             .insert_resource(MeshTimer {
                 timer: Timer::from_seconds(0.05, TimerMode::Repeating),
             })
@@ -30,15 +30,16 @@ impl Plugin for MesherPlugin {
                 timer: Timer::from_seconds(0.05, TimerMode::Repeating),
             })
             .add_systems(
+                Update,
                 (
                     generator::poll_mesh_queue,
                     generator::queue_meshing,
                     mesh_lod::queue_meshing_lod,
                 )
                     .in_set(LevelSystemSet::LoadingAndMain))
-            .add_startup_system(materials::init)
+            .add_systems(Startup, materials::init)
             //can't be a startup system since init starts loading the chunk image asynchronously
-            .add_system(materials::create_chunk_material);
+            .add_systems(PreUpdate, materials::create_chunk_material);
     }
 }
 

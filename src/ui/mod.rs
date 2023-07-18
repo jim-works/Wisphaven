@@ -17,14 +17,14 @@ impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_state::<state::UIState>()
-            .add_startup_system(styles::init)
-            .add_plugin(inventory::InventoryPlugin)
-            .add_plugin(crosshair::CrosshairPlugin)
-            .add_plugin(healthbar::HealthbarPlugin)
-            .add_plugin(debug::DebugUIPlugin)
-            .add_system(capture_mouse.in_schedule(OnEnter(state::UIState::Default)))
-            .add_system(release_mouse.in_schedule(OnEnter(state::UIState::Inventory)))
-            .add_systems((state::toggle_hidden, state::toggle_debug).in_set(LevelSystemSet::Main))
+            .add_systems(Startup, styles::init)
+            .add_plugins(inventory::InventoryPlugin)
+            .add_plugins(crosshair::CrosshairPlugin)
+            .add_plugins(healthbar::HealthbarPlugin)
+            .add_plugins(debug::DebugUIPlugin)
+            .add_systems(OnEnter(state::UIState::Default), capture_mouse)
+            .add_systems(OnEnter(state::UIState::Inventory), release_mouse)
+            .add_systems(Update, (state::toggle_hidden, state::toggle_debug).in_set(LevelSystemSet::Main))
         ;
     }
 }
