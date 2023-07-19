@@ -33,7 +33,7 @@ impl Plugin for MesherPlugin {
                     generator::queue_meshing,
                     mesh_lod::queue_meshing_lod,
                 )
-                    .in_set(LevelSystemSet::LoadingAndMain))
+                    .in_set(LevelSystemSet::AfterLoadingAndMain))
             .add_systems(Startup, materials::init)
             //can't be a startup system since init starts loading the chunk image asynchronously
             .add_systems(PreUpdate, materials::create_chunk_material.run_if(in_state(GameLoadState::Done)));

@@ -101,7 +101,7 @@ impl LevelData {
                     //no more damage, so remove the damage value
                     remove_damage = true;
                 }
-                writer.send(BlockDamageSetEvent { block_position: key, damage: damage, damager });
+                writer.send(BlockDamageSetEvent { block_position: key, damage, damager });
             }
             None => {
                 if amount < 1.0 {

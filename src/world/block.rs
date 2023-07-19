@@ -380,6 +380,14 @@ impl AddAssign for BlockCoord {
     }
 }
 
+impl std::ops::Mul<i32> for BlockCoord {
+    type Output = BlockCoord;
+
+    fn mul(self, rhs: i32) -> Self::Output {
+        Self::new(self.x*rhs,self.y*rhs,self.z*rhs)
+    }
+}
+
 impl From<Vec3> for BlockCoord {
     fn from(v: Vec3) -> Self {
         BlockCoord::new(v.x.floor() as i32, v.y.floor() as i32, v.z.floor() as i32)
@@ -403,5 +411,18 @@ impl From<ChunkIdx> for BlockCoord {
             v.y as i32,
             v.z as i32,
         )
+    }
+}
+
+impl From<Direction> for BlockCoord {
+    fn from(value: Direction) -> Self {
+        match value {
+            Direction::PosX => BlockCoord::new(1,0,0),
+            Direction::PosY => BlockCoord::new(0,1,0),
+            Direction::PosZ => BlockCoord::new(0,0,1),
+            Direction::NegX => BlockCoord::new(-1,0,0),
+            Direction::NegY => BlockCoord::new(0,-1,0),
+            Direction::NegZ => BlockCoord::new(0,0,-1),
+        }
     }
 }

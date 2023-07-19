@@ -26,7 +26,7 @@ impl Plugin for PhysicsPlugin {
                     level_physics::queue_gen_physics,
                     level_physics::poll_gen_physics_queue,
                 )
-                    .in_set(LevelSystemSet::LoadingAndMain),
+                    .in_set(LevelSystemSet::AfterLoadingAndMain),
             )
             .add_systems(Startup, configure_physics);
     }

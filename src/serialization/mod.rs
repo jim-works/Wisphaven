@@ -40,7 +40,7 @@ impl Plugin for SerializationPlugin {
                     save::do_saving,
                     save::save_all,
                 )
-                    .in_set(LevelSystemSet::LoadingAndMain),
+                    .in_set(LevelSystemSet::AfterLoadingAndMain),
             )
             .add_systems(PostUpdate, db::finish_up.in_set(LevelSystemSet::PostUpdate))
             .insert_resource(setup::load_settings())

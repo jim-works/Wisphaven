@@ -12,6 +12,7 @@
             shape: MultiTexture(("grass_side.png", "grass_top.png", "grass_side.png", "grass_side.png", "dirt.png", "grass_side.png")),
         ),
         "recursia::items::tools::ToolResistance": Pickaxe(0),
+        "recursia::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     2: (
@@ -23,7 +24,8 @@
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
             shape: Uniform("dirt.png"),
-        )
+        ),
+        "recursia::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     3: (
@@ -47,7 +49,8 @@
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
             shape: MultiTexture(("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
-        )
+        ),
+        "recursia::items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
     5: (
@@ -99,7 +102,8 @@
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
             shape: Uniform("snow.png"),
-        )
+        ),
+        "recursia::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     9: (
@@ -111,7 +115,8 @@
         "recursia::world::block::BlockPhysics": BottomSlab(0.25),
         "recursia::world::block::NamedBlockMesh": (
             shape: BottomSlab(0.25, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
-        )
+        ),
+        "recursia::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     10: (
@@ -147,7 +152,8 @@
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
             shape: Uniform("sand.png"),
-        )
+        ),
+        "recursia::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     13: (
@@ -159,7 +165,8 @@
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
             shape: Uniform("cactus.png"),
-        )
+        ),
+        "recursia::items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
     14: (
@@ -171,7 +178,8 @@
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
             shape: Uniform("cactus_flower.png"),
-        )
+        ),
+        "recursia::items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
     15: (
@@ -198,6 +206,7 @@
             use_transparent_shader: true
         ),
         "recursia::items::tools::ToolResistance": Instant,
+        "recursia::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
   },

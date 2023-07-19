@@ -32,6 +32,9 @@ pub enum LevelSystemSet {
     PostUpdate,
     //like main, but also runs in only runs in LevelLoadState::Loading
     LoadingAndMain,
+    //Update, runs after main/loading in main, in LevelLoadState::Loaded and Loading
+    //system buffers from main and loading and main applied beforehand
+    AfterLoadingAndMain,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, States, Default)]
@@ -48,10 +51,12 @@ impl Plugin for LevelPlugin {
     fn build(&self, app: &mut App) {
         app
             .configure_set(PostUpdate, LevelSystemSet::PostUpdate.run_if(in_state(LevelLoadState::Loaded)))
+            .configure_set(Update, LevelSystemSet::AfterLoadingAndMain.run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded))).after(LevelSystemSet::LoadingAndMain).after(LevelSystemSet::Main))
             .configure_set(Update, LevelSystemSet::Main.run_if(in_state(LevelLoadState::Loaded)))
             .configure_set(Update, LevelSystemSet::Despawn.after(LevelSystemSet::Main).after(LevelSystemSet::LoadingAndMain))
             .configure_set(Update, LevelSystemSet::Despawn.run_if(in_state(LevelLoadState::Loaded)))
             .configure_set(Update, LevelSystemSet::LoadingAndMain.run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded))))
+            .add_systems(Update, apply_deferred.after(LevelSystemSet::Main).after(LevelSystemSet::LoadingAndMain).before(LevelSystemSet::AfterLoadingAndMain))
             .add_plugins(atmosphere::AtmospherePlugin)
             .add_plugins(blocks::BlocksPlugin)
             .add_plugins(events::WorldEventsPlugin)

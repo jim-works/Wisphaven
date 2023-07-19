@@ -6,11 +6,15 @@ use crate::world::{events::{BlockHitEvent, BlockDamageSetEvent}, Level, BlockId,
 
 use super::SwingItemEvent;
 
+pub mod abilities;
+
 pub struct ToolsPlugin;
 
 impl Plugin for ToolsPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<Tool>()
+        app
+            .add_plugins(abilities::ToolAbilitiesPlugin)
+            .register_type::<Tool>()
             .register_type::<ToolResistance>()
             .add_systems(Update, (on_swing, deal_block_damage).in_set(LevelSystemSet::Main))
         ;

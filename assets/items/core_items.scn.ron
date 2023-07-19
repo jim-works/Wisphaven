@@ -90,7 +90,9 @@
             path: "ruby_pickaxe.png"
         ),
         "recursia::items::tools::Tool": (
-            pickaxe: 3
+            pickaxe: 3,
+            shovel: 2,
+            axe: 2,
         ),
         "recursia::items::ItemSwingSpeed": (
             windup: (
@@ -101,6 +103,64 @@
                 secs: 0,
                 nanos: 500000000,
             )
+        ),
+      },
+    ),
+    7: (
+      components: {
+        "recursia::items::ItemName": (
+          namespace: "core",
+          name: "ruby_axe",
+        ),
+        "recursia::items::NamedItemIcon": (
+            path: "ruby_axe.png"
+        ),
+        "recursia::items::tools::Tool": (
+            axe: 3
+        ),
+        "recursia::items::ItemSwingSpeed": (
+            windup: (
+                secs: 0,
+                nanos: 0,
+            ),
+            backswing: (
+                secs: 0,
+                nanos: 500000000,
+            )
+        ),
+        "recursia::items::tools::abilities::AxeAbility": (
+            max_blocks: 10,
+            search_radius: 2,
+            damage_mult: 1.0
+        ),
+      },
+    ),
+    8: (
+      components: {
+        "recursia::items::ItemName": (
+          namespace: "core",
+          name: "ruby_shovel",
+        ),
+        "recursia::items::NamedItemIcon": (
+            path: "ruby_shovel.png"
+        ),
+        "recursia::items::tools::Tool": (
+            shovel: 3
+        ),
+        "recursia::items::ItemSwingSpeed": (
+            windup: (
+                secs: 0,
+                nanos: 0,
+            ),
+            backswing: (
+                secs: 0,
+                nanos: 500000000,
+            )
+        ),
+        "recursia::items::tools::abilities::ShovelAbility": (
+            radius: 2,
+            length: 10,
+            damage_mult: 1.0
         )
       },
     ),

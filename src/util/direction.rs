@@ -1,3 +1,9 @@
+use bevy::prelude::Vec3;
+
+use crate::world::BlockCoord;
+
+use super::max_component_norm;
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Direction{
     PosX,
@@ -52,6 +58,28 @@ impl Direction {
         }
     }
 
+    //calls f for each lattice point in the (2*radius x 2*radius) grid perpendicular to this direction
+    //result will always be 0 in self's axis
+    pub fn for_each_in_plane(self, radius: i32, mut f: impl FnMut(BlockCoord)) {
+        match self {
+            Direction::PosX | Direction::NegX => for z in -radius..radius+1 {
+                for y in -radius..radius+1 {
+                    (f)(BlockCoord::new(0,y,z));
+                }
+            },
+            Direction::PosY | Direction::NegY => for x in -radius..radius+1 {
+                for z in -radius..radius+1 {
+                    (f)(BlockCoord::new(x,0,z));
+                }
+            },
+            Direction::PosZ | Direction::NegZ => for x in -radius..radius+1 {
+                for y in -radius..radius+1 {
+                    (f)(BlockCoord::new(x,y,0));
+                }
+            },
+        }
+    }
+
     pub fn iter() -> DirectionIterator {
         DirectionIterator { curr: None }
     }
@@ -68,6 +96,25 @@ impl From<u64> for Direction {
             5 => Direction::NegZ,
             //shouldn't happen
             _ => unreachable!()
+        }
+    }
+}
+
+impl From<Vec3> for Direction {
+    fn from(value: Vec3) -> Self {
+        let max = max_component_norm(value);
+        if max.x > 0.0 {
+            Direction::PosX
+        } else if max.x < 0.0 {
+            Direction::NegX
+        } else if max.y > 0.0 {
+            Direction::PosY
+        } else if max.y < 0.0 {
+            Direction::NegY
+        } else if max.z > 0.0 {
+            Direction::PosZ
+        } else {
+            Direction::NegZ
         }
     }
 }
