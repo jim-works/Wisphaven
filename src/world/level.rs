@@ -82,6 +82,7 @@ impl LevelData {
         &self,
         key: BlockCoord,
         amount: f32,
+        damager: Option<Entity>, //the item, block, or other entity that damaged the block. not the player
         id_query: &Query<&BlockId>,
         writer: &mut EventWriter<BlockDamageSetEvent>,
         commands: &mut Commands,
@@ -90,26 +91,26 @@ impl LevelData {
         let mut remove_damage = false;
         match self.block_damages.get_mut(&key) {
             Some(mut dam) => {
-                let mut damage = *dam.value();
-                damage.0 = (damage.0 + amount).clamp(0.0, 1.0);
+                let mut damage = dam.value().with_time_reset();
+                damage.damage = (damage.damage + amount).clamp(0.0, 1.0);
                 *dam.value_mut() = damage;
-                if damage.0 == 1.0 {
+                if damage.damage == 1.0 {
                     //total damage = 1, remove the block
                     remove_block = true;
-                } else if damage.0 == 0.0 {
+                } else if damage.damage == 0.0 {
                     //no more damage, so remove the damage value
                     remove_damage = true;
                 }
-                writer.send(BlockDamageSetEvent { block_position: key, damage });
+                writer.send(BlockDamageSetEvent { block_position: key, damage: damage, damager });
             }
             None => {
                 if amount < 1.0 {
-                    let damage = BlockDamage(amount);
+                    let damage = BlockDamage::new(amount);
                     self.block_damages.insert(key, damage);
-                    writer.send(BlockDamageSetEvent { block_position: key, damage });
+                    writer.send(BlockDamageSetEvent { block_position: key, damage, damager });
                 } else {
                     remove_block = true;
-                    writer.send(BlockDamageSetEvent { block_position: key, damage: BlockDamage(1.0) });
+                    writer.send(BlockDamageSetEvent { block_position: key, damage: BlockDamage::new(1.0), damager });
                 }
             }
         }
@@ -124,11 +125,15 @@ impl LevelData {
         None
     }
     //heals all block damages by amount
-    pub fn heal_block_damages(&self, amount: f32, writer: &mut EventWriter<BlockDamageSetEvent>) {
+    pub fn heal_block_damages(&self, seconds_elapsed: f32, writer: &mut EventWriter<BlockDamageSetEvent>) {
         self.block_damages.retain(|key, damage| {
-            damage.0 = (damage.0-amount).clamp(0.0,1.0);
-            writer.send(BlockDamageSetEvent { block_position: *key, damage: *damage });
-            damage.0 > 0.0
+            damage.seconds_to_next_heal -= seconds_elapsed;
+            if damage.seconds_to_next_heal <= 0.0 {
+                damage.damage = (damage.damage-BlockDamage::HEAL_PER_TICK).clamp(0.0,1.0);
+                *damage = damage.with_time_reset();
+                writer.send(BlockDamageSetEvent { block_position: *key, damage: *damage, damager: None });
+            }
+            damage.damage > 0.0
         });
     }
     //returns true if the targeted block could be used, false otherwise

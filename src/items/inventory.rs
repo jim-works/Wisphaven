@@ -23,6 +23,7 @@ impl Inventory {
         self.items.iter()
     }
     pub fn selected_slot(&self) -> usize { self.selected_slot }
+    pub fn selected_item_entity(&self) -> Option<Entity> { self[self.selected_slot()].as_ref().map(|stack| stack.id)}
     //if slot_num is negative or over the number of slots in the inventory, loop back around 
     pub fn select_slot(&mut self, slot_num: i32, equip_writer: &mut EventWriter<EquipItemEvent>, unequip_writer: &mut EventWriter<UnequipItemEvent>) {
         //loop back around

@@ -176,7 +176,33 @@ impl BlockPhysics {
 
 //0 = healthy, 1 = broken
 #[derive(Clone, Copy)]
-pub struct BlockDamage(pub f32);
+pub struct BlockDamage{
+    pub damage: f32,
+    pub seconds_to_next_heal: f32,
+}
+
+impl BlockDamage {
+    pub const SECONDS_PER_TICK: f32 = 1.0;
+    pub const HEAL_PER_TICK: f32 = 0.1;
+    pub fn new(damage: f32) -> Self {
+        Self {
+            damage,
+            seconds_to_next_heal: Self::SECONDS_PER_TICK
+        }
+    }
+    pub fn with_time_reset(self) -> Self {
+        Self {
+            damage: self.damage,
+            seconds_to_next_heal: Self::SECONDS_PER_TICK
+        }
+    }
+}
+
+impl Default for BlockDamage {
+    fn default() -> Self {
+        Self { damage: Default::default(), seconds_to_next_heal: Self::SECONDS_PER_TICK }
+    }
+}
 
 
 #[derive(Resource)]

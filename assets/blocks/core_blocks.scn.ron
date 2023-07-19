@@ -10,7 +10,8 @@
         "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::block::NamedBlockMesh": (
             shape: MultiTexture(("grass_side.png", "grass_top.png", "grass_side.png", "grass_side.png", "dirt.png", "grass_side.png")),
-        )
+        ),
+        "recursia::items::tools::ToolResistance": Pickaxe(0),
       },
     ),
     2: (

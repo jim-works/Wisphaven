@@ -80,5 +80,19 @@
         ),
       },
     ),
+    6: (
+      components: {
+        "recursia::items::ItemName": (
+          namespace: "core",
+          name: "ruby_pickaxe",
+        ),
+        "recursia::items::NamedItemIcon": (
+            path: "ruby_pickaxe.png"
+        ),
+        "recursia::items::tools::Tool": (
+            pickaxe: 3
+        ),
+      },
+    ),
   },
 )

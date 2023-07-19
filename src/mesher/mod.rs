@@ -11,7 +11,7 @@ use bevy::{
     prelude::*,
 };
 
-use crate::world::LevelSystemSet;
+use crate::{world::LevelSystemSet, serialization::state::GameLoadState};
 
 use self::mesh_lod::LODMeshTimer;
 
@@ -39,7 +39,7 @@ impl Plugin for MesherPlugin {
                     .in_set(LevelSystemSet::LoadingAndMain))
             .add_systems(Startup, materials::init)
             //can't be a startup system since init starts loading the chunk image asynchronously
-            .add_systems(PreUpdate, materials::create_chunk_material);
+            .add_systems(PreUpdate, materials::create_chunk_material.run_if(in_state(GameLoadState::Done)));
     }
 }
 

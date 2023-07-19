@@ -11,6 +11,7 @@ impl Plugin for WorldEventsPlugin {
             .add_event::<ExplosionEvent>()
             .add_event::<BlockUsedEvent>()
             .add_event::<BlockDamageSetEvent>()
+            .add_event::<BlockHitEvent>()
             .add_systems(Update, process_explosions.in_set(LevelSystemSet::Main))
         ;
     }
@@ -35,9 +36,19 @@ pub struct BlockUsedEvent {
 }
 
 #[derive(Event)]
+//triggered when block gets punched
+pub struct BlockHitEvent {
+    pub item: Option<Entity>,
+    pub user: Option<Entity>,
+    pub block_position: BlockCoord,
+    pub block_hit: Option<Entity>,
+}
+
+#[derive(Event)]
 pub struct BlockDamageSetEvent {
     pub block_position: BlockCoord,
-    pub damage: BlockDamage
+    pub damage: BlockDamage,
+    pub damager: Option<Entity>
 }
 
 #[derive(Event)]

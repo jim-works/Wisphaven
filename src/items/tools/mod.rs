@@ -1,27 +1,70 @@
 use bevy::prelude::*;
 use serde::{Serialize, Deserialize};
 
+use crate::world::{events::{BlockHitEvent, BlockDamageSetEvent}, Level, BlockId, LevelSystemSet};
+
 pub struct ToolsPlugin;
 
 impl Plugin for ToolsPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Tool>()
-            .register_type::<ToolPower>()
+            .register_type::<ToolResistance>()
+            .add_systems(Update, deal_block_damage.in_set(LevelSystemSet::Main))
         ;
     }
 }
 
-#[derive(Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
-pub enum ToolPower {
-    #[default]
-    None,
+//denotes required power if attached to a block
+//is used in `Tool` to give power of said tool
+#[derive(Copy, Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Serialize, Deserialize)]
+#[reflect(Component)]
+pub enum ToolResistance {
+    Instant, //instantly broken
     Axe(u32),
     Pickaxe(u32),
     Shovel(u32),
 }
 
-#[derive(Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
+impl Default for ToolResistance {
+    fn default() -> Self {
+        ToolResistance::Pickaxe(0)
+    }
+}
+
+#[derive(Copy, Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
 #[reflect(Component)]
 pub struct Tool {
-    pub powers: Vec<ToolPower>,
+    pub axe: u32,
+    pub pickaxe: u32,
+    pub shovel: u32,
+}
+
+fn deal_block_damage (
+    mut reader: EventReader<BlockHitEvent>,
+    resistance_query: Query<&ToolResistance>,
+    tool_query: Query<&Tool>,
+    level: Res<Level>,
+    id_query: Query<&BlockId>,
+    mut writer: EventWriter<BlockDamageSetEvent>,
+    mut commands: Commands
+) {
+    for BlockHitEvent { item, user, block_position, block_hit } in reader.iter() {
+        if let Some(block_hit) = block_hit {
+            let resistance = resistance_query.get(*block_hit).copied().unwrap_or_default();
+            let tool = item.map(|i| tool_query.get(i).ok()).flatten().copied() //block was hit with a tool, so use that
+                                .unwrap_or(user.map(|entity| tool_query.get(entity).ok()).flatten().copied() //entity that hit the block had tool power
+                                .unwrap_or_default()); //...or nothing and use default tool
+            level.damage_block(*block_position, calc_block_damage(resistance, tool), *item, &id_query, &mut writer, &mut commands);
+        }
+    }
+}
+
+pub fn calc_block_damage(resistance: ToolResistance, tool: Tool) -> f32 {
+    const MAX_HITS_TO_BREAK: u32 = 5;
+    match resistance {
+        ToolResistance::Instant => 1.0,
+        ToolResistance::Axe(required) => if required <= tool.axe {1.0/(MAX_HITS_TO_BREAK.saturating_sub(tool.axe.saturating_sub(required)) as f32).max(1.0)} else {0.0},
+        ToolResistance::Pickaxe(required) => if required <= tool.pickaxe {1.0/(MAX_HITS_TO_BREAK.saturating_sub(tool.pickaxe.saturating_sub(required)) as f32).max(1.0)} else {0.0},
+        ToolResistance::Shovel(required) => if required <= tool.shovel {1.0/(MAX_HITS_TO_BREAK.saturating_sub(tool.shovel.saturating_sub(required)) as f32).max(1.0)} else {0.0},
+    }
 }

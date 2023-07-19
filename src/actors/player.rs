@@ -83,6 +83,7 @@ pub fn spawn_local_player(
         let mut inventory = Inventory::new(player_id, 40);
 
         inventory.pickup_item(ItemStack::new(resources.registry.get_basic(&ItemName::core("grass_block")).unwrap(),100), &item_query, &mut pickup_item, &mut equip_item);
+        inventory.pickup_item(ItemStack::new(resources.registry.get_basic(&ItemName::core("ruby_pickaxe")).unwrap(),1), &item_query, &mut pickup_item, &mut equip_item);
         inventory.pickup_item(ItemStack::new(resources.registry.get_basic(&ItemName::core("tnt_block")).unwrap(),100), &item_query, &mut pickup_item, &mut equip_item);
         inventory.pickup_item(ItemStack::new(resources.registry.get_basic(&ItemName::core("personality_tester")).unwrap(),100), &item_query, &mut pickup_item, &mut equip_item);
         inventory.pickup_item(ItemStack::new(resources.registry.get_basic(&ItemName::core("dagger")).unwrap(),100), &item_query, &mut pickup_item, &mut equip_item);

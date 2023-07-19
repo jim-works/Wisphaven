@@ -51,7 +51,7 @@ fn init(
 }
 
 fn damage_to_phase(damage: BlockDamage) -> usize {
-    (damage.0*DAMAGE_PHASES as f32) as usize
+    (damage.damage*DAMAGE_PHASES as f32) as usize
 }
 
 fn update_damaged_block_effect(
@@ -60,8 +60,8 @@ fn update_damaged_block_effect(
     mut commands: Commands,
     mut damage_query: Query<&mut Handle<StandardMaterial>, With<DamagedBlockEffect>>
 ) {
-    for BlockDamageSetEvent { block_position, damage } in reader.iter() {
-        if damage.0 <= 0.0 || damage.0 >= 1.0 {
+    for BlockDamageSetEvent { block_position, damage, damager: _ } in reader.iter() {
+        if damage.damage <= 0.0 || damage.damage >= 1.0 {
             //block is either healed or broken, remove any damages that may be present
             if let Some(entity) = resources.damages.remove(block_position) {
                 commands.entity(entity).despawn();

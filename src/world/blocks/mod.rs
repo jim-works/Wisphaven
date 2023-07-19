@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::util::LocalRepeatingTimer;
+use crate::{util::LocalRepeatingTimer, world::BlockDamage};
 
 use super::{LevelSystemSet, Level, events::BlockDamageSetEvent};
 
@@ -17,16 +17,16 @@ impl Plugin for BlocksPlugin {
     }
 }
 
+const HEAL_CHECK_INTERVAL_MS: u64 = 100;
+
 fn heal_block_damages(
-    mut timer: Local<LocalRepeatingTimer<100>>,
+    mut timer: Local<LocalRepeatingTimer<{HEAL_CHECK_INTERVAL_MS}>>,
     time: Res<Time>,
     level: Res<Level>,
     mut writer: EventWriter<BlockDamageSetEvent>
 ) {
-    //block heals over 20 seconds 1/(0.005/10)
-    const HEAL_AMOUNT: f32 = 0.005;
     timer.tick(time.delta());
     if timer.just_finished() {
-        level.heal_block_damages(HEAL_AMOUNT, &mut writer);
+        level.heal_block_damages(timer.duration().as_secs_f32(), &mut writer);
     }
 }

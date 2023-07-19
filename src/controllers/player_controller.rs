@@ -5,7 +5,7 @@ use leafwing_input_manager::prelude::ActionState;
 use crate::{
     actors::*,
     physics::JUMPABLE_GROUP,
-    world::{Level, BlockId, UsableBlock, events::{BlockUsedEvent, BlockDamageSetEvent}}, items::{inventory::Inventory, UseItemEvent, EquipItemEvent, UnequipItemEvent, AttackItemEvent}, ui::{state::UIState, world_mouse_active},
+    world::{Level, UsableBlock, events::{BlockUsedEvent, BlockHitEvent}}, items::{inventory::Inventory, UseItemEvent, EquipItemEvent, UnequipItemEvent, AttackItemEvent}, ui::{state::UIState, world_mouse_active},
 };
 
 use super::{Action, FrameMovement};
@@ -146,7 +146,6 @@ pub fn follow_local_player(
 }
 
 pub fn player_punch(
-    mut commands: Commands,
     camera_query: Query<
         (&GlobalTransform, &ActionState<Action>),
         (
@@ -155,22 +154,21 @@ pub fn player_punch(
             Without<LocalPlayer>,
         ),
     >,
-    player_query: Query<(Entity, &Player, &CombatInfo), With<LocalPlayer>>,
+    player_query: Query<(Entity, &Player, &CombatInfo, &Inventory), With<LocalPlayer>>,
     combat_query: Query<&CombatInfo>,
     mut attack_punch_writer: EventWriter<AttackEvent>,
     mut attack_item_writer: EventWriter<AttackItemEvent>,
-    mut block_damage_writer: EventWriter<BlockDamageSetEvent>,
+    mut block_hit_writer: EventWriter<BlockHitEvent>,
     level: Res<Level>,
     collision: Res<RapierContext>,
-    ui_state: Res<State<UIState>>,
-    id_query: Query<&BlockId>
+    ui_state: Res<State<UIState>>
 ) {
     if !world_mouse_active(&ui_state.get()) {
         return;
     }
     if let Ok((tf, act)) = camera_query.get_single() {
         if act.just_pressed(Action::Punch) {
-            let (player_entity, player, info) = player_query.get_single().unwrap();
+            let (player_entity, player, info, inv) = player_query.get_single().unwrap();
             //first test if we punched a combatant
             let groups = QueryFilter {
                     groups: Some(CollisionGroups::new(
@@ -191,7 +189,7 @@ pub fn player_punch(
             }
             //if not, break a block
             if let Some(hit) = level.blockcast(tf.translation(), tf.forward() * 10.0) {
-                level.damage_block(hit.block_pos, 0.5, &id_query, &mut block_damage_writer, &mut commands);
+                block_hit_writer.send(BlockHitEvent { item: inv.selected_item_entity(), user: Some(player_entity), block_position: hit.block_pos, block_hit: level.get_block_entity(hit.block_pos) })
             }
         }
     }
