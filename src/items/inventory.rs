@@ -1,5 +1,7 @@
 use bevy::{prelude::*, time::Stopwatch};
 
+use crate::util::ExtraOptions;
+
 use super::*;
 
 #[derive(Default, Clone)]
@@ -195,14 +197,17 @@ pub fn tick_item_timers (
 ) {
     for mut inventory in query.iter_mut() {
         let owner = inventory.owner;
+        //speeds to use if the equipped item doesn't have a speed
+        let base_use_speed = use_speed_query.get(inventory.owner).ok();
+        let base_swing_speed = swing_speed_query.get(inventory.owner).ok();
         for opt in inventory.iter_mut() {
             if let Some((stack, action)) = opt {
                 match action {
                     ItemAction::None => (),
                     ItemAction::UsingWindup(elapsed, use_pos) => {
                         elapsed.tick(time.delta());
-                        match use_speed_query.get(stack.id) {
-                            Ok(use_speed) =>  {
+                        match use_speed_query.get(stack.id).ok().fallback(base_use_speed) {
+                            Some(use_speed) =>  {
                                 if elapsed.elapsed() >= use_speed.windup {
                                     use_writer.send(UseItemEvent(owner, *stack, *use_pos));
                                     *action = ItemAction::UsingBackswing(default());
@@ -216,8 +221,8 @@ pub fn tick_item_timers (
                     },
                     ItemAction::UsingBackswing(elapsed) => {
                         elapsed.tick(time.delta());
-                        match use_speed_query.get(stack.id) {
-                            Ok(use_speed) => {
+                        match use_speed_query.get(stack.id).ok().fallback(base_use_speed) {
+                            Some(use_speed) => {
                                 if elapsed.elapsed() >= use_speed.backswing {
                                     *action = ItemAction::None;
                                 }
@@ -227,8 +232,8 @@ pub fn tick_item_timers (
                     },
                     ItemAction::SwingingWindup(elapsed, use_pos) => {
                         elapsed.tick(time.delta());
-                        match swing_speed_query.get(stack.id) {
-                            Ok(swing_speed) =>  {
+                        match swing_speed_query.get(stack.id).ok().fallback(base_swing_speed) {
+                            Some(swing_speed) =>  {
                                 if elapsed.elapsed() >= swing_speed.windup {
                                     swing_writer.send(SwingItemEvent(owner, *stack, *use_pos));
                                     *action = ItemAction::SwingingBackswing(default());
@@ -242,9 +247,9 @@ pub fn tick_item_timers (
                     },
                     ItemAction::SwingingBackswing(elapsed) => {
                         elapsed.tick(time.delta());
-                        match swing_speed_query.get(stack.id) {
-                            Ok(swing_speed) =>  {
-                                if elapsed.elapsed() >= swing_speed.windup {
+                        match swing_speed_query.get(stack.id).ok().fallback(base_swing_speed) {
+                            Some(swing_speed) =>  {
+                                if elapsed.elapsed() >= swing_speed.backswing {
                                 *action = ItemAction::None;
                                 }
                             },

@@ -140,3 +140,17 @@ impl<const INTERVAL_MS: u64> Default for LocalRepeatingTimer<INTERVAL_MS> {
         Self(Timer::new(Duration::from_millis(INTERVAL_MS), bevy::time::TimerMode::Repeating))
     }
 }
+
+pub trait ExtraOptions<T> {
+    fn fallback(self, fallback: Option<T>) -> Option<T>;
+}
+
+impl<T> ExtraOptions<T> for Option<T> {
+    //is self is none, returns fallback, otherwise, return self
+    fn fallback(self, fallback: Option<T>) -> Option<T> {
+        match self {
+            x @ Some(_) => x,
+            None => fallback,
+        }
+    }
+}

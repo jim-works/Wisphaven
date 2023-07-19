@@ -1,4 +1,4 @@
-use std::f32::consts::PI;
+use std::{f32::consts::PI, time::Duration};
 
 use bevy::{prelude::*, render::{primitives::Frustum, camera::CameraProjection}};
 use bevy_rapier3d::prelude::*;
@@ -78,6 +78,14 @@ pub fn spawn_local_player(
         InputManagerBundle {
             input_map: controllers::get_input_map(),
             ..default()
+        },
+        ItemUseSpeed {
+            windup: Duration::ZERO,
+            backswing: Duration::from_millis(100),
+        },
+        ItemSwingSpeed {
+            windup: Duration::ZERO,
+            backswing: Duration::from_millis(100),
         },
         )).id();
         let mut inventory = Inventory::new(player_id, 40);

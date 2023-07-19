@@ -17,11 +17,6 @@ use crate::{
 
 use super::SPAWN_CHUNK_TIME_BUDGET_COUNT;
 
-#[derive(Resource)]
-pub struct GeneratePhysicsTimer {
-    pub timer: Timer,
-}
-
 #[derive(Component)]
 pub struct NeedsPhysics;
 
@@ -42,15 +37,9 @@ pub struct PhysicsGenerationData {
 pub fn queue_gen_physics(
     query: Query<(Entity, &ChunkCoord), (With<GeneratedChunk>, With<NeedsPhysics>)>,
     level: Res<Level>,
-    time: Res<Time>,
     block_query: Query<&BlockPhysics>,
-    mut timer: ResMut<GeneratePhysicsTimer>,
     commands: ParallelCommands,
 ) {
-    timer.timer.tick(time.delta());
-    if !timer.timer.just_finished() {
-        return;
-    }
     let pool = AsyncComputeTaskPool::get();
     query.par_iter().for_each(|(entity, coord)| {
         if let Some(ctype) = level.get_chunk(*coord) {

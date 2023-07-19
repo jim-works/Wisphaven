@@ -20,9 +20,6 @@ impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
             //.add_plugins(RapierDebugRenderPlugin::default())
-            .insert_resource(GeneratePhysicsTimer {
-                timer: Timer::from_seconds(0.25, TimerMode::Repeating),
-            })
             .add_systems(
                 Update,
                 (

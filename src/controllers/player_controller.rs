@@ -165,7 +165,7 @@ pub fn player_punch(
         return;
     }
     if let Ok((tf, act)) = camera_query.get_single() {
-        if act.just_pressed(Action::Punch) {
+        if act.pressed(Action::Punch) {
             let (player_entity, player, mut inv) = player_query.get_single_mut().unwrap();
             //first test if we punched a combatant
             let groups = QueryFilter {
