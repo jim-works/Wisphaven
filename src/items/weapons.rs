@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::actors::{CombatInfo, AttackEvent};
+use crate::actors::AttackEvent;
 
-use super::{EquipItemEvent, UnequipItemEvent, AttackItemEvent};
+use super::SwingItemEvent;
 
 #[derive(Component, Reflect, Default)]
 #[reflect(Component)]
@@ -12,27 +12,8 @@ pub struct MeleeWeaponItem {
     pub knockback: f32,
 }
 
-pub fn equip_unequip_weapon (
-    mut equip_reader: EventReader<EquipItemEvent>,
-    mut unequip_reader: EventReader<UnequipItemEvent>,
-    mut combat_query: Query<&mut CombatInfo>
-) {
-    for event in unequip_reader.iter() {
-        if let Ok(mut info) = combat_query.get_mut(event.0) {
-            if info.equipped_weapon == Some(event.1.clone()) {
-                info.equipped_weapon = None;
-            }
-        }
-    }
-    for event in equip_reader.iter() {
-        if let Ok(mut info) = combat_query.get_mut(event.0) {
-            info.equipped_weapon = Some(event.1.clone());
-        }
-    }
-}
-
 pub fn attack_melee (
-    mut attack_item_reader: EventReader<AttackItemEvent>,
+    mut attack_item_reader: EventReader<SwingItemEvent>,
     mut attack_writer: EventWriter<AttackEvent>,
     collision: Res<RapierContext>,
     weapon_query: Query<&MeleeWeaponItem>

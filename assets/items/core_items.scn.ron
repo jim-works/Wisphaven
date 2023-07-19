@@ -92,6 +92,16 @@
         "recursia::items::tools::Tool": (
             pickaxe: 3
         ),
+        "recursia::items::ItemSwingSpeed": (
+            windup: (
+                secs: 1,
+                nanos: 0,
+            ),
+            backswing: (
+                secs: 5,
+                nanos: 0,
+            )
+        )
       },
     ),
   },

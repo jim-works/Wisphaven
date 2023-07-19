@@ -3,8 +3,6 @@ use bevy::prelude::*;
 mod damage;
 pub use damage::*;
 
-use crate::items::ItemStack;
-
 pub struct CombatPlugin;
 
 impl Plugin for CombatPlugin {
@@ -38,7 +36,6 @@ pub struct CombatInfo {
     pub curr_defense: f32,
     pub base_defense: f32,
     pub knockback_multiplier: f32,
-    pub equipped_weapon: Option<ItemStack>
 }
 
 impl CombatInfo {
@@ -49,7 +46,6 @@ impl CombatInfo {
             curr_defense: defense,
             base_defense: defense,
             knockback_multiplier: 0.0,
-            equipped_weapon: None,
         }
     }
 }

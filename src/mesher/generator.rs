@@ -73,26 +73,15 @@ impl MeshData {
 #[derive(Component)]
 pub struct ChunkMeshChild;
 
-#[derive(Resource)]
-pub struct MeshTimer {
-    pub timer: Timer,
-}
-
 const SQRT_2_4: f32 = 0.353553390593; //sqrt(2)/4
 
 pub fn queue_meshing(
     query: Query<(Entity, &ChunkCoord), (With<GeneratedChunk>, With<NeedsMesh>)>,
     level: Res<Level>,
-    time: Res<Time>,
     mesh_query: Query<&BlockMesh>,
-    mut timer: ResMut<MeshTimer>,
     commands: ParallelCommands,
 ) {
     let _my_span = info_span!("queue_meshing", name = "queue_meshing").entered();
-    timer.timer.tick(time.delta());
-    if !timer.timer.just_finished() {
-        return;
-    }
     let pool = AsyncComputeTaskPool::get();
     query.par_iter().for_each(|(entity, coord)| {
         if let Some(ctype) = level.get_chunk(*coord) {

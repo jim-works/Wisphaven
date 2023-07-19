@@ -41,7 +41,6 @@ pub struct BlockHitEvent {
     pub item: Option<Entity>,
     pub user: Option<Entity>,
     pub block_position: BlockCoord,
-    pub block_hit: Option<Entity>,
 }
 
 #[derive(Event)]

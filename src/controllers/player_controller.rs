@@ -5,7 +5,7 @@ use leafwing_input_manager::prelude::ActionState;
 use crate::{
     actors::*,
     physics::JUMPABLE_GROUP,
-    world::{Level, UsableBlock, events::{BlockUsedEvent, BlockHitEvent}}, items::{inventory::Inventory, UseItemEvent, EquipItemEvent, UnequipItemEvent, AttackItemEvent}, ui::{state::UIState, world_mouse_active},
+    world::{Level, UsableBlock, events::{BlockUsedEvent, BlockHitEvent}, BlockCoord}, items::{inventory::Inventory, EquipItemEvent, UnequipItemEvent}, ui::{state::UIState, world_mouse_active},
 };
 
 use super::{Action, FrameMovement};
@@ -154,12 +154,10 @@ pub fn player_punch(
             Without<LocalPlayer>,
         ),
     >,
-    player_query: Query<(Entity, &Player, &CombatInfo, &Inventory), With<LocalPlayer>>,
+    mut player_query: Query<(Entity, &Player, &mut Inventory), With<LocalPlayer>>,
     combat_query: Query<&CombatInfo>,
     mut attack_punch_writer: EventWriter<AttackEvent>,
-    mut attack_item_writer: EventWriter<AttackItemEvent>,
     mut block_hit_writer: EventWriter<BlockHitEvent>,
-    level: Res<Level>,
     collision: Res<RapierContext>,
     ui_state: Res<State<UIState>>
 ) {
@@ -168,7 +166,7 @@ pub fn player_punch(
     }
     if let Ok((tf, act)) = camera_query.get_single() {
         if act.just_pressed(Action::Punch) {
-            let (player_entity, player, info, inv) = player_query.get_single().unwrap();
+            let (player_entity, player, mut inv) = player_query.get_single_mut().unwrap();
             //first test if we punched a combatant
             let groups = QueryFilter {
                     groups: Some(CollisionGroups::new(
@@ -177,20 +175,21 @@ pub fn player_punch(
                 )),
                 ..default()
             }.exclude_collider(player_entity);
-            if let Some((hit,_)) = collision.cast_ray(tf.translation(), tf.forward(), 10.0, true, groups) {
-                if combat_query.contains(hit) {
-                    //we hit a combatant, so attack it and return
-                    match &info.equipped_weapon {
-                        Some(weapon) => attack_item_writer.send(AttackItemEvent(player_entity, weapon.clone(), *tf)),
-                        None => attack_punch_writer.send(AttackEvent { attacker: player_entity, target: hit, damage: player.hit_damage, knockback: tf.forward() })
-                    };
-                    return;
-                }
+            let slot = inv.selected_slot();
+            match inv.get(slot) {
+                Some(_) => inv.swing_item(slot, *tf),
+                None => if let Some((hit,t)) = collision.cast_ray(tf.translation(), tf.forward(), 10.0, true, groups) {
+                    //add 0.05 to move a bit into the block
+                    let hit_pos = tf.translation()+tf.forward()*(t+0.05);
+                    //TODO: convert to ability
+                    if combat_query.contains(hit) {
+                        attack_punch_writer.send(AttackEvent { attacker: player_entity, target: hit, damage: player.hit_damage, knockback: tf.forward() })
+                    } else {
+                        block_hit_writer.send(BlockHitEvent { item: None, user: Some(player_entity), block_position: BlockCoord::from(hit_pos) });
+                    }
+                },
             }
-            //if not, break a block
-            if let Some(hit) = level.blockcast(tf.translation(), tf.forward() * 10.0) {
-                block_hit_writer.send(BlockHitEvent { item: inv.selected_item_entity(), user: Some(player_entity), block_position: hit.block_pos, block_hit: level.get_block_entity(hit.block_pos) })
-            }
+            
         }
     }
 }
@@ -204,8 +203,7 @@ pub fn player_use(
             Without<LocalPlayer>,
         ),
     >,
-    player_query: Query<(&Inventory, Entity), With<LocalPlayer>>,
-    mut item_use_writer: EventWriter<UseItemEvent>,
+    mut player_query: Query<(&mut Inventory, Entity), With<LocalPlayer>>,
     ui_state: Res<State<UIState>>,
     level: Res<Level>,
     usable_block_query: Query<&UsableBlock>,
@@ -214,7 +212,7 @@ pub fn player_use(
     if !world_mouse_active(&ui_state.get()) {
         return;
     }
-        if let Ok((inv, entity)) = player_query.get_single() {
+        if let Ok((mut inv, entity)) = player_query.get_single_mut() {
         if let Ok((tf, act)) = camera_query.get_single() {
             if act.just_pressed(Action::Use) {
                 //first test if we used a block
@@ -225,7 +223,8 @@ pub fn player_use(
                     }
                 }
                 //we didn't use a block, so try to use an item
-                inv.use_item(inv.selected_slot(), *tf,&mut item_use_writer);
+                let slot = inv.selected_slot();
+                inv.use_item(slot, *tf);
             }
         }
     }

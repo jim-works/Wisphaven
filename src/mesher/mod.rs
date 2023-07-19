@@ -23,9 +23,6 @@ impl Plugin for MesherPlugin {
     fn build(&self, app: &mut App) {
 
         app.add_plugins(MaterialPlugin::<ArrayTextureMaterial>::default())
-            .insert_resource(MeshTimer {
-                timer: Timer::from_seconds(0.05, TimerMode::Repeating),
-            })
             .insert_resource(LODMeshTimer {
                 timer: Timer::from_seconds(0.05, TimerMode::Repeating),
             })

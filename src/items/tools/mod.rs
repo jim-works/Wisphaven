@@ -1,7 +1,10 @@
 use bevy::prelude::*;
+use bevy_rapier3d::prelude::{RapierContext, QueryFilter};
 use serde::{Serialize, Deserialize};
 
-use crate::world::{events::{BlockHitEvent, BlockDamageSetEvent}, Level, BlockId, LevelSystemSet};
+use crate::world::{events::{BlockHitEvent, BlockDamageSetEvent}, Level, BlockId, LevelSystemSet, BlockCoord};
+
+use super::SwingItemEvent;
 
 pub struct ToolsPlugin;
 
@@ -9,7 +12,7 @@ impl Plugin for ToolsPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Tool>()
             .register_type::<ToolResistance>()
-            .add_systems(Update, deal_block_damage.in_set(LevelSystemSet::Main))
+            .add_systems(Update, (on_swing, deal_block_damage).in_set(LevelSystemSet::Main))
         ;
     }
 }
@@ -39,6 +42,19 @@ pub struct Tool {
     pub shovel: u32,
 }
 
+pub fn on_swing (
+    mut reader: EventReader<SwingItemEvent>,
+    mut writer: EventWriter<BlockHitEvent>,
+    collision: Res<RapierContext>,
+) {
+    for SwingItemEvent(user, item, tf) in reader.iter() {
+        if let Some((_, t)) = collision.cast_ray(tf.translation(), tf.forward(), 10.0, true, QueryFilter::new().exclude_collider(*user)) {
+            let hit_pos = BlockCoord::from(tf.translation()+tf.forward()*(t+0.05)); //move into the block just a bit
+            writer.send(BlockHitEvent { item: Some(item.id), user: Some(*user), block_position: hit_pos })
+        }
+    }
+}
+
 fn deal_block_damage (
     mut reader: EventReader<BlockHitEvent>,
     resistance_query: Query<&ToolResistance>,
@@ -48,9 +64,9 @@ fn deal_block_damage (
     mut writer: EventWriter<BlockDamageSetEvent>,
     mut commands: Commands
 ) {
-    for BlockHitEvent { item, user, block_position, block_hit } in reader.iter() {
-        if let Some(block_hit) = block_hit {
-            let resistance = resistance_query.get(*block_hit).copied().unwrap_or_default();
+    for BlockHitEvent { item, user, block_position } in reader.iter() {
+        if let Some(block_hit) = level.get_block_entity(*block_position) {
+            let resistance = resistance_query.get(block_hit).copied().unwrap_or_default();
             let tool = item.map(|i| tool_query.get(i).ok()).flatten().copied() //block was hit with a tool, so use that
                                 .unwrap_or(user.map(|entity| tool_query.get(entity).ok()).flatten().copied() //entity that hit the block had tool power
                                 .unwrap_or_default()); //...or nothing and use default tool

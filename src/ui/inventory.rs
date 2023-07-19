@@ -285,7 +285,7 @@ fn update_counts(
 ) {
     if let Ok(inv) = inventory_query.get_single() {
         for (mut vis, mut text, ui_slot) in label_query.iter_mut() {
-            match &inv[ui_slot.0] {
+            match inv.get(ui_slot.0) {
                 Some(stack) => {
                     *vis.as_mut() = Visibility::Inherited;
                     text.sections[0].value = stack.size.to_string();
@@ -305,7 +305,7 @@ fn update_icons(
 ) {
     if let Ok(inv) = inventory_query.get_single() {
         for (mut vis, mut image, ui_slot) in label_query.iter_mut() {
-            match &inv[ui_slot.0] {
+            match inv.get(ui_slot.0) {
                 Some(stack) => match icon_query.get(stack.id) {
                     Ok(icon) => {
                         *vis.as_mut() = Visibility::Inherited;

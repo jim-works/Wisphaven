@@ -1,4 +1,4 @@
-use std::{sync::Arc, path::PathBuf};
+use std::{sync::Arc, path::PathBuf, time::Duration};
 
 use bevy::{prelude::*, utils::HashMap};
 use serde::{Serialize, Deserialize};
@@ -20,11 +20,11 @@ impl Plugin for ItemsPlugin {
             .add_event::<UnequipItemEvent>()
             .add_event::<PickupItemEvent>()
             .add_event::<DropItemEvent>()
-            .add_event::<AttackItemEvent>()
+            .add_event::<SwingItemEvent>()
             .add_plugins(debug_items::DebugItems)
             .add_plugins(tools::ToolsPlugin)
             .add_systems(Update, (block_item::use_block_item, block_item::use_mega_block_item).in_set(LevelSystemSet::Main))
-            .add_systems(Update, (weapons::equip_unequip_weapon, weapons::attack_melee).in_set(LevelSystemSet::Main))
+            .add_systems(Update, (weapons::attack_melee, inventory::tick_item_timers).in_set(LevelSystemSet::Main))
 
             .register_type::<NamedItemIcon>()
             .register_type::<ItemName>()
@@ -37,7 +37,7 @@ impl Plugin for ItemsPlugin {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ItemStack {
     pub id: Entity,
     pub size: u32,
@@ -58,15 +58,15 @@ pub struct ItemName {
 #[derive(Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
 #[reflect(Component)]
 pub struct ItemSwingSpeed {
-    pub windup: f32,
-    pub backswing: f32,
+    pub windup: Duration,
+    pub backswing: Duration,
 }
 
 #[derive(Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
 #[reflect(Component)]
 pub struct ItemUseSpeed {
-    pub windup: f32,
-    pub backswing: f32,
+    pub windup: Duration,
+    pub backswing: Duration,
 }
 
 #[derive(Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
@@ -130,7 +130,7 @@ pub struct ItemIcon(pub Handle<Image>);
 #[derive(Event)]
 pub struct UseItemEvent(pub Entity, pub ItemStack, pub GlobalTransform);
 #[derive(Event)]
-pub struct AttackItemEvent(pub Entity, pub ItemStack, pub GlobalTransform);
+pub struct SwingItemEvent(pub Entity, pub ItemStack, pub GlobalTransform);
 #[derive(Event)]
 pub struct EquipItemEvent(pub Entity, pub ItemStack);
 #[derive(Event)]
