@@ -36,6 +36,7 @@ bevy-inspector-egui = "0.19.0"
 
 #TODO: check if parallel makes things faster once I have many physics objects
 bevy_rapier3d = { version = "0.22.0", features = [ "simd-stable", "debug-render-3d", "parallel" ] }
+#changes merged, can go back to the crates.io version when it gets updated next
 big-brain = {git = "https://github.com/jim-works/big-brain_set_unchecked.git" }
 #big-brain = "0.18.0"
 bincode = "1.3.3"

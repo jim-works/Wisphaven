@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{util::LocalRepeatingTimer, world::BlockDamage};
+use crate::util::LocalRepeatingTimer;
 
 use super::{LevelSystemSet, Level, events::BlockDamageSetEvent};
 

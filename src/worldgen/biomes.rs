@@ -15,7 +15,7 @@ use super::{
     get_next_seed,
     structures::{
         trees::{get_cactus, get_short_tree},
-        LargeStructureGenerator, StructureGenerator,
+        LargeStructureGenerator, StructureGenerator, fauna::FauanaGenerator,
     },
 };
 
@@ -120,8 +120,12 @@ impl UsedBiomeMap {
                         0.5,
                         registry,
                     ),
-                }],
-                rolls_per_chunk: 5,
+                    rolls_per_chunk: 5,
+                },
+                BiomeStructure {
+                    gen: Box::new(FauanaGenerator {to_spawn: registry.get_id(&BlockName::core("lily")), spawn_on: registry.get_id(&BlockName::core("grass"))}),
+                    rolls_per_chunk: 100,
+                }]
             }),
         };
         let desert = Biome {
@@ -138,8 +142,8 @@ impl UsedBiomeMap {
                         4,
                         registry,
                     ),
-                }],
-                rolls_per_chunk: 5,
+                    rolls_per_chunk: 5,
+                }]
             }),
         };
         let rocks = Biome {
@@ -195,11 +199,11 @@ impl UsedBiomeMap {
 
 pub struct BiomeStructure {
     gen: Box<dyn StructureGenerator + Sync + Send>,
+    pub rolls_per_chunk: i32,
 }
 
 pub struct BiomeStructureGenerator {
-    pub structures: Vec<BiomeStructure>,
-    pub rolls_per_chunk: i32,
+    pub structures: Vec<BiomeStructure>
 }
 
 impl StructureGenerator for BiomeStructureGenerator {
@@ -215,13 +219,12 @@ impl StructureGenerator for BiomeStructureGenerator {
         chunk: &GeneratingChunk,
     ) -> bool {
         let mut rng = get_next_prng(world_pos.to_seed());
-        for _ in 0..self.rolls_per_chunk {
-            //rescale from [-1,1] to [0,CHUNK_SIZE]
-            let x = get_next_prng(rng);
-            let y = get_next_prng(x);
-            let z = get_next_prng(y);
-            rng = get_next_prng(z);
-            for structure in &self.structures {
+        for structure in &self.structures {
+            for _ in 0..structure.rolls_per_chunk {
+                let x = get_next_prng(rng);
+                let y = get_next_prng(x);
+                let z = get_next_prng(y);
+                rng = get_next_prng(z);
                 let pos = ChunkIdx::new(
                     (x % CHUNK_SIZE_U64) as u8,
                     (y % CHUNK_SIZE_U64) as u8,

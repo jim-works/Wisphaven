@@ -105,6 +105,7 @@ pub enum NamedBlockMeshShape {
     MultiTexture([PathBuf; 6]),
     //Slab with height from bottom (1.0) is the same as uniform, (0.0) is empty
     BottomSlab(f32, [PathBuf; 6]),
+    Cross([PathBuf; 2]),
 }
 
 impl NamedBlockMeshShape {
@@ -114,6 +115,7 @@ impl NamedBlockMeshShape {
             NamedBlockMeshShape::Uniform(name) => BlockMeshShape::Uniform(*map.0.get(&name).unwrap()),
             NamedBlockMeshShape::MultiTexture(names) => BlockMeshShape::MultiTexture(names.map(|name| *map.0.get(&name).unwrap())),
             NamedBlockMeshShape::BottomSlab(height, names) => BlockMeshShape::BottomSlab(height, names.map(|name| *map.0.get(&name).unwrap())),
+            NamedBlockMeshShape::Cross(names) => BlockMeshShape::Cross(names.map(|name| *map.0.get(&name).unwrap()))
         }
     }
 }
@@ -136,6 +138,9 @@ pub enum BlockMeshShape {
     MultiTexture([u32; 6]),
     //Slab with height from bottom (1.0) is the same as uniform, (0.0) is empty
     BottomSlab(f32, [u32; 6]),
+    //x-shaped criss-cross (like minecraft flower). each face is a unit square at a 45 degree angle centered in the block
+    //technically 4 faces, two for each direction (forward and backwards face) so we don't have to have a special two-sided material
+    Cross([u32; 2])
 }
 
 impl BlockMeshShape {
@@ -147,6 +152,7 @@ impl BlockMeshShape {
             BlockMeshShape::Uniform(_) => false,
             BlockMeshShape::MultiTexture(_) => false,
             BlockMeshShape::BottomSlab(_, _) => true,
+            BlockMeshShape::Cross(_) => true,
         }
     }
 }

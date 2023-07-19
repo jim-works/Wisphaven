@@ -5,6 +5,7 @@ use crate::world::{chunk::*, BlockBuffer, BlockCoord, BlockId};
 use super::{pipeline::ColumnBiomes, biomes::UsedBiomeMap};
 
 pub mod trees;
+pub mod fauna;
 
 pub trait StructureGenerator {
     fn rarity(&self) -> f32;

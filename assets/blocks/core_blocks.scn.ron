@@ -187,5 +187,18 @@
         )
       },
     ),
+    16: (
+      components: {
+        "recursia::world::block::BlockName": (
+          namespace: "core",
+          name: "lily",
+        ),
+        "recursia::world::block::NamedBlockMesh": (
+            shape: Cross(("lily.png","lily.png")),
+            use_transparent_shader: true
+        ),
+        "recursia::items::tools::ToolResistance": Instant,
+      },
+    ),
   },
 )

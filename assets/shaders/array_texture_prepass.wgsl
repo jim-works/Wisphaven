@@ -1,5 +1,6 @@
 //copied from https://github.com/bevyengine/bevy/blob/main/crates/bevy_pbr/src/render/pbr_prepass.wgsl
 //modified to disable alpha cutoff - I couldn't figure out how to pass the texture layer to the fragment input here.
+//  -   TODO: i think i need to enable it again for correct shadows on transparent materials
 #import bevy_pbr::prepass_bindings
 #import bevy_pbr::pbr_bindings
 #import bevy_pbr::pbr_types

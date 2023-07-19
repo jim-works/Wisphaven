@@ -1,3 +1,4 @@
+use bevy::pbr::NotShadowCaster;
 use futures_lite::future;
 use std::ops::Index;
 use std::time::Instant;
@@ -76,6 +77,8 @@ pub struct ChunkMeshChild;
 pub struct MeshTimer {
     pub timer: Timer,
 }
+
+const SQRT_2_4: f32 = 0.353553390593; //sqrt(2)/4
 
 pub fn queue_meshing(
     query: Query<(Entity, &ChunkCoord), (With<GeneratedChunk>, With<NeedsMesh>)>,
@@ -167,11 +170,12 @@ pub fn poll_mesh_queue(
             }
             //add new meshes
             if !data.opaque.is_empty() {
-                spawn_mesh(
+                spawn_mesh::<NotShadowCaster>(
                     data.opaque,
                     chunk_material.opaque_material.clone().unwrap(),
                     &mut commands,
                     &mut meshes,
+                    None,
                     entity,
                 );
             }
@@ -181,6 +185,7 @@ pub fn poll_mesh_queue(
                     chunk_material.transparent_material.clone().unwrap(),
                     &mut commands,
                     &mut meshes,
+                    Some(NotShadowCaster), //todo: fix this for transparent materials (think I need to modify prepass shader and get the vertex info in there somehow)
                     entity,
                 );
             }
@@ -197,11 +202,12 @@ pub fn poll_mesh_queue(
     }
 }
 
-pub fn spawn_mesh(
+pub fn spawn_mesh<T: Bundle>(
     data: MeshData,
     material: Handle<ArrayTextureMaterial>,
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
+    components: Option<T>,
     entity: Entity,
 ) {
     //spawn new mesh
@@ -214,7 +220,7 @@ pub fn spawn_mesh(
 
     mesh.set_indices(Some(mesh::Indices::U32(data.tris)));
     commands.entity(entity).with_children(|children| {
-        children.spawn((
+        let mut ec = children.spawn((
             MaterialMeshBundle::<ArrayTextureMaterial> {
                 mesh: meshes.add(mesh),
                 material,
@@ -223,6 +229,9 @@ pub fn spawn_mesh(
             },
             ChunkMeshChild,
         ));
+        if let Some(bundle) = components {
+            ec.insert(bundle);
+        }
     });
 }
 
@@ -260,7 +269,7 @@ pub fn should_mesh_face(
             block_face == Direction::PosY
                 || block != neighbor && neighbor.shape.is_transparent(block_face.opposite())
         },
-        
+        BlockMeshShape::Cross(_) => !matches!(block_face, Direction::PosY | Direction::NegY),
         BlockMeshShape::Empty => false,
 
     }
@@ -590,7 +599,28 @@ pub fn mesh_neg_z(
             data.uvs.push(Vec2::new(0.0, *height));
 
             tex[Direction::NegZ.to_idx()] as i32
-        }
+        },
+        BlockMeshShape::Cross([_, tex]) => {
+            //ao not supported for this shape
+            data.ao_level.push(1.0);
+            data.ao_level.push(1.0);
+            data.ao_level.push(1.0);
+            data.ao_level.push(1.0);
+
+            //faces are angled at 45 degrees, so for the face to have unit side length
+            //coordinates are (-sqrt(2)/4,-sqrt(2)/4) to (sqrt(2)/4,sqrt(2)/4)
+            data.verts.push(origin + Vec3::new(0.5-SQRT_2_4,0.0,0.5-SQRT_2_4)*scale);
+            data.verts.push(origin + Vec3::new(0.5-SQRT_2_4,1.0,0.5-SQRT_2_4)*scale);
+            data.verts.push(origin + Vec3::new(0.5+SQRT_2_4,1.0,0.5+SQRT_2_4)*scale);
+            data.verts.push(origin + Vec3::new(0.5+SQRT_2_4,0.0,0.5+SQRT_2_4)*scale);
+
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+
+            *tex as i32
+        },
         BlockMeshShape::Empty => {-1}
     };
     debug_assert_ne!(texture, -1);
@@ -672,6 +702,27 @@ pub fn mesh_pos_z(
 
             tex[Direction::PosZ.to_idx()] as i32
         },
+        BlockMeshShape::Cross([_, tex]) => {
+            //ao not supported for this shape
+            data.ao_level.push(1.0);
+            data.ao_level.push(1.0);
+            data.ao_level.push(1.0);
+            data.ao_level.push(1.0);
+
+            //faces are angled at 45 degrees, so for the face to have unit side length
+            //coordinates are (-sqrt(2)/4,-sqrt(2)/4) to (sqrt(2)/4,sqrt(2)/4)
+            data.verts.push(origin + Vec3::new(0.5+SQRT_2_4,0.0,0.5+SQRT_2_4)*scale);
+            data.verts.push(origin + Vec3::new(0.5+SQRT_2_4,1.0,0.5+SQRT_2_4)*scale);
+            data.verts.push(origin + Vec3::new(0.5-SQRT_2_4,1.0,0.5-SQRT_2_4)*scale);
+            data.verts.push(origin + Vec3::new(0.5-SQRT_2_4,0.0,0.5-SQRT_2_4)*scale);
+
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+
+            *tex as i32
+        },
         BlockMeshShape::Empty => {-1}
     };
     debug_assert_ne!(texture, -1);
@@ -752,6 +803,27 @@ pub fn mesh_neg_x(
 
             tex[Direction::NegX.to_idx()] as i32
         }
+        BlockMeshShape::Cross([tex, _]) => {
+            //ao not supported for this shape
+            data.ao_level.push(1.0);
+            data.ao_level.push(1.0);
+            data.ao_level.push(1.0);
+            data.ao_level.push(1.0);
+
+            //faces are angled at 45 degrees, so for the face to have unit side length
+            //coordinates are (-sqrt(2)/4,-sqrt(2)/4) to (sqrt(2)/4,sqrt(2)/4)
+            data.verts.push(origin + Vec3::new(0.5-SQRT_2_4,0.0,0.5+SQRT_2_4)*scale);
+            data.verts.push(origin + Vec3::new(0.5-SQRT_2_4,1.0,0.5+SQRT_2_4)*scale);
+            data.verts.push(origin + Vec3::new(0.5+SQRT_2_4,1.0,0.5-SQRT_2_4)*scale);
+            data.verts.push(origin + Vec3::new(0.5+SQRT_2_4,0.0,0.5-SQRT_2_4)*scale);
+            
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+
+            *tex as i32
+        },
         BlockMeshShape::Empty => {-1}
     };
     debug_assert_ne!(texture, -1);
@@ -834,6 +906,27 @@ pub fn mesh_pos_x(
 
             tex[Direction::PosX.to_idx()] as i32
         }
+        BlockMeshShape::Cross([tex, _]) => {
+            //ao not supported for this shape
+            data.ao_level.push(1.0);
+            data.ao_level.push(1.0);
+            data.ao_level.push(1.0);
+            data.ao_level.push(1.0);
+
+            //faces are angled at 45 degrees, so for the face to have unit side length
+            //coordinates are (-sqrt(2)/4,-sqrt(2)/4) to (sqrt(2)/4,sqrt(2)/4)
+            data.verts.push(origin + Vec3::new(0.5+SQRT_2_4,0.0,0.5-SQRT_2_4)*scale);
+            data.verts.push(origin + Vec3::new(0.5+SQRT_2_4,1.0,0.5-SQRT_2_4)*scale);
+            data.verts.push(origin + Vec3::new(0.5-SQRT_2_4,1.0,0.5+SQRT_2_4)*scale);
+            data.verts.push(origin + Vec3::new(0.5-SQRT_2_4,0.0,0.5+SQRT_2_4)*scale);
+
+            data.uvs.push(Vec2::new(1.0, 1.0));
+            data.uvs.push(Vec2::new(1.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 0.0));
+            data.uvs.push(Vec2::new(0.0, 1.0));
+
+            *tex as i32
+        },
         BlockMeshShape::Empty => {-1}
     };
     debug_assert_ne!(texture, -1);
@@ -917,7 +1010,8 @@ pub fn mesh_pos_y(
             data.uvs.push(Vec2::new(0.0, 1.0));
 
             tex[Direction::PosY.to_idx()] as i32
-        }
+        },
+        BlockMeshShape::Cross(_) => {-1},
         BlockMeshShape::Empty => {-1}
     };
     debug_assert_ne!(texture, -1);
@@ -995,6 +1089,7 @@ pub fn mesh_neg_y(
 
             tex[Direction::NegY.to_idx()] as i32
         }
+        BlockMeshShape::Cross(_) => {-1},
         BlockMeshShape::Empty => {-1}
     };
     debug_assert_ne!(texture, -1);

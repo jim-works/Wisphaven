@@ -13,7 +13,7 @@
         "recursia::items::block_item::BlockItem": (
           BlockName(
             namespace: "core",
-            name: "water"
+            name: "lily"
           )
         ),
       },

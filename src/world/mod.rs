@@ -60,6 +60,7 @@ impl Plugin for LevelPlugin {
 
             //needed for NamedBlockMesh
             .register_type::<[std::path::PathBuf; 6]>()
+            .register_type::<[std::path::PathBuf; 2]>()
             .register_type::<BlockName>()
             .register_type::<UsableBlock>()
             .register_type::<NamedBlockMesh>()

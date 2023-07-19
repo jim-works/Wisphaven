@@ -178,7 +178,7 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
     output_color = output_color * in.color;
 #endif
     //my addition - ao
-    output_color = output_color * in.ao;
+    output_color = vec4<f32>(output_color.xyz * in.ao, output_color.w);
 #ifdef VERTEX_UVS
     if ((pbr_bindings::material.flags & pbr_types::STANDARD_MATERIAL_FLAGS_BASE_COLOR_TEXTURE_BIT) != 0u) {
         let layer = in.layer;
