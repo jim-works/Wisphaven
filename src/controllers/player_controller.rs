@@ -185,7 +185,7 @@ pub fn player_punch(
                     if combat_query.contains(hit) {
                         attack_punch_writer.send(AttackEvent { attacker: player_entity, target: hit, damage: player.hit_damage, knockback: tf.forward() })
                     } else {
-                        block_hit_writer.send(BlockHitEvent { item: None, user: Some(player_entity), block_position: BlockCoord::from(hit_pos) });
+                        block_hit_writer.send(BlockHitEvent { item: None, user: Some(player_entity), block_position: BlockCoord::from(hit_pos), hit_forward: tf.forward() });
                     }
                 },
             }
@@ -217,7 +217,7 @@ pub fn player_use(
             if act.just_pressed(Action::Use) {
                 //first test if we used a block
                 if let Some(hit) = level.blockcast(tf.translation(), tf.forward() * 10.0) {
-                    if level.use_block(hit.block_pos, entity, &usable_block_query, &mut block_use_writer) {
+                    if level.use_block(hit.block_pos, entity, tf.forward(), &usable_block_query, &mut block_use_writer) {
                         //we used a block, so don't also use an item
                         return;
                     }

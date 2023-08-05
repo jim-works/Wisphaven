@@ -141,6 +141,7 @@ impl LevelData {
         &self,
         key: BlockCoord,
         user: Entity,
+        use_forward: Vec3,
         query: &Query<&UsableBlock>,
         writer: &mut EventWriter<BlockUsedEvent>,
     ) -> bool {
@@ -150,6 +151,7 @@ impl LevelData {
                     writer.send(BlockUsedEvent {
                         block_position: key,
                         user,
+                        use_forward,
                         block_used: entity,
                     });
                     true

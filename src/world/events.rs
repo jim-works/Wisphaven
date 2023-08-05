@@ -32,6 +32,7 @@ pub struct OpenLevelEvent {
 pub struct BlockUsedEvent {
     pub block_position: BlockCoord,
     pub user: Entity,
+    pub use_forward: Vec3,
     pub block_used: Entity,
 }
 
@@ -40,6 +41,7 @@ pub struct BlockUsedEvent {
 pub struct BlockHitEvent {
     pub item: Option<Entity>,
     pub user: Option<Entity>,
+    pub hit_forward: Vec3,
     pub block_position: BlockCoord,
 }
 

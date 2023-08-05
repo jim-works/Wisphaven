@@ -54,7 +54,7 @@ pub fn on_swing (
     for SwingItemEvent(user, item, tf) in reader.iter() {
         if let Some((_, t)) = collision.cast_ray(tf.translation(), tf.forward(), 10.0, true, QueryFilter::new().exclude_collider(*user)) {
             let hit_pos = BlockCoord::from(tf.translation()+tf.forward()*(t+0.05)); //move into the block just a bit
-            writer.send(BlockHitEvent { item: Some(item.id), user: Some(*user), block_position: hit_pos })
+            writer.send(BlockHitEvent { item: Some(item.id), user: Some(*user), block_position: hit_pos, hit_forward: tf.forward() })
         }
     }
 }
@@ -68,7 +68,7 @@ fn deal_block_damage (
     mut writer: EventWriter<BlockDamageSetEvent>,
     mut commands: Commands
 ) {
-    for BlockHitEvent { item, user, block_position } in reader.iter() {
+    for BlockHitEvent { item, user, block_position, hit_forward: _ } in reader.iter() {
         if let Some(block_hit) = level.get_block_entity(*block_position) {
             let resistance = resistance_query.get(block_hit).copied().unwrap_or_default();
             let tool = item.map(|i| tool_query.get(i).ok()).flatten().copied() //block was hit with a tool, so use that

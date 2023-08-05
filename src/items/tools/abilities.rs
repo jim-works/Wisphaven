@@ -51,7 +51,7 @@ fn axe_ability_system(
     mut commands: Commands,
     mut writer: EventWriter<BlockDamageSetEvent>
 ) {
-    for BlockHitEvent { item, user: _, block_position } in reader.iter() {
+    for BlockHitEvent { item, user: _, block_position, hit_forward: _ } in reader.iter() {
         if let Some(item) = item {
             if let Ok((tool, AxeAbility { max_blocks, search_radius, damage_mult })) = axe_ability_query.get(*item) {
                 if let Some(block) = level.get_block_entity(*block_position) {
@@ -138,19 +138,15 @@ fn shovel_ability_system(
     resistance_query: Query<&ToolResistance>,
     id_query: Query<&BlockId>,
     target_query: Query<&ShovelAbilityTarget>,
-    tf_query: Query<&GlobalTransform>,
     mut commands: Commands,
-    mut writer: EventWriter<BlockDamageSetEvent>
+    mut writer: EventWriter<BlockDamageSetEvent>,
 ) {
-    for BlockHitEvent { item, user, block_position } in reader.iter() {
+    for BlockHitEvent { item, user: _, block_position, hit_forward } in reader.iter() {
         if let Some(item) = item {
             if let Ok((tool, ShovelAbility { radius, length, damage_mult })) = shovel_ability_query.get(*item) {
-                let direction = if let Some(user) = user {
-                    tf_query.get(*user).map(|tf| tf.forward()).unwrap_or_default().into()
-                } else {
-                    Direction::NegZ
-                };
+                let direction = Direction::from(*hit_forward);
                 let axis = BlockCoord::from(direction);
+                info!("axis: {:?}", axis);
                 for len in 0..(*length as i32) {
                     direction.for_each_in_plane(*radius as i32, |offset| {
                         let coord = axis*len+offset+*block_position;

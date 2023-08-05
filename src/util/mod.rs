@@ -23,6 +23,9 @@ use bevy::{prelude::{Vec3, DerefMut, Deref}, time::Timer};
 use rand::prelude::*;
 use rand_distr::StandardNormal;
 
+#[cfg(test)]
+mod test;
+
 pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a * (1.0 - t) + b * t
 }
