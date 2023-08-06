@@ -1,6 +1,6 @@
-use bevy::prelude::Vec3;
+use bevy::prelude::{Vec3, IVec3};
 
-use crate::world::BlockCoord;
+use crate::world::{BlockCoord, chunk::{ChunkCoord, ChunkIdx, CHUNK_SIZE_U8}};
 
 use super::max_component_norm;
 
@@ -115,6 +115,202 @@ impl From<Vec3> for Direction {
             Direction::PosZ
         } else {
             Direction::NegZ
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum Corner {
+    NXNYNZ=0,
+    NXNYPZ=1,
+    NXPYNZ=2,
+    NXPYPZ=3,
+    PXNYNZ=4,
+    PXNYPZ=5,
+    PXPYNZ=6,
+    PXPYPZ=7,
+}
+#[derive(Clone, Copy)]
+pub struct CornerIterator {
+    curr: Option<Corner>
+}
+
+impl Iterator for CornerIterator {
+    type Item = Corner;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.curr = match self.curr {
+            None => Some(Corner::NXNYNZ),
+            Some(Corner::NXNYNZ) => Some(Corner::NXNYPZ),
+            Some(Corner::NXNYPZ) => Some(Corner::NXPYNZ),
+            Some(Corner::NXPYNZ) => Some(Corner::NXPYPZ),
+            Some(Corner::NXPYPZ) => Some(Corner::PXNYNZ),
+            Some(Corner::PXNYNZ) => Some(Corner::PXNYPZ),
+            Some(Corner::PXNYPZ) => Some(Corner::PXPYNZ),
+            Some(Corner::PXPYNZ) => Some(Corner::PXPYPZ),
+            Some(Corner::PXPYPZ) => None,
+        };
+        self.curr
+    }
+}
+
+impl Corner {
+    pub fn iter() -> CornerIterator {
+        CornerIterator { curr: None }
+    }
+    pub fn opposite(self) -> Corner {
+        match self {
+            Corner::NXNYNZ => Corner::PXPYPZ,
+            Corner::NXNYPZ => Corner::PXPYNZ,
+            Corner::NXPYNZ => Corner::PXNYPZ,
+            Corner::NXPYPZ => Corner::PXNYNZ,
+            Corner::PXNYNZ => Corner::NXPYPZ,
+            Corner::PXNYPZ => Corner::NXPYNZ,
+            Corner::PXPYNZ => Corner::NXNYPZ,
+            Corner::PXPYPZ => Corner::NXNYNZ,
+        }
+    }
+}
+
+impl From<Corner> for ChunkCoord {
+    fn from(value: Corner) -> Self {
+        match value {
+            Corner::NXNYNZ => ChunkCoord::new(-1,-1,-1),
+            Corner::NXNYPZ => ChunkCoord::new(-1,-1,1),
+            Corner::NXPYNZ => ChunkCoord::new(-1,1,-1),
+            Corner::NXPYPZ => ChunkCoord::new(-1,1,1),
+            Corner::PXNYNZ => ChunkCoord::new(1,-1,-1),
+            Corner::PXNYPZ => ChunkCoord::new(1,-1,1),
+            Corner::PXPYNZ => ChunkCoord::new(1,1,-1),
+            Corner::PXPYPZ => ChunkCoord::new(1,1,1),
+        }
+    }
+}
+
+impl From<Corner> for ChunkIdx {
+    fn from(value: Corner) -> Self {
+        match value {
+            Corner::NXNYNZ => ChunkIdx::new(0,0,0),
+            Corner::NXNYPZ => ChunkIdx::new(0,0,CHUNK_SIZE_U8-1),
+            Corner::NXPYNZ => ChunkIdx::new(0,CHUNK_SIZE_U8-1,0),
+            Corner::NXPYPZ => ChunkIdx::new(0,CHUNK_SIZE_U8-1,CHUNK_SIZE_U8-1),
+            Corner::PXNYNZ => ChunkIdx::new(CHUNK_SIZE_U8-1,0,0),
+            Corner::PXNYPZ => ChunkIdx::new(CHUNK_SIZE_U8-1,0,CHUNK_SIZE_U8-1),
+            Corner::PXPYNZ => ChunkIdx::new(CHUNK_SIZE_U8-1,CHUNK_SIZE_U8-1,0),
+            Corner::PXPYPZ => ChunkIdx::new(CHUNK_SIZE_U8-1,CHUNK_SIZE_U8-1,CHUNK_SIZE_U8-1),
+        }
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum Edge {
+    NXFaceNY=0,
+    NXFacePZ=1,
+    NXFacePY=2,
+    NXFaceNZ=3,
+    PXFaceNY=4,
+    PXFacePZ=5,
+    PXFacePY=6,
+    PXFaceNZ=7,
+    NYFaceNZ=8,
+    NYFacePZ=9,
+    PYFaceNZ=10,
+    PYFacePZ=11
+}
+#[derive(Clone, Copy)]
+pub struct EdgeIterator {
+    curr: Option<Edge>
+}
+
+impl Iterator for EdgeIterator {
+    type Item = Edge;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.curr = match self.curr {
+            None => Some(Edge::NXFaceNY),
+            Some(Edge::NXFaceNY) => Some(Edge::NXFacePZ),
+            Some(Edge::NXFacePZ) => Some(Edge::NXFacePY),
+            Some(Edge::NXFacePY) => Some(Edge::NXFaceNZ),
+            Some(Edge::NXFaceNZ) => Some(Edge::PXFaceNY),
+            Some(Edge::PXFaceNY) => Some(Edge::PXFacePZ),
+            Some(Edge::PXFacePZ) => Some(Edge::PXFacePY),
+            Some(Edge::PXFacePY) => Some(Edge::PXFaceNZ),
+            Some(Edge::PXFaceNZ) => Some(Edge::NYFaceNZ),
+            Some(Edge::NYFaceNZ) => Some(Edge::NYFacePZ),
+            Some(Edge::NYFacePZ) => Some(Edge::PYFaceNZ),
+            Some(Edge::PYFaceNZ) => Some(Edge::PYFacePZ),
+            Some(Edge::PYFacePZ) => None,
+        };
+        self.curr
+    }
+}
+
+impl Edge {
+    pub fn iter() -> EdgeIterator {
+        EdgeIterator { curr: None }
+    }
+    pub fn opposite(self) -> Edge {
+        match self {
+            Edge::NXFaceNY => Edge::PXFacePY,
+            Edge::NXFacePZ => Edge::PXFaceNZ,
+            Edge::NXFacePY => Edge::PXFaceNY,
+            Edge::NXFaceNZ => Edge::PXFacePZ,
+            Edge::PXFaceNY => Edge::NXFacePY,
+            Edge::PXFacePZ => Edge::NXFaceNZ,
+            Edge::PXFacePY => Edge::NXFaceNY,
+            Edge::PXFaceNZ => Edge::NXFacePZ,
+            Edge::NYFaceNZ => Edge::PYFacePZ,
+            Edge::NYFacePZ => Edge::PYFaceNZ,
+            Edge::PYFaceNZ => Edge::NYFacePZ,
+            Edge::PYFacePZ => Edge::NYFaceNZ,
+        }
+    }
+    pub fn direction(self) -> IVec3 {
+        match self {
+            Edge::NXFaceNY => IVec3::new(0,0,1),
+            Edge::NXFacePZ => IVec3::new(0,1,0),
+            Edge::NXFacePY => IVec3::new(0,0,1),
+            Edge::NXFaceNZ => IVec3::new(0,1,0),
+            Edge::PXFaceNY => IVec3::new(0,0,1),
+            Edge::PXFacePZ => IVec3::new(0,1,0),
+            Edge::PXFacePY => IVec3::new(0,0,1),
+            Edge::PXFaceNZ => IVec3::new(0,1,0),
+            Edge::NYFaceNZ => IVec3::new(1,0,0),
+            Edge::NYFacePZ => IVec3::new(1,0,0),
+            Edge::PYFaceNZ => IVec3::new(1,0,0),
+            Edge::PYFacePZ => IVec3::new(1,0,0),
+        }
+    }
+    pub fn origin(self) -> ChunkIdx {
+        match self {
+            Edge::NXFaceNY => ChunkIdx::new(0,0,0),
+            Edge::NXFacePZ => ChunkIdx::new(0,0,CHUNK_SIZE_U8-1),
+            Edge::NXFacePY => ChunkIdx::new(0,CHUNK_SIZE_U8-1,0),
+            Edge::NXFaceNZ => ChunkIdx::new(0,0,0),
+            Edge::PXFaceNY => ChunkIdx::new(CHUNK_SIZE_U8-1,0,0),
+            Edge::PXFacePZ => ChunkIdx::new(CHUNK_SIZE_U8-1,0,CHUNK_SIZE_U8-1),
+            Edge::PXFacePY => ChunkIdx::new(CHUNK_SIZE_U8-1,CHUNK_SIZE_U8-1,0),
+            Edge::PXFaceNZ => ChunkIdx::new(CHUNK_SIZE_U8-1,0,0),
+            Edge::NYFaceNZ => ChunkIdx::new(0,0,0),
+            Edge::NYFacePZ => ChunkIdx::new(0,0,CHUNK_SIZE_U8-1),
+            Edge::PYFaceNZ => ChunkIdx::new(0,CHUNK_SIZE_U8-1,0),
+            Edge::PYFacePZ => ChunkIdx::new(0,CHUNK_SIZE_U8-1,CHUNK_SIZE_U8-1),
+        }
+    }
+}
+
+impl From<Edge> for ChunkCoord {
+    fn from(value: Edge) -> Self {
+        match value {
+            Edge::NXFaceNY => ChunkCoord::new(-1,-1,0),
+            Edge::NXFacePZ => ChunkCoord::new(-1,0,1),
+            Edge::NXFacePY => ChunkCoord::new(-1,1,0),
+            Edge::NXFaceNZ => ChunkCoord::new(-1,0,-1),
+            Edge::PXFaceNY => ChunkCoord::new(1,-1,0),
+            Edge::PXFacePZ => ChunkCoord::new(1,0,1),
+            Edge::PXFacePY => ChunkCoord::new(1,1,0),
+            Edge::PXFaceNZ => ChunkCoord::new(1,0,-1),
+            Edge::NYFaceNZ => ChunkCoord::new(0,-1,-1),
+            Edge::NYFacePZ => ChunkCoord::new(0,-1,1),
+            Edge::PYFaceNZ => ChunkCoord::new(0,1,-1),
+            Edge::PYFacePZ => ChunkCoord::new(0,1,1),
         }
     }
 }

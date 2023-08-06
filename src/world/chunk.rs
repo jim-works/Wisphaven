@@ -11,17 +11,20 @@ pub const CHUNK_SIZE: usize = 16;
 pub const CHUNK_SIZE_F32: f32 = CHUNK_SIZE as f32;
 pub const CHUNK_SIZE_I32: i32 = CHUNK_SIZE as i32;
 pub const CHUNK_SIZE_U8: u8 = CHUNK_SIZE as u8;
+pub const CHUNK_SIZE_I8: i8 = CHUNK_SIZE as i8;
 pub const CHUNK_SIZE_U64: u64 = CHUNK_SIZE as u64;
 pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE;
+//fat chunk contains one layer of information about its neighbors
+pub const BLOCKS_PER_FAT_CHUNK: usize = (CHUNK_SIZE+2)*(CHUNK_SIZE+2)*(CHUNK_SIZE+2);
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LODLevel {pub level: u8}
 
-pub type ArrayChunk = Chunk<BlockPalette<BlockType>, BlockType>;
+pub type ArrayChunk = Chunk<BlockPalette<BlockType, BLOCKS_PER_CHUNK>, BlockType>;
 pub type LODChunk = ArrayChunk;
 // pub type GeneratingChunk = Chunk<[BlockId; BLOCKS_PER_CHUNK], BlockId>;
 // pub type GeneratingLODChunk = GeneratingChunk;
-pub type GeneratingChunk = Chunk<BlockPalette<BlockId>, BlockId>;
+pub type GeneratingChunk = Chunk<BlockPalette<BlockId, BLOCKS_PER_CHUNK>, BlockId>;
 pub type GeneratingLODChunk = GeneratingChunk;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -143,6 +146,32 @@ impl Add<ChunkIdx> for ChunkIdx {
 
     fn add(self, rhs: ChunkIdx) -> Self::Output {
         ChunkIdx::new(self.x+rhs.x,self.y+rhs.y,self.z+rhs.z)
+    }
+}
+
+//index for chunk with extra layer (CHUNK_SIZE+2)*(CHUNK_SIZE+2)*(CHUNK_SIZE+2)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FatChunkIdx {
+    pub x: i8,
+    pub y: i8,
+    pub z: i8
+}
+
+impl FatChunkIdx {
+    pub fn new (x: i8, y: i8, z: i8) -> FatChunkIdx {
+        FatChunkIdx { x, y ,z }
+    }
+}
+
+impl From<FatChunkIdx> for usize {
+    fn from(value: FatChunkIdx) -> usize {
+        (value.x+1) as usize*CHUNK_SIZE*CHUNK_SIZE+(value.y+1) as usize*CHUNK_SIZE+(value.z+1) as usize
+    }
+}
+
+impl From<ChunkIdx> for FatChunkIdx {
+    fn from(value: ChunkIdx) -> FatChunkIdx {
+        FatChunkIdx { x: value.x as i8, y: value.y as i8, z: value.z as i8 }
     }
 }
 

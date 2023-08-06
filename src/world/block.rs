@@ -89,7 +89,8 @@ impl NamedBlockMesh {
     pub fn to_block_mesh(self, map: &BlockTextureMap) -> BlockMesh {
         BlockMesh {
             use_transparent_shader: self.use_transparent_shader,
-            shape: self.shape.to_block_mesh(map)
+            shape: self.shape.to_block_mesh(map),
+            single_mesh: None,
         }
     }
 }
@@ -124,6 +125,7 @@ impl NamedBlockMeshShape {
 pub struct BlockMesh {
     pub use_transparent_shader: bool,
     pub shape: BlockMeshShape,
+    pub single_mesh: Option<Handle<Mesh>>
 }
 
 #[derive(Clone, PartialEq, Default)]

@@ -65,132 +65,107 @@ fn mesh_block_lod<T: ChunkStorage<BlockMesh>>(
     origin: Vec3,
     data: &mut ChunkMesh,
 ) {
-    if matches!(b.shape, BlockMeshShape::Empty) {
-        return;
-    }
-    if coord.z == CHUNK_SIZE_U8 - 1
-        || should_mesh_face(
-            b,
-            Direction::PosZ,
-            &chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
-        )
-    {
-        mesh_pos_z(
-            &b.shape,
-            chunk,
-            coord,
-            origin,
-            Vec3::new(data.scale, data.scale, data.scale),
-            if b.shape.is_transparent(Direction::PosZ) {
-                &mut data.transparent
-            } else {
-                &mut data.opaque
-            },
-        );
-    }
-    //negative z face
-    if coord.z == 0
-        || should_mesh_face(
-            b,
-            Direction::NegZ,
-            &chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
-        )
-    {
-        mesh_neg_z(
-            &b.shape,
-            chunk,
-            coord,
-            origin,
-            Vec3::new(data.scale, data.scale, data.scale),
-            if b.shape.is_transparent(Direction::NegZ) {
-                &mut data.transparent
-            } else {
-                &mut data.opaque
-            },
-        );
-    }
-    //positive y face
-    if coord.y == CHUNK_SIZE_U8 - 1
-        || should_mesh_face(
-            b,
-            Direction::PosY,
-            &chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
-        )
-    {
-        mesh_pos_y(
-            &b.shape,
-            chunk,
-            coord,
-            origin,
-            Vec3::new(data.scale, data.scale, data.scale),
-            if b.shape.is_transparent(Direction::PosY) {
-                &mut data.transparent
-            } else {
-                &mut data.opaque
-            },
-        );
-    }
-    //negative y face
-    if coord.y == 0
-        || should_mesh_face(
-            b,
-            Direction::NegY,
-            &chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
-        )
-    {
-        mesh_neg_y(
-            &b.shape,
-            chunk,
-            coord,
-            origin,
-            Vec3::new(data.scale, data.scale, data.scale),
-            if b.shape.is_transparent(Direction::NegY) {
-                &mut data.transparent
-            } else {
-                &mut data.opaque
-            },
-        );
-    }
-    //positive x face
-    if coord.x == CHUNK_SIZE_U8 - 1
-        || should_mesh_face(
-            b,
-            Direction::PosX,
-            &chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
-        )
-    {
-        mesh_pos_x(
-            &b.shape,
-            chunk,
-            coord,
-            origin,
-            Vec3::new(data.scale, data.scale, data.scale),
-            if b.shape.is_transparent(Direction::PosX) {
-                &mut data.transparent
-            } else {
-                &mut data.opaque
-            },
-        );
-    }
-    //negative x face
-    if coord.x == 0
-        || should_mesh_face(
-            b,
-            Direction::NegX,
-            &chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
-        )
-    {
-        mesh_neg_x(
-            &b.shape,
-            chunk,
-            coord,
-            origin,
-            Vec3::new(data.scale, data.scale, data.scale),
-            if b.shape.is_transparent(Direction::NegX) {
-                &mut data.transparent
-            } else {
-                &mut data.opaque
-            },
-        );
-    }
+    // if matches!(b.shape, BlockMeshShape::Empty) {
+    //     return;
+    // }
+    // let selected_data = if b.shape.is_transparent(Direction::PosZ) {
+    //     &mut data.transparent
+    // } else {
+    //     &mut data.opaque
+    // };
+    // if coord.z == CHUNK_SIZE_U8 - 1
+    //     || should_mesh_face(
+    //         b,
+    //         Direction::PosZ,
+    //         &chunk[ChunkIdx::new(coord.x, coord.y, coord.z + 1)],
+    //     )
+    // {
+    //     mesh_pos_z(
+    //         &b.shape,
+    //         origin,
+    //         Vec3::new(data.scale, data.scale, data.scale),
+    //         selected_data
+    //     );
+    //     add_ao_pos_z(&b.shape, chunk, coord, selected_data);
+    // }
+    // //negative z face
+    // if coord.z == 0
+    //     || should_mesh_face(
+    //         b,
+    //         Direction::NegZ,
+    //         &chunk[ChunkIdx::new(coord.x, coord.y, coord.z - 1)],
+    //     )
+    // {
+    //     mesh_neg_z(
+    //         &b.shape,
+    //         origin,
+    //         Vec3::new(data.scale, data.scale, data.scale),
+    //         selected_data
+    //     );
+    //     add_ao_neg_z(&b.shape, chunk, coord, selected_data);
+    // }
+    // //positive y face
+    // if coord.y == CHUNK_SIZE_U8 - 1
+    //     || should_mesh_face(
+    //         b,
+    //         Direction::PosY,
+    //         &chunk[ChunkIdx::new(coord.x, coord.y + 1, coord.z)],
+    //     )
+    // {
+    //     mesh_pos_y(
+    //         &b.shape,
+    //         origin,
+    //         Vec3::new(data.scale, data.scale, data.scale),
+    //         selected_data
+    //     );
+    //     add_ao_pos_y(&b.shape, chunk, coord, selected_data);
+    // }
+    // //negative y face
+    // if coord.y == 0
+    //     || should_mesh_face(
+    //         b,
+    //         Direction::NegY,
+    //         &chunk[ChunkIdx::new(coord.x, coord.y - 1, coord.z)],
+    //     )
+    // {
+    //     mesh_neg_y(
+    //         &b.shape,
+    //         origin,
+    //         Vec3::new(data.scale, data.scale, data.scale),
+    //         selected_data
+    //     );
+    //     add_ao_neg_y(&b.shape, chunk, coord, selected_data);
+    // }
+    // //positive x face
+    // if coord.x == CHUNK_SIZE_U8 - 1
+    //     || should_mesh_face(
+    //         b,
+    //         Direction::PosX,
+    //         &chunk[ChunkIdx::new(coord.x + 1, coord.y, coord.z)],
+    //     )
+    // {
+    //     mesh_pos_x(
+    //         &b.shape,
+    //         origin,
+    //         Vec3::new(data.scale, data.scale, data.scale),
+    //         selected_data
+    //     );
+    //     add_ao_pos_x(&b.shape, chunk, coord, selected_data);
+    // }
+    // //negative x face
+    // if coord.x == 0
+    //     || should_mesh_face(
+    //         b,
+    //         Direction::NegX,
+    //         &chunk[ChunkIdx::new(coord.x - 1, coord.y, coord.z)],
+    //     )
+    // {
+    //     mesh_neg_x(
+    //         &b.shape,
+    //         origin,
+    //         Vec3::new(data.scale, data.scale, data.scale),
+    //         selected_data
+    //     );
+    //     add_ao_neg_x(&b.shape, chunk, coord, selected_data);
+    // }
 }

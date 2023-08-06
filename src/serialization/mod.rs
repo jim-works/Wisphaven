@@ -219,7 +219,7 @@ impl ChunkSaveFormat {
     //creates a save format by extracting the ids from the block array using the provided query
     //will replace with the empty block if the entities in the block array do not have a BlockId component
     pub fn palette_ids_only(
-        value: (ChunkCoord, &BlockPalette<BlockType>),
+        value: (ChunkCoord, &BlockPalette<BlockType, BLOCKS_PER_CHUNK>),
         query: &Query<&BlockId>,
         map: &LoadedToSavedIdMap<BlockId>,
     ) -> Self {
