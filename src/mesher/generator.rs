@@ -151,7 +151,8 @@ pub fn queue_meshing(
                                         (origin.x as i32 + i as i32 * direction.x) as u8,
                                         (origin.y as i32 + i as i32 * direction.y) as u8,
                                         (origin.z as i32 + i as i32 * direction.z) as u8,
-                                    ).into(),
+                                    )
+                                    .into(),
                                     &mesh_query,
                                 )
                             }));
@@ -281,15 +282,19 @@ pub fn spawn_mesh<T: Bundle>(
 
 fn mesh_chunk<T: ChunkStorage<BlockMesh>>(fat_chunk: &Chunk<T, BlockMesh>, data: &mut ChunkMesh) {
     let _my_span = info_span!("mesh_chunk", name = "mesh_chunk").entered();
-    for i in 0..chunk::BLOCKS_PER_CHUNK {
-        let coord = ChunkIdx::from_usize(i);
-        mesh_block(
-            fat_chunk,
-            &fat_chunk[i],
-            coord.into(),
-            coord.to_vec3() * data.scale,
-            data,
-        );
+    for x in 0..CHUNK_SIZE_I8 {
+        for y in 0..CHUNK_SIZE_I8 {
+            for z in 0..CHUNK_SIZE_I8 {
+                let coord = FatChunkIdx::new(x, y, z);
+                mesh_block(
+                    fat_chunk,
+                    &fat_chunk[Into::<usize>::into(coord)],
+                    coord,
+                    Into::<ChunkIdx>::into(coord).to_vec3() * data.scale,
+                    data,
+                )
+            }
+        }
     }
 }
 pub fn should_mesh_face(block: &BlockMesh, block_face: Direction, neighbor: &BlockMesh) -> bool {
@@ -996,7 +1001,6 @@ fn add_tris(tris: &mut Vec<u32>, first_vert_idx: u32) {
 //https://0fps.net/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/
 fn add_ao(
     chunk: &impl Index<usize, Output = BlockMesh>,
-    //neighbors: &[Option<Chunk>; 6],
     coord: FatChunkIdx,
     pos_x: bool,
     pos_y: bool,
@@ -1004,7 +1008,11 @@ fn add_ao(
     data: &mut MeshData,
 ) {
     fn should_add_ao(neighbor: &BlockMesh) -> bool {
-        !matches!(neighbor.shape, BlockMeshShape::Empty) || !neighbor.use_transparent_shader
+        !neighbor.use_transparent_shader
+            || match neighbor.shape {
+                BlockMeshShape::Empty | BlockMeshShape::Cross(_) => false,
+                _ => true
+            }
     }
     let side1_coord = FatChunkIdx::new(
         coord.x + if pos_x { 1 } else { -1 },

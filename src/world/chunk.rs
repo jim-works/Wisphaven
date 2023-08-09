@@ -176,6 +176,18 @@ impl From<ChunkIdx> for FatChunkIdx {
     }
 }
 
+impl From<FatChunkIdx> for ChunkIdx {
+    fn from(value: FatChunkIdx) -> ChunkIdx {
+        assert!(value.x >= 0);
+        assert!(value.x < CHUNK_SIZE_I8);
+        assert!(value.y >= 0);
+        assert!(value.y < CHUNK_SIZE_I8);
+        assert!(value.z >= 0);
+        assert!(value.z < CHUNK_SIZE_I8);
+        ChunkIdx { x: value.x as u8, y: value.y as u8, z: value.z as u8 }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum ChunkType {
     Ungenerated(Entity),
