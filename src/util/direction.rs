@@ -1,6 +1,6 @@
 use bevy::prelude::{Vec3, IVec3};
 
-use crate::world::{BlockCoord, chunk::{ChunkCoord, ChunkIdx, CHUNK_SIZE_U8}};
+use crate::world::{BlockCoord, chunk::{ChunkCoord, ChunkIdx, CHUNK_SIZE_U8, FatChunkIdx, CHUNK_SIZE_I8}};
 
 use super::max_component_norm;
 
@@ -278,6 +278,7 @@ impl Edge {
             Edge::PYFacePZ => IVec3::new(1,0,0),
         }
     }
+    //edges for a normal sized chunk
     pub fn origin(self) -> ChunkIdx {
         match self {
             Edge::NXFaceNY => ChunkIdx::new(0,0,0),
@@ -292,6 +293,23 @@ impl Edge {
             Edge::NYFacePZ => ChunkIdx::new(0,0,CHUNK_SIZE_U8-1),
             Edge::PYFaceNZ => ChunkIdx::new(0,CHUNK_SIZE_U8-1,0),
             Edge::PYFacePZ => ChunkIdx::new(0,CHUNK_SIZE_U8-1,CHUNK_SIZE_U8-1),
+        }
+    }
+    //edges for a fat chunk
+    pub fn fat_origin(self) -> FatChunkIdx {
+        match self {
+            Edge::NXFaceNY => FatChunkIdx::new(-1,-1,-1),
+            Edge::NXFacePZ => FatChunkIdx::new(-1,-1,CHUNK_SIZE_I8),
+            Edge::NXFacePY => FatChunkIdx::new(-1,CHUNK_SIZE_I8,-1),
+            Edge::NXFaceNZ => FatChunkIdx::new(-1,-1,-1),
+            Edge::PXFaceNY => FatChunkIdx::new(CHUNK_SIZE_I8,-1,-1),
+            Edge::PXFacePZ => FatChunkIdx::new(CHUNK_SIZE_I8,-1,CHUNK_SIZE_I8),
+            Edge::PXFacePY => FatChunkIdx::new(CHUNK_SIZE_I8,CHUNK_SIZE_I8,-1),
+            Edge::PXFaceNZ => FatChunkIdx::new(CHUNK_SIZE_I8,-1,-1),
+            Edge::NYFaceNZ => FatChunkIdx::new(-1,-1,-1),
+            Edge::NYFacePZ => FatChunkIdx::new(-1,-1,CHUNK_SIZE_I8),
+            Edge::PYFaceNZ => FatChunkIdx::new(-1,CHUNK_SIZE_I8,-1),
+            Edge::PYFacePZ => FatChunkIdx::new(-1,CHUNK_SIZE_I8,CHUNK_SIZE_I8),
         }
     }
 }

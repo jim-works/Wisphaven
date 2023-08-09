@@ -171,15 +171,41 @@ impl BlockPalette<BlockType, BLOCKS_PER_CHUNK> {
                 }
             }
         }
-        // let mut fat_palette = BlockPalette {
-        //     data,
-        //     palette: self.map_palette(query),
-        // };
         //neg x face
         fat_palette.fat_add_face(
             &face_neighbors[crate::util::Direction::NegX.to_idx()],
             |y, z| FatChunkIdx::new(-1, y, z).into(),
             |y, z| Into::<usize>::into(ChunkIdx::new(CHUNK_SIZE_U8 - 1, y as u8, z as u8)),
+        );
+        //pos x face
+        fat_palette.fat_add_face(
+            &face_neighbors[crate::util::Direction::PosX.to_idx()],
+            |y, z| FatChunkIdx::new(CHUNK_SIZE_I8, y, z).into(),
+            |y, z| Into::<usize>::into(ChunkIdx::new(0, y as u8, z as u8)),
+        );
+        //neg y face
+        fat_palette.fat_add_face(
+            &face_neighbors[crate::util::Direction::NegY.to_idx()],
+            |x, z| FatChunkIdx::new(x, -1, z).into(),
+            |x, z| Into::<usize>::into(ChunkIdx::new(x as u8, CHUNK_SIZE_U8 - 1, z as u8)),
+        );
+        //pos y face
+        fat_palette.fat_add_face(
+            &face_neighbors[crate::util::Direction::PosY.to_idx()],
+            |x, z| FatChunkIdx::new(x, CHUNK_SIZE_I8, z).into(),
+            |x, z| Into::<usize>::into(ChunkIdx::new(x as u8, 0, z as u8)),
+        );        
+        //neg z face
+        fat_palette.fat_add_face(
+            &face_neighbors[crate::util::Direction::NegZ.to_idx()],
+            |x, y| FatChunkIdx::new(x, y, -1).into(),
+            |x, y| Into::<usize>::into(ChunkIdx::new(x as u8, y as u8, CHUNK_SIZE_U8 - 1)),
+        );
+        //pos z face
+        fat_palette.fat_add_face(
+            &face_neighbors[crate::util::Direction::PosZ.to_idx()],
+            |x, y| FatChunkIdx::new(x, y, CHUNK_SIZE_I8).into(),
+            |x, y| Into::<usize>::into(ChunkIdx::new(x as u8, y as u8, CHUNK_SIZE_U8 - 1)),
         );
 
         //corners
@@ -242,13 +268,17 @@ impl<T: Component + Clone + PartialEq + Default> BlockPalette<T, BLOCKS_PER_FAT_
             Some(edge) => {
                 for (i, t) in edge.into_iter().enumerate() {
                     self.set(
-                        ChunkIdx::new(
-                            (edge_label.origin().x as i32 + i as i32 * edge_label.direction().x)
-                                as u8,
-                            (edge_label.origin().y as i32 + i as i32 * edge_label.direction().y)
-                                as u8,
-                            (edge_label.origin().z as i32 + i as i32 * edge_label.direction().z)
-                                as u8,
+                        //we use i+1 to move one extra unit in the direction of the edge, so that it doesn't start in the corner
+                        FatChunkIdx::new(
+                            (edge_label.fat_origin().x as i32
+                                + (i + 1) as i32 * edge_label.direction().x)
+                                as i8,
+                            (edge_label.fat_origin().y as i32
+                                + (i + 1) as i32 * edge_label.direction().y)
+                                as i8,
+                            (edge_label.fat_origin().z as i32
+                                + (i + 1) as i32 * edge_label.direction().z)
+                                as i8,
                         )
                         .into(),
                         t,
@@ -258,13 +288,17 @@ impl<T: Component + Clone + PartialEq + Default> BlockPalette<T, BLOCKS_PER_FAT_
             None => {
                 for i in 0..CHUNK_SIZE {
                     self.set(
-                        ChunkIdx::new(
-                            (edge_label.origin().x as i32 + i as i32 * edge_label.direction().x)
-                                as u8,
-                            (edge_label.origin().y as i32 + i as i32 * edge_label.direction().y)
-                                as u8,
-                            (edge_label.origin().z as i32 + i as i32 * edge_label.direction().z)
-                                as u8,
+                        //we use i+1 to move one extra unit in the direction of the edge, so that it doesn't start in the corner
+                        FatChunkIdx::new(
+                            (edge_label.fat_origin().x as i32
+                                + (i + 1) as i32 * edge_label.direction().x)
+                                as i8,
+                            (edge_label.fat_origin().y as i32
+                                + (i + 1) as i32 * edge_label.direction().y)
+                                as i8,
+                            (edge_label.fat_origin().z as i32
+                                + (i + 1) as i32 * edge_label.direction().z)
+                                as i8,
                         )
                         .into(),
                         T::default(),

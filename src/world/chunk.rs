@@ -8,6 +8,7 @@ use crate::util::{Direction, palette::BlockPalette};
 use super::{BlockType, BlockCoord, BlockId, BlockRegistry, Id};
 
 pub const CHUNK_SIZE: usize = 16;
+pub const FAT_CHUNK_SIZE: usize = CHUNK_SIZE+2;
 pub const CHUNK_SIZE_F32: f32 = CHUNK_SIZE as f32;
 pub const CHUNK_SIZE_I32: i32 = CHUNK_SIZE as i32;
 pub const CHUNK_SIZE_U8: u8 = CHUNK_SIZE as u8;
@@ -15,7 +16,7 @@ pub const CHUNK_SIZE_I8: i8 = CHUNK_SIZE as i8;
 pub const CHUNK_SIZE_U64: u64 = CHUNK_SIZE as u64;
 pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE;
 //fat chunk contains one layer of information about its neighbors
-pub const BLOCKS_PER_FAT_CHUNK: usize = (CHUNK_SIZE+2)*(CHUNK_SIZE+2)*(CHUNK_SIZE+2);
+pub const BLOCKS_PER_FAT_CHUNK: usize = FAT_CHUNK_SIZE*FAT_CHUNK_SIZE*FAT_CHUNK_SIZE;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LODLevel {pub level: u8}
@@ -27,7 +28,7 @@ pub type LODChunk = ArrayChunk;
 pub type GeneratingChunk = Chunk<BlockPalette<BlockId, BLOCKS_PER_CHUNK>, BlockId>;
 pub type GeneratingLODChunk = GeneratingChunk;
 
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Component, Default, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ChunkCoord {
     pub x: i32,
     pub y: i32,
@@ -165,7 +166,7 @@ impl FatChunkIdx {
 
 impl From<FatChunkIdx> for usize {
     fn from(value: FatChunkIdx) -> usize {
-        (value.x+1) as usize*CHUNK_SIZE*CHUNK_SIZE+(value.y+1) as usize*CHUNK_SIZE+(value.z+1) as usize
+        (value.x+1) as usize*FAT_CHUNK_SIZE*FAT_CHUNK_SIZE+(value.y+1) as usize*FAT_CHUNK_SIZE+(value.z+1) as usize
     }
 }
 
