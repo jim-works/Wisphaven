@@ -205,7 +205,7 @@ impl BlockPalette<BlockType, BLOCKS_PER_CHUNK> {
         fat_palette.fat_add_face(
             &face_neighbors[crate::util::Direction::PosZ.to_idx()],
             |x, y| FatChunkIdx::new(x, y, CHUNK_SIZE_I8).into(),
-            |x, y| Into::<usize>::into(ChunkIdx::new(x as u8, y as u8, CHUNK_SIZE_U8 - 1)),
+            |x, y| Into::<usize>::into(ChunkIdx::new(x as u8, y as u8, 0)),
         );
 
         //corners

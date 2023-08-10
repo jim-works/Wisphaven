@@ -1009,8 +1009,8 @@ fn add_ao(
 ) {
     fn should_add_ao(neighbor: &BlockMesh) -> bool {
         !neighbor.use_transparent_shader
-            || match neighbor.shape {
-                BlockMeshShape::Empty | BlockMeshShape::Cross(_) => false,
+            && match neighbor.shape {
+                BlockMeshShape::Empty => false,
                 _ => true
             }
     }
