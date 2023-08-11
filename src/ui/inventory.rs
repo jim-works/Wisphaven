@@ -77,7 +77,8 @@ struct InventoryUI;
 struct InventoryUISlotBackground(usize);
 
 #[derive(Component)]
-struct InventoryUISlot(usize);
+//slot num, entity stored in slot
+struct InventoryUISlot(usize, Option<Entity>);
 
 #[derive(Component)]
 struct InventoryUISelector;
@@ -216,7 +217,7 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                                 visibility: Visibility::Hidden,
                                 ..default()
                             },
-                            InventoryUISlot(slot),
+                            InventoryUISlot(slot, None),
                         ));
                         //this is the stack size label
                         //making a parent to anchor the label to the bottom right
@@ -247,7 +248,7 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                                         visibility: Visibility::Hidden,
                                         ..default()
                                     },
-                                    InventoryUISlot(slot),
+                                    InventoryUISlot(slot, None),
                                 ));
                             });
                     });
@@ -322,7 +323,7 @@ fn update_counts(
 }
 
 fn update_icons(
-    mut label_query: Query<(&mut Visibility, &mut UiImage, &InventoryUISlot)>,
+    mut label_query: Query<(&mut Visibility, &mut UiImage, &mut InventoryUISlot)>,
     mut images: ResMut<Assets<Image>>,
     pickup_reader: EventReader<PickupItemEvent>,
     drop_reader: EventReader<DropItemEvent>,
@@ -339,7 +340,10 @@ fn update_icons(
     }
     if let Ok(inv) = inventory_query.get_single() {
         info!("Updating inventory icons!");
-        for (index, (mut vis, mut image, ui_slot)) in label_query.iter_mut().enumerate() {
+        for (index, (mut vis, mut image, mut ui_slot)) in label_query.iter_mut().enumerate() {
+            if let Some(stored_entity) = ui_slot.1 {
+                commands.entity(stored_entity).despawn_recursive();
+            }
             match inv.get(ui_slot.0) {
                 Some(stack) => match icon_query.get(stack.id) {
                     Ok(icon) => {
@@ -360,7 +364,11 @@ fn update_icons(
                                     .flatten()
                                 {
                                     Some(mesh) => {
-                                        let (preview_entity, preview) = spawn_block_preview(&mut commands, &mut images, mesh.clone(), materials.opaque_material.clone().unwrap(), Vec3::new(index as f32*5.0,0.0,0.0));
+                                        //spawn these entities super far out because lighting affects all layers
+                                        //this way they (probably) won't end up in the shadow of some terrain
+                                        const PREVIEW_ORIGIN: Vec3 = Vec3::new(1_000_000.0, 1_000_000.0, 1_000_000.0);
+                                        let (preview_entity, preview) = spawn_block_preview(&mut commands, &mut images, mesh.clone(), materials.opaque_material.clone().unwrap(), Vec3::new(index as f32*5.0,0.0,0.0)+PREVIEW_ORIGIN);
+                                        ui_slot.1 = Some(preview_entity);
                                         image.texture = preview;
                                         *vis.as_mut() = Visibility::Inherited;
                                         info!("CREATED BLOCK PREVIEW");
@@ -448,7 +456,7 @@ fn spawn_block_preview(
                         ..default()
                     }),
                     transform: Transform::from_translation(CAMERA_OFFSET)
-                        .looking_at(position, Vec3::Y),
+                        .looking_at(Vec3::ZERO, Vec3::Y),
                     ..default()
                 })
                 // only render the block previews
