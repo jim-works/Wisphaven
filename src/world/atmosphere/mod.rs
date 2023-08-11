@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
-
+use bevy_atmosphere::prelude::*;
 //https://github.com/JonahPlusPlus/bevy_atmosphere/blob/2ef39e2511fcb637ef83e507b468c4f5186c6913/examples/cycle.rs
 
 #[derive(Component)]
@@ -14,7 +14,9 @@ pub struct AtmospherePlugin;
 
 impl Plugin for AtmospherePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_environment)
+        app.add_plugins(bevy_atmosphere::plugin::AtmospherePlugin)
+            .insert_resource(AtmosphereModel::default())
+            .add_systems(Startup, setup_environment)
             .add_systems(Update, daylight_cycle)
             .insert_resource(CycleTimer(Timer::new(
                 bevy::utils::Duration::from_millis(100),
@@ -24,6 +26,7 @@ impl Plugin for AtmospherePlugin {
 }
 
 fn daylight_cycle(
+    mut atmosphere: AtmosphereMut<Nishita>,
     mut query: Query<(&mut Transform, &mut DirectionalLight), With<Sun>>,
     mut timer: ResMut<CycleTimer>,
     time: Res<Time>,
@@ -36,7 +39,10 @@ fn daylight_cycle(
         let t = ((time.elapsed_seconds_wrapped()+60.0) / DAY_CYCLE_SECONDS)*2.0*PI;
 
         if let Some((mut light_trans, mut directional)) = query.single_mut().into() {
-            light_trans.rotation = Quat::from_rotation_x(-t);
+            let sun_rot = Quat::from_rotation_x(-t);
+            light_trans.rotation = sun_rot;
+            //rotate backward vector (since light points away from the sun)
+            atmosphere.sun_position = sun_rot*Vec3::new(0.0,0.0,1.0);
             directional.illuminance = t.sin().max(0.0).powf(2.0) * 100000.0;
         }
     }
