@@ -15,7 +15,11 @@ pub struct AtmospherePlugin;
 impl Plugin for AtmospherePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(bevy_atmosphere::plugin::AtmospherePlugin)
-            .insert_resource(AtmosphereModel::default())
+            .insert_resource(AtmosphereModel::new(Nishita {
+                rayleigh_scale_height: 12e3,
+                mie_scale_height: 1.8e3,
+                ..default()
+            }))
             .add_systems(Startup, setup_environment)
             .add_systems(Update, daylight_cycle)
             .insert_resource(CycleTimer(Timer::new(

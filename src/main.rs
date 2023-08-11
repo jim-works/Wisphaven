@@ -34,6 +34,7 @@ mod worldgen;
 mod items;
 mod serialization;
 mod ui;
+mod net;
 
 fn main() {
     App::new()
@@ -50,6 +51,7 @@ fn main() {
         .add_plugins(ActorPlugin)
         .add_plugins(ItemsPlugin)
         .add_plugins(ui::UIPlugin)
+        .add_plugins(net::NetPlugin)
         .insert_resource(AmbientLight {
             brightness: 0.3,
             ..default()
