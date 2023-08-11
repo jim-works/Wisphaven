@@ -1,11 +1,23 @@
-use bevy::prelude::*;
+use bevy::{
+    core_pipeline::clear_color::ClearColorConfig,
+    prelude::*,
+    render::{
+        camera::RenderTarget,
+        render_resource::{
+            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+        },
+        view::RenderLayers,
+    },
+};
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
     actors::{LocalPlayer, LocalPlayerSpawnedEvent},
     controllers::Action,
-    items::{inventory::Inventory, ItemIcon},
-    world::LevelSystemSet,
+    items::{
+        block_item::BlockItem, inventory::Inventory, DropItemEvent, ItemIcon, PickupItemEvent,
+    },
+    world::{BlockMesh, BlockResources, LevelSystemSet}, mesher::{ChunkMaterial, ArrayTextureMaterial},
 };
 
 use super::{state::UIState, styles::get_small_text_style};
@@ -24,7 +36,12 @@ const SLOT_PX: f32 = 32.0;
 const SELECTOR_PADDING_PX: f32 = 1.0;
 const STACK_SIZE_LABEL_PADDING_PX: f32 = 3.0;
 
+pub const BLOCK_PREVIEW_LAYER: RenderLayers = RenderLayers::layer(1);
+
 pub struct InventoryPlugin;
+
+#[derive(Component)]
+pub struct BlockPreview;
 
 impl Plugin for InventoryPlugin {
     fn build(&self, app: &mut App) {
@@ -149,7 +166,7 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
             InventoryUI,
             NodeBundle {
                 style: Style {
-                    width: Val::Px(400.0), 
+                    width: Val::Px(400.0),
                     height: Val::Px(200.0),
                     align_items: AlignItems::FlexStart,
                     flex_direction: FlexDirection::Column,
@@ -170,8 +187,8 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                             style: Style {
                                 aspect_ratio: Some(1.0),
                                 margin: UiRect::all(Val::Px(1.0)),
-                                width: Val::Px(32.0),
-                                height: Val::Px(32.0),
+                                width: Val::Px(SLOT_PX),
+                                height: Val::Px(SLOT_PX),
                                 left: slot_coords.left,
                                 right: slot_coords.right,
                                 bottom: slot_coords.bottom,
@@ -191,8 +208,8 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                         slot_content.spawn((
                             ImageBundle {
                                 style: Style {
-                                    width: Val::Px(32.0),
-                                    height: Val::Px(32.0),
+                                    width: Val::Px(SLOT_PX),
+                                    height: Val::Px(SLOT_PX),
                                     position_type: PositionType::Absolute,
                                     ..default()
                                 },
@@ -241,8 +258,8 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                 ImageBundle {
                     style: Style {
                         position_type: PositionType::Absolute,
-                        width: Val::Px(32.0),
-                        height: Val::Px(32.0),
+                        width: Val::Px(SLOT_PX),
+                        height: Val::Px(SLOT_PX),
                         ..default()
                     },
                     image: UiImage::new(resources.selection_image.clone()),
@@ -281,9 +298,15 @@ fn place_inventory_selector(
 
 fn update_counts(
     mut label_query: Query<(&mut Visibility, &mut Text, &InventoryUISlot)>,
+    pickup_reader: EventReader<PickupItemEvent>,
+    drop_reader: EventReader<DropItemEvent>,
     inventory_query: Query<&Inventory, (With<LocalPlayer>, Changed<Inventory>)>,
 ) {
+    if pickup_reader.is_empty() && drop_reader.is_empty() {
+        return;
+    }
     if let Ok(inv) = inventory_query.get_single() {
+        info!("Updating inventory counts!");
         for (mut vis, mut text, ui_slot) in label_query.iter_mut() {
             match inv.get(ui_slot.0) {
                 Some(stack) => {
@@ -300,11 +323,23 @@ fn update_counts(
 
 fn update_icons(
     mut label_query: Query<(&mut Visibility, &mut UiImage, &InventoryUISlot)>,
+    mut images: ResMut<Assets<Image>>,
+    pickup_reader: EventReader<PickupItemEvent>,
+    drop_reader: EventReader<DropItemEvent>,
     inventory_query: Query<&Inventory, (With<LocalPlayer>, Changed<Inventory>)>,
     icon_query: Query<&ItemIcon>,
+    block_item_query: Query<&BlockItem>,
+    block_mesh_query: Query<&BlockMesh>,
+    materials: Res<ChunkMaterial>,
+    resources: Res<BlockResources>,
+    mut commands: Commands,
 ) {
+    if pickup_reader.is_empty() && drop_reader.is_empty() {
+        return;
+    }
     if let Ok(inv) = inventory_query.get_single() {
-        for (mut vis, mut image, ui_slot) in label_query.iter_mut() {
+        info!("Updating inventory icons!");
+        for (index, (mut vis, mut image, ui_slot)) in label_query.iter_mut().enumerate() {
             match inv.get(ui_slot.0) {
                 Some(stack) => match icon_query.get(stack.id) {
                     Ok(icon) => {
@@ -312,7 +347,29 @@ fn update_icons(
                         image.texture = icon.0.clone();
                     }
                     Err(_) => {
-                        *vis.as_mut() = Visibility::Hidden;
+                        match block_item_query.get(stack.id) {
+                            Ok(item) => {
+                                //render block item
+                                //todo - despawn if dynamic
+                                match resources
+                                    .registry
+                                    .get_entity(resources.registry.get_id(&item.0), &mut commands)
+                                    .map(|block_entity| block_mesh_query.get(block_entity).ok())
+                                    .flatten()
+                                    .map(|block_mesh| block_mesh.single_mesh.as_ref())
+                                    .flatten()
+                                {
+                                    Some(mesh) => {
+                                        let (preview_entity, preview) = spawn_block_preview(&mut commands, &mut images, mesh.clone(), materials.opaque_material.clone().unwrap(), Vec3::new(index as f32*5.0,0.0,0.0));
+                                        image.texture = preview;
+                                        *vis.as_mut() = Visibility::Inherited;
+                                        info!("CREATED BLOCK PREVIEW");
+                                    }
+                                    None => *vis.as_mut() = Visibility::Hidden,
+                                }
+                            }
+                            Err(_) => *vis.as_mut() = Visibility::Hidden,
+                        }
                     }
                 },
                 None => {
@@ -321,4 +378,85 @@ fn update_icons(
             }
         }
     }
+}
+
+fn spawn_block_preview(
+    commands: &mut Commands,
+    images: &mut ResMut<Assets<Image>>,
+    mesh: Handle<Mesh>,
+    material: Handle<ArrayTextureMaterial>,
+    position: Vec3,
+) -> (Entity, Handle<Image>) {
+    // This code for rendering to a texture is taken from one of the Bevy examples,
+    // https://github.com/bevyengine/bevy/blob/main/examples/3d/render_to_texture.rs
+
+    let size = Extent3d {
+        width: SLOT_PX as u32,
+        height: SLOT_PX as u32,
+        ..default()
+    };
+
+    let mut image = Image {
+        texture_descriptor: TextureDescriptor {
+            label: None,
+            size,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Bgra8UnormSrgb,
+            mip_level_count: 1,
+            sample_count: 1,
+            usage: TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_DST
+                | TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        },
+        ..default()
+    };
+
+    // Fill image.data with zeros
+    image.resize(size);
+
+    let image_handle = images.add(image);
+
+    let entity = commands
+        .spawn((
+            MaterialMeshBundle::<ArrayTextureMaterial> {
+                mesh: mesh.clone(),
+                material: material.clone(),
+                transform: Transform::from_translation(position),
+                ..default()
+            },
+            BlockPreview,
+            BLOCK_PREVIEW_LAYER,
+        ))
+        .with_children(|children| {
+            //spawn camera as a child so that we can just despawn_recursive() the one entity
+            const CAMERA_OFFSET: Vec3 = Vec3::new(1.0, 1.0, 1.0);
+            children
+                .spawn(Camera3dBundle {
+                    camera_3d: Camera3d {
+                        clear_color: ClearColorConfig::Custom(Color::NONE),
+                        ..default()
+                    },
+                    camera: Camera {
+                        // render before the main camera
+                        order: -1,
+                        target: RenderTarget::Image(image_handle.clone()),
+                        ..default()
+                    },
+                    projection: Projection::Orthographic(OrthographicProjection {
+                        scale: 2.0 / SLOT_PX as f32, // smaller numbers here make the block look bigger
+                        ..default()
+                    }),
+                    transform: Transform::from_translation(CAMERA_OFFSET)
+                        .looking_at(position, Vec3::Y),
+                    ..default()
+                })
+                // only render the block previews
+                .insert(BLOCK_PREVIEW_LAYER)
+                //don't render ui (doesn't respect render layer)
+                .insert(UiCameraConfig { show_ui: false });
+        })
+        .id();
+
+    (entity, image_handle)
 }

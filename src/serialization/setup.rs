@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::items::{ItemRegistry, ItemResources, ItemName, NamedItemIcon, ItemIcon, ItemId, ItemNameIdMap};
-use crate::mesher::TerrainTexture;
+use crate::mesher::{TerrainTexture, mesh_single_block};
 use crate::serialization::{LoadingBlocks, LoadingItems};
 use crate::serialization::db::{LevelDB, LevelDBErr};
 use crate::serialization::queries::{CREATE_CHUNK_TABLE, CREATE_WORLD_INFO_TABLE, LOAD_WORLD_INFO, INSERT_WORLD_INFO};
@@ -126,6 +126,7 @@ pub fn start_loading_items (
 
 pub fn load_block_registry(
     mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
     texture_map: Res<BlockTextureMap>,
     loading_blocks: Query<(Entity, Option<&Children>), With<LoadingBlocks>>,
     block_name_query: Query<&BlockName>,
@@ -144,8 +145,10 @@ pub fn load_block_registry(
         for child in children.unwrap() {
             //do name resolution
             if let Ok(named_mesh) = name_resolution_query.get(*child) {
+                let mut mesh = named_mesh.clone().to_block_mesh(&texture_map);
+                mesh.single_mesh = mesh_single_block(&mesh, &mut meshes);
                 commands.entity(*child)
-                    .insert(named_mesh.clone().to_block_mesh(&texture_map))
+                    .insert(mesh)
                     .remove::<NamedBlockMesh>();
             }
             match block_name_query.get(*child) {

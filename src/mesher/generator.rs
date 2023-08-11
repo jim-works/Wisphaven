@@ -298,6 +298,20 @@ fn mesh_chunk<T: ChunkStorage<BlockMesh>>(fat_chunk: &Chunk<T, BlockMesh>, data:
     }
 }
 pub fn should_mesh_face(block: &BlockMesh, block_face: Direction, neighbor: &BlockMesh) -> bool {
+    has_face(block, block_face) && face_showing(block, block_face, neighbor)
+}
+
+pub fn has_face(block: &BlockMesh, block_face: Direction) -> bool {
+    match block.shape {
+        BlockMeshShape::Empty => false,
+        BlockMeshShape::Uniform(_)
+        | BlockMeshShape::MultiTexture(_)
+        | BlockMeshShape::BottomSlab(_, _) => true,
+        BlockMeshShape::Cross(_) => !matches!(block_face, Direction::PosY | Direction::NegY),
+    }
+}
+
+pub fn face_showing(block: &BlockMesh, block_face: Direction, neighbor: &BlockMesh) -> bool {
     if !block.use_transparent_shader && neighbor.use_transparent_shader {
         return true;
     }
@@ -309,21 +323,42 @@ pub fn should_mesh_face(block: &BlockMesh, block_face: Direction, neighbor: &Blo
             block_face == Direction::PosY
                 || block != neighbor && neighbor.shape.is_transparent(block_face.opposite())
         }
-        BlockMeshShape::Cross(_) => !matches!(block_face, Direction::PosY | Direction::NegY),
+        BlockMeshShape::Cross(_) => true,
         BlockMeshShape::Empty => false,
     }
 }
+
 //meshes a full block and returns the handle
-pub fn mesh_single_block(b: &BlockMeshShape, meshes: &mut ResMut<Assets<Mesh>>) -> Handle<Mesh> {
+pub fn mesh_single_block(b: &BlockMesh, meshes: &mut ResMut<Assets<Mesh>>) -> Option<Handle<Mesh>> {
+    if matches!(b.shape, BlockMeshShape::Empty) {
+        return None;
+    }
     let mut mesh = MeshData::new();
-    mesh_pos_z(b, Vec3::ZERO, Vec3::ONE, &mut mesh);
-    mesh_neg_z(b, Vec3::ZERO, Vec3::ONE, &mut mesh);
-    mesh_pos_x(b, Vec3::ZERO, Vec3::ONE, &mut mesh);
-    mesh_neg_x(b, Vec3::ZERO, Vec3::ONE, &mut mesh);
-    mesh_pos_y(b, Vec3::ZERO, Vec3::ONE, &mut mesh);
-    mesh_neg_y(b, Vec3::ZERO, Vec3::ONE, &mut mesh);
-    mesh.ao_level.extend([1.0; 24]);
-    create_mesh(mesh, meshes)
+    if has_face(b, Direction::PosZ) {
+        mesh_pos_z(&b.shape, Vec3::ZERO, Vec3::ONE, &mut mesh);
+        mesh.ao_level.extend([1.0; 4]);
+    }
+    if has_face(b, Direction::NegZ) {
+        mesh_neg_z(&b.shape, Vec3::ZERO, Vec3::ONE, &mut mesh);
+        mesh.ao_level.extend([1.0; 4]);
+    }
+    if has_face(b, Direction::PosX) {
+        mesh_pos_x(&b.shape, Vec3::ZERO, Vec3::ONE, &mut mesh);
+        mesh.ao_level.extend([1.0; 4]);
+    }
+    if has_face(b, Direction::NegX) {
+        mesh_neg_x(&b.shape, Vec3::ZERO, Vec3::ONE, &mut mesh);
+        mesh.ao_level.extend([1.0; 4]);
+    }
+    if has_face(b, Direction::PosY) {
+        mesh_pos_y(&b.shape, Vec3::ZERO, Vec3::ONE, &mut mesh);
+        mesh.ao_level.extend([1.0; 4]);
+    }
+    if has_face(b, Direction::NegY) {
+        mesh_neg_y(&b.shape, Vec3::ZERO, Vec3::ONE, &mut mesh);
+        mesh.ao_level.extend([1.0; 4]);
+    }
+    Some(create_mesh(mesh, meshes))
 }
 fn mesh_block<T: ChunkStorage<BlockMesh>>(
     fat_chunk: &Chunk<T, BlockMesh>,
@@ -1011,7 +1046,7 @@ fn add_ao(
         !neighbor.use_transparent_shader
             && match neighbor.shape {
                 BlockMeshShape::Empty => false,
-                _ => true
+                _ => true,
             }
     }
     let side1_coord = FatChunkIdx::new(

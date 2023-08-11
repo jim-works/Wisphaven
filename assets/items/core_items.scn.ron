@@ -7,9 +7,6 @@
           namespace: "core",
           name: "grass_block",
         ),
-        "recursia::items::NamedItemIcon": (
-            path: "grass_block.png"
-        ),
         "recursia::items::block_item::BlockItem": (
           BlockName(
             namespace: "core",
@@ -23,9 +20,6 @@
         "recursia::items::ItemName": (
           namespace: "core",
           name: "tnt_block",
-        ),
-        "recursia::items::NamedItemIcon": (
-            path: "tnt_side.png"
         ),
         "recursia::items::block_item::BlockItem": (
           BlockName(
