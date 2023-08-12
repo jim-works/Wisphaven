@@ -1,5 +1,7 @@
 //based on https://github.com/Henauxg/bevy_quinnet/blob/main/examples/chat/server.rs
 
+use std::net::IpAddr;
+
 use bevy::prelude::*;
 use bevy_quinnet::{
     server::{
@@ -9,35 +11,40 @@ use bevy_quinnet::{
     shared::{channel::ChannelId, ClientId},
 };
 
-use super::{ClientMessage, ServerMessage, Clients};
+use super::{ClientMessage, Clients, ServerMessage};
 
 pub struct NetServerPlugin;
 
 impl Plugin for NetServerPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins(QuinnetServerPlugin {
-                initialize_later: true,
-            })
-            .add_state::<ServerState>()
-            .add_systems(OnEnter(ServerState::Creating), create_server)
-            .add_systems(
-                OnEnter(ServerState::Starting),
-                start_listening.run_if(resource_exists::<Server>()),
-            )
-            .add_systems(
-                Update,
-                (handle_client_messages, handle_server_events)
-                    .run_if(resource_exists::<Server>().and_then(in_state(ServerState::Started))),
-            );
+        app.add_plugins(QuinnetServerPlugin {
+            initialize_later: true,
+        })
+        .add_state::<ServerState>()
+        .add_event::<StartServerEvent>()
+        .add_systems(OnEnter(ServerState::NotStarted), create_server)
+        .add_systems(
+            OnEnter(ServerState::Starting),
+            start_listening.run_if(resource_exists::<Server>()),
+        )
+        .add_systems(
+            Update,
+            (handle_client_messages, handle_server_events)
+                .run_if(resource_exists::<Server>().and_then(in_state(ServerState::Started))),
+        );
     }
+}
+
+#[derive(Event)]
+pub struct StartServerEvent {
+    pub bind_addr: IpAddr,
+    pub bind_port: u16,
 }
 
 #[derive(States, Default, Eq, PartialEq, Debug, Hash, Clone, Copy)]
 pub enum ServerState {
     #[default]
     NotStarted,
-    Creating,
     Starting,
     Started,
 }
@@ -136,16 +143,22 @@ fn handle_disconnect(endpoint: &mut Endpoint, users: &mut ResMut<Clients>, clien
     }
 }
 
-fn start_listening(mut server: ResMut<Server>, mut state: ResMut<NextState<ServerState>>) {
-    server
-        .start_endpoint(
-            ServerConfiguration::from_string("0.0.0.0:6000").unwrap(),
-            CertificateRetrievalMode::GenerateSelfSigned {
-                server_hostname: "127.0.0.1".to_string(),
-            },
-        )
-        .unwrap();
-    state.set(ServerState::Started);
+fn start_listening(
+    mut server: ResMut<Server>,
+    mut state: ResMut<NextState<ServerState>>,
+    mut events: EventReader<StartServerEvent>,
+) {
+    for event in events.iter() {
+        server
+            .start_endpoint(
+                ServerConfiguration::from_ip(event.bind_addr, event.bind_port),
+                CertificateRetrievalMode::GenerateSelfSigned {
+                    server_hostname: "127.0.0.1".to_string(),
+                },
+            )
+            .unwrap();
+        state.set(ServerState::Started);
+    }
 }
 
 fn create_server(mut commands: Commands, mut state: ResMut<NextState<ServerState>>) {

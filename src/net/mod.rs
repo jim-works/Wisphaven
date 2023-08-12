@@ -1,21 +1,21 @@
-use bevy::{prelude::*, utils::HashMap, app::ScheduleRunnerPlugin};
+use std::net::Ipv4Addr;
+
+use bevy::{prelude::*, utils::HashMap};
 
 use bevy_quinnet::shared::ClientId;
 use serde::{Deserialize, Serialize};
 
-mod client;
-mod server;
+use self::{client::StartClientEvent, server::StartServerEvent};
+
+pub mod client;
+pub mod server;
 
 pub struct NetPlugin;
 
 impl Plugin for NetPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
-            ScheduleRunnerPlugin::default(), //todo: not sure on this
-            server::NetServerPlugin,
-            client::NetClientPlugin,
-        ))
-        .insert_resource(Clients::default());
+        app.add_plugins((server::NetServerPlugin, client::NetClientPlugin))
+            .insert_resource(Clients::default());
     }
 }
 
