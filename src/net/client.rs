@@ -1,6 +1,6 @@
-use std::{thread::sleep, time::Duration, net::IpAddr};
+use std::{net::IpAddr, thread::sleep, time::Duration};
 
-use bevy::{app::AppExit, prelude::*};
+use bevy::{app::AppExit, prelude::*, ecs::entity::EntityMap};
 use bevy_quinnet::{
     client::{
         certificate::CertificateVerificationMode,
@@ -14,7 +14,7 @@ use rand_distr::Alphanumeric;
 
 use crate::util::LocalRepeatingTimer;
 
-use super::{ClientMessage, Clients, ServerMessage};
+use super::{ClientMessage, Clients, ServerMessage, RemoteClient, ClientConnectionInfo, DisconnectedClient};
 
 pub struct NetClientPlugin;
 
@@ -32,8 +32,11 @@ impl Plugin for NetClientPlugin {
         )
         .add_systems(
             Update,
-            (handle_server_messages, handle_client_events, send_message)
-                .run_if(resource_exists::<Client>().and_then(resource_exists::<LocalClient>()).and_then(in_state(ClientState::Started))),
+            (handle_server_messages, handle_client_events, send_message).run_if(
+                resource_exists::<Client>()
+                    .and_then(resource_exists::<LocalClient>())
+                    .and_then(in_state(ClientState::Started)),
+            ),
         )
         // CoreSet::PostUpdate so that AppExit events generated in the previous stage are available
         .add_systems(PostUpdate, on_app_exit.run_if(resource_exists::<Client>()));
@@ -47,6 +50,39 @@ pub struct LocalClient {
     server_port: u16,
     local_ip: IpAddr,
     local_port: u16,
+}
+
+#[derive(Resource)]
+pub struct LocalEntityMap {
+    local_to_remote: EntityMap,
+    remote_to_local: EntityMap
+}
+
+impl LocalEntityMap {
+    pub fn insert(&mut self, local_entity: Entity, remote_entity: Entity) {
+        self.local_to_remote.insert(local_entity, remote_entity);
+        self.remote_to_local.insert(remote_entity, local_entity);
+    }
+    //returns the local entity corresponding to `remote_entity` if it exists
+    pub fn remove_remote(&mut self, remote_entity: Entity) -> Option<Entity> {
+        let local = self.remote_to_local.remove(remote_entity);
+        if let Some(l) = local {
+            self.local_to_remote.remove(l);
+        }
+        local
+    }
+    pub fn local_to_remote(&self) -> &EntityMap {
+        &self.local_to_remote
+    }
+    pub fn remote_to_local(&self) -> &EntityMap {
+        &self.remote_to_local
+    }
+}
+
+impl Default for LocalEntityMap {
+    fn default() -> Self {
+        Self { local_to_remote: Default::default(), remote_to_local: Default::default() }
+    }
 }
 
 #[derive(Event)]
@@ -80,7 +116,9 @@ pub fn on_app_exit(app_exit_events: EventReader<AppExit>, client: Res<Client>) {
 fn handle_server_messages(
     mut users: ResMut<Clients>,
     mut client: ResMut<Client>,
-    mut local_client: ResMut<LocalClient>
+    mut local_client: ResMut<LocalClient>,
+    mut entity_map: ResMut<LocalEntityMap>,
+    mut commands: Commands
 ) {
     while let Some(message) = client
         .connection_mut()
@@ -89,23 +127,25 @@ fn handle_server_messages(
         match message {
             ServerMessage::ClientConnected {
                 client_id,
-                username,
+                info,
             } => {
-                info!("{} joined", username);
-                users.names.insert(client_id, username);
+                info!("{} joined", info.username);
+                setup_remote_player(&info, client_id, &mut commands, &mut entity_map);
+                users.infos.insert(client_id, info);
             }
             ServerMessage::ClientDisconnected { client_id } => {
-                if let Some(username) = users.names.remove(&client_id) {
-                    println!("{} left", username);
+                if let Some(info) = users.infos.remove(&client_id) {
+                    println!("{} left", info.username);
+                    handle_disconnect(&info, client_id, &mut commands, &mut entity_map);
                 } else {
                     warn!("ClientDisconnected for an unknown client_id: {}", client_id)
                 }
             }
             ServerMessage::ChatMessage { client_id, message } => {
                 if let Some(id) = local_client.id {
-                    if let Some(username) = users.names.get(&client_id) {
+                    if let Some(info) = users.infos.get(&client_id) {
                         if client_id != id {
-                            println!("{}: {}", username, message);
+                            println!("{}: {}", info.username, message);
                         }
                     } else {
                         warn!("Chat message from an unknown client_id: {}", client_id)
@@ -114,12 +154,35 @@ fn handle_server_messages(
             }
             ServerMessage::InitClient {
                 client_id,
-                usernames,
+                clients_online,
             } => {
                 local_client.id = Some(client_id);
-                users.names = usernames;
+                users.infos = clients_online;
             }
         }
+    }
+}
+
+//only sets up in regard to the world
+//doesn't add to Clients hashmap, do that separately if needed. 
+fn setup_remote_player(
+    remote: &ClientConnectionInfo,
+    remote_id: ClientId,
+    commands: &mut Commands,
+    entity_map: &mut LocalEntityMap,
+) {
+    let local_entity = commands.spawn(RemoteClient(remote_id)).id();
+    entity_map.insert(local_entity, remote.entity);
+}
+
+fn handle_disconnect(
+    remote: &ClientConnectionInfo,
+    remote_id: ClientId,
+    commands: &mut Commands,
+    entity_map: &mut LocalEntityMap,
+) {
+    if let Some(local) = entity_map.remove_remote(remote.entity) {
+        commands.entity(local).remove::<RemoteClient>().insert(DisconnectedClient(remote_id));
     }
 }
 
@@ -145,17 +208,30 @@ fn handle_client_events(
         connection_events.clear();
     }
 }
-fn start_listening(mut client: ResMut<Client>, mut state: ResMut<NextState<ClientState>>, local_client: Res<LocalClient>) {
+fn start_listening(
+    mut client: ResMut<Client>,
+    mut state: ResMut<NextState<ClientState>>,
+    local_client: Res<LocalClient>,
+) {
     client
         .open_connection(
-            ConnectionConfiguration::from_ips(local_client.server_ip, local_client.server_port, local_client.local_ip, local_client.local_port),
+            ConnectionConfiguration::from_ips(
+                local_client.server_ip,
+                local_client.server_port,
+                local_client.local_ip,
+                local_client.local_port,
+            ),
             CertificateVerificationMode::SkipVerification,
         )
         .unwrap();
     state.set(ClientState::Started);
 }
 
-fn create_client(mut commands: Commands, mut reader: EventReader<StartClientEvent>, mut state: ResMut<NextState<ClientState>>) {
+fn create_client(
+    mut commands: Commands,
+    mut reader: EventReader<StartClientEvent>,
+    mut state: ResMut<NextState<ClientState>>,
+) {
     for event in reader.iter() {
         commands.init_resource::<Client>();
         commands.insert_resource(LocalClient {
@@ -163,8 +239,9 @@ fn create_client(mut commands: Commands, mut reader: EventReader<StartClientEven
             server_ip: event.server_ip,
             server_port: event.server_port,
             local_ip: event.local_ip,
-            local_port: event.local_port
+            local_port: event.local_port,
         });
+        commands.insert_resource(LocalEntityMap::default());
         state.set(ClientState::Starting);
     }
 }

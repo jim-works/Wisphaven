@@ -1,11 +1,7 @@
-use std::net::Ipv4Addr;
-
 use bevy::{prelude::*, utils::HashMap};
 
 use bevy_quinnet::shared::ClientId;
 use serde::{Deserialize, Serialize};
-
-use self::{client::StartClientEvent, server::StartServerEvent};
 
 pub mod client;
 pub mod server;
@@ -20,8 +16,20 @@ impl Plugin for NetPlugin {
 }
 
 #[derive(Resource, Debug, Clone, Default)]
-struct Clients {
-    names: HashMap<ClientId, String>,
+pub struct Clients {
+    pub infos: HashMap<ClientId, ClientConnectionInfo>,
+}
+
+#[derive(Component)]
+pub struct RemoteClient(pub ClientId);
+
+#[derive(Component)]
+pub struct DisconnectedClient(pub ClientId);
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ClientConnectionInfo {
+    pub username: String,
+    pub entity: Entity
 }
 
 // Messages from clients
@@ -37,7 +45,7 @@ pub enum ClientMessage {
 pub enum ServerMessage {
     ClientConnected {
         client_id: ClientId,
-        username: String,
+        info: ClientConnectionInfo,
     },
     ClientDisconnected {
         client_id: ClientId,
@@ -48,6 +56,7 @@ pub enum ServerMessage {
     },
     InitClient {
         client_id: ClientId,
-        usernames: HashMap<ClientId, String>,
+        clients_online: HashMap<ClientId, ClientConnectionInfo>,
     },
+
 }

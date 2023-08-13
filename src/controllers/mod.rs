@@ -28,16 +28,16 @@ impl Plugin for ControllersPlugin {
 #[derive(Component)]
 pub struct FrameMovement(Vec3);
 
+//should have a PhysicsObjectBundle too
 #[derive(Bundle)]
 pub struct ControllableBundle {
-    pub physics: PhysicsObjectBundle,
     pub frame_movement: FrameMovement,
     pub move_speed: MoveSpeed,   
 }
 
 impl Default for ControllableBundle {
     fn default() -> Self {
-        ControllableBundle { physics: PhysicsObjectBundle::default(), frame_movement: FrameMovement(Vec3::default()), move_speed: MoveSpeed::default() }
+        ControllableBundle { frame_movement: FrameMovement(Vec3::default()), move_speed: MoveSpeed::default() }
     }
 }
 

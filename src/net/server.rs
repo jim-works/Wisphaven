@@ -11,6 +11,8 @@ use bevy_quinnet::{
     shared::{channel::ChannelId, ClientId},
 };
 
+use crate::net::{ClientConnectionInfo, RemoteClient, DisconnectedClient};
+
 use super::{ClientMessage, Clients, ServerMessage};
 
 pub struct NetServerPlugin;
@@ -48,59 +50,32 @@ pub enum ServerState {
     Starting,
     Started,
 }
-fn handle_client_messages(mut server: ResMut<Server>, mut users: ResMut<Clients>) {
+
+fn handle_client_messages(mut server: ResMut<Server>, mut users: ResMut<Clients>, mut commands: Commands) {
     let endpoint = server.endpoint_mut();
     for client_id in endpoint.clients() {
         while let Some(message) = endpoint.try_receive_message_from::<ClientMessage>(client_id) {
             match message {
                 ClientMessage::Join { name } => {
-                    if users.names.contains_key(&client_id) {
-                        warn!(
-                            "Received a Join from an already connected client: {}",
-                            client_id
-                        )
-                    } else {
-                        info!("{} connected", name);
-                        users.names.insert(client_id, name.clone());
-                        // Initialize this client with existing state
-                        endpoint
-                            .send_message(
-                                client_id,
-                                ServerMessage::InitClient {
-                                    client_id: client_id,
-                                    usernames: users.names.clone(),
-                                },
-                            )
-                            .unwrap();
-                        // Broadcast the connection event
-                        endpoint
-                            .send_group_message(
-                                users.names.keys().into_iter(),
-                                ServerMessage::ClientConnected {
-                                    client_id: client_id,
-                                    username: name,
-                                },
-                            )
-                            .unwrap();
-                    }
+                    handle_join(client_id, name, &mut users, endpoint, &mut commands);
                 }
                 ClientMessage::Disconnect {} => {
                     // We tell the server to disconnect this user
                     endpoint.disconnect_client(client_id).unwrap();
-                    handle_disconnect(endpoint, &mut users, client_id);
+                    handle_disconnect(endpoint, &mut users, client_id, &mut commands);
                 }
                 ClientMessage::ChatMessage { message } => {
                     info!(
                         "Chat message | {:?}: {}",
-                        users.names.get(&client_id),
+                        users.infos.get(&client_id),
                         message
                     );
                     endpoint.try_send_group_message_on(
-                        users.names.keys().into_iter(),
+                        users.infos.keys().into_iter(),
                         ChannelId::UnorderedReliable,
                         ServerMessage::ChatMessage {
-                            client_id: client_id,
-                            message: message,
+                            client_id,
+                            message,
                         },
                     );
                 }
@@ -109,32 +84,80 @@ fn handle_client_messages(mut server: ResMut<Server>, mut users: ResMut<Clients>
     }
 }
 
+fn handle_join(
+    client_id: ClientId,
+    username: String,
+    users: &mut Clients,
+    endpoint: &mut Endpoint,
+    commands: &mut Commands
+) {
+    if users.infos.contains_key(&client_id) {
+        warn!(
+            "Received a Join from an already connected client: {}",
+            client_id
+        );
+    } else {
+        info!("{} connected", &username);
+        let player_entity = commands.spawn(RemoteClient(client_id)).id();
+        let info = ClientConnectionInfo {
+            username,
+            entity: player_entity,
+        };
+        users.infos.insert(client_id, info.clone());
+        // Initialize this client with existing state
+        endpoint
+            .send_message(
+                client_id,
+                ServerMessage::InitClient {
+                    client_id,
+                    clients_online: users.infos.clone(),
+                },
+            )
+            .unwrap();
+        // Broadcast the connection event
+        endpoint
+            .send_group_message(
+                users.infos.keys().into_iter(),
+                ServerMessage::ClientConnected {
+                    client_id,
+                    info,
+                },
+            )
+            .unwrap();
+    }
+}
+
 fn handle_server_events(
     mut connection_lost_events: EventReader<ConnectionLostEvent>,
     mut server: ResMut<Server>,
     mut users: ResMut<Clients>,
+    mut commands: Commands
 ) {
     // The server signals us about users that lost connection
     for client in connection_lost_events.iter() {
-        handle_disconnect(server.endpoint_mut(), &mut users, client.id);
+        handle_disconnect(server.endpoint_mut(), &mut users, client.id, &mut commands);
     }
 }
 
 /// Shared disconnection behaviour, whether the client lost connection or asked to disconnect
-fn handle_disconnect(endpoint: &mut Endpoint, users: &mut ResMut<Clients>, client_id: ClientId) {
+fn handle_disconnect(endpoint: &mut Endpoint, users: &mut ResMut<Clients>, client_id: ClientId, commands: &mut Commands) {
     // Remove this user
-    if let Some(username) = users.names.remove(&client_id) {
+    if let Some(info) = users.infos.remove(&client_id) {
         // Broadcast its deconnection
 
         endpoint
             .send_group_message(
-                users.names.keys().into_iter(),
+                users.infos.keys().into_iter(),
                 ServerMessage::ClientDisconnected {
                     client_id: client_id,
                 },
             )
             .unwrap();
-        info!("{} disconnected", username);
+        info!("{} disconnected", info.username);
+        //TODO: i think it's okay to leak these, since the entities would be so small
+        //other systems should listen for the removal of `RemoteClient` and do cleanup there.
+        //could be useful even to keep these around (easy logging of all clients that have connected?)
+        commands.entity(info.entity).remove::<RemoteClient>().insert(DisconnectedClient(client_id));
     } else {
         warn!(
             "Received a Disconnect from an unknown or disconnected client: {}",
