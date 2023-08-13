@@ -1,6 +1,6 @@
 use std::{net::IpAddr, thread::sleep, time::Duration};
 
-use bevy::{app::AppExit, prelude::*, ecs::entity::EntityMap};
+use bevy::{app::AppExit, ecs::entity::EntityMap, prelude::*};
 use bevy_quinnet::{
     client::{
         certificate::CertificateVerificationMode,
@@ -12,9 +12,10 @@ use bevy_quinnet::{
 use rand::Rng;
 use rand_distr::Alphanumeric;
 
-use crate::util::LocalRepeatingTimer;
-
-use super::{ClientMessage, Clients, ServerMessage, RemoteClient, ClientConnectionInfo, DisconnectedClient};
+use super::{
+    ClientMessage, DisconnectedClient, PlayerInfo, PlayerList, RemoteClient, ServerMessage,
+    UpdateEntityTransform, UpdateEntityVelocity,
+};
 
 pub struct NetClientPlugin;
 
@@ -32,7 +33,7 @@ impl Plugin for NetClientPlugin {
         )
         .add_systems(
             Update,
-            (handle_server_messages, handle_client_events, send_message).run_if(
+            (handle_server_messages, handle_client_events).run_if(
                 resource_exists::<Client>()
                     .and_then(resource_exists::<LocalClient>())
                     .and_then(in_state(ClientState::Started)),
@@ -55,7 +56,7 @@ pub struct LocalClient {
 #[derive(Resource)]
 pub struct LocalEntityMap {
     local_to_remote: EntityMap,
-    remote_to_local: EntityMap
+    remote_to_local: EntityMap,
 }
 
 impl LocalEntityMap {
@@ -81,7 +82,10 @@ impl LocalEntityMap {
 
 impl Default for LocalEntityMap {
     fn default() -> Self {
-        Self { local_to_remote: Default::default(), remote_to_local: Default::default() }
+        Self {
+            local_to_remote: Default::default(),
+            remote_to_local: Default::default(),
+        }
     }
 }
 
@@ -114,29 +118,28 @@ pub fn on_app_exit(app_exit_events: EventReader<AppExit>, client: Res<Client>) {
 }
 
 fn handle_server_messages(
-    mut users: ResMut<Clients>,
+    mut users: ResMut<PlayerList>,
     mut client: ResMut<Client>,
     mut local_client: ResMut<LocalClient>,
     mut entity_map: ResMut<LocalEntityMap>,
-    mut commands: Commands
+    mut commands: Commands,
+    mut update_tf_writer: EventWriter<UpdateEntityTransform>,
+    mut update_v_writer: EventWriter<UpdateEntityVelocity>,
 ) {
     while let Some(message) = client
         .connection_mut()
         .try_receive_message::<ServerMessage>()
     {
         match message {
-            ServerMessage::ClientConnected {
-                client_id,
-                info,
-            } => {
+            ServerMessage::ClientConnected { client_id, info } => {
                 info!("{} joined", info.username);
-                setup_remote_player(&info, client_id, &mut commands, &mut entity_map);
+                setup_remote_player(&info, Some(client_id), &mut commands, &mut entity_map);
                 users.infos.insert(client_id, info);
             }
             ServerMessage::ClientDisconnected { client_id } => {
                 if let Some(info) = users.infos.remove(&client_id) {
                     println!("{} left", info.username);
-                    handle_disconnect(&info, client_id, &mut commands, &mut entity_map);
+                    handle_disconnect(&info, Some(client_id), &mut commands, &mut entity_map);
                 } else {
                     warn!("ClientDisconnected for an unknown client_id: {}", client_id)
                 }
@@ -153,36 +156,73 @@ fn handle_server_messages(
                 }
             }
             ServerMessage::InitClient {
-                client_id,
+                client_id: my_client_id,
                 clients_online,
             } => {
-                local_client.id = Some(client_id);
-                users.infos = clients_online;
+                local_client.id = Some(my_client_id);
+                for (client_id, info) in clients_online.infos.iter() {
+                    if *client_id != my_client_id {
+                        setup_remote_player(info, Some(*client_id), &mut commands, &mut entity_map);
+                    }
+                }
+                if let Some(ref info) = clients_online.server {
+                    setup_remote_player(info, None, &mut commands, &mut entity_map);
+                }
+                *users = clients_online;
+            }
+            ServerMessage::UpdateEntities {
+                transforms,
+                velocities,
+            } => {
+                for UpdateEntityTransform { entity, transform } in transforms {
+                    if let Some(local) = entity_map.remote_to_local().get(entity) {
+                        update_tf_writer.send(UpdateEntityTransform {
+                            entity: local,
+                            transform,
+                        });
+                    } else {
+                        warn!("Recv UpdateEntityTransform message for unknown entity!");
+                    }
+                }
+                for UpdateEntityVelocity { entity, velocity } in velocities {
+                    if let Some(local) = entity_map.remote_to_local().get(entity) {
+                        update_v_writer.send(UpdateEntityVelocity {
+                            entity: local,
+                            velocity,
+                        });
+                    } else {
+                        warn!("Recv UpdateEntityTransform message for unknown entity!");
+                    }
+                }
             }
         }
     }
 }
 
 //only sets up in regard to the world
-//doesn't add to Clients hashmap, do that separately if needed. 
+//doesn't add to Clients hashmap, do that separately if needed.
 fn setup_remote_player(
-    remote: &ClientConnectionInfo,
-    remote_id: ClientId,
+    remote: &PlayerInfo,
+    remote_id: Option<ClientId>,
     commands: &mut Commands,
     entity_map: &mut LocalEntityMap,
 ) {
     let local_entity = commands.spawn(RemoteClient(remote_id)).id();
     entity_map.insert(local_entity, remote.entity);
+    info!("Setup remote player: {}", remote.username);
 }
 
 fn handle_disconnect(
-    remote: &ClientConnectionInfo,
-    remote_id: ClientId,
+    remote: &PlayerInfo,
+    remote_id: Option<ClientId>,
     commands: &mut Commands,
     entity_map: &mut LocalEntityMap,
 ) {
     if let Some(local) = entity_map.remove_remote(remote.entity) {
-        commands.entity(local).remove::<RemoteClient>().insert(DisconnectedClient(remote_id));
+        commands
+            .entity(local)
+            .remove::<RemoteClient>()
+            .insert(DisconnectedClient(remote_id));
     }
 }
 
@@ -243,16 +283,5 @@ fn create_client(
         });
         commands.insert_resource(LocalEntityMap::default());
         state.set(ClientState::Starting);
-    }
-}
-
-fn send_message(client: Res<Client>, mut timer: Local<LocalRepeatingTimer<250>>, time: Res<Time>) {
-    timer.tick(time.delta());
-    if timer.just_finished() {
-        client
-            .connection()
-            .try_send_message(ClientMessage::ChatMessage {
-                message: format!("hi here's a message at time {}", time.elapsed_seconds()),
-            });
     }
 }

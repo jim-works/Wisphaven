@@ -10,10 +10,11 @@ use bevy_quinnet::{
     },
     shared::{channel::ChannelId, ClientId},
 };
+use bevy_rapier3d::prelude::Velocity;
 
-use crate::net::{ClientConnectionInfo, RemoteClient, DisconnectedClient};
+use crate::net::{PlayerInfo, DisconnectedClient, RemoteClient, PlayerList};
 
-use super::{ClientMessage, Clients, ServerMessage};
+use super::{ClientMessage, ServerMessage, UpdateEntityTransform, UpdateEntityVelocity};
 
 pub struct NetServerPlugin;
 
@@ -31,7 +32,7 @@ impl Plugin for NetServerPlugin {
         )
         .add_systems(
             Update,
-            (handle_client_messages, handle_server_events)
+            (handle_client_messages, handle_server_events, sync_entity_updates)
                 .run_if(resource_exists::<Server>().and_then(in_state(ServerState::Started))),
         );
     }
@@ -43,6 +44,9 @@ pub struct StartServerEvent {
     pub bind_port: u16,
 }
 
+#[derive(Resource)]
+pub struct ServerPlayer(pub PlayerInfo);
+
 #[derive(States, Default, Eq, PartialEq, Debug, Hash, Clone, Copy)]
 pub enum ServerState {
     #[default]
@@ -51,13 +55,24 @@ pub enum ServerState {
     Started,
 }
 
-fn handle_client_messages(mut server: ResMut<Server>, mut users: ResMut<Clients>, mut commands: Commands) {
+//marker to sync entity's position and velocity with all clients
+#[derive(Component)]
+pub struct SyncPositionVelocity;
+
+fn handle_client_messages(
+    mut server: ResMut<Server>,
+    mut users: ResMut<PlayerList>,
+    server_player: Option<Res<ServerPlayer>>,
+    mut commands: Commands,
+    mut update_tf_writer: EventWriter<UpdateEntityTransform>,
+    mut update_v_writer: EventWriter<UpdateEntityVelocity>,
+) {
     let endpoint = server.endpoint_mut();
     for client_id in endpoint.clients() {
         while let Some(message) = endpoint.try_receive_message_from::<ClientMessage>(client_id) {
             match message {
                 ClientMessage::Join { name } => {
-                    handle_join(client_id, name, &mut users, endpoint, &mut commands);
+                    handle_join(client_id, name, &mut users, server_player.as_ref().map(|s| s.0.clone()), endpoint, &mut commands);
                 }
                 ClientMessage::Disconnect {} => {
                     // We tell the server to disconnect this user
@@ -73,11 +88,29 @@ fn handle_client_messages(mut server: ResMut<Server>, mut users: ResMut<Clients>
                     endpoint.try_send_group_message_on(
                         users.infos.keys().into_iter(),
                         ChannelId::UnorderedReliable,
-                        ServerMessage::ChatMessage {
-                            client_id,
-                            message,
-                        },
+                        ServerMessage::ChatMessage { client_id, message },
                     );
+                }
+                ClientMessage::UpdatePosition {
+                    transform,
+                    velocity,
+                } => {
+                    if let Some(PlayerInfo {
+                        username: _,
+                        entity,
+                    }) = users.infos.get(&client_id)
+                    {
+                        update_tf_writer.send(UpdateEntityTransform {
+                            entity: *entity,
+                            transform,
+                        });
+                        update_v_writer.send(UpdateEntityVelocity {
+                            entity: *entity,
+                            velocity,
+                        });
+                    } else {
+                        warn!("Update position recieved for uninitialized client!");
+                    }
                 }
             }
         }
@@ -87,9 +120,10 @@ fn handle_client_messages(mut server: ResMut<Server>, mut users: ResMut<Clients>
 fn handle_join(
     client_id: ClientId,
     username: String,
-    users: &mut Clients,
+    users: &mut PlayerList,
+    server_player: Option<PlayerInfo>,
     endpoint: &mut Endpoint,
-    commands: &mut Commands
+    commands: &mut Commands,
 ) {
     if users.infos.contains_key(&client_id) {
         warn!(
@@ -98,8 +132,8 @@ fn handle_join(
         );
     } else {
         info!("{} connected", &username);
-        let player_entity = commands.spawn(RemoteClient(client_id)).id();
-        let info = ClientConnectionInfo {
+        let player_entity = commands.spawn(RemoteClient(Some(client_id))).id();
+        let info = PlayerInfo {
             username,
             entity: player_entity,
         };
@@ -110,18 +144,18 @@ fn handle_join(
                 client_id,
                 ServerMessage::InitClient {
                     client_id,
-                    clients_online: users.infos.clone(),
+                    clients_online: PlayerList {
+                        infos: users.infos.clone(),
+                        server: server_player,
+                    },
                 },
             )
             .unwrap();
         // Broadcast the connection event
         endpoint
             .send_group_message(
-                users.infos.keys().into_iter(),
-                ServerMessage::ClientConnected {
-                    client_id,
-                    info,
-                },
+                users.infos.keys().into_iter().filter(|id| **id != client_id),
+                ServerMessage::ClientConnected { client_id, info },
             )
             .unwrap();
     }
@@ -130,8 +164,8 @@ fn handle_join(
 fn handle_server_events(
     mut connection_lost_events: EventReader<ConnectionLostEvent>,
     mut server: ResMut<Server>,
-    mut users: ResMut<Clients>,
-    mut commands: Commands
+    mut users: ResMut<PlayerList>,
+    mut commands: Commands,
 ) {
     // The server signals us about users that lost connection
     for client in connection_lost_events.iter() {
@@ -140,7 +174,12 @@ fn handle_server_events(
 }
 
 /// Shared disconnection behaviour, whether the client lost connection or asked to disconnect
-fn handle_disconnect(endpoint: &mut Endpoint, users: &mut ResMut<Clients>, client_id: ClientId, commands: &mut Commands) {
+fn handle_disconnect(
+    endpoint: &mut Endpoint,
+    users: &mut ResMut<PlayerList>,
+    client_id: ClientId,
+    commands: &mut Commands,
+) {
     // Remove this user
     if let Some(info) = users.infos.remove(&client_id) {
         // Broadcast its deconnection
@@ -157,7 +196,10 @@ fn handle_disconnect(endpoint: &mut Endpoint, users: &mut ResMut<Clients>, clien
         //TODO: i think it's okay to leak these, since the entities would be so small
         //other systems should listen for the removal of `RemoteClient` and do cleanup there.
         //could be useful even to keep these around (easy logging of all clients that have connected?)
-        commands.entity(info.entity).remove::<RemoteClient>().insert(DisconnectedClient(client_id));
+        commands
+            .entity(info.entity)
+            .remove::<RemoteClient>()
+            .insert(DisconnectedClient(Some(client_id)));
     } else {
         warn!(
             "Received a Disconnect from an unknown or disconnected client: {}",
@@ -187,4 +229,17 @@ fn start_listening(
 fn create_server(mut commands: Commands, mut state: ResMut<NextState<ServerState>>) {
     commands.init_resource::<Server>();
     state.set(ServerState::Starting);
+}
+
+fn sync_entity_updates(
+    server: Res<Server>,
+    clients: Res<PlayerList>,
+    tfs: Query<(Entity, &Transform), With<SyncPositionVelocity>>,
+    vs: Query<(Entity, &Velocity), With<SyncPositionVelocity>>,
+) {
+    let transforms = tfs.iter().map(|(e, tf)| UpdateEntityTransform {entity: e, transform: *tf}).collect();
+    let velocities = vs.iter().map(|(e, v)| UpdateEntityVelocity {entity: e, velocity: v.linvel}).collect();
+    if let Err(e) = server.endpoint().send_group_message(clients.infos.keys().into_iter(), ServerMessage::UpdateEntities { transforms, velocities }) {
+        error!("{}", e);
+    }
 }

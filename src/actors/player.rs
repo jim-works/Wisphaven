@@ -5,13 +5,14 @@ use bevy::{
     render::{camera::CameraProjection, primitives::Frustum},
 };
 use bevy_atmosphere::prelude::AtmosphereCamera;
+use bevy_quinnet::{client::Client, server::Server};
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::InputManagerBundle;
 
 use crate::{
     controllers::{self, *},
     items::{inventory::Inventory, *},
-    net::{Clients, RemoteClient},
+    net::{server::{SyncPositionVelocity, ServerPlayer}, ClientMessage, PlayerList, RemoteClient, client::ClientState, PlayerInfo},
     physics::*,
     world::{settings::Settings, *},
 };
@@ -35,6 +36,7 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(LevelLoadState::Loaded), spawn_local_player)
             .add_systems(Update, spawn_remote_player)
+            .add_systems(Update, send_updated_position_client.run_if(in_state(ClientState::Started)))
             .add_event::<LocalPlayerSpawnedEvent>();
     }
 }
@@ -44,12 +46,15 @@ fn spawn_remote_player(
     joined_query: Query<(Entity, &RemoteClient), Added<RemoteClient>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    clients: Res<Clients>,
+    clients: Res<PlayerList>,
 ) {
     for (entity, RemoteClient(client_id)) in joined_query.iter() {
-        info!("Spawned remote player with username: {}", &clients.infos.get(client_id).unwrap().username);
+        info!(
+            "Spawned remote player with username: {}",
+            &clients.get(*client_id).unwrap().username
+        );
         commands.entity(entity).insert((
-            Name::new(clients.infos.get(client_id).unwrap().username.clone()),
+            Name::new(clients.get(*client_id).cloned().unwrap().username),
             PbrBundle {
                 mesh: meshes.add(shape::Capsule::default().into()),
                 material: materials.add(StandardMaterial {
@@ -57,7 +62,7 @@ fn spawn_remote_player(
                     ..default()
                 }),
                 ..default()
-            }
+            },
         ));
         populate_player_entity(entity, Vec3::ZERO, &mut commands);
     }
@@ -72,6 +77,7 @@ pub fn spawn_local_player(
     mut spawn_event: EventWriter<LocalPlayerSpawnedEvent>,
     resources: Res<ItemResources>,
     item_query: Query<&MaxStackSize>,
+    server: Option<Res<Server>>,
 ) {
     info!("Spawning local player!");
     let mut spawn_point = level.spawn_point;
@@ -252,6 +258,14 @@ pub fn spawn_local_player(
             ..default()
         },
     ));
+    //TODO: move this to a better place (race condition rn)
+    if server.is_some() {
+        info!("Inserted server's player");
+        commands.insert_resource(ServerPlayer(PlayerInfo {
+            username: "host".into(),
+            entity: player_id,
+        }))
+    }
 }
 
 fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Commands) {
@@ -274,5 +288,22 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
             windup: Duration::ZERO,
             backswing: Duration::from_millis(100),
         },
+        SyncPositionVelocity,
     ));
 }
+
+fn send_updated_position_client(
+    client: Res<Client>,
+    query: Query<(&Transform, &Velocity), With<LocalPlayer>>,
+) {
+    for (tf, v) in query.iter() {
+        client.connection().send_message_on(
+            bevy_quinnet::shared::channel::ChannelId::Unreliable,
+            ClientMessage::UpdatePosition {
+                transform: *tf,
+                velocity: v.linvel,
+            },
+        ).unwrap();
+    }
+}
+
