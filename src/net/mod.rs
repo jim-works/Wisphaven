@@ -4,6 +4,8 @@ use bevy_quinnet::shared::ClientId;
 use bevy_rapier3d::prelude::Velocity;
 use serde::{Deserialize, Serialize};
 
+use self::{client::ClientState, server::ServerState};
+
 pub mod client;
 pub mod server;
 
@@ -12,9 +14,13 @@ pub struct NetPlugin;
 impl Plugin for NetPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((server::NetServerPlugin, client::NetClientPlugin))
-            .add_systems(PostUpdate, (process_transform_updates, process_velocity_updates))
+            .add_systems(
+                PostUpdate,
+                (process_transform_updates, process_velocity_updates),
+            )
             .add_event::<UpdateEntityTransform>()
             .add_event::<UpdateEntityVelocity>()
+            .add_state::<NetworkType>()
             .insert_resource(PlayerList::default());
     }
 }
@@ -22,7 +28,7 @@ impl Plugin for NetPlugin {
 #[derive(Resource, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PlayerList {
     pub infos: HashMap<ClientId, PlayerInfo>,
-    pub server: Option<PlayerInfo>
+    pub server: Option<PlayerInfo>,
 }
 
 impl PlayerList {
@@ -47,6 +53,14 @@ pub struct DisconnectedClient(pub Option<ClientId>);
 pub struct PlayerInfo {
     pub username: String,
     pub entity: Entity,
+}
+
+#[derive(States, Resource, Hash, Eq, PartialEq, Copy, Clone, Debug, Default)]
+pub enum NetworkType {
+    #[default]
+    Singleplayer,
+    Server,
+    Client,
 }
 
 // Messages from clients
@@ -81,31 +95,38 @@ pub enum ServerMessage {
     },
     InitClient {
         client_id: ClientId,
+        entity: Entity,
         clients_online: PlayerList,
     },
     UpdateEntities {
         transforms: Vec<UpdateEntityTransform>,
-        velocities: Vec<UpdateEntityVelocity>
+        velocities: Vec<UpdateEntityVelocity>,
     },
+}
+
+pub fn network_ready() -> impl Condition<()> {
+    in_state(NetworkType::Singleplayer)
+        .or_else(in_state(NetworkType::Server).and_then(in_state(ServerState::Started)))
+        .or_else(in_state(NetworkType::Client).and_then(in_state(ClientState::Ready)))
 }
 
 //recv from over the network
 #[derive(Event, Copy, Clone, Serialize, Deserialize, Debug)]
 pub struct UpdateEntityTransform {
     pub entity: Entity,
-    pub transform: Transform
+    pub transform: Transform,
 }
 
 //recv from over the network
 #[derive(Event, Copy, Clone, Serialize, Deserialize, Debug)]
 pub struct UpdateEntityVelocity {
     pub entity: Entity,
-    pub velocity: Vec3
+    pub velocity: Vec3,
 }
 
-fn process_transform_updates (
+fn process_transform_updates(
     mut reader: EventReader<UpdateEntityTransform>,
-    mut query: Query<&mut Transform>
+    mut query: Query<&mut Transform>,
 ) {
     for UpdateEntityTransform { entity, transform } in reader.iter() {
         if let Ok(mut tf) = query.get_mut(*entity) {
@@ -116,9 +137,9 @@ fn process_transform_updates (
     }
 }
 
-fn process_velocity_updates (
+fn process_velocity_updates(
     mut reader: EventReader<UpdateEntityVelocity>,
-    mut query: Query<&mut Velocity>
+    mut query: Query<&mut Velocity>,
 ) {
     for UpdateEntityVelocity { entity, velocity } in reader.iter() {
         if let Ok(mut v) = query.get_mut(*entity) {

@@ -24,6 +24,8 @@ use util::plugin::UtilPlugin;
 use world::*;
 use worldgen::WorldGenPlugin;
 
+use crate::net::NetworkType;
+
 mod actors;
 mod chunk_loading;
 mod controllers;
@@ -76,22 +78,28 @@ fn main() {
         });
 
     if let Some(port) = server_port {
-        app.add_systems(Startup, move |mut writer: EventWriter<StartServerEvent>| {
+        app.add_systems(Startup, move |mut writer: EventWriter<StartServerEvent>, mut commands: Commands| {
             info!("Sending start server event on port {}", port);
             writer.send(StartServerEvent {
                 bind_addr: std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
                 bind_port: port,
-            })
+            });
+            commands.insert_resource(NetworkType::Server);
         });
     } else if let Some((ip, port)) = client_connection_ip {
-        app.add_systems(Startup, move |mut writer: EventWriter<StartClientEvent>| {
+        app.add_systems(Startup, move |mut writer: EventWriter<StartClientEvent>, mut commands: Commands| {
             info!("Sending start client event, connecting to {}:{}", ip, port);
             writer.send(StartClientEvent {
                 server_ip: ip,
                 server_port: port,
                 local_ip: std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
                 local_port: 0,
-            })
+            });
+            commands.insert_resource(NetworkType::Client);
+        });
+    } else {
+        app.add_systems(Startup, |mut commands: Commands| {
+            commands.insert_resource(NetworkType::Singleplayer);
         });
     }
 

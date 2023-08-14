@@ -6,9 +6,10 @@ use serde::{Deserialize, Serialize};
 use bevy::{prelude::*, utils::HashMap};
 
 use crate::{
+    net::{network_ready, NetworkType},
     util::palette::BlockPalette,
     world::{
-        chunk::{ArrayChunk, ChunkCoord, BLOCKS_PER_CHUNK, ChunkTrait},
+        chunk::{ArrayChunk, ChunkCoord, ChunkTrait, BLOCKS_PER_CHUNK},
         events::CreateLevelEvent,
         BlockId, BlockRegistry, BlockType, Id, LevelLoadState, LevelSystemSet,
     },
@@ -28,8 +29,10 @@ impl Plugin for SerializationPlugin {
         app.add_plugins(state::SerializationStatePlugin)
             .add_systems(
                 Update,
-                setup::on_level_created
-                    .run_if(in_state(state::GameLoadState::Done).and_then(in_state(LevelLoadState::NotLoaded))),
+                setup::on_level_created.run_if(
+                    in_state(state::GameLoadState::Done)
+                        .and_then(in_state(LevelLoadState::NotLoaded)),
+                ),
             )
             .add_systems(
                 Update,
@@ -54,24 +57,36 @@ impl Plugin for SerializationPlugin {
                     setup::start_loading_blocks,
                     setup::start_loading_items,
                 )
-                    .chain()
+                    .chain(),
             )
             .add_systems(
                 Update,
-                (setup::load_block_registry, setup::load_item_registry).run_if(in_state(state::GameLoadState::LoadingAssets))
+                (setup::load_block_registry, setup::load_item_registry)
+                    .run_if(in_state(state::GameLoadState::LoadingAssets)),
             )
-            .add_systems(OnEnter(state::GameLoadState::Done), create_level)
+            .add_systems(
+                Update,
+                create_level.run_if(
+                    in_state(state::GameLoadState::CreatingLevel).and_then(network_ready()),
+                ),
+            )
             .add_event::<SaveChunkEvent>()
             .add_event::<db::DataFromDBEvent>()
             .insert_resource(SaveTimer(Timer::from_seconds(0.1, TimerMode::Repeating)));
     }
 }
 
-fn create_level(mut writer: EventWriter<CreateLevelEvent>) {
+fn create_level(
+    mut writer: EventWriter<CreateLevelEvent>,
+    network_type: Res<NetworkType>,
+    mut next_state: ResMut<NextState<state::GameLoadState>>,
+) {
     writer.send(CreateLevelEvent {
         name: "level",
         seed: 8008135,
+        network_type: *network_type,
     });
+    next_state.set(state::GameLoadState::Done);
     info!("Sent create level event!");
 }
 

@@ -5,14 +5,18 @@ use bevy::{
     render::{camera::CameraProjection, primitives::Frustum},
 };
 use bevy_atmosphere::prelude::AtmosphereCamera;
-use bevy_quinnet::{client::Client, server::Server};
+use bevy_quinnet::client::Client;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::InputManagerBundle;
 
 use crate::{
     controllers::{self, *},
     items::{inventory::Inventory, *},
-    net::{server::{SyncPositionVelocity, ServerPlayer}, ClientMessage, PlayerList, RemoteClient, client::ClientState, PlayerInfo},
+    net::{
+        client::ClientState,
+        server::SyncPositionVelocity,
+        ClientMessage, PlayerList, RemoteClient,
+    },
     physics::*,
     world::{settings::Settings, *},
 };
@@ -36,7 +40,10 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(LevelLoadState::Loaded), spawn_local_player)
             .add_systems(Update, spawn_remote_player)
-            .add_systems(Update, send_updated_position_client.run_if(in_state(ClientState::Started)))
+            .add_systems(
+                Update,
+                send_updated_position_client.run_if(in_state(ClientState::Started)),
+            )
             .add_event::<LocalPlayerSpawnedEvent>();
     }
 }
@@ -77,7 +84,6 @@ pub fn spawn_local_player(
     mut spawn_event: EventWriter<LocalPlayerSpawnedEvent>,
     resources: Res<ItemResources>,
     item_query: Query<&MaxStackSize>,
-    server: Option<Res<Server>>,
 ) {
     info!("Spawning local player!");
     let mut spawn_point = level.spawn_point;
@@ -258,14 +264,6 @@ pub fn spawn_local_player(
             ..default()
         },
     ));
-    //TODO: move this to a better place (race condition rn)
-    if server.is_some() {
-        info!("Inserted server's player");
-        commands.insert_resource(ServerPlayer(PlayerInfo {
-            username: "host".into(),
-            entity: player_id,
-        }))
-    }
 }
 
 fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Commands) {
@@ -297,13 +295,15 @@ fn send_updated_position_client(
     query: Query<(&Transform, &Velocity), With<LocalPlayer>>,
 ) {
     for (tf, v) in query.iter() {
-        client.connection().send_message_on(
-            bevy_quinnet::shared::channel::ChannelId::Unreliable,
-            ClientMessage::UpdatePosition {
-                transform: *tf,
-                velocity: v.linvel,
-            },
-        ).unwrap();
+        client
+            .connection()
+            .send_message_on(
+                bevy_quinnet::shared::channel::ChannelId::Unreliable,
+                ClientMessage::UpdatePosition {
+                    transform: *tf,
+                    velocity: v.linvel,
+                },
+            )
+            .unwrap();
     }
 }
-

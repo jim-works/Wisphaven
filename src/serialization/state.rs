@@ -8,6 +8,7 @@ use super::ItemTextureMap;
 pub enum GameLoadState {
     #[default]
     LoadingAssets,
+    CreatingLevel,
     Done
 }
 
@@ -47,6 +48,6 @@ pub fn check_load_state(
 ) {
     if block_textures.0 && block_types.is_some() && item_types.is_some() {
         info!("Finished loading!");
-        next.set(GameLoadState::Done)
+        next.set(GameLoadState::CreatingLevel)
     }
 }

@@ -1,3 +1,5 @@
+use crate::net::NetworkType;
+
 use super::{BlockCoord, Level, BlockId, BlockResources, LevelSystemSet, Id, BlockDamage};
 use bevy::prelude::*;
 
@@ -21,6 +23,7 @@ impl Plugin for WorldEventsPlugin {
 pub struct CreateLevelEvent {
     pub name: &'static str,
     pub seed: u64,
+    pub network_type: NetworkType
 }
 
 #[derive(Event)]

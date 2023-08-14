@@ -144,6 +144,7 @@ fn handle_join(
                 client_id,
                 ServerMessage::InitClient {
                     client_id,
+                    entity: player_entity,
                     clients_online: PlayerList {
                         infos: users.infos.clone(),
                         server: server_player,

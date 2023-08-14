@@ -12,6 +12,8 @@ use bevy_quinnet::{
 use rand::Rng;
 use rand_distr::Alphanumeric;
 
+use crate::actors::LocalPlayerSpawnedEvent;
+
 use super::{
     ClientMessage, DisconnectedClient, PlayerInfo, PlayerList, RemoteClient, ServerMessage,
     UpdateEntityTransform, UpdateEntityVelocity,
@@ -47,6 +49,7 @@ impl Plugin for NetClientPlugin {
 #[derive(Resource)]
 pub struct LocalClient {
     id: Option<ClientId>,
+    server_entity: Option<Entity>,
     server_ip: IpAddr,
     server_port: u16,
     local_ip: IpAddr,
@@ -103,6 +106,8 @@ pub enum ClientState {
     NotStarted,
     Starting,
     Started,
+    //recieved initialization message from server
+    Ready,
 }
 
 pub fn on_app_exit(app_exit_events: EventReader<AppExit>, client: Res<Client>) {
@@ -120,6 +125,7 @@ pub fn on_app_exit(app_exit_events: EventReader<AppExit>, client: Res<Client>) {
 fn handle_server_messages(
     mut users: ResMut<PlayerList>,
     mut client: ResMut<Client>,
+    mut state: ResMut<NextState<ClientState>>,
     mut local_client: ResMut<LocalClient>,
     mut entity_map: ResMut<LocalEntityMap>,
     mut commands: Commands,
@@ -157,9 +163,11 @@ fn handle_server_messages(
             }
             ServerMessage::InitClient {
                 client_id: my_client_id,
+                entity,
                 clients_online,
             } => {
                 local_client.id = Some(my_client_id);
+                local_client.server_entity = Some(entity);
                 for (client_id, info) in clients_online.infos.iter() {
                     if *client_id != my_client_id {
                         setup_remote_player(info, Some(*client_id), &mut commands, &mut entity_map);
@@ -169,6 +177,8 @@ fn handle_server_messages(
                     setup_remote_player(info, None, &mut commands, &mut entity_map);
                 }
                 *users = clients_online;
+                info!("Client recv InitClient");
+                state.set(ClientState::Ready);
             }
             ServerMessage::UpdateEntities {
                 transforms,
@@ -191,7 +201,7 @@ fn handle_server_messages(
                             velocity,
                         });
                     } else {
-                        warn!("Recv UpdateEntityTransform message for unknown entity!");
+                        warn!("Recv UpdateEntityVelocity message for unknown entity!");
                     }
                 }
             }
@@ -210,6 +220,17 @@ fn setup_remote_player(
     let local_entity = commands.spawn(RemoteClient(remote_id)).id();
     entity_map.insert(local_entity, remote.entity);
     info!("Setup remote player: {}", remote.username);
+}
+
+fn setup_local_player(
+    mut reader: EventReader<LocalPlayerSpawnedEvent>,
+    local_client: Res<LocalClient>,
+    mut entity_map: ResMut<LocalEntityMap>,
+) {
+    for LocalPlayerSpawnedEvent(local_entity) in reader.iter() {
+        //we recv our entity from the server before spawning in the local player
+        entity_map.insert(*local_entity, local_client.server_entity.unwrap());
+    }
 }
 
 fn handle_disconnect(
@@ -276,6 +297,7 @@ fn create_client(
         commands.init_resource::<Client>();
         commands.insert_resource(LocalClient {
             id: None,
+            server_entity: None,
             server_ip: event.server_ip,
             server_port: event.server_port,
             local_ip: event.local_ip,
