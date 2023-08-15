@@ -12,7 +12,10 @@ use bevy_quinnet::{
 };
 use bevy_rapier3d::prelude::Velocity;
 
-use crate::net::{PlayerInfo, DisconnectedClient, RemoteClient, PlayerList};
+use crate::{
+    net::{DisconnectedClient, PlayerInfo, PlayerList, RemoteClient},
+    world::LevelLoadState,
+};
 
 use super::{ClientMessage, ServerMessage, UpdateEntityTransform, UpdateEntityVelocity};
 
@@ -24,28 +27,36 @@ impl Plugin for NetServerPlugin {
             initialize_later: true,
         })
         .add_state::<ServerState>()
-        .add_event::<StartServerEvent>()
-        .add_systems(OnEnter(ServerState::NotStarted), create_server)
+        .add_systems(
+            Update,
+            create_server.run_if(
+                in_state(ServerState::NotStarted).and_then(in_state(LevelLoadState::Loaded)),
+            ),
+        )
         .add_systems(
             OnEnter(ServerState::Starting),
-            start_listening.run_if(resource_exists::<Server>()),
+            start_listening.run_if(resource_exists::<ServerConfig>()),
         )
         .add_systems(
             Update,
-            (handle_client_messages, handle_server_events, sync_entity_updates)
+            (
+                handle_client_messages,
+                handle_server_events,
+                sync_entity_updates,
+            )
                 .run_if(resource_exists::<Server>().and_then(in_state(ServerState::Started))),
         );
     }
 }
 
-#[derive(Event)]
-pub struct StartServerEvent {
+#[derive(Resource)]
+pub struct ServerPlayer(pub PlayerInfo);
+
+#[derive(Resource)]
+pub struct ServerConfig {
     pub bind_addr: IpAddr,
     pub bind_port: u16,
 }
-
-#[derive(Resource)]
-pub struct ServerPlayer(pub PlayerInfo);
 
 #[derive(States, Default, Eq, PartialEq, Debug, Hash, Clone, Copy)]
 pub enum ServerState {
@@ -72,7 +83,14 @@ fn handle_client_messages(
         while let Some(message) = endpoint.try_receive_message_from::<ClientMessage>(client_id) {
             match message {
                 ClientMessage::Join { name } => {
-                    handle_join(client_id, name, &mut users, server_player.as_ref().map(|s| s.0.clone()), endpoint, &mut commands);
+                    handle_join(
+                        client_id,
+                        name,
+                        &mut users,
+                        server_player.as_ref().map(|s| s.0.clone()),
+                        endpoint,
+                        &mut commands,
+                    );
                 }
                 ClientMessage::Disconnect {} => {
                     // We tell the server to disconnect this user
@@ -155,7 +173,11 @@ fn handle_join(
         // Broadcast the connection event
         endpoint
             .send_group_message(
-                users.infos.keys().into_iter().filter(|id| **id != client_id),
+                users
+                    .infos
+                    .keys()
+                    .into_iter()
+                    .filter(|id| **id != client_id),
                 ServerMessage::ClientConnected { client_id, info },
             )
             .unwrap();
@@ -212,24 +234,27 @@ fn handle_disconnect(
 fn start_listening(
     mut server: ResMut<Server>,
     mut state: ResMut<NextState<ServerState>>,
-    mut events: EventReader<StartServerEvent>,
+    config: Res<ServerConfig>,
 ) {
-    for event in events.iter() {
-        server
-            .start_endpoint(
-                ServerConfiguration::from_ip(event.bind_addr, event.bind_port),
-                CertificateRetrievalMode::GenerateSelfSigned {
-                    server_hostname: "127.0.0.1".to_string(),
-                },
-            )
-            .unwrap();
-        state.set(ServerState::Started);
-    }
+    server
+        .start_endpoint(
+            ServerConfiguration::from_ip(config.bind_addr, config.bind_port),
+            CertificateRetrievalMode::GenerateSelfSigned {
+                server_hostname: "127.0.0.1".to_string(),
+            },
+        )
+        .unwrap();
+    state.set(ServerState::Started);
+    info!(
+        "Starting server on {} port {}",
+        config.bind_addr, config.bind_port
+    );
 }
 
 fn create_server(mut commands: Commands, mut state: ResMut<NextState<ServerState>>) {
     commands.init_resource::<Server>();
     state.set(ServerState::Starting);
+    info!("Created server!");
 }
 
 fn sync_entity_updates(
@@ -238,9 +263,27 @@ fn sync_entity_updates(
     tfs: Query<(Entity, &Transform), With<SyncPositionVelocity>>,
     vs: Query<(Entity, &Velocity), With<SyncPositionVelocity>>,
 ) {
-    let transforms = tfs.iter().map(|(e, tf)| UpdateEntityTransform {entity: e, transform: *tf}).collect();
-    let velocities = vs.iter().map(|(e, v)| UpdateEntityVelocity {entity: e, velocity: v.linvel}).collect();
-    if let Err(e) = server.endpoint().send_group_message(clients.infos.keys().into_iter(), ServerMessage::UpdateEntities { transforms, velocities }) {
+    let transforms = tfs
+        .iter()
+        .map(|(e, tf)| UpdateEntityTransform {
+            entity: e,
+            transform: *tf,
+        })
+        .collect();
+    let velocities = vs
+        .iter()
+        .map(|(e, v)| UpdateEntityVelocity {
+            entity: e,
+            velocity: v.linvel,
+        })
+        .collect();
+    if let Err(e) = server.endpoint().send_group_message(
+        clients.infos.keys().into_iter(),
+        ServerMessage::UpdateEntities {
+            transforms,
+            velocities,
+        },
+    ) {
         error!("{}", e);
     }
 }

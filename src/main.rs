@@ -18,13 +18,13 @@ use controllers::ControllersPlugin;
 use items::ItemsPlugin;
 
 use mesher::MesherPlugin;
-use net::{client::StartClientEvent, server::StartServerEvent};
+use net::client::StartClientEvent;
 use physics::PhysicsPlugin;
 use util::plugin::UtilPlugin;
 use world::*;
 use worldgen::WorldGenPlugin;
 
-use crate::net::NetworkType;
+use crate::net::{NetworkType, server::ServerConfig};
 
 mod actors;
 mod chunk_loading;
@@ -78,9 +78,9 @@ fn main() {
         });
 
     if let Some(port) = server_port {
-        app.add_systems(Startup, move |mut writer: EventWriter<StartServerEvent>, mut commands: Commands| {
+        app.add_systems(Startup, move |mut commands: Commands| {
             info!("Sending start server event on port {}", port);
-            writer.send(StartServerEvent {
+            commands.insert_resource(ServerConfig {
                 bind_addr: std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
                 bind_port: port,
             });
