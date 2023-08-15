@@ -13,11 +13,15 @@ use bevy_quinnet::{
 use bevy_rapier3d::prelude::Velocity;
 
 use crate::{
+    actors::LocalPlayer,
+    items::{ItemRegistry, ItemResources},
     net::{DisconnectedClient, PlayerInfo, PlayerList, RemoteClient},
-    world::LevelLoadState,
+    world::{BlockRegistry, BlockResources, LevelLoadState, Level}, util::LocalRepeatingTimer,
 };
 
 use super::{ClientMessage, ServerMessage, UpdateEntityTransform, UpdateEntityVelocity};
+
+pub const TICK_MS: u64 = 10;
 
 pub struct NetServerPlugin;
 
@@ -29,9 +33,9 @@ impl Plugin for NetServerPlugin {
         .add_state::<ServerState>()
         .add_systems(
             Update,
-            create_server.run_if(
+            create_server.run_if(resource_exists::<ServerConfig>().and_then(
                 in_state(ServerState::NotStarted).and_then(in_state(LevelLoadState::Loaded)),
-            ),
+            )),
         )
         .add_systems(
             OnEnter(ServerState::Starting),
@@ -45,6 +49,12 @@ impl Plugin for NetServerPlugin {
                 sync_entity_updates,
             )
                 .run_if(resource_exists::<Server>().and_then(in_state(ServerState::Started))),
+        )
+        .add_systems(
+            Update,
+            assign_server_player.run_if(
+                not(resource_exists::<ServerPlayer>()).and_then(in_state(ServerState::Started)),
+            ),
         );
     }
 }
@@ -66,9 +76,14 @@ pub enum ServerState {
     Started,
 }
 
-//marker to sync entity's position and velocity with all clients
+//marker to sync entity's position with all clients
 #[derive(Component)]
-pub struct SyncPositionVelocity;
+pub struct SyncPosition;
+
+//marker to sync entity's velocity with all clients
+#[derive(Component)]
+pub struct SyncVelocity;
+
 
 fn handle_client_messages(
     mut server: ResMut<Server>,
@@ -77,6 +92,9 @@ fn handle_client_messages(
     mut commands: Commands,
     mut update_tf_writer: EventWriter<UpdateEntityTransform>,
     mut update_v_writer: EventWriter<UpdateEntityVelocity>,
+    block_resources: Res<BlockResources>,
+    item_resources: Res<ItemResources>,
+    level: Res<Level>
 ) {
     let endpoint = server.endpoint_mut();
     for client_id in endpoint.clients() {
@@ -86,10 +104,13 @@ fn handle_client_messages(
                     handle_join(
                         client_id,
                         name,
+                        level.spawn_point,
                         &mut users,
                         server_player.as_ref().map(|s| s.0.clone()),
                         endpoint,
                         &mut commands,
+                        &block_resources.registry,
+                        &item_resources.registry,
                     );
                 }
                 ClientMessage::Disconnect {} => {
@@ -138,10 +159,13 @@ fn handle_client_messages(
 fn handle_join(
     client_id: ClientId,
     username: String,
+    spawn_point: Vec3,
     users: &mut PlayerList,
     server_player: Option<PlayerInfo>,
     endpoint: &mut Endpoint,
     commands: &mut Commands,
+    block_registry: &BlockRegistry,
+    item_registry: &ItemRegistry,
 ) {
     if users.infos.contains_key(&client_id) {
         warn!(
@@ -150,6 +174,7 @@ fn handle_join(
         );
     } else {
         info!("{} connected", &username);
+        info!("Server player: {:?}", server_player);
         let player_entity = commands.spawn(RemoteClient(Some(client_id))).id();
         let info = PlayerInfo {
             username,
@@ -163,10 +188,13 @@ fn handle_join(
                 ServerMessage::InitClient {
                     client_id,
                     entity: player_entity,
+                    spawn_point,
                     clients_online: PlayerList {
                         infos: users.infos.clone(),
                         server: server_player,
                     },
+                    block_ids: block_registry.id_map.clone(),
+                    item_ids: item_registry.id_map.clone(),
                 },
             )
             .unwrap();
@@ -211,7 +239,7 @@ fn handle_disconnect(
             .send_group_message(
                 users.infos.keys().into_iter(),
                 ServerMessage::ClientDisconnected {
-                    client_id: client_id,
+                    client_id,
                 },
             )
             .unwrap();
@@ -258,12 +286,20 @@ fn create_server(mut commands: Commands, mut state: ResMut<NextState<ServerState
 }
 
 fn sync_entity_updates(
+    mut timer: Local<LocalRepeatingTimer<TICK_MS>>,
+    time: Res<Time>,
     server: Res<Server>,
     clients: Res<PlayerList>,
-    tfs: Query<(Entity, &Transform), With<SyncPositionVelocity>>,
-    vs: Query<(Entity, &Velocity), With<SyncPositionVelocity>>,
+    tfs: Query<(Entity, &Transform), With<SyncPosition>>,
+    vs: Query<(Entity, &Velocity), With<SyncVelocity>>,
 ) {
-    let transforms = tfs
+    timer.tick(time.delta());
+    if !timer.just_finished() {
+        return;
+    }
+    //first bulk send all non player entities that we need to update
+    //TODO: optimize to send only the ones in loaded chunks near each player
+    let transforms: Vec<UpdateEntityTransform> = tfs
         .iter()
         .map(|(e, tf)| UpdateEntityTransform {
             entity: e,
@@ -277,13 +313,25 @@ fn sync_entity_updates(
             velocity: v.linvel,
         })
         .collect();
-    if let Err(e) = server.endpoint().send_group_message(
+    if let Err(e) = server.endpoint().send_group_message_on(
         clients.infos.keys().into_iter(),
+        ChannelId::Unreliable,
         ServerMessage::UpdateEntities {
             transforms,
             velocities,
         },
     ) {
         error!("{}", e);
+    }
+}
+
+fn assign_server_player(mut commands: Commands, local_player: Query<Entity, With<LocalPlayer>>, mut players: ResMut<PlayerList>) {
+    if let Ok(entity) = local_player.get_single() {
+        let info = PlayerInfo {
+            username: "host".into(),
+            entity,
+        };
+        commands.insert_resource(ServerPlayer(info.clone()));
+        players.server = Some(info);
     }
 }

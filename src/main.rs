@@ -18,13 +18,13 @@ use controllers::ControllersPlugin;
 use items::ItemsPlugin;
 
 use mesher::MesherPlugin;
-use net::client::StartClientEvent;
+use net::client::ClientConfig;
 use physics::PhysicsPlugin;
 use util::plugin::UtilPlugin;
 use world::*;
 use worldgen::WorldGenPlugin;
 
-use crate::net::{NetworkType, server::ServerConfig};
+use crate::net::{server::ServerConfig, NetworkType};
 
 mod actors;
 mod chunk_loading;
@@ -78,28 +78,34 @@ fn main() {
         });
 
     if let Some(port) = server_port {
-        app.add_systems(Startup, move |mut commands: Commands| {
-            info!("Sending start server event on port {}", port);
-            commands.insert_resource(ServerConfig {
-                bind_addr: std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-                bind_port: port,
-            });
-            commands.insert_resource(NetworkType::Server);
-        });
+        app.add_systems(
+            Startup,
+            move |mut commands: Commands, mut next_state: ResMut<NextState<NetworkType>>| {
+                info!("Creating server config on port {}", port);
+                commands.insert_resource(ServerConfig {
+                    bind_addr: std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+                    bind_port: port,
+                });
+                next_state.set(NetworkType::Server);
+            },
+        );
     } else if let Some((ip, port)) = client_connection_ip {
-        app.add_systems(Startup, move |mut writer: EventWriter<StartClientEvent>, mut commands: Commands| {
-            info!("Sending start client event, connecting to {}:{}", ip, port);
-            writer.send(StartClientEvent {
-                server_ip: ip,
-                server_port: port,
-                local_ip: std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-                local_port: 0,
-            });
-            commands.insert_resource(NetworkType::Client);
-        });
+        app.add_systems(
+            Startup,
+            move |mut commands: Commands, mut next_state: ResMut<NextState<NetworkType>>| {
+                info!("Creating client config, connecting to {}:{}", ip, port);
+                commands.insert_resource(ClientConfig {
+                    server_ip: ip,
+                    server_port: port,
+                    local_ip: std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+                    local_port: 0,
+                });
+                next_state.set(NetworkType::Client);
+            },
+        );
     } else {
-        app.add_systems(Startup, |mut commands: Commands| {
-            commands.insert_resource(NetworkType::Singleplayer);
+        app.add_systems(Startup, |mut next_state: ResMut<NextState<NetworkType>>| {
+            next_state.set(NetworkType::Singleplayer);
         });
     }
 

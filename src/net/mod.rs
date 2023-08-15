@@ -4,6 +4,8 @@ use bevy_quinnet::shared::ClientId;
 use bevy_rapier3d::prelude::Velocity;
 use serde::{Deserialize, Serialize};
 
+use crate::{items::ItemNameIdMap, world::BlockNameIdMap, actors::LocalPlayer};
+
 use self::{client::ClientState, server::ServerState};
 
 pub mod client;
@@ -55,9 +57,10 @@ pub struct PlayerInfo {
     pub entity: Entity,
 }
 
-#[derive(States, Resource, Hash, Eq, PartialEq, Copy, Clone, Debug, Default)]
+#[derive(States, Hash, Eq, PartialEq, Copy, Clone, Debug, Default)]
 pub enum NetworkType {
     #[default]
+    Inactive,
     Singleplayer,
     Server,
     Client,
@@ -96,7 +99,10 @@ pub enum ServerMessage {
     InitClient {
         client_id: ClientId,
         entity: Entity,
+        spawn_point: Vec3,
         clients_online: PlayerList,
+        block_ids: BlockNameIdMap,
+        item_ids: ItemNameIdMap,
     },
     UpdateEntities {
         transforms: Vec<UpdateEntityTransform>,
@@ -127,10 +133,17 @@ pub struct UpdateEntityVelocity {
 fn process_transform_updates(
     mut reader: EventReader<UpdateEntityTransform>,
     mut query: Query<&mut Transform>,
+    local_player_query: Query<&LocalPlayer>
 ) {
+    const LOCAL_PLAYER_UPDATE_SQR_DIST: f32 = 1.0; //only update our local position if there's a desync with the server to avoid
+                                                    //stuttery or frozen movement
     for UpdateEntityTransform { entity, transform } in reader.iter() {
         if let Ok(mut tf) = query.get_mut(*entity) {
+            if local_player_query.contains(*entity) && tf.translation.distance_squared(transform.translation) < LOCAL_PLAYER_UPDATE_SQR_DIST {
+                continue;
+            }
             *tf = *transform
+
         } else {
             warn!("Recv UpdateEntityTransform for entity that doesn't have a transform!");
         }
@@ -140,9 +153,15 @@ fn process_transform_updates(
 fn process_velocity_updates(
     mut reader: EventReader<UpdateEntityVelocity>,
     mut query: Query<&mut Velocity>,
+    local_player_query: Query<&LocalPlayer>
 ) {
+    const LOCAL_PLAYER_UPDATE_SQR_DIST: f32 = 100.0; //only update our local position if there's a desync with the server to avoid
+                                                    //stuttery or frozen movement
     for UpdateEntityVelocity { entity, velocity } in reader.iter() {
         if let Ok(mut v) = query.get_mut(*entity) {
+            if local_player_query.contains(*entity) && v.linvel.distance_squared(*velocity) < LOCAL_PLAYER_UPDATE_SQR_DIST {
+                continue;
+            }
             v.linvel = *velocity
         } else {
             warn!("Recv UpdateEntityVelocity for entity that doesn't have a velocity!");

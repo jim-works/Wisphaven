@@ -1,6 +1,6 @@
-use std::{net::IpAddr, thread::sleep, time::Duration};
+use std::{hash::Hash, net::IpAddr, thread::sleep, time::Duration};
 
-use bevy::{app::AppExit, ecs::entity::EntityMap, prelude::*};
+use bevy::{app::AppExit, ecs::entity::EntityMap, prelude::*, utils::HashMap};
 use bevy_quinnet::{
     client::{
         certificate::CertificateVerificationMode,
@@ -12,7 +12,12 @@ use bevy_quinnet::{
 use rand::Rng;
 use rand_distr::Alphanumeric;
 
-use crate::actors::LocalPlayerSpawnedEvent;
+use crate::{
+    actors::{LocalPlayerSpawnedEvent, LocalPlayer},
+    items::{ItemId, ItemResources},
+    serialization::state::GameLoadState,
+    world::{BlockId, BlockResources},
+};
 
 use super::{
     ClientMessage, DisconnectedClient, PlayerInfo, PlayerList, RemoteClient, ServerMessage,
@@ -27,18 +32,26 @@ impl Plugin for NetClientPlugin {
             initialize_later: true,
         })
         .add_state::<ClientState>()
-        .add_event::<StartClientEvent>()
-        .add_systems(OnEnter(ClientState::NotStarted), create_client)
+        .add_systems(
+            Update,
+            create_client.run_if(
+                resource_exists::<ClientConfig>().and_then(in_state(ClientState::NotStarted)),
+            ),
+        )
         .add_systems(
             OnEnter(ClientState::Starting),
             start_listening.run_if(resource_exists::<Client>()),
         )
         .add_systems(
             Update,
-            (handle_server_messages, handle_client_events).run_if(
+            (handle_server_messages, handle_client_events, map_local_player).run_if(
                 resource_exists::<Client>()
                     .and_then(resource_exists::<LocalClient>())
-                    .and_then(in_state(ClientState::Started)),
+                    .and_then(in_state(ClientState::Started).or_else(in_state(ClientState::Ready)))
+                    .and_then(
+                        in_state(GameLoadState::CreatingLevel)
+                            .or_else(in_state(GameLoadState::Done)),
+                    ),
             ),
         )
         // CoreSet::PostUpdate so that AppExit events generated in the previous stage are available
@@ -50,6 +63,7 @@ impl Plugin for NetClientPlugin {
 pub struct LocalClient {
     id: Option<ClientId>,
     server_entity: Option<Entity>,
+    spawn_point: Vec3,
     server_ip: IpAddr,
     server_port: u16,
     local_ip: IpAddr,
@@ -83,6 +97,37 @@ impl LocalEntityMap {
     }
 }
 
+#[derive(Resource)]
+pub struct LocalMap<T> {
+    local_to_remote: HashMap<T, T>,
+    remote_to_local: HashMap<T, T>,
+}
+
+impl<T> LocalMap<T>
+where
+    T: Eq + Hash + Clone,
+{
+    //clones local and remote since we maintain two maps
+    pub fn insert(&mut self, local: T, remote: T) {
+        self.local_to_remote.insert(local.clone(), remote.clone());
+        self.remote_to_local.insert(remote, local);
+    }
+    //returns the local entity corresponding to `remote_entity` if it exists
+    pub fn remove_remote(&mut self, remote: &T) -> Option<T> {
+        let local = self.remote_to_local.remove(remote);
+        if let Some(ref l) = local {
+            self.local_to_remote.remove(l);
+        }
+        local
+    }
+    pub fn local_to_remote(&self) -> &HashMap<T, T> {
+        &self.local_to_remote
+    }
+    pub fn remote_to_local(&self) -> &HashMap<T, T> {
+        &self.remote_to_local
+    }
+}
+
 impl Default for LocalEntityMap {
     fn default() -> Self {
         Self {
@@ -92,8 +137,17 @@ impl Default for LocalEntityMap {
     }
 }
 
-#[derive(Event)]
-pub struct StartClientEvent {
+impl<T> Default for LocalMap<T> {
+    fn default() -> Self {
+        Self {
+            local_to_remote: Default::default(),
+            remote_to_local: Default::default(),
+        }
+    }
+}
+
+#[derive(Resource)]
+pub struct ClientConfig {
     pub server_ip: IpAddr,
     pub server_port: u16,
     pub local_ip: IpAddr,
@@ -131,6 +185,8 @@ fn handle_server_messages(
     mut commands: Commands,
     mut update_tf_writer: EventWriter<UpdateEntityTransform>,
     mut update_v_writer: EventWriter<UpdateEntityVelocity>,
+    block_resources: Res<BlockResources>,
+    item_resources: Res<ItemResources>,
 ) {
     while let Some(message) = client
         .connection_mut()
@@ -164,19 +220,37 @@ fn handle_server_messages(
             ServerMessage::InitClient {
                 client_id: my_client_id,
                 entity,
+                spawn_point,
                 clients_online,
+                mut block_ids,
+                mut item_ids,
             } => {
                 local_client.id = Some(my_client_id);
                 local_client.server_entity = Some(entity);
+                local_client.spawn_point = spawn_point;
+                info!("Recieved initialization message: there are {} players online. ({} blocks and {} items)", clients_online.infos.len() + if clients_online.server.is_some() {1} else {0}, block_ids.len(), item_ids.len());
+                info!("Players online: ");
                 for (client_id, info) in clients_online.infos.iter() {
                     if *client_id != my_client_id {
                         setup_remote_player(info, Some(*client_id), &mut commands, &mut entity_map);
                     }
+                    info!("username: {}", info.username);
                 }
                 if let Some(ref info) = clients_online.server {
                     setup_remote_player(info, None, &mut commands, &mut entity_map);
                 }
                 *users = clients_online;
+                //setup id maps, since name -> id mappings are not consistent across network boundary
+                let mut block_id_map: LocalMap<BlockId> = LocalMap::default();
+                for (name, id) in block_ids.drain() {
+                    block_id_map.insert(block_resources.registry.get_id(&name), id);
+                }
+                let mut item_id_map: LocalMap<ItemId> = LocalMap::default();
+                for (name, id) in item_ids.drain() {
+                    item_id_map.insert(item_resources.registry.get_id(&name), id);
+                }
+                commands.insert_resource(block_id_map);
+                commands.insert_resource(item_id_map);
                 info!("Client recv InitClient");
                 state.set(ClientState::Ready);
             }
@@ -217,7 +291,9 @@ fn setup_remote_player(
     commands: &mut Commands,
     entity_map: &mut LocalEntityMap,
 ) {
-    let local_entity = commands.spawn(RemoteClient(remote_id)).id();
+    let local_entity = commands
+        .spawn((RemoteClient(remote_id), Name::new(remote.username.clone())))
+        .id();
     entity_map.insert(local_entity, remote.entity);
     info!("Setup remote player: {}", remote.username);
 }
@@ -286,24 +362,36 @@ fn start_listening(
         )
         .unwrap();
     state.set(ClientState::Started);
+    info!("Client started!");
 }
 
 fn create_client(
     mut commands: Commands,
-    mut reader: EventReader<StartClientEvent>,
+    config: Res<ClientConfig>,
     mut state: ResMut<NextState<ClientState>>,
 ) {
-    for event in reader.iter() {
-        commands.init_resource::<Client>();
-        commands.insert_resource(LocalClient {
-            id: None,
-            server_entity: None,
-            server_ip: event.server_ip,
-            server_port: event.server_port,
-            local_ip: event.local_ip,
-            local_port: event.local_port,
-        });
-        commands.insert_resource(LocalEntityMap::default());
-        state.set(ClientState::Starting);
+    commands.init_resource::<Client>();
+    commands.insert_resource(LocalClient {
+        id: None,
+        server_entity: None,
+        spawn_point: Vec3::default(),
+        server_ip: config.server_ip,
+        server_port: config.server_port,
+        local_ip: config.local_ip,
+        local_port: config.local_port,
+    });
+    commands.insert_resource(LocalEntityMap::default());
+    state.set(ClientState::Starting);
+    info!("Creating client");
+}
+
+fn map_local_player(
+    client: Res<LocalClient>,
+    mut id_map: ResMut<LocalEntityMap>,
+    player: Query<Entity, Added<LocalPlayer>>
+) {
+    for player in player.iter() {
+        id_map.insert(player, client.server_entity.expect("Server entity should be set up before local player is spawned!"));
+        info!("Mapped local player");
     }
 }

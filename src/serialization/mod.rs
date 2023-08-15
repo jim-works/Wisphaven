@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use bevy::{prelude::*, utils::HashMap};
 
 use crate::{
-    net::{network_ready, NetworkType},
+    net::{client::ClientState, NetworkType},
     util::palette::BlockPalette,
     world::{
         chunk::{ArrayChunk, ChunkCoord, ChunkTrait, BLOCKS_PER_CHUNK},
@@ -67,7 +67,14 @@ impl Plugin for SerializationPlugin {
             .add_systems(
                 Update,
                 create_level.run_if(
-                    in_state(state::GameLoadState::CreatingLevel).and_then(network_ready()),
+                    in_state(state::GameLoadState::CreatingLevel).and_then(
+                        in_state(NetworkType::Singleplayer)
+                            .or_else(in_state(NetworkType::Server))
+                            .or_else(
+                                in_state(NetworkType::Client)
+                                    .and_then(in_state(ClientState::Ready)),
+                            ),
+                    ),
                 ),
             )
             .add_event::<SaveChunkEvent>()
@@ -78,13 +85,13 @@ impl Plugin for SerializationPlugin {
 
 fn create_level(
     mut writer: EventWriter<CreateLevelEvent>,
-    network_type: Res<NetworkType>,
+    network_type: Res<State<NetworkType>>,
     mut next_state: ResMut<NextState<state::GameLoadState>>,
 ) {
     writer.send(CreateLevelEvent {
         name: "level",
         seed: 8008135,
-        network_type: *network_type,
+        network_type: *network_type.get(),
     });
     next_state.set(state::GameLoadState::Done);
     info!("Sent create level event!");

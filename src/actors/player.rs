@@ -14,7 +14,7 @@ use crate::{
     items::{inventory::Inventory, *},
     net::{
         client::ClientState,
-        server::SyncPositionVelocity,
+        server::{SyncPosition, SyncVelocity},
         ClientMessage, PlayerList, RemoteClient,
     },
     physics::*,
@@ -39,10 +39,10 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(LevelLoadState::Loaded), spawn_local_player)
-            .add_systems(Update, spawn_remote_player)
+            .add_systems(Update, (spawn_remote_player, handle_disconnect))
             .add_systems(
                 Update,
-                send_updated_position_client.run_if(in_state(ClientState::Started)),
+                send_updated_position_client.run_if(in_state(ClientState::Ready)),
             )
             .add_event::<LocalPlayerSpawnedEvent>();
     }
@@ -286,7 +286,8 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
             windup: Duration::ZERO,
             backswing: Duration::from_millis(100),
         },
-        SyncPositionVelocity,
+        SyncPosition,
+        SyncVelocity
     ));
 }
 
@@ -305,5 +306,16 @@ fn send_updated_position_client(
                 },
             )
             .unwrap();
+    }
+}
+
+fn handle_disconnect (
+    mut commands: Commands,
+    mut removed: RemovedComponents<RemoteClient>
+) {
+    for entity in removed.iter() {
+        //TODO: make this better
+        commands.entity(entity).remove::<(SyncPosition, SyncVelocity, Name, PbrBundle, PhysicsObjectBundle, Player)>();
+        info!("Cleaned up disconnected player");
     }
 }

@@ -225,7 +225,7 @@ pub struct BlockRegistry {
     pub basic_entities: Vec<Entity>,
     pub dynamic_generators: Vec<Box<dyn BlockGenerator>>,
     //block ids may not be stable across program runs
-    pub id_map: HashMap<BlockName, BlockId>
+    pub id_map: BlockNameIdMap
 }
 
 impl BlockRegistry {
