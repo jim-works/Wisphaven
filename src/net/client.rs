@@ -292,7 +292,7 @@ fn handle_server_messages(
                                 *val = *id_map.remote_to_local().get(val).unwrap();
                             }
                             info!("mapped unique blocks: {:?}", chunk.blocks.palette.iter().collect::<Vec<_>>());
-                            let id = level.spawn_chunk(chunk.position, chunk.to_array_chunk(&block_resources.registry, &mut commands), &mut commands);
+                            let id = level.overwrite_or_spawn_chunk(chunk.position, chunk.to_array_chunk(&block_resources.registry, &mut commands), &mut commands);
                             level.update_chunk_neighbors_only(chunk.position, &mut commands, &mut chunk_update_writer);
                             LevelData::update_chunk_only::<false>(id, chunk.position, &mut commands, &mut chunk_update_writer);
                         },

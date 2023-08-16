@@ -59,7 +59,7 @@ pub fn use_mega_block_item(
                 // level.batch_set_block(changes.into_iter(), &resources.registry, &id_query, &mut update_writer, &mut commands);
                 let chunk = ArrayChunk::new(hit.block_pos.into(), Entity::PLACEHOLDER);
                 let pos = chunk.position;
-                let id = level.spawn_chunk(chunk.position, chunk, &mut commands);
+                let id = level.overwrite_or_spawn_chunk(chunk.position, chunk, &mut commands);
                 level.update_chunk_neighbors_only(pos, &mut commands, &mut update_writer);
                 LevelData::update_chunk_only::<false>(id, pos, &mut commands, &mut update_writer);
             }

@@ -69,6 +69,7 @@ fn falling_block_spawner(
     resources: Res<FallingBlockResources>,
 ) {
     for event in reader.iter() {
+        
         commands.spawn((
             PhysicsObjectBundle {
                 velocity: Velocity::linear(event.initial_velocity),

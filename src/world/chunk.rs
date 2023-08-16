@@ -255,6 +255,17 @@ impl<Storage: ChunkStorage<Block>, Block: ChunkBlock> Chunk<Storage, Block> {
             _data: PhantomData
         }
     }
+    //writes all the data in `with` into `self` except for the entity
+    pub fn overwrite(&mut self, with: Self) {
+        self.blocks = with.blocks;
+        self.position = with.position;
+        self.level = with.level;
+    }
+
+    //copies entity from `from` into `self`
+    pub fn take_metadata<FromStorage: ChunkStorage<FromBlock>, FromBlock: ChunkBlock>(&mut self, from: &Chunk<FromStorage,FromBlock>) {
+        self.entity = from.entity;
+    }
 }
 
 impl<Storage: ChunkStorage<Block>, Block: ChunkBlock> ChunkTrait<Block> for Chunk<Storage, Block> {

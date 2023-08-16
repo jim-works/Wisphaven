@@ -6,7 +6,7 @@ use crate::{
     serialization::{NeedsLoading, NeedsSaving},
     util::{max_component_norm, Direction},
     world::BlockcastHit,
-    worldgen::{ChunkNeedsGenerated, GenerationPhase},
+    worldgen::{ChunkNeedsGenerated, GenerationPhase, GeneratedChunk},
 };
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
@@ -363,30 +363,41 @@ impl LevelData {
             }
         }
     }
-    //deletes old chunk if needed
-    //spawns chunk entity, but doesn't update it
-    pub fn spawn_chunk(
+    //overwrites the chunk data, minus the entity, with the provided chunk
+    //does not automatically update
+    //spawns a new chunk if one doesn't already exist at `coord`
+    pub fn overwrite_or_spawn_chunk(
         &self,
         coord: ChunkCoord,
         mut chunk: ArrayChunk,
         commands: &mut Commands,
     ) -> Entity {
-        //remove old chunk
-        if let Some((_, c)) = self.remove_chunk(coord) {
-            match c {
-                ChunkType::Ungenerated(_) => {}
+        //overwrite old chunk
+        if let Some(mut r) = self.get_chunk_mut(coord) {
+            let v = r.value_mut();
+            let id = match v {
+                ChunkType::Ungenerated(e) => {
+                        chunk.entity = *e;
+                        let id = *e;
+                        *v = ChunkType::Full(chunk);
+                        id
+                }
                 ChunkType::Generating(_, c) => {
-                    commands.entity(c.entity).despawn_recursive();
+                    chunk.take_metadata(c);
+                    let id = c.entity;
+                    *v = ChunkType::Full(chunk);
+                    id
                 }
                 ChunkType::Full(c) => {
-                    commands.entity(c.entity).despawn_recursive();
+                    c.overwrite(chunk);
+                    c.entity
                 }
-            }
+            };
+            return id;
         }
-        let id = commands
-            .spawn((Name::new("Chunk"), coord, SpatialBundle::default()))
-            .id();
-        chunk.entity = id;
+        //spawn new chunk
+        chunk.entity = commands.spawn((GeneratedChunk, SpatialBundle::default(), coord, Name::new("Chunk"))).id();
+        let id = chunk.entity;
         self.add_chunk(coord, ChunkType::Full(chunk));
         id
     }
