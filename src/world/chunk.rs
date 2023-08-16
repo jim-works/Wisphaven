@@ -1,4 +1,4 @@
-use std::{ops::{Index, IndexMut, Add, Div}, marker::PhantomData};
+use std::{ops::{Index, IndexMut, Add, Div, Sub}, marker::PhantomData};
 
 use bevy::prelude::*;
 use serde::{Serialize, Deserialize};
@@ -64,6 +64,15 @@ impl Add<ChunkCoord> for ChunkCoord {
         ChunkCoord::new(self.x+rhs.x,self.y+rhs.y,self.z+rhs.z)
     }
 }
+
+impl Sub<ChunkCoord> for ChunkCoord {
+    type Output = ChunkCoord;
+
+    fn sub(self, rhs: ChunkCoord) -> Self::Output {
+        ChunkCoord::new(self.x-rhs.x,self.y-rhs.y,self.z-rhs.z)
+    }
+}
+
 
 impl Div<i32> for ChunkCoord {
     type Output = ChunkCoord;
@@ -315,7 +324,7 @@ impl GeneratingChunk {
         }
     }
 
-    pub fn to_array_chunk(&mut self, registry: &BlockRegistry, commands: &mut Commands) -> ArrayChunk {
+    pub fn to_array_chunk(&self, registry: &BlockRegistry, commands: &mut Commands) -> ArrayChunk {
         let mut mapped_palette = Vec::with_capacity(self.blocks.palette.len());
         for (key,val,r) in self.blocks.palette.iter() {
             let block = match val {

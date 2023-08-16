@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     world::{
         chunk::{ChunkCoord, ChunkType},
-        Level, BlockResources, BlockId, LevelData,
+        Level, BlockResources, BlockId, LevelData, events::ChunkUpdatedEvent,
     },
     worldgen::{ChunkNeedsGenerated, GeneratedChunk},
 };
@@ -44,7 +44,8 @@ pub fn load_chunk_terrain(
     mut tf_query: Query<&mut Transform>,
     level: Res<Level>,
     resources: Res<BlockResources>,
-    map: Res<SavedToLoadedIdMap<BlockId>>
+    map: Res<SavedToLoadedIdMap<BlockId>>,
+    mut update_writer: EventWriter<ChunkUpdatedEvent>,
 ) {
     let mut loaded = 0;
     for DataFromDBEvent(coord, data_vec) in events.iter().filter(|DataFromDBEvent(_, data)| {
@@ -59,7 +60,7 @@ pub fn load_chunk_terrain(
             match bincode::deserialize::<ChunkSaveFormat>(buff_data.as_slice()) {
                 Ok(mut fmt) => {
                     fmt.map_to_loaded(&map);
-                    level.add_rle_buffer(*coord, &fmt.into_buffer(&resources.registry, &mut commands), &mut commands)
+                    level.add_rle_buffer(*coord, &fmt.into_buffer(&resources.registry, &mut commands), &mut commands, &mut update_writer)
                 },
                 Err(e) => error!("error deserializing chunk buffer at {:?}: {:?}", coord, e),
             }
@@ -74,11 +75,12 @@ pub fn load_chunk_terrain(
                     Ok(mut parsed) => {
                         parsed.map_to_loaded(&map);
                         let chunk = parsed.into_chunk(entity, &resources.registry, &mut commands);
+                        let pos = chunk.position;
                         if let Ok(mut tf) = tf_query.get_mut(entity) {
                             tf.translation = chunk.position.to_vec3();
                         }
                         level.add_chunk(chunk.position, ChunkType::Full(chunk));
-                        LevelData::update_chunk_only::<false>(entity, &mut commands);
+                        LevelData::update_chunk_only::<false>(entity, pos,&mut commands, &mut update_writer);
                         commands.entity(entity).insert(GeneratedChunk);
                         loaded += 1;
                     },

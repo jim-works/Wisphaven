@@ -2,7 +2,7 @@
 
 use std::net::IpAddr;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashSet};
 use bevy_quinnet::{
     server::{
         certificate::CertificateRetrievalMode, ConnectionLostEvent, Endpoint, QuinnetServerPlugin,
@@ -16,7 +16,11 @@ use crate::{
     actors::LocalPlayer,
     items::{ItemRegistry, ItemResources},
     net::{DisconnectedClient, PlayerInfo, PlayerList, RemoteClient},
-    world::{BlockRegistry, BlockResources, LevelLoadState, Level}, util::LocalRepeatingTimer,
+    util::LocalRepeatingTimer,
+    world::{
+        chunk::ChunkType, events::ChunkUpdatedEvent, settings::Settings, BlockId, BlockRegistry,
+        BlockResources, ChunkBoundaryCrossedEvent, Level, LevelLoadState,
+    },
 };
 
 use super::{ClientMessage, ServerMessage, UpdateEntityTransform, UpdateEntityVelocity};
@@ -47,8 +51,10 @@ impl Plugin for NetServerPlugin {
                 handle_client_messages,
                 handle_server_events,
                 sync_entity_updates,
+                push_chunks_chunk_updated,
+                push_chunks_chunk_boundary_crossed,
             )
-                .run_if(resource_exists::<Server>().and_then(in_state(ServerState::Started))),
+                .run_if(in_state(ServerState::Started)),
         )
         .add_systems(
             Update,
@@ -84,7 +90,6 @@ pub struct SyncPosition;
 #[derive(Component)]
 pub struct SyncVelocity;
 
-
 fn handle_client_messages(
     mut server: ResMut<Server>,
     mut users: ResMut<PlayerList>,
@@ -94,7 +99,7 @@ fn handle_client_messages(
     mut update_v_writer: EventWriter<UpdateEntityVelocity>,
     block_resources: Res<BlockResources>,
     item_resources: Res<ItemResources>,
-    level: Res<Level>
+    level: Res<Level>,
 ) {
     let endpoint = server.endpoint_mut();
     for client_id in endpoint.clients() {
@@ -238,9 +243,7 @@ fn handle_disconnect(
         endpoint
             .send_group_message(
                 users.infos.keys().into_iter(),
-                ServerMessage::ClientDisconnected {
-                    client_id,
-                },
+                ServerMessage::ClientDisconnected { client_id },
             )
             .unwrap();
         info!("{} disconnected", info.username);
@@ -325,7 +328,11 @@ fn sync_entity_updates(
     }
 }
 
-fn assign_server_player(mut commands: Commands, local_player: Query<Entity, With<LocalPlayer>>, mut players: ResMut<PlayerList>) {
+fn assign_server_player(
+    mut commands: Commands,
+    local_player: Query<Entity, With<LocalPlayer>>,
+    mut players: ResMut<PlayerList>,
+) {
     if let Ok(entity) = local_player.get_single() {
         let info = PlayerInfo {
             username: "host".into(),
@@ -333,5 +340,83 @@ fn assign_server_player(mut commands: Commands, local_player: Query<Entity, With
         };
         commands.insert_resource(ServerPlayer(info.clone()));
         players.server = Some(info);
+    }
+}
+
+//covers if a player crosses a chunk boundary and reaches already loaded chunks
+fn push_chunks_chunk_boundary_crossed(
+    remotes: Query<&RemoteClient>,
+    mut crossed_reader: EventReader<ChunkBoundaryCrossedEvent>,
+    server: Res<Server>,
+    level: Res<Level>,
+    settings: Res<Settings>,
+    id_query: Query<&BlockId>,
+) {
+    let mut diff = HashSet::new();
+    for ChunkBoundaryCrossedEvent {
+        entity,
+        old_position,
+        new_position,
+    } in crossed_reader.iter()
+    {
+        if let Ok(RemoteClient(Some(id))) = remotes.get(*entity) {
+            settings.player_loader.for_each_chunk(|offset| {
+                diff.insert(offset + *new_position);
+            });
+            settings.player_loader.for_each_chunk(|offset| {
+                diff.remove(&(offset + *old_position));
+            });
+            for coord in diff.drain() {
+                if let Some(r) = level.get_chunk(coord) {
+                    if let ChunkType::Full(c) = r.value() {
+                        if let Err(e) = server.endpoint().send_message(
+                            *id,
+                            ServerMessage::Chunk {
+                                chunk: c.with_storage(Box::new(c.blocks.get_components(&id_query))),
+                            },
+                        ) {
+                            error!("{}", e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+//covers if chunks are loaded or updated inside a player's sphere of influence
+fn push_chunks_chunk_updated(
+    mut reader: EventReader<ChunkUpdatedEvent>,
+    remotes: Query<(&GlobalTransform, &RemoteClient)>,
+    server: Res<Server>,
+    level: Res<Level>,
+    settings: Res<Settings>,
+    id_query: Query<&BlockId>,
+) {
+    //TODO: spatially partition players so we don't have to check every player for every chunk
+    for ChunkUpdatedEvent { coord } in reader.iter() {
+        for (tf, remote) in remotes.iter() {
+            if !settings
+                .player_loader
+                .chunk_in_range(tf.translation().into(), *coord)
+            {
+                continue;
+            }
+            if let Some(id) = remote.0 {
+                if let Some(r) = level.get_chunk(*coord) {
+                    if let ChunkType::Full(c) = r.value() {
+                        info!("sending chunk update for chunk {:?}", c.position);
+                        if let Err(e) = server.endpoint().send_message(
+                            id,
+                            ServerMessage::Chunk {
+                                chunk: c.with_storage(Box::new(c.blocks.get_components(&id_query))),
+                            },
+                        ) {
+                            error!("{}", e);
+                        }
+                    }
+                }
+            }
+        }
     }
 }

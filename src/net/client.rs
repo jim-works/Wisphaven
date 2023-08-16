@@ -16,7 +16,7 @@ use crate::{
     actors::{LocalPlayerSpawnedEvent, LocalPlayer},
     items::{ItemId, ItemResources},
     serialization::state::GameLoadState,
-    world::{BlockId, BlockResources},
+    world::{BlockId, BlockResources, Level, events::ChunkUpdatedEvent, LevelData},
 };
 
 use super::{
@@ -187,6 +187,9 @@ fn handle_server_messages(
     mut update_v_writer: EventWriter<UpdateEntityVelocity>,
     block_resources: Res<BlockResources>,
     item_resources: Res<ItemResources>,
+    block_id_map: Option<Res<LocalMap<BlockId>>>,
+    level: Option<Res<Level>>,
+    mut chunk_update_writer: EventWriter<ChunkUpdatedEvent>
 ) {
     while let Some(message) = client
         .connection_mut()
@@ -278,6 +281,27 @@ fn handle_server_messages(
                         warn!("Recv UpdateEntityVelocity message for unknown entity!");
                     }
                 }
+            },
+            ServerMessage::Chunk { mut chunk } => {
+                info!("recv chunk at {:?}", chunk.position);
+                if let Some(ref id_map) = block_id_map {
+                    match level {
+                        Some(ref level) => {
+                            info!("unique blocks: {:?}", chunk.blocks.palette.iter().collect::<Vec<_>>());
+                            for (_, val, _) in chunk.blocks.palette.iter_mut() {
+                                *val = *id_map.remote_to_local().get(val).unwrap();
+                            }
+                            info!("mapped unique blocks: {:?}", chunk.blocks.palette.iter().collect::<Vec<_>>());
+                            let id = level.spawn_chunk(chunk.position, chunk.to_array_chunk(&block_resources.registry, &mut commands), &mut commands);
+                            level.update_chunk_neighbors_only(chunk.position, &mut commands, &mut chunk_update_writer);
+                            LevelData::update_chunk_only::<false>(id, chunk.position, &mut commands, &mut chunk_update_writer);
+                        },
+                        None => {
+                            warn!("recv chunk before level is ready")
+                        },
+                    }
+                }
+                
             }
         }
     }

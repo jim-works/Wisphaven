@@ -1,6 +1,8 @@
 use std::{collections::VecDeque, ops::Index};
 
 use bevy::prelude::*;
+use serde::{Serialize, Deserialize};
+use serde_with::serde_as;
 
 use crate::world::{
     chunk::{
@@ -67,8 +69,11 @@ impl<K: Copy + PartialEq<K>, V: PartialEq<V>> PaletteMap<K, V, u16> for Vec<(K, 
     }
 }
 
-#[derive(Clone, Debug)]
+#[serde_as]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BlockPalette<V, const SIZE: usize> {
+    #[serde_as(as = "[_; SIZE]")]
+    //serde doesn't support arrays with more than 32 elements by default
     pub data: [u16; SIZE],
     //I think using a Vec will be faster than hashmap on average, since the number of blocks per chunk will usually be small
     pub palette: Vec<(u16, V, u16)>, //key, value, ref count

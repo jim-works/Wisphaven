@@ -3,7 +3,7 @@ use bevy_rapier3d::prelude::*;
 
 use crate::{
     physics::PhysicsObjectBundle,
-    world::{BlockCoord, BlockId, BlockPhysics, BlockType, Level, LevelSystemSet, BlockMesh},
+    world::{BlockCoord, BlockId, BlockPhysics, BlockType, Level, LevelSystemSet, BlockMesh, events::ChunkUpdatedEvent},
 };
 
 const HALF_SIDE: f32 = 0.45;
@@ -121,6 +121,7 @@ fn on_block_landed(
     level: Res<Level>,
     id_query: Query<&BlockId>,
     mut commands: Commands,
+    mut update_writer: EventWriter<ChunkUpdatedEvent>,
 ) {
     for event in reader.iter() {
         let mut exists = false;
@@ -133,6 +134,7 @@ fn on_block_landed(
                 event.position,
                 BlockType::Filled(event.block),
                 &id_query,
+                &mut update_writer,
                 &mut commands,
             );
         }

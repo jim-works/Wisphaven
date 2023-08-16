@@ -34,6 +34,12 @@ impl ChunkLoader {
             }
         }
     }
+    pub fn chunk_in_range(&self, origin: ChunkCoord, testing: ChunkCoord) -> bool {
+        let diff = testing - origin;
+        (diff.x <= self.radius.x && diff.x >= -self.radius.x) &&
+        (diff.y <= self.radius.y && diff.y >= -self.radius.y) &&
+        (diff.z <= self.radius.z && diff.z >= -self.radius.z)
+    }
 }
 
 #[derive(Resource)]

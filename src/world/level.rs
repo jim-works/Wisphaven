@@ -12,8 +12,9 @@ use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
 
 use super::{
-    chunk::*, events::{BlockUsedEvent, BlockDamageSetEvent}, BlockBuffer, BlockCoord, BlockDamage, BlockId, BlockRegistry,
-    BlockType, Id, UsableBlock,
+    chunk::*,
+    events::{BlockDamageSetEvent, BlockUsedEvent, ChunkUpdatedEvent},
+    BlockBuffer, BlockCoord, BlockDamage, BlockId, BlockRegistry, BlockType, Id, UsableBlock,
 };
 
 #[derive(Resource)]
@@ -85,6 +86,7 @@ impl LevelData {
         damager: Option<Entity>, //the item, block, or other entity that damaged the block. not the player
         id_query: &Query<&BlockId>,
         writer: &mut EventWriter<BlockDamageSetEvent>,
+        update_writer: &mut EventWriter<ChunkUpdatedEvent>,
         commands: &mut Commands,
     ) -> Option<Entity> {
         let mut remove_block = false;
@@ -101,16 +103,28 @@ impl LevelData {
                     //no more damage, so remove the damage value
                     remove_damage = true;
                 }
-                writer.send(BlockDamageSetEvent { block_position: key, damage, damager });
+                writer.send(BlockDamageSetEvent {
+                    block_position: key,
+                    damage,
+                    damager,
+                });
             }
             None => {
                 if amount < 1.0 {
                     let damage = BlockDamage::new(amount);
                     self.block_damages.insert(key, damage);
-                    writer.send(BlockDamageSetEvent { block_position: key, damage, damager });
+                    writer.send(BlockDamageSetEvent {
+                        block_position: key,
+                        damage,
+                        damager,
+                    });
                 } else {
                     remove_block = true;
-                    writer.send(BlockDamageSetEvent { block_position: key, damage: BlockDamage::new(1.0), damager });
+                    writer.send(BlockDamageSetEvent {
+                        block_position: key,
+                        damage: BlockDamage::new(1.0),
+                        damager,
+                    });
                 }
             }
         }
@@ -119,19 +133,27 @@ impl LevelData {
         }
         if remove_block {
             let entity = self.get_block_entity(key);
-            self.set_block_entity(key, BlockType::Empty, id_query, commands);
+            self.set_block_entity(key, BlockType::Empty, id_query, update_writer, commands);
             return entity;
         }
         None
     }
     //heals all block damages by amount
-    pub fn heal_block_damages(&self, seconds_elapsed: f32, writer: &mut EventWriter<BlockDamageSetEvent>) {
+    pub fn heal_block_damages(
+        &self,
+        seconds_elapsed: f32,
+        writer: &mut EventWriter<BlockDamageSetEvent>,
+    ) {
         self.block_damages.retain(|key, damage| {
             damage.seconds_to_next_heal -= seconds_elapsed;
             if damage.seconds_to_next_heal <= 0.0 {
-                damage.damage = (damage.damage-BlockDamage::HEAL_PER_TICK).clamp(0.0,1.0);
+                damage.damage = (damage.damage - BlockDamage::HEAL_PER_TICK).clamp(0.0, 1.0);
                 *damage = damage.with_time_reset();
-                writer.send(BlockDamageSetEvent { block_position: *key, damage: *damage, damager: None });
+                writer.send(BlockDamageSetEvent {
+                    block_position: *key,
+                    damage: *damage,
+                    damager: None,
+                });
             }
             damage.damage > 0.0
         });
@@ -200,7 +222,12 @@ impl LevelData {
         }
         None
     }
-    pub fn update_chunk_only<const SAVE: bool>(chunk_entity: Entity, commands: &mut Commands) {
+    pub fn update_chunk_only<const SAVE: bool>(
+        chunk_entity: Entity,
+        coord: ChunkCoord,
+        commands: &mut Commands,
+        update_writer: &mut EventWriter<ChunkUpdatedEvent>,
+    ) {
         if SAVE {
             commands
                 .entity(chunk_entity)
@@ -210,8 +237,14 @@ impl LevelData {
                 .entity(chunk_entity)
                 .insert((NeedsMesh, NeedsPhysics));
         }
+        update_writer.send(ChunkUpdatedEvent { coord });
     }
-    pub fn update_chunk_neighbors_only(&self, coord: ChunkCoord, commands: &mut Commands) {
+    pub fn update_chunk_neighbors_only(
+        &self,
+        coord: ChunkCoord,
+        commands: &mut Commands,
+        update_writer: &mut EventWriter<ChunkUpdatedEvent>,
+    ) {
         for dir in Direction::iter() {
             if let Some(neighbor_ref) = self.get_chunk(coord.offset(dir)) {
                 match neighbor_ref.value() {
@@ -219,6 +252,7 @@ impl LevelData {
                         commands
                             .entity(c.entity)
                             .insert((NeedsMesh {}, NeedsPhysics {}));
+                        update_writer.send(ChunkUpdatedEvent { coord: c.position });
                     }
                     _ => {}
                 }
@@ -231,17 +265,26 @@ impl LevelData {
         val: BlockId,
         registry: &BlockRegistry,
         id_query: &Query<&BlockId>,
+        update_writer: &mut EventWriter<ChunkUpdatedEvent>,
         commands: &mut Commands,
     ) {
         match val {
             id @ BlockId(Id::Basic(_)) | id @ BlockId(Id::Dynamic(_)) => {
                 if let Some(entity) = registry.generate_entity(val, key, commands) {
-                    self.set_block_entity(key, BlockType::Filled(entity), id_query, commands);
+                    self.set_block_entity(
+                        key,
+                        BlockType::Filled(entity),
+                        id_query,
+                        update_writer,
+                        commands,
+                    );
                 } else {
                     error!("Tried to set a block with id: {:?} that has no entity!", id);
                 }
             }
-            BlockId(Id::Empty) => self.set_block_entity(key, BlockType::Empty, id_query, commands),
+            BlockId(Id::Empty) => {
+                self.set_block_entity(key, BlockType::Empty, id_query, update_writer, commands)
+            }
         }
     }
     pub fn batch_set_block<I: Iterator<Item = (BlockCoord, BlockId)>>(
@@ -249,6 +292,7 @@ impl LevelData {
         to_set: I,
         registry: &BlockRegistry,
         id_query: &Query<&BlockId>,
+        update_writer: &mut EventWriter<ChunkUpdatedEvent>,
         commands: &mut Commands,
     ) {
         let _my_span = info_span!(
@@ -269,7 +313,7 @@ impl LevelData {
         //update chunk info: meshes and physics
         for chunk_coord in to_update {
             if let Some(entity) = self.get_chunk_entity(chunk_coord) {
-                Self::update_chunk_only::<true>(entity, commands);
+                Self::update_chunk_only::<true>(entity, chunk_coord, commands, update_writer);
             }
         }
     }
@@ -279,15 +323,22 @@ impl LevelData {
         key: BlockCoord,
         val: BlockType,
         id_query: &Query<&BlockId>,
+        update_writer: &mut EventWriter<ChunkUpdatedEvent>,
         commands: &mut Commands,
     ) {
-        self.batch_set_block_entities(std::iter::once((key, val)), id_query, commands);
+        self.batch_set_block_entities(
+            std::iter::once((key, val)),
+            id_query,
+            update_writer,
+            commands,
+        );
     }
     //meshes and updates physics
     pub fn batch_set_block_entities<I: Iterator<Item = (BlockCoord, BlockType)>>(
         &self,
         to_set: I,
         id_query: &Query<&BlockId>,
+        update_writer: &mut EventWriter<ChunkUpdatedEvent>,
         commands: &mut Commands,
     ) {
         let _my_span = info_span!(
@@ -308,11 +359,38 @@ impl LevelData {
         //update chunk info: meshes and physics
         for chunk_coord in to_update {
             if let Some(entity) = self.get_chunk_entity(chunk_coord) {
-                Self::update_chunk_only::<true>(entity, commands);
+                Self::update_chunk_only::<true>(entity, chunk_coord, commands, update_writer);
             }
         }
     }
-    pub fn create_chunk(&self, coord: ChunkCoord, commands: &mut Commands) {
+    //deletes old chunk if needed
+    //spawns chunk entity, but doesn't update it
+    pub fn spawn_chunk(
+        &self,
+        coord: ChunkCoord,
+        mut chunk: ArrayChunk,
+        commands: &mut Commands,
+    ) -> Entity {
+        //remove old chunk
+        if let Some((_, c)) = self.remove_chunk(coord) {
+            match c {
+                ChunkType::Ungenerated(_) => {}
+                ChunkType::Generating(_, c) => {
+                    commands.entity(c.entity).despawn_recursive();
+                }
+                ChunkType::Full(c) => {
+                    commands.entity(c.entity).despawn_recursive();
+                }
+            }
+        }
+        let id = commands
+            .spawn((Name::new("Chunk"), coord, SpatialBundle::default()))
+            .id();
+        chunk.entity = id;
+        self.add_chunk(coord, ChunkType::Full(chunk));
+        id
+    }
+    pub fn create_chunk(&self, coord: ChunkCoord, commands: &mut Commands) -> Entity {
         let id = commands
             .spawn((
                 Name::new("Chunk"),
@@ -322,6 +400,7 @@ impl LevelData {
             ))
             .id();
         self.add_chunk(coord, ChunkType::Ungenerated(id));
+        id
     }
     pub fn create_lod_chunk(&self, coord: ChunkCoord, lod_level: u8, commands: &mut Commands) {
         let id = commands
@@ -337,7 +416,12 @@ impl LevelData {
             crate::world::chunk::LODChunkType::Ungenerated(id, lod_level),
         );
     }
-    pub fn add_buffer(&self, buffer: BlockBuffer<BlockType>, commands: &mut Commands) {
+    pub fn add_buffer(
+        &self,
+        buffer: BlockBuffer<BlockType>,
+        commands: &mut Commands,
+        update_writer: &mut EventWriter<ChunkUpdatedEvent>,
+    ) {
         let _my_span = info_span!("add_buffer", name = "add_buffer").entered();
         for (coord, buf) in buffer.buf {
             //if the chunk is already generated, add the contents of the buffer to the chunk
@@ -345,7 +429,12 @@ impl LevelData {
                 match chunk_ref.value_mut() {
                     ChunkType::Full(ref mut c) => {
                         buf.apply_to(c.blocks.as_mut());
-                        Self::update_chunk_only::<true>(c.entity, commands);
+                        Self::update_chunk_only::<true>(
+                            c.entity,
+                            c.position,
+                            commands,
+                            update_writer,
+                        );
                         //self.update_chunk_neighbors_only(c.position, commands);
                         continue;
                     }
@@ -367,6 +456,7 @@ impl LevelData {
         coord: ChunkCoord,
         buf: &[(BlockType, u16)],
         commands: &mut Commands,
+        update_writer: &mut EventWriter<ChunkUpdatedEvent>,
     ) {
         let _my_span = info_span!("add_array_buffer", name = "add_array_buffer").entered();
         //if the chunk is already generated, add the contents of the buffer to the chunk
@@ -382,7 +472,7 @@ impl LevelData {
                         }
                         start += *run as usize;
                     }
-                    Self::update_chunk_only::<true>(c.entity, commands);
+                    Self::update_chunk_only::<true>(c.entity, c.position, commands, update_writer);
                     //self.update_chunk_neighbors_only(c.position, commands);
                     //we've already spawned in the buffer, so we shouldn't store it
                     return;

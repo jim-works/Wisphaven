@@ -9,18 +9,19 @@ pub use block_buffer::*;
 mod block;
 use bevy::prelude::*;
 pub use block::*;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+
+use self::chunk::ChunkCoord;
 
 mod atmosphere;
 
-pub mod events;
-pub mod settings;
 pub mod blocks;
 pub mod effects;
+pub mod events;
+pub mod settings;
 
 #[cfg(test)]
 mod test;
-
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum LevelSystemSet {
@@ -42,36 +43,66 @@ pub enum LevelLoadState {
     #[default]
     NotLoaded,
     Loading,
-    Loaded
+    Loaded,
 }
 
 pub struct LevelPlugin;
 
 impl Plugin for LevelPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .configure_set(PostUpdate, LevelSystemSet::PostUpdate.run_if(in_state(LevelLoadState::Loaded)))
-            .configure_set(Update, LevelSystemSet::AfterLoadingAndMain.run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded))).after(LevelSystemSet::LoadingAndMain).after(LevelSystemSet::Main))
-            .configure_set(Update, LevelSystemSet::Main.run_if(in_state(LevelLoadState::Loaded)))
-            .configure_set(Update, LevelSystemSet::Despawn.after(LevelSystemSet::Main).after(LevelSystemSet::LoadingAndMain))
-            .configure_set(Update, LevelSystemSet::Despawn.run_if(in_state(LevelLoadState::Loaded)))
-            .configure_set(Update, LevelSystemSet::LoadingAndMain.run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded))))
-            .add_systems(Update, apply_deferred.after(LevelSystemSet::Main).after(LevelSystemSet::LoadingAndMain).before(LevelSystemSet::AfterLoadingAndMain))
-            .add_plugins(atmosphere::AtmospherePlugin)
-            .add_plugins(blocks::BlocksPlugin)
-            .add_plugins(events::WorldEventsPlugin)
-            .add_plugins(effects::EffectsPlugin)
-            .add_state::<LevelLoadState>()
-
-            //needed for NamedBlockMesh
-            .register_type::<[std::path::PathBuf; 6]>()
-            .register_type::<[std::path::PathBuf; 2]>()
-            .register_type::<BlockName>()
-            .register_type::<UsableBlock>()
-            .register_type::<NamedBlockMesh>()
-            .register_type::<NamedBlockMeshShape>()
-            .register_type::<BlockPhysics>()
-        ;
+        app.configure_set(
+            PostUpdate,
+            LevelSystemSet::PostUpdate.run_if(in_state(LevelLoadState::Loaded)),
+        )
+        .configure_set(
+            Update,
+            LevelSystemSet::AfterLoadingAndMain
+                .run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded)))
+                .after(LevelSystemSet::LoadingAndMain)
+                .after(LevelSystemSet::Main),
+        )
+        .configure_set(
+            Update,
+            LevelSystemSet::Main.run_if(in_state(LevelLoadState::Loaded)),
+        )
+        .configure_set(
+            Update,
+            LevelSystemSet::Despawn
+                .after(LevelSystemSet::Main)
+                .after(LevelSystemSet::LoadingAndMain),
+        )
+        .configure_set(
+            Update,
+            LevelSystemSet::Despawn.run_if(in_state(LevelLoadState::Loaded)),
+        )
+        .configure_set(
+            Update,
+            LevelSystemSet::LoadingAndMain.run_if(
+                in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded)),
+            ),
+        )
+        .add_systems(
+            Update,
+            apply_deferred
+                .after(LevelSystemSet::Main)
+                .after(LevelSystemSet::LoadingAndMain)
+                .before(LevelSystemSet::AfterLoadingAndMain),
+        )
+        .add_systems(Update, check_chunk_boundary)
+        .add_plugins(atmosphere::AtmospherePlugin)
+        .add_plugins(blocks::BlocksPlugin)
+        .add_plugins(events::WorldEventsPlugin)
+        .add_plugins(effects::EffectsPlugin)
+        .add_state::<LevelLoadState>()
+        .add_event::<ChunkBoundaryCrossedEvent>()
+        //needed for NamedBlockMesh
+        .register_type::<[std::path::PathBuf; 6]>()
+        .register_type::<[std::path::PathBuf; 2]>()
+        .register_type::<BlockName>()
+        .register_type::<UsableBlock>()
+        .register_type::<NamedBlockMesh>()
+        .register_type::<NamedBlockMeshShape>()
+        .register_type::<BlockPhysics>();
     }
 }
 
@@ -89,7 +120,7 @@ pub enum Id {
     #[default]
     Empty,
     Basic(u32),
-    Dynamic(u32)
+    Dynamic(u32),
 }
 
 impl Id {
@@ -97,7 +128,38 @@ impl Id {
         match self {
             Id::Empty => Id::Empty,
             Id::Basic(_) => Id::Basic(new_id),
-            Id::Dynamic(_) => Id::Dynamic(new_id)
+            Id::Dynamic(_) => Id::Dynamic(new_id),
+        }
+    }
+}
+
+//will send a ChunkBoundaryCrossedEvent whenever this entity crosses a chunk boundary
+//(requires globaltransform)
+#[derive(Component)]
+pub struct ChunkBoundaryNotifier {
+    pub last_position: ChunkCoord,
+}
+
+#[derive(Event)]
+pub struct ChunkBoundaryCrossedEvent {
+    pub entity: Entity,
+    pub old_position: ChunkCoord,
+    pub new_position: ChunkCoord,
+}
+
+fn check_chunk_boundary(
+    mut notifiers: Query<(Entity, &mut ChunkBoundaryNotifier, &GlobalTransform)>,
+    mut writer: EventWriter<ChunkBoundaryCrossedEvent>,
+) {
+    for (entity, mut notifier, tf) in notifiers.iter_mut() {
+        let new_position: ChunkCoord = tf.translation().into();
+        if notifier.last_position != new_position {
+            writer.send(ChunkBoundaryCrossedEvent {
+                entity,
+                old_position: notifier.last_position,
+                new_position,
+            });
+            notifier.last_position = new_position;
         }
     }
 }

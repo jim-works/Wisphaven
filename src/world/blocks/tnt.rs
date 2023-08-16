@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     actors::block_actors::{SpawnFallingBlockEvent, LandedFallingBlockEvent},
     world::{
-        events::{BlockUsedEvent, ExplosionEvent},
+        events::{BlockUsedEvent, ExplosionEvent, ChunkUpdatedEvent},
         BlockId, BlockType, Level, LevelSystemSet,
     },
 };
@@ -41,6 +41,7 @@ pub fn process_tnt(
     tnt_query: Query<&TNTBlock>,
     level: Res<Level>,
     id_query: Query<&BlockId>,
+    mut update_writer: EventWriter<ChunkUpdatedEvent>,
     mut commands: Commands,
 ) {
     for used in uses.iter() {
@@ -49,6 +50,7 @@ pub fn process_tnt(
                 used.block_position,
                 BlockType::Empty,
                 &id_query,
+                &mut update_writer,
                 &mut commands,
             );
             explosions.send(SpawnFallingBlockEvent {

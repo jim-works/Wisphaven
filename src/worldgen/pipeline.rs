@@ -8,7 +8,7 @@ use crate::{
     util::{get_next_prng, SplineNoise},
     world::{
         chunk::*, BlockBuffer, BlockId, BlockName, BlockResources, Id, Level, LevelData,
-        SavedBlockId,
+        SavedBlockId, events::ChunkUpdatedEvent,
     }, worldgen::generator,
 };
 use bevy::{
@@ -390,6 +390,7 @@ pub fn poll_structure_task(
     resources: Res<BlockResources>,
     mut commands: Commands,
     mut decoration_query: Query<(Entity, &mut StructureTask)>,
+    mut update_writer: EventWriter<ChunkUpdatedEvent>,
 ) {
     let _my_span = info_span!("poll_structure_task", name = "poll_structure_task").entered();
     let now = Instant::now();
@@ -398,6 +399,7 @@ pub fn poll_structure_task(
             level.add_buffer(
                 buf.to_block_type(&resources.registry, &mut commands),
                 &mut commands,
+                &mut update_writer
             );
             level.promote_generating_to_full(pos, &resources.registry, &mut commands);
             commands
