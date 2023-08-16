@@ -57,7 +57,7 @@ impl LevelData {
             buffers: DashMap::with_hasher(ahash::RandomState::new()),
             block_damages: DashMap::with_hasher(ahash::RandomState::new()),
             lod_chunks: DashMap::with_hasher(ahash::RandomState::new()),
-            spawn_point: Vec3::new(0.0, 10.0, 0.0),
+            spawn_point: Vec3::new(0.0, 50.0, 0.0),
         }
     }
     pub fn get_block(&self, key: BlockCoord) -> Option<BlockType> {
@@ -396,7 +396,7 @@ impl LevelData {
             return id;
         }
         //spawn new chunk
-        chunk.entity = commands.spawn((GeneratedChunk, SpatialBundle::default(), coord, Name::new("Chunk"))).id();
+        chunk.entity = commands.spawn((GeneratedChunk, SpatialBundle::from_transform(Transform::from_translation(coord.to_vec3())), coord, Name::new("Chunk"))).id();
         let id = chunk.entity;
         self.add_chunk(coord, ChunkType::Full(chunk));
         id

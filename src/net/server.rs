@@ -18,7 +18,7 @@ use crate::{
     net::{DisconnectedClient, PlayerInfo, PlayerList, RemoteClient},
     util::LocalRepeatingTimer,
     world::{
-        chunk::ChunkType, events::ChunkUpdatedEvent, settings::Settings, BlockId, BlockRegistry,
+        chunk::{ChunkType, ChunkCoord}, events::ChunkUpdatedEvent, settings::Settings, BlockId, BlockRegistry,
         BlockResources, ChunkBoundaryCrossedEvent, Level, LevelLoadState,
     },
 };
@@ -53,6 +53,7 @@ impl Plugin for NetServerPlugin {
                 sync_entity_updates,
                 push_chunks_chunk_updated,
                 push_chunks_chunk_boundary_crossed,
+                push_chunks_on_join
             )
                 .run_if(in_state(ServerState::Started)),
         )
@@ -343,6 +344,35 @@ fn assign_server_player(
     }
 }
 
+fn push_chunks_on_join(
+    remotes: Query<(&RemoteClient, &GlobalTransform), Added<GlobalTransform>>,
+    server: Res<Server>,
+    level: Res<Level>,
+    settings: Res<Settings>,
+    id_query: Query<&BlockId>,
+) {
+    for (RemoteClient(id_opt), tf) in remotes.iter() {
+        if let Some(id) = id_opt {
+            let coord: ChunkCoord = tf.translation().into();
+            settings.player_loader.for_each_chunk(|offset| {
+                if let Some(r) = level.get_chunk(coord+offset) {
+                    if let ChunkType::Full(c) = r.value() {
+                        info!("sending (join) chunk {:?}", c.position);
+                        if let Err(e) = server.endpoint().send_message(
+                            *id,
+                            ServerMessage::Chunk {
+                                chunk: c.with_storage(Box::new(c.blocks.get_components(&id_query))),
+                            },
+                        ) {
+                            error!("{}", e);
+                        }
+                    }
+                }
+            })
+        }
+    }
+}
+
 //covers if a player crosses a chunk boundary and reaches already loaded chunks
 fn push_chunks_chunk_boundary_crossed(
     remotes: Query<&RemoteClient>,
@@ -369,6 +399,7 @@ fn push_chunks_chunk_boundary_crossed(
             for coord in diff.drain() {
                 if let Some(r) = level.get_chunk(coord) {
                     if let ChunkType::Full(c) = r.value() {
+                        info!("sending (boundary crossed) chunk {:?}", c.position);
                         if let Err(e) = server.endpoint().send_message(
                             *id,
                             ServerMessage::Chunk {

@@ -13,10 +13,10 @@ use rand::Rng;
 use rand_distr::Alphanumeric;
 
 use crate::{
-    actors::{LocalPlayerSpawnedEvent, LocalPlayer},
+    actors::{LocalPlayer, LocalPlayerSpawnedEvent},
     items::{ItemId, ItemResources},
     serialization::state::GameLoadState,
-    world::{BlockId, BlockResources, Level, events::ChunkUpdatedEvent, LevelData},
+    world::{events::ChunkUpdatedEvent, BlockId, BlockResources, Level, LevelData},
 };
 
 use super::{
@@ -35,7 +35,9 @@ impl Plugin for NetClientPlugin {
         .add_systems(
             Update,
             create_client.run_if(
-                resource_exists::<ClientConfig>().and_then(in_state(ClientState::NotStarted)),
+                resource_exists::<ClientConfig>()
+                    .and_then(in_state(ClientState::NotStarted))
+                    .and_then(resource_exists::<Level>()),
             ),
         )
         .add_systems(
@@ -44,15 +46,22 @@ impl Plugin for NetClientPlugin {
         )
         .add_systems(
             Update,
-            (handle_server_messages, handle_client_events, map_local_player).run_if(
-                resource_exists::<Client>()
-                    .and_then(resource_exists::<LocalClient>())
-                    .and_then(in_state(ClientState::Started).or_else(in_state(ClientState::Ready)))
-                    .and_then(
-                        in_state(GameLoadState::CreatingLevel)
-                            .or_else(in_state(GameLoadState::Done)),
-                    ),
-            ),
+            (
+                handle_server_messages,
+                handle_client_events,
+                map_local_player,
+            )
+                .run_if(
+                    resource_exists::<Client>()
+                        .and_then(resource_exists::<LocalClient>())
+                        .and_then(
+                            in_state(ClientState::Started).or_else(in_state(ClientState::Ready)),
+                        )
+                        .and_then(
+                            in_state(GameLoadState::CreatingLevel)
+                                .or_else(in_state(GameLoadState::Done)),
+                        ),
+                ),
         )
         // CoreSet::PostUpdate so that AppExit events generated in the previous stage are available
         .add_systems(PostUpdate, on_app_exit.run_if(resource_exists::<Client>()));
@@ -189,7 +198,7 @@ fn handle_server_messages(
     item_resources: Res<ItemResources>,
     block_id_map: Option<Res<LocalMap<BlockId>>>,
     level: Option<Res<Level>>,
-    mut chunk_update_writer: EventWriter<ChunkUpdatedEvent>
+    mut chunk_update_writer: EventWriter<ChunkUpdatedEvent>,
 ) {
     while let Some(message) = client
         .connection_mut()
@@ -281,27 +290,38 @@ fn handle_server_messages(
                         warn!("Recv UpdateEntityVelocity message for unknown entity!");
                     }
                 }
-            },
+            }
             ServerMessage::Chunk { mut chunk } => {
                 info!("recv chunk at {:?}", chunk.position);
+                //TODO: discard chunks that are too far away
                 if let Some(ref id_map) = block_id_map {
                     match level {
                         Some(ref level) => {
-                            info!("unique blocks: {:?}", chunk.blocks.palette.iter().collect::<Vec<_>>());
                             for (_, val, _) in chunk.blocks.palette.iter_mut() {
                                 *val = *id_map.remote_to_local().get(val).unwrap();
                             }
-                            info!("mapped unique blocks: {:?}", chunk.blocks.palette.iter().collect::<Vec<_>>());
-                            let id = level.overwrite_or_spawn_chunk(chunk.position, chunk.to_array_chunk(&block_resources.registry, &mut commands), &mut commands);
-                            level.update_chunk_neighbors_only(chunk.position, &mut commands, &mut chunk_update_writer);
-                            LevelData::update_chunk_only::<false>(id, chunk.position, &mut commands, &mut chunk_update_writer);
-                        },
+                            let id = level.overwrite_or_spawn_chunk(
+                                chunk.position,
+                                chunk.to_array_chunk(&block_resources.registry, &mut commands),
+                                &mut commands,
+                            );
+                            level.update_chunk_neighbors_only(
+                                chunk.position,
+                                &mut commands,
+                                &mut chunk_update_writer,
+                            );
+                            LevelData::update_chunk_only::<false>(
+                                id,
+                                chunk.position,
+                                &mut commands,
+                                &mut chunk_update_writer,
+                            );
+                        }
                         None => {
                             warn!("recv chunk before level is ready")
-                        },
+                        }
                     }
                 }
-                
             }
         }
     }
@@ -412,10 +432,15 @@ fn create_client(
 fn map_local_player(
     client: Res<LocalClient>,
     mut id_map: ResMut<LocalEntityMap>,
-    player: Query<Entity, Added<LocalPlayer>>
+    player: Query<Entity, Added<LocalPlayer>>,
 ) {
     for player in player.iter() {
-        id_map.insert(player, client.server_entity.expect("Server entity should be set up before local player is spawned!"));
+        id_map.insert(
+            player,
+            client
+                .server_entity
+                .expect("Server entity should be set up before local player is spawned!"),
+        );
         info!("Mapped local player");
     }
 }

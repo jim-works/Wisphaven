@@ -34,6 +34,8 @@ impl Plugin for SerializationPlugin {
                         .and_then(in_state(LevelLoadState::NotLoaded)),
                 ),
             )
+            //load/save loop
+            //do not do if a client, it will recieve its information from the server
             .add_systems(
                 Update,
                 (
@@ -43,7 +45,7 @@ impl Plugin for SerializationPlugin {
                     save::do_saving,
                     save::save_all,
                 )
-                    .in_set(LevelSystemSet::AfterLoadingAndMain),
+                    .in_set(LevelSystemSet::AfterLoadingAndMain).run_if(not(in_state(NetworkType::Client))),
             )
             .add_systems(PostUpdate, db::finish_up.in_set(LevelSystemSet::PostUpdate))
             .insert_resource(setup::load_settings())
@@ -67,14 +69,15 @@ impl Plugin for SerializationPlugin {
             .add_systems(
                 Update,
                 create_level.run_if(
-                    in_state(state::GameLoadState::CreatingLevel).and_then(
-                        in_state(NetworkType::Singleplayer)
-                            .or_else(in_state(NetworkType::Server))
-                            .or_else(
-                                in_state(NetworkType::Client)
-                                    .and_then(in_state(ClientState::Ready)),
-                            ),
-                    ),
+                    in_state(state::GameLoadState::CreatingLevel)
+                    // .and_then(
+                    //     in_state(NetworkType::Singleplayer)
+                    //         .or_else(in_state(NetworkType::Server))
+                    //         .or_else(
+                    //             in_state(NetworkType::Client)
+                    //                 .and_then(in_state(ClientState::Ready)),
+                    //         ),
+                    // ),
                 ),
             )
             .add_event::<SaveChunkEvent>()
