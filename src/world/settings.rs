@@ -24,6 +24,7 @@ impl Default for Settings {
         let loader = ChunkLoader {
             radius: ChunkCoord::new(8,6,8),
             lod_levels: 0,
+            mesh: true
         };
         Self {
             init_loader: loader.clone(),

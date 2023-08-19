@@ -2,8 +2,12 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 use crate::{
+    mesher::{ArrayTextureMaterial, ChunkMaterial},
     physics::PhysicsObjectBundle,
-    world::{BlockCoord, BlockId, BlockPhysics, BlockType, Level, LevelSystemSet, BlockMesh, events::ChunkUpdatedEvent},
+    world::{
+        events::ChunkUpdatedEvent, BlockCoord, BlockId, BlockMesh, BlockPhysics, BlockType, Level,
+        LevelSystemSet,
+    },
 };
 
 const HALF_SIDE: f32 = 0.45;
@@ -45,8 +49,8 @@ pub struct FallingBlock(Entity, bool);
 
 #[derive(Resource)]
 struct FallingBlockResources {
-    mesh: Handle<Mesh>,
-    material: Handle<StandardMaterial>,
+    default_mesh: Handle<Mesh>,
+    default_material: Handle<StandardMaterial>,
 }
 
 fn setup(
@@ -59,31 +63,62 @@ fn setup(
         base_color: Color::WHITE,
         ..default()
     });
-    commands.insert_resource(FallingBlockResources { mesh, material });
+    commands.insert_resource(FallingBlockResources {
+        default_mesh: mesh,
+        default_material: material,
+    });
 }
 
 fn falling_block_spawner(
     mut reader: EventReader<SpawnFallingBlockEvent>,
     mut commands: Commands,
-    mut mesh_query: Query<&BlockMesh>,
+    mesh_query: Query<&BlockMesh>,
+    materials: Res<ChunkMaterial>,
     resources: Res<FallingBlockResources>,
 ) {
     for event in reader.iter() {
-        
-        commands.spawn((
-            PhysicsObjectBundle {
-                velocity: Velocity::linear(event.initial_velocity),
-                collider: Collider::cuboid(HALF_SIDE, HALF_SIDE, HALF_SIDE),
-                ..default()
+        let block_mesh = mesh_query.get(event.block).ok();
+        match block_mesh
+            .map(|component| component.single_mesh.clone())
+            .flatten()
+        {
+            Some(mesh) => {
+                commands.spawn((
+                    PhysicsObjectBundle {
+                        velocity: Velocity::linear(event.initial_velocity),
+                        collider: Collider::cuboid(HALF_SIDE, HALF_SIDE, HALF_SIDE),
+                        ..default()
+                    },
+                    MaterialMeshBundle::<ArrayTextureMaterial> {
+                        transform: Transform::from_translation(event.position),
+                        mesh,
+                        material: if block_mesh.unwrap().use_transparent_shader {
+                            materials.transparent_material.clone().unwrap()
+                        } else {
+                            materials.opaque_material.clone().unwrap()
+                        },
+                        ..default()
+                    },
+                    FallingBlock(event.block, event.place_on_landing),
+                ));
+            }
+            None => {
+                commands.spawn((
+                    PhysicsObjectBundle {
+                        velocity: Velocity::linear(event.initial_velocity),
+                        collider: Collider::cuboid(HALF_SIDE, HALF_SIDE, HALF_SIDE),
+                        ..default()
+                    },
+                    PbrBundle {
+                        transform: Transform::from_translation(event.position),
+                        mesh: resources.default_mesh.clone(),
+                        material: resources.default_material.clone(),
+                        ..default()
+                    },
+                    FallingBlock(event.block, event.place_on_landing),
+                ));
             },
-            PbrBundle {
-                transform: Transform::from_translation(event.position),
-                mesh: resources.mesh.clone(),
-                material: resources.material.clone(),
-                ..default()
-            },
-            FallingBlock(event.block, event.place_on_landing),
-        ));
+        };
     }
 }
 

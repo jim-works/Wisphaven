@@ -297,22 +297,24 @@ fn handle_server_messages(
                 if let Some(ref id_map) = block_id_map {
                     match level {
                         Some(ref level) => {
-                            for (_, val, _) in chunk.blocks.palette.iter_mut() {
+                            for (val, _) in chunk.data.iter_mut() {
                                 *val = *id_map.remote_to_local().get(val).unwrap();
                             }
+                            let coord = chunk.position;
                             let id = level.overwrite_or_spawn_chunk(
-                                chunk.position,
-                                chunk.to_array_chunk(&block_resources.registry, &mut commands),
+                                coord,
+                                chunk,
                                 &mut commands,
-                            );
-                            level.update_chunk_neighbors_only(
-                                chunk.position,
-                                &mut commands,
-                                &mut chunk_update_writer,
+                                &block_resources.registry
                             );
                             LevelData::update_chunk_only::<false>(
                                 id,
-                                chunk.position,
+                                coord,
+                                &mut commands,
+                                &mut chunk_update_writer,
+                            );
+                            level.update_chunk_neighbors_only(
+                                coord,
                                 &mut commands,
                                 &mut chunk_update_writer,
                             );

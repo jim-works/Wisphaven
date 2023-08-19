@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashSet};
+use bevy::{prelude::*, utils::HashMap};
 
 use crate::{
     serialization::NeedsSaving,
@@ -12,6 +12,7 @@ use crate::{
 pub struct ChunkLoader {
     pub radius: ChunkCoord,
     pub lod_levels: i32,
+    pub mesh: bool, //controls whether the chunk visuals are generated in the area around this loader
 }
 
 impl ChunkLoader {
@@ -59,26 +60,29 @@ pub fn do_loading(
     time: Res<Time>,
     save_query: Query<&NeedsSaving>,
 ) {
+    //TODO: use the value of the hashmap to actually affect whetehr the chunk is meshed or not
+    //  + make remote players chunk loaders for the server
     let _my_span = info_span!("do_loading", name = "do_loading").entered();
     timer.timer.tick(time.delta());
     if !timer.timer.finished() {
         return;
     }
     //load all in range
-    let mut loaded_chunks = HashSet::new();
+    let mut loaded_chunks = HashMap::new();
     let mut loaded_lods = Vec::new();
     for (transform, loader) in loader_query.iter() {
         let base_coord = ChunkCoord::from(transform.translation());
         loader.for_each_chunk(|coord| {
             let test_coord = coord + base_coord;
-            loaded_chunks.insert(test_coord);
+            //if any loader has it meshed, it needs to be meshed
+            loaded_chunks.entry(test_coord).and_modify(move |b| *b = *b || loader.mesh).or_insert(loader.mesh);
             if !level.contains_chunk(test_coord) {
                 //chunk not loaded, load it!
                 level.create_chunk(test_coord, &mut commands);
             }
         });
         for i in 1..loader.lod_levels as usize {
-            let mut loaded_lod = HashSet::new();
+            let mut loaded_lod = HashMap::new();
             load_lod(
                 i,
                 &mut commands,
@@ -94,7 +98,7 @@ pub fn do_loading(
     let mut to_unload = Vec::new();
     for c in level.chunks_iter() {
         let key = *c.key();
-        if !loaded_chunks.contains(&key) {
+        if !loaded_chunks.contains_key(&key) {
             match c.value() {
                 ChunkType::Ungenerated(id) => {
                     if !save_query.contains(*id) {
@@ -126,7 +130,7 @@ pub fn do_loading(
         if let Some(chunks) = level.get_lod_chunks(lod_level) {
             for c in chunks.iter() {
                 let key = *c.key();
-                if !lods.contains(&key) {
+                if !lods.contains_key(&key) {
                     to_unload_lod.push((lod_level, key));
                 }
             }
@@ -148,7 +152,7 @@ fn load_lod(
     level: &Level,
     transform: &GlobalTransform,
     loader: &ChunkLoader,
-    loaded_list: &mut HashSet<ChunkCoord>,
+    loaded_list: &mut HashMap<ChunkCoord, bool>,
 ) {
     let _my_span = info_span!("load_lod", name = "load_lod").entered();
     let base_coord =
@@ -168,7 +172,7 @@ fn load_lod(
                     continue;
                 }
                 let test_coord = ChunkCoord::new(x, y, z);
-                loaded_list.insert(test_coord);
+                loaded_list.entry(test_coord).and_modify(move |b| *b = *b || loader.mesh).or_insert(loader.mesh);
                 if !level.contains_lod_chunk(lod_level, test_coord) {
                     //chunk not loaded, load it!
                     level.create_lod_chunk(test_coord, lod_level as u8, commands);

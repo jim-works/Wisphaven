@@ -3,7 +3,7 @@ use std::{ops::Deref, sync::Arc};
 use crate::{
     mesher::NeedsMesh,
     physics::NeedsPhysics,
-    serialization::{NeedsLoading, NeedsSaving},
+    serialization::{NeedsLoading, NeedsSaving, ChunkSaveFormat},
     util::{max_component_norm, Direction},
     world::BlockcastHit,
     worldgen::{ChunkNeedsGenerated, GenerationPhase, GeneratedChunk},
@@ -369,36 +369,35 @@ impl LevelData {
     pub fn overwrite_or_spawn_chunk(
         &self,
         coord: ChunkCoord,
-        mut chunk: ArrayChunk,
+        chunk: ChunkSaveFormat,
         commands: &mut Commands,
+        registry: &BlockRegistry,
     ) -> Entity {
         //overwrite old chunk
         if let Some(mut r) = self.get_chunk_mut(coord) {
             let v = r.value_mut();
             let id = match v {
                 ChunkType::Ungenerated(e) => {
-                        chunk.entity = *e;
                         let id = *e;
-                        *v = ChunkType::Full(chunk);
+                        *v = ChunkType::Full(chunk.into_chunk(id, registry, commands));
                         id
                 }
                 ChunkType::Generating(_, c) => {
-                    chunk.take_metadata(c);
                     let id = c.entity;
-                    *v = ChunkType::Full(chunk);
+                    *v = ChunkType::Full(chunk.into_chunk(id, registry, commands));
                     id
                 }
                 ChunkType::Full(c) => {
-                    c.overwrite(chunk);
-                    c.entity
+                    let id = c.entity;
+                    *v = ChunkType::Full(chunk.into_chunk(id, registry, commands));
+                    id
                 }
             };
             return id;
         }
         //spawn new chunk
-        chunk.entity = commands.spawn((GeneratedChunk, SpatialBundle::from_transform(Transform::from_translation(coord.to_vec3())), coord, Name::new("Chunk"))).id();
-        let id = chunk.entity;
-        self.add_chunk(coord, ChunkType::Full(chunk));
+        let id = commands.spawn((GeneratedChunk, SpatialBundle::from_transform(Transform::from_translation(coord.to_vec3())), coord, Name::new("Chunk"))).id();
+        self.add_chunk(coord, ChunkType::Full(chunk.into_chunk(id, registry, commands)));
         id
     }
     pub fn create_chunk(&self, coord: ChunkCoord, commands: &mut Commands) -> Entity {

@@ -4,7 +4,7 @@ use bevy_quinnet::shared::ClientId;
 use bevy_rapier3d::prelude::Velocity;
 use serde::{Deserialize, Serialize};
 
-use crate::{items::ItemNameIdMap, world::{BlockNameIdMap, chunk::GeneratingChunk}, actors::LocalPlayer};
+use crate::{items::ItemNameIdMap, world::BlockNameIdMap, actors::LocalPlayer, serialization::ChunkSaveFormat};
 
 use self::{client::ClientState, server::ServerState};
 
@@ -108,9 +108,8 @@ pub enum ServerMessage {
         transforms: Vec<UpdateEntityTransform>,
         velocities: Vec<UpdateEntityVelocity>,
     },
-    //TODO: this is temporary, cannot handle data
     Chunk {
-        chunk: GeneratingChunk
+        chunk: ChunkSaveFormat
     }
 }
 

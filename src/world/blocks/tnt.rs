@@ -23,18 +23,6 @@ pub struct TNTBlock {
     pub explosion_strength: f32,
 }
 
-// pub fn process_tnt(
-//     mut explosions: EventWriter<ExplosionEvent>,
-//     mut uses: EventReader<BlockUsedEvent>,
-//     tnt_query: Query<&TNTBlock>
-// ) {
-//     for used in uses.iter() {
-//         if let Ok(tnt) = tnt_query.get(used.block_used) {
-//             explosions.send(ExplosionEvent { radius: tnt.explosion_strength, origin: used.block_position });
-//         }
-//     }
-// }
-
 pub fn process_tnt(
     mut explosions: EventWriter<SpawnFallingBlockEvent>,
     mut uses: EventReader<BlockUsedEvent>,

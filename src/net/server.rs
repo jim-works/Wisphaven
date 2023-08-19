@@ -20,7 +20,7 @@ use crate::{
     world::{
         chunk::{ChunkType, ChunkCoord}, events::ChunkUpdatedEvent, settings::Settings, BlockId, BlockRegistry,
         BlockResources, ChunkBoundaryCrossedEvent, Level, LevelLoadState,
-    },
+    }, serialization::ChunkSaveFormat,
 };
 
 use super::{ClientMessage, ServerMessage, UpdateEntityTransform, UpdateEntityVelocity};
@@ -344,6 +344,28 @@ fn assign_server_player(
     }
 }
 
+fn send_chunk(
+    coord: ChunkCoord,
+    client_id: ClientId,
+    level: &Level,
+    server: &Server,
+    id_query: &Query<&BlockId>
+) {
+    if let Some(r) = level.get_chunk(coord) {
+        if let ChunkType::Full(c) = r.value() {
+            info!("sending (join) chunk {:?}", c.position);
+            if let Err(e) = server.endpoint().send_message(
+                client_id,
+                ServerMessage::Chunk {
+                    chunk: ChunkSaveFormat::palette_ids_only_no_map((c.position, &c.blocks), &id_query),
+                },
+            ) {
+                error!("{}", e);
+            }
+        }
+    }
+}
+
 fn push_chunks_on_join(
     remotes: Query<(&RemoteClient, &GlobalTransform), Added<GlobalTransform>>,
     server: Res<Server>,
@@ -355,19 +377,7 @@ fn push_chunks_on_join(
         if let Some(id) = id_opt {
             let coord: ChunkCoord = tf.translation().into();
             settings.player_loader.for_each_chunk(|offset| {
-                if let Some(r) = level.get_chunk(coord+offset) {
-                    if let ChunkType::Full(c) = r.value() {
-                        info!("sending (join) chunk {:?}", c.position);
-                        if let Err(e) = server.endpoint().send_message(
-                            *id,
-                            ServerMessage::Chunk {
-                                chunk: c.with_storage(Box::new(c.blocks.get_components(&id_query))),
-                            },
-                        ) {
-                            error!("{}", e);
-                        }
-                    }
-                }
+                send_chunk(offset+coord, *id, &level, &server, &id_query);
             })
         }
     }
@@ -397,19 +407,7 @@ fn push_chunks_chunk_boundary_crossed(
                 diff.remove(&(offset + *old_position));
             });
             for coord in diff.drain() {
-                if let Some(r) = level.get_chunk(coord) {
-                    if let ChunkType::Full(c) = r.value() {
-                        info!("sending (boundary crossed) chunk {:?}", c.position);
-                        if let Err(e) = server.endpoint().send_message(
-                            *id,
-                            ServerMessage::Chunk {
-                                chunk: c.with_storage(Box::new(c.blocks.get_components(&id_query))),
-                            },
-                        ) {
-                            error!("{}", e);
-                        }
-                    }
-                }
+                send_chunk(coord, *id, &level, &server, &id_query);
             }
         }
     }
@@ -434,19 +432,7 @@ fn push_chunks_chunk_updated(
                 continue;
             }
             if let Some(id) = remote.0 {
-                if let Some(r) = level.get_chunk(*coord) {
-                    if let ChunkType::Full(c) = r.value() {
-                        info!("sending chunk update for chunk {:?}", c.position);
-                        if let Err(e) = server.endpoint().send_message(
-                            id,
-                            ServerMessage::Chunk {
-                                chunk: c.with_storage(Box::new(c.blocks.get_components(&id_query))),
-                            },
-                        ) {
-                            error!("{}", e);
-                        }
-                    }
-                }
+                send_chunk(*coord, id, &level, &server, &id_query);
             }
         }
     }

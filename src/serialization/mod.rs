@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use bevy::{prelude::*, utils::HashMap};
 
 use crate::{
-    net::{client::ClientState, NetworkType},
+    net::NetworkType,
     util::palette::BlockPalette,
     world::{
         chunk::{ArrayChunk, ChunkCoord, ChunkTrait, BLOCKS_PER_CHUNK},
@@ -70,14 +70,6 @@ impl Plugin for SerializationPlugin {
                 Update,
                 create_level.run_if(
                     in_state(state::GameLoadState::CreatingLevel)
-                    // .and_then(
-                    //     in_state(NetworkType::Singleplayer)
-                    //         .or_else(in_state(NetworkType::Server))
-                    //         .or_else(
-                    //             in_state(NetworkType::Client)
-                    //                 .and_then(in_state(ClientState::Ready)),
-                    //         ),
-                    // ),
                 ),
             )
             .add_event::<SaveChunkEvent>()
@@ -170,7 +162,7 @@ pub struct SaveChunkEvent(ChunkCoord);
 
 //run length encoded format for chunks
 //TODO: figure out how to do entities
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ChunkSaveFormat {
     pub position: ChunkCoord,
     pub data: Vec<(BlockId, u16)>,
@@ -254,6 +246,24 @@ impl ChunkSaveFormat {
             .iter()
             .dedup_with_count()
             .map(|(run, block)| (map.get(block).unwrap(), run as u16))
+            .collect();
+        Self {
+            position: value.0,
+            data,
+        }
+    }
+    //creates a save format by extracting the ids from the block array using the provided query
+    //will replace with the empty block if the entities in the block array do not have a BlockId component
+    pub fn palette_ids_only_no_map(
+        value: (ChunkCoord, &BlockPalette<BlockType, BLOCKS_PER_CHUNK>),
+        query: &Query<&BlockId>
+    ) -> Self {
+        let data = value
+            .1
+            .get_components(&query)
+            .iter()
+            .dedup_with_count()
+            .map(|(run, block)| (*block, run as u16))
             .collect();
         Self {
             position: value.0,
