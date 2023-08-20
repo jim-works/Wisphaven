@@ -3,10 +3,10 @@ use std::{ops::Deref, sync::Arc};
 use crate::{
     mesher::NeedsMesh,
     physics::NeedsPhysics,
-    serialization::{NeedsLoading, NeedsSaving, ChunkSaveFormat},
+    serialization::{ChunkSaveFormat, NeedsLoading, NeedsSaving},
     util::{max_component_norm, Direction},
     world::BlockcastHit,
-    worldgen::{ChunkNeedsGenerated, GenerationPhase, GeneratedChunk},
+    worldgen::{ChunkNeedsGenerated, GeneratedChunk, GenerationPhase},
 };
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
@@ -378,9 +378,9 @@ impl LevelData {
             let v = r.value_mut();
             let id = match v {
                 ChunkType::Ungenerated(e) => {
-                        let id = *e;
-                        *v = ChunkType::Full(chunk.into_chunk(id, registry, commands));
-                        id
+                    let id = *e;
+                    *v = ChunkType::Full(chunk.into_chunk(id, registry, commands));
+                    id
                 }
                 ChunkType::Generating(_, c) => {
                     let id = c.entity;
@@ -396,20 +396,46 @@ impl LevelData {
             return id;
         }
         //spawn new chunk
-        let id = commands.spawn((GeneratedChunk, SpatialBundle::from_transform(Transform::from_translation(coord.to_vec3())), coord, Name::new("Chunk"))).id();
-        self.add_chunk(coord, ChunkType::Full(chunk.into_chunk(id, registry, commands)));
-        id
-    }
-    pub fn create_chunk(&self, coord: ChunkCoord, commands: &mut Commands) -> Entity {
         let id = commands
             .spawn((
-                Name::new("Chunk"),
+                GeneratedChunk,
+                SpatialBundle::from_transform(Transform::from_translation(coord.to_vec3())),
                 coord,
-                SpatialBundle::default(),
-                NeedsLoading,
+                Name::new("Chunk"),
             ))
             .id();
-        self.add_chunk(coord, ChunkType::Ungenerated(id));
+        self.add_chunk(
+            coord,
+            ChunkType::Full(chunk.into_chunk(id, registry, commands)),
+        );
+        id
+    }
+    pub fn load_chunk(
+        &self,
+        coord: ChunkCoord,
+        should_mesh: bool,
+        commands: &mut Commands,
+    ) -> Entity {
+        let id = match self.get_chunk_entity(coord) {
+            Some(id) => id,
+            None => {
+                let id = commands
+                    .spawn((
+                        Name::new("Chunk"),
+                        coord,
+                        SpatialBundle::default(),
+                        NeedsLoading,
+                    ))
+                    .id();
+                self.add_chunk(coord, ChunkType::Ungenerated(id));
+                id
+            }
+        };
+        if should_mesh {
+            commands.entity(id).remove::<DontMeshChunk>();
+        } else {
+            commands.entity(id).insert(DontMeshChunk);
+        }
         id
     }
     pub fn create_lod_chunk(&self, coord: ChunkCoord, lod_level: u8, commands: &mut Commands) {
@@ -551,10 +577,10 @@ impl LevelData {
     }
     pub fn get_chunk_entity(&self, key: ChunkCoord) -> Option<Entity> {
         if let Some(r) = self.get_chunk(key) {
-            if let ChunkType::Full(chunk) = r.value() {
-                return Some(chunk.entity);
-            } else if let ChunkType::Ungenerated(e) = r.value() {
-                return Some(*e);
+            return match r.value() {
+                ChunkType::Ungenerated(id) => Some(*id),
+                ChunkType::Generating(_, chunk) => Some(chunk.entity),
+                ChunkType::Full(chunk) => Some(chunk.entity),
             }
         }
         None

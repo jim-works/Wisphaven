@@ -80,6 +80,14 @@ pub enum ClientMessage {
         transform: Transform,
         velocity: Vec3,
     },
+    UseItem {
+        tf: GlobalTransform,
+        slot: usize,
+    },
+    SwingItem {
+        tf: GlobalTransform,
+        slot: usize,
+    }
 }
 
 // Messages from the server

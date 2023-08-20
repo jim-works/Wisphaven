@@ -10,12 +10,13 @@ use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::InputManagerBundle;
 
 use crate::{
+    chunk_loading::ChunkLoader,
     controllers::{self, *},
     items::{inventory::Inventory, *},
     net::{
         client::ClientState,
         server::{SyncPosition, SyncVelocity},
-        ClientMessage, PlayerList, RemoteClient,
+        ClientMessage, NetworkType, PlayerList, RemoteClient,
     },
     physics::*,
     world::{settings::Settings, *},
@@ -54,6 +55,8 @@ fn spawn_remote_player(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     clients: Res<PlayerList>,
+    settings: Res<Settings>,
+    network_type: Res<State<NetworkType>>,
 ) {
     for (entity, RemoteClient(client_id)) in joined_query.iter() {
         info!(
@@ -71,6 +74,12 @@ fn spawn_remote_player(
                 ..default()
             },
         ));
+        if let NetworkType::Server = network_type.get() {
+            commands.entity(entity).insert(ChunkLoader {
+                mesh: false,
+                ..settings.player_loader.clone()
+            });
+        }
         populate_player_entity(entity, Vec3::ZERO, &mut commands);
     }
 }
@@ -287,7 +296,7 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
             backswing: Duration::from_millis(100),
         },
         SyncPosition,
-        SyncVelocity
+        SyncVelocity,
     ));
 }
 
@@ -309,13 +318,17 @@ fn send_updated_position_client(
     }
 }
 
-fn handle_disconnect (
-    mut commands: Commands,
-    mut removed: RemovedComponents<RemoteClient>
-) {
+fn handle_disconnect(mut commands: Commands, mut removed: RemovedComponents<RemoteClient>) {
     for entity in removed.iter() {
         //TODO: make this better
-        commands.entity(entity).remove::<(SyncPosition, SyncVelocity, Name, PbrBundle, PhysicsObjectBundle, Player)>();
+        commands.entity(entity).remove::<(
+            SyncPosition,
+            SyncVelocity,
+            Name,
+            PbrBundle,
+            PhysicsObjectBundle,
+            Player,
+        )>();
         info!("Cleaned up disconnected player");
     }
 }

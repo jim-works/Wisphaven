@@ -77,7 +77,7 @@ pub struct ChunkMeshChild;
 const SQRT_2_4: f32 = 0.353553390593; //sqrt(2)/4
 
 pub fn queue_meshing(
-    query: Query<(Entity, &ChunkCoord), (With<GeneratedChunk>, With<NeedsMesh>)>,
+    query: Query<(Entity, &ChunkCoord), (With<GeneratedChunk>, With<NeedsMesh>, Without<DontMeshChunk>)>,
     level: Res<Level>,
     mesh_query: Query<&BlockMesh>,
     commands: ParallelCommands,

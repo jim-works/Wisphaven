@@ -69,7 +69,8 @@ impl Plugin for LevelPlugin {
             Update,
             LevelSystemSet::Despawn
                 .after(LevelSystemSet::Main)
-                .after(LevelSystemSet::LoadingAndMain),
+                .after(LevelSystemSet::LoadingAndMain)
+                .after(LevelSystemSet::AfterLoadingAndMain),
         )
         .configure_set(
             Update,

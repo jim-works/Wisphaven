@@ -14,7 +14,7 @@ pub struct LODMeshTimer {
 //there may be a cleaner way to do this, with some traits
 //but I expect there will be significant differences between LOD and non-LOD meshing, so probably best to have separate functions entirely
 pub fn queue_meshing_lod(
-    query: Query<(Entity, &ChunkCoord, &LODLevel), (With<GeneratedLODChunk>, With<NeedsMesh>)>,
+    query: Query<(Entity, &ChunkCoord, &LODLevel), (With<GeneratedLODChunk>, With<NeedsMesh>, Without<DontMeshChunk>)>,
     level: Res<Level>,
     time: Res<Time>,
     mut timer: ResMut<LODMeshTimer>,

@@ -11,7 +11,7 @@ use crate::{
 use super::{ChunkSaveFormat, NeedsLoading, SaveTimer, SavedToLoadedIdMap};
 use super::db::*;
 
-const LOADING_ENABLED: bool = false;
+const LOADING_ENABLED: bool = true;
 
 pub fn queue_terrain_loading(
     mut commands: Commands,

@@ -21,8 +21,7 @@ impl Plugin for ChunkLoaderPlugin {
         app.add_systems(
             Update,
             entity_loader::do_loading
-                .in_set(LevelSystemSet::LoadingAndMain)
-                .run_if(not(in_state(NetworkType::Client))),
+                .in_set(LevelSystemSet::LoadingAndMain),
         )
         .add_systems(
             PostUpdate,

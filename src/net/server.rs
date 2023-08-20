@@ -14,7 +14,7 @@ use bevy_rapier3d::prelude::Velocity;
 
 use crate::{
     actors::LocalPlayer,
-    items::{ItemRegistry, ItemResources},
+    items::{ItemRegistry, ItemResources, UseItemEvent, SwingItemEvent, inventory::Inventory},
     net::{DisconnectedClient, PlayerInfo, PlayerList, RemoteClient},
     util::LocalRepeatingTimer,
     world::{
@@ -98,6 +98,9 @@ fn handle_client_messages(
     mut commands: Commands,
     mut update_tf_writer: EventWriter<UpdateEntityTransform>,
     mut update_v_writer: EventWriter<UpdateEntityVelocity>,
+    mut use_item_writer: EventWriter<UseItemEvent>,
+    mut swing_item_writer: EventWriter<SwingItemEvent>,
+    inventory_query: Query<&Inventory>,
     block_resources: Res<BlockResources>,
     item_resources: Res<ItemResources>,
     level: Res<Level>,
@@ -157,6 +160,26 @@ fn handle_client_messages(
                         warn!("Update position recieved for uninitialized client!");
                     }
                 }
+                ClientMessage::UseItem { tf, slot } => {
+                    if let Some(PlayerInfo {
+                        username: _,
+                        entity
+                    }) = users.infos.get(&client_id) {
+                        if let Ok(Some(stack)) = inventory_query.get(*entity).map(|inv| inv.get(slot)) {
+                            use_item_writer.send(UseItemEvent(*entity, stack, tf))
+                        }
+                    }
+                },
+                ClientMessage::SwingItem { tf, slot } => {
+                    if let Some(PlayerInfo {
+                        username: _,
+                        entity
+                    }) = users.infos.get(&client_id) {
+                        if let Ok(Some(stack)) = inventory_query.get(*entity).map(|inv| inv.get(slot)) {
+                            swing_item_writer.send(SwingItemEvent(*entity, stack, tf))
+                        }
+                    }
+                },
             }
         }
     }
@@ -353,7 +376,6 @@ fn send_chunk(
 ) {
     if let Some(r) = level.get_chunk(coord) {
         if let ChunkType::Full(c) = r.value() {
-            info!("sending (join) chunk {:?}", c.position);
             if let Err(e) = server.endpoint().send_message(
                 client_id,
                 ServerMessage::Chunk {
@@ -377,6 +399,7 @@ fn push_chunks_on_join(
         if let Some(id) = id_opt {
             let coord: ChunkCoord = tf.translation().into();
             settings.player_loader.for_each_chunk(|offset| {
+                info!("sending (join) chunk {:?}", offset+coord);
                 send_chunk(offset+coord, *id, &level, &server, &id_query);
             })
         }
@@ -407,6 +430,7 @@ fn push_chunks_chunk_boundary_crossed(
                 diff.remove(&(offset + *old_position));
             });
             for coord in diff.drain() {
+                info!("sending (crossed boundary) chunk {:?}", coord);
                 send_chunk(coord, *id, &level, &server, &id_query);
             }
         }
@@ -424,6 +448,7 @@ fn push_chunks_chunk_updated(
 ) {
     //TODO: spatially partition players so we don't have to check every player for every chunk
     for ChunkUpdatedEvent { coord } in reader.iter() {
+        info!("Chunk updated at {:?}", coord);
         for (tf, remote) in remotes.iter() {
             if !settings
                 .player_loader
@@ -432,6 +457,7 @@ fn push_chunks_chunk_updated(
                 continue;
             }
             if let Some(id) = remote.0 {
+                info!("sending (updated) chunk {:?}", coord);
                 send_chunk(*coord, id, &level, &server, &id_query);
             }
         }

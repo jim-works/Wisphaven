@@ -1,6 +1,7 @@
 use bevy::{prelude::*, utils::HashMap};
 
 use crate::{
+    net::NetworkType,
     serialization::NeedsSaving,
     world::{
         chunk::{ChunkCoord, ChunkType, LODChunk, LODChunkType},
@@ -27,9 +28,9 @@ impl ChunkLoader {
     }
     //doesn't include chunks on the edge of the loader
     pub fn for_each_center_chunk(&self, mut f: impl FnMut(ChunkCoord)) {
-        for x in -self.radius.x+1..self.radius.x {
-            for y in -self.radius.y+1..self.radius.y {
-                for z in -self.radius.z+1..self.radius.z {
+        for x in -self.radius.x + 1..self.radius.x {
+            for y in -self.radius.y + 1..self.radius.y {
+                for z in -self.radius.z + 1..self.radius.z {
                     (f)(ChunkCoord::new(x, y, z));
                 }
             }
@@ -37,9 +38,9 @@ impl ChunkLoader {
     }
     pub fn chunk_in_range(&self, origin: ChunkCoord, testing: ChunkCoord) -> bool {
         let diff = testing - origin;
-        (diff.x <= self.radius.x && diff.x >= -self.radius.x) &&
-        (diff.y <= self.radius.y && diff.y >= -self.radius.y) &&
-        (diff.z <= self.radius.z && diff.z >= -self.radius.z)
+        (diff.x <= self.radius.x && diff.x >= -self.radius.x)
+            && (diff.y <= self.radius.y && diff.y >= -self.radius.y)
+            && (diff.z <= self.radius.z && diff.z >= -self.radius.z)
     }
 }
 
@@ -59,9 +60,8 @@ pub fn do_loading(
     mut timer: ResMut<ChunkLoadingTimer>,
     time: Res<Time>,
     save_query: Query<&NeedsSaving>,
+    network_type: Res<State<NetworkType>>,
 ) {
-    //TODO: use the value of the hashmap to actually affect whetehr the chunk is meshed or not
-    //  + make remote players chunk loaders for the server
     let _my_span = info_span!("do_loading", name = "do_loading").entered();
     timer.timer.tick(time.delta());
     if !timer.timer.finished() {
@@ -75,23 +75,24 @@ pub fn do_loading(
         loader.for_each_chunk(|coord| {
             let test_coord = coord + base_coord;
             //if any loader has it meshed, it needs to be meshed
-            loaded_chunks.entry(test_coord).and_modify(move |b| *b = *b || loader.mesh).or_insert(loader.mesh);
-            if !level.contains_chunk(test_coord) {
-                //chunk not loaded, load it!
-                level.create_chunk(test_coord, &mut commands);
-            }
+            loaded_chunks
+                .entry(test_coord)
+                .and_modify(move |b| *b = *b || loader.mesh)
+                .or_insert(loader.mesh);
         });
         for i in 1..loader.lod_levels as usize {
             let mut loaded_lod = HashMap::new();
-            load_lod(
-                i,
-                &mut commands,
-                &level,
-                transform,
-                loader,
-                &mut loaded_lod,
-            );
+            load_lod(i, &mut commands, &level, transform, loader, &mut loaded_lod);
             loaded_lods.push(loaded_lod);
+        }
+    }
+    match network_type.get() {
+        //chunks get pushed from the server to the client, so the client doesn't need to worry about loading
+        NetworkType::Client => {}
+        _ => {
+            for (coord, mesh) in loaded_chunks.iter() {
+                level.load_chunk(*coord, *mesh, &mut commands);
+            }
         }
     }
     //unload all not in range
@@ -109,7 +110,7 @@ pub fn do_loading(
                     if !save_query.contains(c.entity) {
                         to_unload.push((key, c.entity));
                     }
-                },
+                }
                 ChunkType::Generating(_, c) => {
                     if !save_query.contains(c.entity) {
                         to_unload.push((key, c.entity));
@@ -155,8 +156,9 @@ fn load_lod(
     loaded_list: &mut HashMap<ChunkCoord, bool>,
 ) {
     let _my_span = info_span!("load_lod", name = "load_lod").entered();
-    let base_coord =
-        ChunkCoord::from(transform.translation() / LODChunk::level_to_scale(lod_level as u8) as f32);
+    let base_coord = ChunkCoord::from(
+        transform.translation() / LODChunk::level_to_scale(lod_level as u8) as f32,
+    );
     for x in (base_coord.x - loader.radius.x)..(base_coord.x + loader.radius.x + 1) {
         for y in (base_coord.y - loader.radius.y)..(base_coord.y + loader.radius.y + 1) {
             for z in (base_coord.z - loader.radius.z)..(base_coord.z + loader.radius.z + 1) {
@@ -172,7 +174,10 @@ fn load_lod(
                     continue;
                 }
                 let test_coord = ChunkCoord::new(x, y, z);
-                loaded_list.entry(test_coord).and_modify(move |b| *b = *b || loader.mesh).or_insert(loader.mesh);
+                loaded_list
+                    .entry(test_coord)
+                    .and_modify(move |b| *b = *b || loader.mesh)
+                    .or_insert(loader.mesh);
                 if !level.contains_lod_chunk(lod_level, test_coord) {
                     //chunk not loaded, load it!
                     level.create_lod_chunk(test_coord, lod_level as u8, commands);

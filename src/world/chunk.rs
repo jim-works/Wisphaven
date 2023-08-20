@@ -35,6 +35,9 @@ pub struct ChunkCoord {
     pub z: i32
 }
 
+#[derive(Component, Debug, Copy, Clone)]
+pub struct DontMeshChunk;
+
 impl ChunkCoord {
     pub fn new (x: i32, y: i32, z: i32) -> ChunkCoord {
         ChunkCoord { x, y, z }
