@@ -17,6 +17,7 @@ pub use numerical_traits::*;
 
 pub mod palette;
 pub mod plugin;
+pub mod bevy_utils;
 
 use bevy::{prelude::{Vec3, DerefMut, Deref}, time::Timer};
 
@@ -155,5 +156,13 @@ impl<T> ExtraOptions<T> for Option<T> {
             x @ Some(_) => x,
             None => fallback,
         }
+    }
+}
+
+pub struct SendEventCommand<T: bevy::prelude::Event>(pub T);
+
+impl<T: bevy::prelude::Event> bevy::ecs::system::Command for SendEventCommand<T> {
+    fn apply(self, world: &mut bevy::prelude::World) {
+        world.send_event(self.0);
     }
 }

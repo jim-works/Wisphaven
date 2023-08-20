@@ -158,5 +158,20 @@
         )
       },
     ),
+    9: (
+      components: {
+        "recursia::items::ItemName": (
+          namespace: "core",
+          name: "glowjelly_jar",
+        ),
+        "recursia::items::NamedItemIcon": (
+            path: "glowjelly_jar.png"
+        ),
+        "recursia::items::actor_items::SpawnActorItem": (ActorName(
+          namespace: "core",
+          name: "glowjelly",
+        )),
+      },
+    ),
   },
 )

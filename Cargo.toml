@@ -50,4 +50,5 @@ futures-timer = "3.0.2"
 bevy_atmosphere = "0.7.0"
 bevy_quinnet = "0.5.0"
 serde_with = "3.2.0"
+bevy_hanabi = "0.7"
 

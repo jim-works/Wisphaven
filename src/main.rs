@@ -12,6 +12,7 @@ use std::{env, net::Ipv4Addr};
 
 use actors::ActorPlugin;
 use bevy::prelude::*;
+use bevy_hanabi::HanabiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use chunk_loading::{ChunkLoader, ChunkLoaderPlugin};
 use controllers::ControllersPlugin;
@@ -58,24 +59,36 @@ fn main() {
     }
 
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
-        .add_plugins(WorldInspectorPlugin::new())
-        .add_plugins(UtilPlugin)
-        .add_plugins(serialization::SerializationPlugin)
-        .add_plugins(LevelPlugin)
-        .add_plugins(MesherPlugin)
-        .add_plugins(WorldGenPlugin)
-        .add_plugins(ChunkLoaderPlugin)
-        .add_plugins(PhysicsPlugin)
-        .add_plugins(ControllersPlugin)
-        .add_plugins(ActorPlugin)
-        .add_plugins(ItemsPlugin)
-        .add_plugins(ui::UIPlugin)
-        .add_plugins(net::NetPlugin)
-        .insert_resource(AmbientLight {
-            brightness: 0.3,
-            ..default()
-        });
+    app.add_plugins(
+        DefaultPlugins
+            .set(ImagePlugin::default_nearest())
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Echoes of the Outsider".to_string(),
+                    ..default()
+                }),
+                ..default()
+            }),
+    )
+    .add_plugins(HanabiPlugin)
+    .add_plugins(WorldInspectorPlugin::new())
+    .add_plugins(UtilPlugin)
+    .add_plugins(serialization::SerializationPlugin)
+    .add_plugins(LevelPlugin)
+    .add_plugins(MesherPlugin)
+    .add_plugins(WorldGenPlugin)
+    .add_plugins(ChunkLoaderPlugin)
+    .add_plugins(PhysicsPlugin)
+    .add_plugins(ControllersPlugin)
+    .add_plugins(ActorPlugin)
+    .add_plugins(ItemsPlugin)
+    .add_plugins(ui::UIPlugin)
+    .add_plugins(net::NetPlugin)
+    .add_plugins(util::bevy_utils::BevyUtilsPlugin)
+    .insert_resource(AmbientLight {
+        brightness: 0.3,
+        ..default()
+    });
 
     if let Some(port) = server_port {
         app.add_systems(
@@ -111,3 +124,4 @@ fn main() {
 
     app.run();
 }
+

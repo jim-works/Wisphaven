@@ -31,7 +31,7 @@ pub struct GlowjellyScene;
 
 #[derive(Event)]
 pub struct SpawnGlowjellyEvent {
-    pub location: Transform,
+    pub location: GlobalTransform,
     pub color: Color,
 }
 
@@ -56,7 +56,7 @@ pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
 fn trigger_spawning(mut writer: EventWriter<SpawnGlowjellyEvent>) {
     for i in 0..5 {
         writer.send(SpawnGlowjellyEvent {
-            location: Transform::from_xyz(i as f32 * 5.0, -45.0, 0.0),
+            location: GlobalTransform::from_xyz(i as f32 * 5.0, -45.0, 0.0),
             color: Color::rgb(i as f32, 1.0, 1.0),
         });
     }
@@ -74,7 +74,7 @@ pub fn spawn_glowjelly(
             .spawn((
                 SceneBundle {
                     scene: jelly_res.scene.clone_weak(),
-                    transform: spawn.location,
+                    transform: spawn.location.compute_transform(),
                     ..default()
                 },
                 Name::new("glowjelly"),

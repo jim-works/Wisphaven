@@ -235,6 +235,18 @@ pub fn spawn_local_player(
         &mut pickup_item,
         &mut equip_item,
     );
+    inventory.pickup_item(
+        ItemStack::new(
+            resources
+                .registry
+                .get_basic(&ItemName::core("glowjelly_jar"))
+                .unwrap(),
+            100,
+        ),
+        &item_query,
+        &mut pickup_item,
+        &mut equip_item,
+    );
 
     commands.entity(player_id).insert(inventory);
     let projection = PerspectiveProjection {
