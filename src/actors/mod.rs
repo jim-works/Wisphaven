@@ -63,7 +63,7 @@ impl Default for MoveSpeed {
         MoveSpeed {
             base_accel: 75.0,
             current_accel: 75.0,
-            max_speed: 100.0,
+            max_speed: 10.0,
         }
     }
 }
@@ -82,8 +82,8 @@ impl Default for Jump {
         Jump {
             base_height: 6.0,
             current_height: 6.0,
-            extra_jumps_remaining: 100,
-            extra_jump_count: 100,
+            extra_jumps_remaining: 1,
+            extra_jump_count: 1,
         }
     }
 }

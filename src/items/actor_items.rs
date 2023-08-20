@@ -4,7 +4,6 @@ use bevy_rapier3d::prelude::{CollisionGroups, Group, QueryFilter, RapierContext}
 
 use crate::{
     actors::{ActorName, ActorResources},
-    util::bevy_utils::TimedDespawner,
     world::LevelSystemSet,
 };
 
@@ -22,8 +21,11 @@ impl Plugin for ActorItems {
 
 #[derive(Resource)]
 struct SpawnItemResources {
-    spawn_particles: Handle<EffectAsset>,
+    spawn_particles: Entity,
 }
+
+#[derive(Component)]
+struct SpawnParticles;
 
 #[derive(Component, Reflect, Default)]
 #[reflect(Component)]
@@ -66,8 +68,6 @@ fn setup(mut commands: Commands, mut effects: ResMut<Assets<EffectAsset>>) {
         dimension: ShapeDimension::Volume,
     };
 
-    
-
     // Give a bit of variation by randomizing the initial speed
     let init_vel = SetVelocitySphereModifier {
         center: writer.lit(Vec3::ZERO).expr(),
@@ -89,9 +89,19 @@ fn setup(mut commands: Commands, mut effects: ResMut<Assets<EffectAsset>>) {
             gradient: size_gradient1,
             screen_space_size: false,
         });
-
+    let id = commands
+        .spawn((
+            Name::new("spawn particle"),
+            ParticleEffectBundle {
+                effect: ParticleEffect::new(effects.add(effect)),
+                transform: Transform::default(),
+                ..Default::default()
+            },
+            SpawnParticles,
+        ))
+        .id();
     commands.insert_resource(SpawnItemResources {
-        spawn_particles: effects.add(effect),
+        spawn_particles: id,
     });
 }
 
@@ -99,6 +109,7 @@ fn do_spawn_actors(
     mut reader: EventReader<UseItemEvent>,
     mut commands: Commands,
     item_query: Query<&SpawnActorItem>,
+    mut particles: Query<(&mut Transform, &mut EffectSpawner), With<SpawnParticles>>,
     resources: Res<ActorResources>,
     collision: Res<RapierContext>,
     effects: Res<SpawnItemResources>,
@@ -123,16 +134,10 @@ fn do_spawn_actors(
                     &mut commands,
                     GlobalTransform::from_translation(spawn_pos),
                 );
-
-                commands.spawn((
-                    Name::new("spawn particle"),
-                    ParticleEffectBundle {
-                        effect: ParticleEffect::new(effects.spawn_particles.clone()),
-                        transform: Transform::from_translation(spawn_pos),
-                        ..Default::default()
-                    },
-                    TimedDespawner(Timer::from_seconds(2.0, TimerMode::Once)),
-                ));
+                if let Ok((mut tf, mut spawner)) = particles.get_single_mut() {
+                    tf.translation = spawn_pos;
+                    spawner.reset();
+                }
             }
         }
     }
