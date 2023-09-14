@@ -134,7 +134,7 @@ fn do_spawn_actors(
                     &mut commands,
                     GlobalTransform::from_translation(spawn_pos),
                 );
-                if let Ok((mut tf, mut spawner)) = particles.get_single_mut() {
+                if let Ok((mut tf, mut spawner)) = particles.get_mut(effects.spawn_particles) {
                     tf.translation = spawn_pos;
                     spawner.reset();
                 }

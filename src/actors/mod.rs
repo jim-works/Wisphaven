@@ -18,6 +18,7 @@ pub mod behaviors;
 pub mod block_actors;
 pub mod glowjelly;
 pub mod personality;
+pub mod world_anchor;
 
 #[cfg(test)]
 mod test;
@@ -36,18 +37,21 @@ impl Plugin for ActorPlugin {
                 }))
             }),
         );
-        app.add_plugins(CombatPlugin)
-            .add_plugins(BigBrainPlugin::new(PreUpdate))
-            .add_plugins(PersonalityPlugin)
-            .add_plugins(block_actors::BlockActorPlugin)
-            .add_plugins(behaviors::BehaviorsPlugin)
-            .add_plugins(glowjelly::GlowjellyPlugin)
-            .add_plugins(player::PlayerPlugin)
-            .add_systems(Update, idle_action_system)
-            .insert_resource(ActorResources {
-                registry: Arc::new(registry),
-            })
-            .register_type::<ActorName>();
+        app.add_plugins((
+            CombatPlugin,
+            BigBrainPlugin::new(PreUpdate),
+            PersonalityPlugin,
+            block_actors::BlockActorPlugin,
+            behaviors::BehaviorsPlugin,
+            glowjelly::GlowjellyPlugin,
+            world_anchor::WorldAnchorPlugin,
+            player::PlayerPlugin,
+        ))
+        .add_systems(Update, idle_action_system)
+        .insert_resource(ActorResources {
+            registry: Arc::new(registry),
+        })
+        .register_type::<ActorName>();
     }
 }
 

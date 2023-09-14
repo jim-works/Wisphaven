@@ -26,7 +26,7 @@ ahash = "0.8.3"
 #TODO: remove dynamic_linking/trace_tracy for releases (automate this)
 #TODO: add features ktx2 and zstd to enable better texture performance and compression when using ktx2 textures
 #TODO: maybe enable wayland feature?
-bevy = { version = "0.11.1", features = ["dynamic_linking"] }
+bevy = { version = "0.11.2", features = ["dynamic_linking"] }
 bracket-noise = "0.8.7"
 dashmap = "5.4.0"
 futures-lite = "1.13.0"

@@ -83,7 +83,7 @@
           namespace: "core",
           name: "tnt",
         ),
-        "recursia::world::block::BlockPhysics": Empty,
+        "recursia::world::block::BlockPhysics": Solid,
         "recursia::world::blocks::tnt::TNTBlock": (
           explosion_strength: 10.0,
         ),
