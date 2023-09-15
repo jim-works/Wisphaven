@@ -59,7 +59,7 @@ pub fn spawn_world_anchor(
             .spawn((
                 SceneBundle {
                     scene: res.scene.clone_weak(),
-                    transform: spawn.location.compute_transform(),
+                    transform: spawn.location.compute_transform().with_scale(Vec3::new(2.0,2.0,2.0)),
                     ..default()
                 },
                 Name::new("world anchor"),

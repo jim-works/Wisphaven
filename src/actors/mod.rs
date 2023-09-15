@@ -19,6 +19,7 @@ pub mod block_actors;
 pub mod glowjelly;
 pub mod personality;
 pub mod world_anchor;
+pub mod skeleton_pirate;
 
 #[cfg(test)]
 mod test;
@@ -45,6 +46,7 @@ impl Plugin for ActorPlugin {
             behaviors::BehaviorsPlugin,
             glowjelly::GlowjellyPlugin,
             world_anchor::WorldAnchorPlugin,
+            skeleton_pirate::SkeletonPiratePlugin,
             player::PlayerPlugin,
         ))
         .add_systems(Update, idle_action_system)
