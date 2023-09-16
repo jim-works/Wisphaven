@@ -1,12 +1,11 @@
 use crate::{
     physics::PhysicsObjectBundle,
-    ui::healthbar::{spawn_billboard_healthbar, HealthbarResources},
-    world::LevelLoadState,
+    ui::healthbar::{spawn_billboard_healthbar, HealthbarResources}, util::SendEventCommand
 };
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use super::{CombatInfo, CombatantBundle};
+use super::{CombatInfo, CombatantBundle, ActorResources, ActorName};
 
 #[derive(Resource)]
 pub struct WorldAnchorResources {
@@ -28,11 +27,21 @@ pub struct WorldAnchorPlugin;
 
 impl Plugin for WorldAnchorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, load_resources)
-            .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
+        app.add_systems(Startup, (load_resources, add_to_registry))
             .add_systems(Update, spawn_world_anchor)
             .add_event::<SpawnWorldAnchorEvent>();
     }
+}
+
+fn add_to_registry(mut res: ResMut<ActorResources>) {
+    res.registry.add_dynamic(
+        ActorName::core("world_anchor"),
+        Box::new(|commands, tf| {
+            commands.add(SendEventCommand(SpawnWorldAnchorEvent {
+                location: tf
+            }))
+        }),
+    );
 }
 
 pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
@@ -72,7 +81,8 @@ pub fn spawn_world_anchor(
                 },
                 PhysicsObjectBundle {
                     rigidbody: RigidBody::Fixed,
-                    collider: Collider::cuboid(0.5, 0.5, 0.5),
+                    //center of anchor is at bottom of model, so spawn the collision box offset
+                    collider: Collider::compound(vec![(Vec3::new(0.0,0.5,0.0), Quat::IDENTITY, Collider::cuboid(0.5, 0.5, 0.5))]),
                     ..default()
                 },
                 WorldAnchor { ..default() },

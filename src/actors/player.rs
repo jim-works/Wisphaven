@@ -155,6 +155,18 @@ pub fn spawn_local_player(
         ItemStack::new(
             resources
                 .registry
+                .get_basic(&ItemName::core("world_anchor"))
+                .unwrap(),
+            1,
+        ),
+        &item_query,
+        &mut pickup_item,
+        &mut equip_item,
+    );
+    inventory.pickup_item(
+        ItemStack::new(
+            resources
+                .registry
                 .get_basic(&ItemName::core("ruby_pickaxe"))
                 .unwrap(),
             1,

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use bevy::{prelude::*, utils::HashMap};
 use big_brain::prelude::*;
 
@@ -10,16 +8,15 @@ mod combat;
 pub use combat::*;
 use serde::{Deserialize, Serialize};
 
-use crate::util::SendEventCommand;
-
-use self::{glowjelly::SpawnGlowjellyEvent, personality::PersonalityPlugin};
+use self::personality::PersonalityPlugin;
 
 pub mod behaviors;
 pub mod block_actors;
+pub mod coin;
 pub mod glowjelly;
 pub mod personality;
-pub mod world_anchor;
 pub mod skeleton_pirate;
+pub mod world_anchor;
 
 #[cfg(test)]
 mod test;
@@ -28,16 +25,6 @@ pub struct ActorPlugin;
 
 impl Plugin for ActorPlugin {
     fn build(&self, app: &mut App) {
-        let mut registry = ActorRegistry::default();
-        registry.add_dynamic(
-            ActorName::core("glowjelly"),
-            Box::new(|commands, tf| {
-                commands.add(SendEventCommand(SpawnGlowjellyEvent {
-                    location: tf,
-                    color: Color::RED,
-                }))
-            }),
-        );
         app.add_plugins((
             CombatPlugin,
             BigBrainPlugin::new(PreUpdate),
@@ -47,11 +34,12 @@ impl Plugin for ActorPlugin {
             glowjelly::GlowjellyPlugin,
             world_anchor::WorldAnchorPlugin,
             skeleton_pirate::SkeletonPiratePlugin,
+            coin::CoinPlugin,
             player::PlayerPlugin,
         ))
         .add_systems(Update, idle_action_system)
         .insert_resource(ActorResources {
-            registry: Arc::new(registry),
+            registry: ActorRegistry::default(),
         })
         .register_type::<ActorName>();
     }
@@ -250,7 +238,7 @@ pub struct ActorBundle {
 
 #[derive(Resource)]
 pub struct ActorResources {
-    pub registry: Arc<ActorRegistry>,
+    pub registry: ActorRegistry,
 }
 
 pub type ActorNameIdMap = HashMap<ActorName, ActorId>;

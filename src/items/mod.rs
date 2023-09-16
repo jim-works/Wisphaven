@@ -127,6 +127,10 @@ pub fn create_raw_item<T: Bundle>(info: ItemBundle, bundle: T, commands: &mut Co
 #[derive(Component)]
 pub struct ItemIcon(pub Handle<Image>);
 
+//item that gets consumed on use
+#[derive(Component)]
+pub struct ConsumableItem;
+
 #[derive(Event)]
 pub struct UseItemEvent(pub Entity, pub ItemStack, pub GlobalTransform);
 #[derive(Event)]

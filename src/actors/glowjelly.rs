@@ -5,13 +5,13 @@ use big_brain::prelude::*;
 use crate::{
     physics::{shape_intersects_with_actors, PhysicsObjectBundle},
     ui::healthbar::{spawn_billboard_healthbar, HealthbarResources},
-    world::LevelLoadState,
+    world::LevelLoadState, util::SendEventCommand,
 };
 
 use super::{
     behaviors::{FloatAction, FloatHeight, FloatScorer, FloatWander, FloatWanderAction},
     personality::components::*,
-    CombatInfo, CombatantBundle, DefaultAnimation, Idler, UninitializedActor,
+    CombatInfo, CombatantBundle, DefaultAnimation, Idler, UninitializedActor, ActorResources, ActorName,
 };
 
 #[derive(Resource)]
@@ -39,7 +39,7 @@ pub struct GlowjellyPlugin;
 
 impl Plugin for GlowjellyPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, load_resources)
+        app.add_systems(Startup, (load_resources, add_to_registry))
             .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
             .add_systems(Update, (spawn_glowjelly, setup_glowjelly, social_score))
             .add_event::<SpawnGlowjellyEvent>();
@@ -60,6 +60,18 @@ fn trigger_spawning(mut writer: EventWriter<SpawnGlowjellyEvent>) {
             color: Color::rgb(i as f32, 1.0, 1.0),
         });
     }
+}
+
+fn add_to_registry(mut res: ResMut<ActorResources>) {
+    res.registry.add_dynamic(
+        ActorName::core("glowjelly"),
+        Box::new(|commands, tf| {
+            commands.add(SendEventCommand(SpawnGlowjellyEvent {
+                location: tf,
+                color: Color::RED,
+            }))
+        }),
+    );
 }
 
 pub fn spawn_glowjelly(

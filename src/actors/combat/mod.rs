@@ -45,7 +45,7 @@ impl CombatInfo {
             max_health: health,
             curr_defense: defense,
             base_defense: defense,
-            knockback_multiplier: 0.0,
+            knockback_multiplier: 1.0,
         }
     }
 }

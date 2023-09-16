@@ -4,10 +4,10 @@ use bevy_rapier3d::prelude::*;
 use crate::{
     physics::PhysicsObjectBundle,
     ui::healthbar::{spawn_billboard_healthbar, HealthbarResources},
-    world::LevelLoadState,
+    world::LevelLoadState, util::SendEventCommand,
 };
 
-use super::{CombatInfo, CombatantBundle, DefaultAnimation, UninitializedActor};
+use super::{CombatInfo, CombatantBundle, DefaultAnimation, UninitializedActor, ActorResources, ActorName};
 
 #[derive(Resource)]
 pub struct SkeletonPirateResources {
@@ -32,9 +32,9 @@ pub struct SkeletonPiratePlugin;
 
 impl Plugin for SkeletonPiratePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, load_resources)
+        app.add_systems(Startup, (load_resources, add_to_registry))
             .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
-            .add_systems(Update, (spawn_skeleton_pirate))
+            .add_systems(Update, spawn_skeleton_pirate)
             .add_event::<SpawnSkeletonPirateEvent>();
     }
 }
@@ -44,6 +44,17 @@ pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
         scene: assets.load("skeletons/skeleton_pirate.gltf#Scene0"),
         anim: assets.load("skeletons/skeleton_pirate.gltf#Animation0"),
     });
+}
+
+fn add_to_registry(mut res: ResMut<ActorResources>) {
+    res.registry.add_dynamic(
+        ActorName::core("skeleton_pirate"),
+        Box::new(|commands, tf| {
+            commands.add(SendEventCommand(SpawnSkeletonPirateEvent {
+                location: tf,
+            }))
+        }),
+    );
 }
 
 fn trigger_spawning(mut writer: EventWriter<SpawnSkeletonPirateEvent>) {

@@ -51,7 +51,7 @@ impl Default for PhysicsObjectBundle {
     fn default() -> Self {
         PhysicsObjectBundle {
             rigidbody: RigidBody::Dynamic,
-            ccd: Ccd::enabled(),
+            ccd: Ccd::disabled(),
             locked_axes: LockedAxes::ROTATION_LOCKED,
             collider: Collider::capsule(Vec3::ZERO, Vec3::new(0.0, 1.8, 0.0), 0.4),
             external_impulse: ExternalImpulse::default(),

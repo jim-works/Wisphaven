@@ -173,5 +173,20 @@
         )),
       },
     ),
+    10: (
+      components: {
+        "recursia::items::ItemName": (
+          namespace: "core",
+          name: "world_anchor",
+        ),
+        "recursia::items::NamedItemIcon": (
+            path: "world_anchor.png"
+        ),
+        "recursia::items::actor_items::SpawnActorItem": (ActorName(
+          namespace: "core",
+          name: "world_anchor",
+        )),
+      },
+    ),
   },
 )
