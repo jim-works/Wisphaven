@@ -1,9 +1,11 @@
-use std::{sync::Arc, path::PathBuf, time::Duration};
+use std::{sync::Arc, path::PathBuf};
 
 use bevy::{prelude::*, utils::HashMap};
 use serde::{Serialize, Deserialize};
 
 use crate::world::{LevelSystemSet, Id};
+
+use self::item_attributes::ItemAttributesPlugin;
 
 pub mod inventory;
 pub mod block_item;
@@ -11,6 +13,7 @@ pub mod weapons;
 pub mod tools;
 pub mod debug_items;
 pub mod actor_items;
+pub mod item_attributes;
 
 pub struct ItemsPlugin;
 
@@ -22,17 +25,16 @@ impl Plugin for ItemsPlugin {
             .add_event::<PickupItemEvent>()
             .add_event::<DropItemEvent>()
             .add_event::<SwingItemEvent>()
-            .add_plugins((debug_items::DebugItems, tools::ToolsPlugin, actor_items::ActorItems))
+            .add_plugins((debug_items::DebugItems, tools::ToolsPlugin, actor_items::ActorItems, weapons::WeaponItemPlugin, ItemAttributesPlugin))
             .add_systems(Update, (block_item::use_block_item, block_item::use_mega_block_item).in_set(LevelSystemSet::Main))
-            .add_systems(Update, (weapons::attack_melee, inventory::tick_item_timers).in_set(LevelSystemSet::Main))
+            .add_systems(Update, inventory::tick_item_timers.in_set(LevelSystemSet::Main))
 
             .register_type::<NamedItemIcon>()
             .register_type::<ItemName>()
             .register_type::<weapons::MeleeWeaponItem>()
             .register_type::<block_item::BlockItem>()
             .register_type::<block_item::MegaBlockItem>()
-            .register_type::<ItemSwingSpeed>()
-            .register_type::<ItemUseSpeed>()
+
         ;
     }
 }
@@ -55,19 +57,7 @@ pub struct ItemName {
     pub name: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
-#[reflect(Component)]
-pub struct ItemSwingSpeed {
-    pub windup: Duration,
-    pub backswing: Duration,
-}
 
-#[derive(Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
-#[reflect(Component)]
-pub struct ItemUseSpeed {
-    pub windup: Duration,
-    pub backswing: Duration,
-}
 
 #[derive(Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
 #[reflect(Component)]
@@ -127,22 +117,46 @@ pub fn create_raw_item<T: Bundle>(info: ItemBundle, bundle: T, commands: &mut Co
 #[derive(Component)]
 pub struct ItemIcon(pub Handle<Image>);
 
-//item that gets consumed on use
-#[derive(Component)]
-pub struct ConsumableItem;
+
 
 #[derive(Event)]
-pub struct UseItemEvent(pub Entity, pub ItemStack, pub GlobalTransform);
+pub struct UseItemEvent {
+    pub user: Entity,
+    pub inventory_slot: usize,
+    pub stack: ItemStack, 
+    pub tf: GlobalTransform
+}
 #[derive(Event)]
-pub struct SwingItemEvent(pub Entity, pub ItemStack, pub GlobalTransform);
+pub struct SwingItemEvent{
+    pub user: Entity,
+    pub inventory_slot: usize,
+    pub stack: ItemStack, 
+    pub tf: GlobalTransform
+}
 #[derive(Event)]
-pub struct EquipItemEvent(pub Entity, pub ItemStack);
+pub struct EquipItemEvent{
+    pub user: Entity,
+    pub inventory_slot: usize,
+    pub stack: ItemStack
+}
 #[derive(Event)]
-pub struct UnequipItemEvent(pub Entity, pub ItemStack);
+pub struct UnequipItemEvent{
+    pub user: Entity,
+    pub inventory_slot: usize,
+    pub stack: ItemStack
+}
 #[derive(Event)]
-pub struct PickupItemEvent(pub Entity, pub ItemStack);
+pub struct PickupItemEvent{
+    pub user: Entity,
+    //no slot because we can pick up items into multiple slots at once
+    pub stack: ItemStack
+}
 #[derive(Event)]
-pub struct DropItemEvent(pub Entity, pub ItemStack);
+pub struct DropItemEvent{
+    pub user: Entity,
+    pub inventory_slot: usize,
+    pub stack: ItemStack
+}
 
 #[derive(Resource)]
 pub struct ItemResources {

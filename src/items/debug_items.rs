@@ -21,7 +21,6 @@ pub struct PersonalityTester;
 
 pub fn use_personality_item(
     mut reader: EventReader<UseItemEvent>,
-    tf_query: Query<&GlobalTransform>,
     physical_attributes: Query<&PhysicalAttributes>,
     mental_attributes: Query<&MentalAttributes>,
     values: Query<&PersonalityValues>,
@@ -29,10 +28,9 @@ pub fn use_personality_item(
     personality_item: Query<&PersonalityTester>,
     physics: Res<RapierContext>,
 ) {
-    for event in reader.iter() {
-        if personality_item.get(event.1.id).is_ok() {
-            if let Ok(tf) = tf_query.get(event.0) {
-                let groups = QueryFilter::default().exclude_collider(event.0);
+    for UseItemEvent { user, inventory_slot: _, stack, tf } in reader.iter() {
+        if personality_item.contains(stack.id) {
+                let groups = QueryFilter::default().exclude_collider(*user);
                 if let Some((hit, _)) =
                     physics.cast_ray(tf.translation(), tf.forward(), 10.0, true, groups)
                 {
@@ -54,6 +52,5 @@ pub fn use_personality_item(
             } else {
                 info!("Using entity has no transform!");
             }
-        }
     }
 }

@@ -12,7 +12,7 @@ use leafwing_input_manager::InputManagerBundle;
 use crate::{
     chunk_loading::ChunkLoader,
     controllers::{self, *},
-    items::{inventory::Inventory, *},
+    items::{inventory::Inventory, *, item_attributes::{ItemUseSpeed, ItemSwingSpeed}},
     net::{
         client::ClientState,
         server::{SyncPosition, SyncVelocity},

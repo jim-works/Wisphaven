@@ -42,6 +42,16 @@
             damage: 5.0,
             knockback: 5.0,
         ),
+        "recursia::items::item_attributes::ItemSwingSpeed": (
+            windup: (
+                secs: 0,
+                nanos: 0,
+            ),
+            backswing: (
+                secs: 0,
+                nanos: 250000000,
+            )
+        ),
       },
     ),
     4: (
@@ -88,7 +98,7 @@
             shovel: 2,
             axe: 2,
         ),
-        "recursia::items::ItemSwingSpeed": (
+        "recursia::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 0,
                 nanos: 0,
@@ -112,7 +122,7 @@
         "recursia::items::tools::Tool": (
             axe: 3
         ),
-        "recursia::items::ItemSwingSpeed": (
+        "recursia::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 0,
                 nanos: 0,
@@ -141,7 +151,7 @@
         "recursia::items::tools::Tool": (
             shovel: 3
         ),
-        "recursia::items::ItemSwingSpeed": (
+        "recursia::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 0,
                 nanos: 0,
@@ -186,6 +196,7 @@
           namespace: "core",
           name: "world_anchor",
         )),
+        "recursia::items::item_attributes::ConsumableItem": (),
       },
     ),
   },

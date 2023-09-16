@@ -21,9 +21,9 @@ pub fn use_block_item(
     id_query: Query<&BlockId>,
     mut commands: Commands,
 ) {
-    for event in reader.iter() {
-        if let Ok(block_item) = block_query.get(event.1.id) {
-            if let Some(hit) = level.blockcast(event.2.translation(), event.2.forward()*10.0) {
+    for UseItemEvent { user: _, inventory_slot: _, stack, tf } in reader.iter() {
+        if let Ok(block_item) = block_query.get(stack.id) {
+            if let Some(hit) = level.blockcast(tf.translation(), tf.forward()*10.0) {
                 let id = resources.registry.get_id(&block_item.0);
                 level.set_block(hit.block_pos+hit.normal, id, &resources.registry, &id_query, &mut update_writer, &mut commands);
             }
@@ -40,11 +40,11 @@ pub fn use_mega_block_item(
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
     mut commands: Commands,
 ) {
-    for event in reader.iter() {
-        if let Ok(block_item) = megablock_query.get(event.1.id) {
+    for UseItemEvent { user: _, inventory_slot: _, stack, tf } in reader.iter() {
+        if let Ok(block_item) = megablock_query.get(stack.id) {
             let id = resources.registry.get_id(&block_item.0);
             let size = block_item.1;
-            if let Some(hit) = level.blockcast(event.2.translation(), event.2.forward()*100.0) {
+            if let Some(hit) = level.blockcast(tf.translation(), tf.forward()*100.0) {
                 let mut changes = Vec::with_capacity((size*size*size) as usize);
                 for x in -size..size+1 {
                     for y in -size..size+1 {

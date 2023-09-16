@@ -238,6 +238,9 @@ pub struct ActorBundle {
 
 #[derive(Resource)]
 pub struct ActorResources {
+    //should be fine not being behind an arc, can probably send an event if it needs to be done async during loading
+    //easier to find a work around for that than a workaround for not being able to mutate it to add new actors during loading
+    //  ...that is until we get prefabs
     pub registry: ActorRegistry,
 }
 

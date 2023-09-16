@@ -57,7 +57,7 @@ pub fn on_swing(
     mut writer: EventWriter<BlockHitEvent>,
     collision: Res<RapierContext>,
 ) {
-    for SwingItemEvent(user, item, tf) in reader.iter() {
+    for SwingItemEvent { user, inventory_slot: _, stack, tf } in reader.iter() {
         if let Some((_, t)) = collision.cast_ray(
             tf.translation(),
             tf.forward(),
@@ -67,7 +67,7 @@ pub fn on_swing(
         ) {
             let hit_pos = BlockCoord::from(tf.translation() + tf.forward() * (t + 0.05)); //move into the block just a bit
             writer.send(BlockHitEvent {
-                item: Some(item.id),
+                item: Some(stack.id),
                 user: Some(*user),
                 block_position: hit_pos,
                 hit_forward: tf.forward(),
