@@ -30,6 +30,7 @@ use crate::net::{server::ServerConfig, NetworkType};
 mod actors;
 mod chunk_loading;
 mod controllers;
+mod gameplay;
 mod items;
 mod mesher;
 mod net;
@@ -72,19 +73,22 @@ fn main() {
     )
     .add_plugins(HanabiPlugin)
     .add_plugins(WorldInspectorPlugin::new())
-    .add_plugins(UtilPlugin)
-    .add_plugins(serialization::SerializationPlugin)
-    .add_plugins(LevelPlugin)
-    .add_plugins(MesherPlugin)
-    .add_plugins(WorldGenPlugin)
-    .add_plugins(ChunkLoaderPlugin)
-    .add_plugins(PhysicsPlugin)
-    .add_plugins(ControllersPlugin)
-    .add_plugins(ActorPlugin)
-    .add_plugins(ItemsPlugin)
-    .add_plugins(ui::UIPlugin)
-    .add_plugins(net::NetPlugin)
-    .add_plugins(util::bevy_utils::BevyUtilsPlugin)
+    .add_plugins((
+        UtilPlugin,
+        serialization::SerializationPlugin,
+        LevelPlugin,
+        MesherPlugin,
+        WorldGenPlugin,
+        ChunkLoaderPlugin,
+        PhysicsPlugin,
+        ControllersPlugin,
+        ActorPlugin,
+        ItemsPlugin,
+        ui::UIPlugin,
+        net::NetPlugin,
+        util::bevy_utils::BevyUtilsPlugin,
+        gameplay::GameplayPlugin
+    ))
     .insert_resource(AmbientLight {
         brightness: 0.3,
         ..default()
@@ -124,4 +128,3 @@ fn main() {
 
     app.run();
 }
-

@@ -13,6 +13,7 @@
             name: "grass"
           )
         ),
+        "recursia::items::item_attributes::ConsumableItem": (),
       },
     ),
     2: (
@@ -27,6 +28,7 @@
             name: "tnt"
           )
         ),
+        "recursia::items::item_attributes::ConsumableItem": (),
       },
     ),
     3: (
@@ -82,6 +84,7 @@
           ),
           10
         ),
+        "recursia::items::item_attributes::ConsumableItem": (),
       },
     ),
     6: (
@@ -181,6 +184,7 @@
           namespace: "core",
           name: "glowjelly",
         )),
+        "recursia::items::item_attributes::ConsumableItem": (),
       },
     ),
     10: (

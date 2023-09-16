@@ -12,7 +12,8 @@ pub struct WorldAnchorResources {
     pub scene: Handle<Scene>,
 }
 
-#[derive(Component, Default)]
+//can use presence of this resource to easily detect if we're ready to spawn waves
+#[derive(Component, Resource, Default)]
 pub struct WorldAnchor;
 
 #[derive(Component)]
@@ -89,6 +90,7 @@ pub fn spawn_world_anchor(
                 //no UninitializedActor b/c we don't have to do any setup
             ))
             .id();
+        commands.insert_resource(WorldAnchor);
         //add healthbar
         spawn_billboard_healthbar(
             &mut commands,
