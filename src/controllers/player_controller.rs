@@ -4,11 +4,15 @@ use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
     actors::*,
-    physics::JUMPABLE_GROUP,
-    world::{Level, UsableBlock, events::{BlockUsedEvent, BlockHitEvent}, BlockCoord}, items::{inventory::Inventory, EquipItemEvent, UnequipItemEvent}, ui::{state::UIState, world_mouse_active},
+    items::{inventory::Inventory, EquipItemEvent, UnequipItemEvent},
+    ui::{state::UIState, world_mouse_active},
+    world::{
+        events::{BlockHitEvent, BlockUsedEvent},
+        BlockCoord, Level, UsableBlock,
+    },
 };
 
-use super::{Action, FrameMovement};
+use super::{Action, FrameJump, FrameMovement};
 
 #[derive(Component, Default)]
 pub struct RotateWithMouse {
@@ -54,55 +58,17 @@ pub fn move_player(mut query: Query<(&ActionState<Action>, &mut FrameMovement), 
 }
 
 //TODO: extract most of this into another system to look like move_player and do_planar_movement
-pub fn jump_player(
-    mut query: Query<
-        (
-            Entity,
-            &mut Jump,
-            &ActionState<Action>,
-            &Collider,
-            &GlobalTransform,
-            &mut ExternalImpulse,
-        ),
-        With<Player>,
-    >,
-    ctx: Res<RapierContext>,
-) {
-    const DETECT_DIST: f32 = 0.05;
-    for (entity, mut jump, act, collider, tf, mut ext_impulse) in query.iter_mut() {
-        //check on ground
-        let groups = QueryFilter {
-            groups: Some(CollisionGroups::new(
-                Group::ALL,
-                Group::from_bits_truncate(JUMPABLE_GROUP),
-            )),
-            ..default()
-        }
-        .exclude_collider(entity);
-        if let Some((_, _)) = ctx.cast_shape(
-            tf.translation(),
-            Quat::IDENTITY,
-            Vec3::new(0.0, DETECT_DIST, 0.0),
-            collider,
-            1.0,
-            groups,
-        ) {
-            jump.extra_jumps_remaining = jump.extra_jump_count;
-            //don't use an extra jump since we are on the ground
-            if act.just_pressed(Action::Jump) {
-                ext_impulse.impulse.y += jump.current_height;
-            }
-        } else if jump.extra_jumps_remaining > 0 && act.just_pressed(Action::Jump) {
-            //we aren't on the ground, so use an extra jump
-            jump.extra_jumps_remaining -= 1;
-            ext_impulse.impulse.y += jump.current_height;
+pub fn jump_player(mut query: Query<(&mut FrameJump, &ActionState<Action>), With<Player>>) {
+    for (mut fj, act) in query.iter_mut() {
+        if act.just_pressed(Action::Jump) {
+            fj.0 = true;
         }
     }
 }
 
 pub fn rotate_mouse(
     mut query: Query<(&mut Transform, &mut RotateWithMouse, &ActionState<Action>)>,
-    ui_state: Res<State<UIState>>
+    ui_state: Res<State<UIState>>,
 ) {
     if !world_mouse_active(&ui_state.get()) {
         return;
@@ -159,7 +125,7 @@ pub fn player_punch(
     mut attack_punch_writer: EventWriter<AttackEvent>,
     mut block_hit_writer: EventWriter<BlockHitEvent>,
     collision: Res<RapierContext>,
-    ui_state: Res<State<UIState>>
+    ui_state: Res<State<UIState>>,
 ) {
     if !world_mouse_active(&ui_state.get()) {
         return;
@@ -169,27 +135,41 @@ pub fn player_punch(
             let (player_entity, player, mut inv) = player_query.get_single_mut().unwrap();
             //first test if we punched a combatant
             let groups = QueryFilter {
-                    groups: Some(CollisionGroups::new(
-            Group::ALL,
-                Group::from_bits_truncate(crate::physics::ACTOR_GROUP),
+                groups: Some(CollisionGroups::new(
+                    Group::ALL,
+                    Group::from_bits_truncate(crate::physics::ACTOR_GROUP),
                 )),
                 ..default()
-            }.exclude_collider(player_entity);
+            }
+            .exclude_collider(player_entity);
             let slot = inv.selected_slot();
             match inv.get(slot) {
                 Some(_) => inv.swing_item(slot, *tf),
-                None => if let Some((hit,t)) = collision.cast_ray(tf.translation(), tf.forward(), 10.0, true, groups) {
-                    //add 0.05 to move a bit into the block
-                    let hit_pos = tf.translation()+tf.forward()*(t+0.05);
-                    //TODO: convert to ability
-                    if combat_query.contains(hit) {
-                        attack_punch_writer.send(AttackEvent { attacker: player_entity, target: hit, damage: player.hit_damage, knockback: tf.forward() })
-                    } else {
-                        block_hit_writer.send(BlockHitEvent { item: None, user: Some(player_entity), block_position: BlockCoord::from(hit_pos), hit_forward: tf.forward() });
+                None => {
+                    if let Some((hit, t)) =
+                        collision.cast_ray(tf.translation(), tf.forward(), 10.0, true, groups)
+                    {
+                        //add 0.05 to move a bit into the block
+                        let hit_pos = tf.translation() + tf.forward() * (t + 0.05);
+                        //TODO: convert to ability
+                        if combat_query.contains(hit) {
+                            attack_punch_writer.send(AttackEvent {
+                                attacker: player_entity,
+                                target: hit,
+                                damage: player.hit_damage,
+                                knockback: tf.forward(),
+                            })
+                        } else {
+                            block_hit_writer.send(BlockHitEvent {
+                                item: None,
+                                user: Some(player_entity),
+                                block_position: BlockCoord::from(hit_pos),
+                                hit_forward: tf.forward(),
+                            });
+                        }
                     }
-                },
+                }
             }
-            
         }
     }
 }
@@ -207,17 +187,23 @@ pub fn player_use(
     ui_state: Res<State<UIState>>,
     level: Res<Level>,
     usable_block_query: Query<&UsableBlock>,
-    mut block_use_writer: EventWriter<BlockUsedEvent>
+    mut block_use_writer: EventWriter<BlockUsedEvent>,
 ) {
     if !world_mouse_active(&ui_state.get()) {
         return;
     }
-        if let Ok((mut inv, entity)) = player_query.get_single_mut() {
+    if let Ok((mut inv, entity)) = player_query.get_single_mut() {
         if let Ok((tf, act)) = camera_query.get_single() {
             if act.just_pressed(Action::Use) {
                 //first test if we used a block
                 if let Some(hit) = level.blockcast(tf.translation(), tf.forward() * 10.0) {
-                    if level.use_block(hit.block_pos, entity, tf.forward(), &usable_block_query, &mut block_use_writer) {
+                    if level.use_block(
+                        hit.block_pos,
+                        entity,
+                        tf.forward(),
+                        &usable_block_query,
+                        &mut block_use_writer,
+                    ) {
                         //we used a block, so don't also use an item
                         return;
                     }
@@ -234,7 +220,7 @@ pub fn player_scroll_inventory(
     mut query: Query<(&mut Inventory, &ActionState<Action>), With<LocalPlayer>>,
     mut equip_writer: EventWriter<EquipItemEvent>,
     mut unequip_writer: EventWriter<UnequipItemEvent>,
-    ui_state: Res<State<UIState>>
+    ui_state: Res<State<UIState>>,
 ) {
     if !world_mouse_active(&ui_state.get()) {
         return;
@@ -242,8 +228,18 @@ pub fn player_scroll_inventory(
     const SCROLL_SENSITIVITY: f32 = 0.05;
     if let Ok((mut inv, act)) = query.get_single_mut() {
         let delta = act.value(Action::Scroll);
-        let slot_diff = if delta > SCROLL_SENSITIVITY {-1} else if delta < -SCROLL_SENSITIVITY {1} else {0};
+        let slot_diff = if delta > SCROLL_SENSITIVITY {
+            -1
+        } else if delta < -SCROLL_SENSITIVITY {
+            1
+        } else {
+            0
+        };
         let curr_slot = inv.selected_slot();
-        inv.select_slot(curr_slot as i32 + slot_diff, &mut equip_writer, &mut unequip_writer);
+        inv.select_slot(
+            curr_slot as i32 + slot_diff,
+            &mut equip_writer,
+            &mut unequip_writer,
+        );
     }
 }

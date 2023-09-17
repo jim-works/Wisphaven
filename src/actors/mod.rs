@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use self::personality::PersonalityPlugin;
 
+pub mod ai;
 pub mod behaviors;
 pub mod block_actors;
 pub mod coin;
@@ -36,6 +37,7 @@ impl Plugin for ActorPlugin {
             skeleton_pirate::SkeletonPiratePlugin,
             coin::CoinPlugin,
             player::PlayerPlugin,
+            ai::AIPlugin,
         ))
         .add_systems(Update, idle_action_system)
         .insert_resource(ActorResources {
@@ -47,18 +49,44 @@ impl Plugin for ActorPlugin {
 
 #[derive(Component)]
 pub struct MoveSpeed {
-    pub base_accel: f32,
-    pub current_accel: f32,
+    pub grounded_accel: f32,
+    pub aerial_accel: f32,
+    //multiplier, applied after accel_add
+    pub accel_mult: f32,
+    //added before accel_mult is applied
+    pub accel_add: f32,
     pub max_speed: f32,
 }
 
 impl Default for MoveSpeed {
     fn default() -> Self {
         MoveSpeed {
-            base_accel: 75.0,
-            current_accel: 75.0,
+            grounded_accel: 75.0,
+            aerial_accel: 15.0,
+            accel_mult: 1.0,
+            accel_add: 0.0,
             max_speed: 10.0,
         }
+    }
+}
+
+impl MoveSpeed {
+    pub fn new(grounded_accel: f32, aerial_accel: f32, max_speed: f32) -> Self {
+        Self {
+            grounded_accel,
+            aerial_accel,
+            max_speed,
+            ..default()
+        }
+    }
+
+    pub fn get_accel(&self, grounded: bool) -> f32 {
+        (if grounded {
+            self.grounded_accel
+        } else {
+            self.aerial_accel
+        } + self.accel_add)
+            * self.accel_mult
     }
 }
 
@@ -78,6 +106,17 @@ impl Default for Jump {
             current_height: 6.0,
             extra_jumps_remaining: 1,
             extra_jump_count: 1,
+        }
+    }
+}
+
+impl Jump {
+    pub fn new(height: f32, extra_jumps: u32) -> Self {
+        Self {
+            base_height: height,
+            current_height: height,
+            extra_jumps_remaining: extra_jumps,
+            extra_jump_count: extra_jumps,
         }
     }
 }

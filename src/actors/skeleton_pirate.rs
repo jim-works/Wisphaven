@@ -1,13 +1,20 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
+use big_brain::prelude::*;
 
 use crate::{
+    controllers::ControllableBundle,
     physics::PhysicsObjectBundle,
     ui::healthbar::{spawn_billboard_healthbar, HealthbarResources},
-    world::LevelLoadState, util::SendEventCommand,
+    util::SendEventCommand,
+    world::LevelLoadState,
 };
 
-use super::{CombatInfo, CombatantBundle, DefaultAnimation, UninitializedActor, ActorResources, ActorName};
+use super::{
+    ai::{TargetDestination, WalkToDestinationAction},
+    world_anchor::WorldAnchor,
+    ActorName, ActorResources, CombatInfo, CombatantBundle, DefaultAnimation, UninitializedActor, Jump, MoveSpeed,
+};
 
 #[derive(Resource)]
 pub struct SkeletonPirateResources {
@@ -50,9 +57,7 @@ fn add_to_registry(mut res: ResMut<ActorResources>) {
     res.registry.add_dynamic(
         ActorName::core("skeleton_pirate"),
         Box::new(|commands, tf| {
-            commands.add(SendEventCommand(SpawnSkeletonPirateEvent {
-                location: tf,
-            }))
+            commands.add(SendEventCommand(SpawnSkeletonPirateEvent { location: tf }))
         }),
     );
 }
@@ -68,8 +73,15 @@ pub fn spawn_skeleton_pirate(
     skele_res: Res<SkeletonPirateResources>,
     mut spawn_requests: EventReader<SpawnSkeletonPirateEvent>,
     healthbar_resources: Res<HealthbarResources>,
-    _children_query: Query<&Children>,
+    anchor: Query<&GlobalTransform, With<WorldAnchor>>,
 ) {
+    let target_location = TargetDestination(
+        anchor
+            .get_single()
+            .ok()
+            .map(|tf| tf.translation())
+            .unwrap_or_default(),
+    );
     for spawn in spawn_requests.iter() {
         let id = commands
             .spawn((
@@ -85,11 +97,26 @@ pub fn spawn_skeleton_pirate(
                 },
                 PhysicsObjectBundle {
                     rigidbody: RigidBody::Dynamic,
-                    collider: Collider::capsule(Vec3::new(0.,0.5,0.), Vec3::new(0.,2.4,0.), 0.5),
+                    collider: Collider::capsule(
+                        Vec3::new(0., 0.5, 0.),
+                        Vec3::new(0., 2.4, 0.),
+                        0.5,
+                    ),
+                    ..default()
+                },
+                Friction { coefficient: 0.2, combine_rule: CoefficientCombineRule::Min},
+                ControllableBundle {
+                    jump: Jump::new(12.0, 0),
+                    move_speed: MoveSpeed::new(50.0, 5.0, 5.0),
                     ..default()
                 },
                 SkeletonPirate { ..default() },
                 UninitializedActor,
+                target_location,
+                Thinker::build()
+                    .label("skeleton thinker")
+                    .picker(Highest)
+                    .when(FixedScore::build(0.01), WalkToDestinationAction::default()),
             ))
             .id();
         //add healthbar

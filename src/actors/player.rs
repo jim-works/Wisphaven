@@ -22,7 +22,7 @@ use crate::{
     world::{settings::Settings, *},
 };
 
-use super::{CombatInfo, CombatantBundle, DeathInfo, Jump};
+use super::{CombatInfo, CombatantBundle, DeathInfo};
 
 #[derive(Component)]
 pub struct Player {
@@ -310,7 +310,6 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
             ),
             ..default()
         },
-        Jump::default(),
         ItemUseSpeed {
             windup: Duration::ZERO,
             backswing: Duration::from_millis(100),

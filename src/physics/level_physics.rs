@@ -84,7 +84,7 @@ pub fn poll_gen_physics_queue(
             //add new collider
             let mut child_commands = commands.spawn(*tf);
             let child = child_commands.id();
-
+            child_commands.insert(Friction::new(2.0));
             for collider in data.colliders {
                 child_commands.insert(collider);
             }

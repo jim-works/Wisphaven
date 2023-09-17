@@ -57,6 +57,8 @@ fn spawn_wave(
 ) {
     if let Ok(tf) = anchor_query.get_single() {
         info!("trying to spawn...");
+        //TODO: should check for a clear area instead of a single block (and be improved in general)
+        //      ++ should check downwards so that they don't spawn in the air (maybe this kind of code could be handled by the actor? idk)
         //spawn in circle, check vertical until we find an empty block to spawn on
         const COUNT: i32 = 5;
         const RADIUS: f32 = 25.0;
