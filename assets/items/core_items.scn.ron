@@ -41,7 +41,7 @@
             path: "dagger.png"
         ),
         "recursia::items::weapons::MeleeWeaponItem": (
-            damage: 5.0,
+            damage: Damage (amount: 5.0),
             knockback: 5.0,
         ),
         "recursia::items::item_attributes::ItemSwingSpeed": (

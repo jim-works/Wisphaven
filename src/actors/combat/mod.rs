@@ -1,20 +1,24 @@
 use bevy::prelude::*;
 
 mod damage;
+pub mod projectile;
 pub use damage::*;
 
 pub struct CombatPlugin;
 
 impl Plugin for CombatPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<AttackEvent>()
+        app
+            .add_plugins(projectile::ProjectilePlugin)
+            .add_event::<AttackEvent>()
             .add_event::<DeathEvent>()
             .add_systems(PostUpdate, (process_attacks, do_death).chain())
+            .register_type::<Damage>()
         ;
     }
 }
 
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct CombatantBundle {
     pub combat_info: CombatInfo,
     pub death_info: DeathInfo,
@@ -29,7 +33,7 @@ impl Default for CombatantBundle {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct CombatInfo {
     pub curr_health: f32,
     pub max_health: f32,
@@ -50,8 +54,7 @@ impl CombatInfo {
     }
 }
 
-#[derive(Component)]
-#[derive(Default)]
+#[derive(Component, Default, Clone)]
 pub struct DeathInfo {
     pub death_type: DeathType,
     //death_message: Option<&str>,
@@ -59,7 +62,7 @@ pub struct DeathInfo {
 
 
 
-#[derive(Default)]
+#[derive(Default, Copy, Clone)]
 pub enum DeathType {
     #[default] Default,
     LocalPlayer,
@@ -67,11 +70,16 @@ pub enum DeathType {
     Immortal,
 }
 
+#[derive(Clone, Copy, Debug, Reflect, Default)]
+pub struct Damage {
+    pub amount: f32
+}
+
 #[derive(Clone, Copy, Event)]
 pub struct AttackEvent {
     pub attacker: Entity,
     pub target: Entity,
-    pub damage: f32,
+    pub damage: Damage,
     pub knockback: Vec3,
 }
 

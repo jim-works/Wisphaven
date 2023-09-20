@@ -15,7 +15,7 @@ pub fn process_attacks (
                 impulse.impulse += attack.knockback*target_info.knockback_multiplier;
             }
             target_info.curr_health = (target_info.curr_health-damage_taken).max(0.0);
-            info!("{:?} attacked {:?} for {} damage (inital damage {}). health: {}", attack.attacker, attack.target, damage_taken, attack.damage, target_info.curr_health);
+            info!("{:?} attacked {:?} for {} damage (inital damage {:?}). health: {}", attack.attacker, attack.target, damage_taken, attack.damage, target_info.curr_health);
             if target_info.curr_health == 0.0 {
                 //die
                 death_writer.send(DeathEvent { final_blow: *attack, damage_taken })
@@ -32,7 +32,7 @@ pub fn calc_damage(attack: &AttackEvent, info: &CombatInfo) -> f32 {
     //0 defense gives multiplier 1
     //TODO: maybe switch to sigmoid, I don't think I want armor to have this amount of diminishing returns.
     const DEFENSE_SCALE: f32 = 0.1;
-    (1.0-(DEFENSE_SCALE*info.curr_defense)/(1.0+(DEFENSE_SCALE*info.curr_defense).abs()))*attack.damage
+    (1.0-(DEFENSE_SCALE*info.curr_defense)/(1.0+(DEFENSE_SCALE*info.curr_defense).abs()))*attack.damage.amount
 }
 
 pub fn do_death(

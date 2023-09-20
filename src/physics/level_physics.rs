@@ -26,6 +26,9 @@ pub struct ChunkColliderGenerated {
 }
 
 #[derive(Component)]
+pub struct ChunkCollider;
+
+#[derive(Component)]
 pub struct GeneratePhysicsTask {
     pub task: Task<PhysicsGenerationData>,
 }
@@ -82,9 +85,8 @@ pub fn poll_gen_physics_queue(
                 commands.entity(collider.child).despawn_recursive();
             }
             //add new collider
-            let mut child_commands = commands.spawn(*tf);
+            let mut child_commands = commands.spawn((*tf, Friction::new(2.0), ChunkCollider));
             let child = child_commands.id();
-            child_commands.insert(Friction::new(2.0));
             for collider in data.colliders {
                 child_commands.insert(collider);
             }

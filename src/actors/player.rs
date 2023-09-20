@@ -22,11 +22,11 @@ use crate::{
     world::{settings::Settings, *},
 };
 
-use super::{CombatInfo, CombatantBundle, DeathInfo};
+use super::{CombatInfo, CombatantBundle, DeathInfo, Damage};
 
 #[derive(Component)]
 pub struct Player {
-    pub hit_damage: f32,
+    pub hit_damage: Damage,
 }
 
 #[derive(Component)]
@@ -301,7 +301,7 @@ pub fn spawn_local_player(
 
 fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Commands) {
     commands.entity(entity).insert((
-        Player { hit_damage: 1.0 },
+        Player { hit_damage: Damage { amount: 1.0} },
         TransformBundle::from_transform(Transform::from_translation(spawn_point)),
         PhysicsObjectBundle {
             collision_groups: CollisionGroups::new(

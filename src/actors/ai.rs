@@ -5,7 +5,7 @@ use big_brain::prelude::*;
 
 use crate::{
     controllers::{FrameJump, FrameMovement},
-    world::{BlockCoord, BlockPhysics, Level, LevelSystemSet},
+    world::{BlockCoord, BlockPhysics, Level, LevelSystemSet}, util::plugin::SmoothLookTo,
 };
 
 pub struct AIPlugin;
@@ -21,12 +21,11 @@ impl Plugin for AIPlugin {
     }
 }
 
-#[derive(Component, Debug, Clone, Copy)]
-pub struct TargetDestination(pub Vec3);
-
 #[derive(Clone, Component, Debug, ActionBuilder)]
 pub struct WalkToDestinationAction {
-    wait_timer: Timer,
+    pub wait_timer: Timer,
+    pub target_dest: Vec3,
+    pub stop_distance: f32,
 }
 
 impl Default for WalkToDestinationAction {
@@ -35,59 +34,60 @@ impl Default for WalkToDestinationAction {
         //tick the wait timer so it's finished by default
         wait_timer.tick(Duration::from_secs(1));
         Self {
-            wait_timer
+            wait_timer,
+            target_dest: Vec3::default(),
+            stop_distance: 0.1
         }
     }
 }
 
 fn walk_to_destination_action(
     mut info: Query<(
-        &GlobalTransform,
-        &TargetDestination,
+        &Transform,
         &mut FrameMovement,
         Option<&mut FrameJump>,
+        Option<&mut SmoothLookTo>,
     )>,
     mut query: Query<(&Actor, &mut ActionState, &mut WalkToDestinationAction)>,
     level: Res<Level>,
     block_physics: Query<&BlockPhysics>,
     time: Res<Time>,
 ) {
-    const EPSILON: f32 = 0.1;
-    const SLOW_DIST: f32 = 0.5;
     const JUMP_DIST: f32 = 0.75;
     const JUMP_COOLDOWN: Duration = Duration::from_millis(500);
     for (Actor(actor), mut state, mut action) in query.iter_mut() {
-        if let Ok((tf, TargetDestination(dest), mut fm, fj)) = info.get_mut(*actor) {
+        if let Ok((tf, mut fm, fj, look_opt)) = info.get_mut(*actor) {
             match *state {
                 ActionState::Requested => {
                     *state = ActionState::Executing;
                 }
                 ActionState::Executing | ActionState::Cancelled => {
+                    // if let Some(mut look) = look_opt {
+                    //     look.enabled = true;
+                    //     look.to = *dest;
+                    // }
                     //we check the wait timer before moving.
                     //if we move into a wall right after jumping, the friction on the wall will make the jump go nowhere
                     action.wait_timer.tick(time.delta());
                     if !action.wait_timer.finished() {
                         continue;
                     }
+                    let dest = action.target_dest;
                     let delta = Vec3::new(dest.x, 0.0, dest.z)
-                        - Vec3::new(tf.translation().x, 0.0, tf.translation().z);
-                    if delta.length_squared() < EPSILON * EPSILON {
+                        - Vec3::new(tf.translation.x, 0.0, tf.translation.z);
+                    
+                    if delta.length_squared() < action.stop_distance * action.stop_distance {
                         //we are close enough
                         *state = ActionState::Success;
                         return;
                     }
-                    fm.0 = if delta.length_squared() < SLOW_DIST * SLOW_DIST {
-                        //lerp to walk slower to not overshoot target
-                        delta / delta.length_squared()
-                    } else {
-                        delta.normalize()
-                    };
+                    fm.0 = delta;
                     //test if we need to jump over a block
                     if let Some(mut fj) = fj {
                         //if the next block we would enter needs to be jumped over, we set the score to how close we are to it.
-                        let delta = *dest - tf.translation();
-                        let origin = BlockCoord::from(tf.translation()) + BlockCoord::new(0, 1, 0);
-                        let tf_origin = tf.translation();
+                        let delta = dest - tf.translation;
+                        let origin = BlockCoord::from(tf.translation) + BlockCoord::new(0, 1, 0);
+                        let tf_origin = tf.translation;
                         let mut closest_distance: f32 = 1.0;
                         //test the 8 neighbors one block above us
                         // x x x

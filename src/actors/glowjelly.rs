@@ -5,7 +5,7 @@ use big_brain::prelude::*;
 use crate::{
     physics::{shape_intersects_with_actors, PhysicsObjectBundle},
     ui::healthbar::{spawn_billboard_healthbar, HealthbarResources},
-    world::LevelLoadState, util::SendEventCommand,
+    world::LevelLoadState, util::{SendEventCommand, plugin::SmoothLookTo},
 };
 
 use super::{
@@ -122,6 +122,7 @@ pub fn spawn_glowjelly(
                 FloatHeight::new(20.0),
                 Idler::default(),
                 FloatWander::default(),
+                SmoothLookTo::new(0.5),
                 Thinker::build()
                     .label("glowjelly thinker")
                     .picker(FirstToScore::new(0.005))
@@ -136,7 +137,6 @@ pub fn spawn_glowjelly(
                         FixedScore::build(0.05),
                         FloatWanderAction {
                             impulse: 5.0,
-                            turn_speed: 0.5,
                             squish_factor: Vec3::new(1.0, 0.33, 1.0),
                             anim_speed: 0.66,
                         },

@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    ai::{TargetDestination, WalkToDestinationAction},
+    ai::WalkToDestinationAction,
     world_anchor::WorldAnchor,
     ActorName, ActorResources, CombatInfo, CombatantBundle, DefaultAnimation, UninitializedActor, Jump, MoveSpeed,
 };
@@ -75,13 +75,13 @@ pub fn spawn_skeleton_pirate(
     healthbar_resources: Res<HealthbarResources>,
     anchor: Query<&GlobalTransform, With<WorldAnchor>>,
 ) {
-    let target_location = TargetDestination(
+    let anchor_position = 
         anchor
             .get_single()
             .ok()
             .map(|tf| tf.translation())
-            .unwrap_or_default(),
-    );
+            .unwrap_or_default();
+    const ATTACK_RANGE: f32 = 5.0;
     for spawn in spawn_requests.iter() {
         let id = commands
             .spawn((
@@ -107,16 +107,19 @@ pub fn spawn_skeleton_pirate(
                 Friction { coefficient: 0.2, combine_rule: CoefficientCombineRule::Min},
                 ControllableBundle {
                     jump: Jump::new(12.0, 0),
-                    move_speed: MoveSpeed::new(50.0, 5.0, 5.0),
+                    move_speed: MoveSpeed::new(50.0, 10.0, 5.0),
                     ..default()
                 },
                 SkeletonPirate { ..default() },
                 UninitializedActor,
-                target_location,
                 Thinker::build()
                     .label("skeleton thinker")
                     .picker(Highest)
-                    .when(FixedScore::build(0.01), WalkToDestinationAction::default()),
+                    .when(FixedScore::build(0.01), WalkToDestinationAction {
+                        target_dest: anchor_position,
+                        stop_distance: ATTACK_RANGE,
+                        ..default()
+                    }),
             ))
             .id();
         //add healthbar

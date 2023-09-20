@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::{actors::AttackEvent, world::LevelSystemSet};
+use crate::{actors::{AttackEvent, Damage}, world::LevelSystemSet};
 
 use super::SwingItemEvent;
 
@@ -16,7 +16,7 @@ impl Plugin for WeaponItemPlugin {
 #[derive(Component, Reflect, Default)]
 #[reflect(Component)]
 pub struct MeleeWeaponItem {
-    pub damage: f32,
+    pub damage: Damage,
     pub knockback: f32,
 }
 

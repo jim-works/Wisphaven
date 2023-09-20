@@ -41,7 +41,6 @@ impl Default for FloatWander {
 #[derive(Clone, Component, Debug, ActionBuilder)]
 pub struct FloatWanderAction {
     pub impulse: f32,
-    pub turn_speed: f32,
     pub squish_factor: Vec3,
     pub anim_speed: f32,
 }
@@ -49,26 +48,23 @@ pub struct FloatWanderAction {
 pub fn float_wander_action_system(
     time: Res<Time>,
     mut info: Query<(
-        Entity,
         Option<&mut DefaultAnimation>,
         &mut FloatWander,
         &mut ExternalImpulse,
+        &mut SmoothLookTo,
     )>,
     mut query: Query<(&Actor, &mut ActionState, &FloatWanderAction)>,
-    mut animation_player: Query<&mut AnimationPlayer>,
-    mut commands: Commands,
+    mut animation_player: Query<&mut AnimationPlayer>
 ) {
     for (Actor(actor), mut state, wander) in query.iter_mut() {
-        if let Ok((entity, anim_opt, mut floater, mut impulse)) = info.get_mut(*actor) {
+        if let Ok((anim_opt, mut floater, mut impulse, mut look)) = info.get_mut(*actor) {
             match *state {
                 ActionState::Requested => {
                     *state = ActionState::Executing;
                     floater.target_direction = sample_sphere_surface(&mut thread_rng())*wander.squish_factor * wander.impulse;
-                    commands.entity(entity).insert(SmoothLookTo{
-                        to: floater.target_direction,
-                        up: Vec3::Y,
-                        speed: wander.turn_speed,
-                    });
+                    look.forward = floater.target_direction;
+                    look.up = Vec3::Y;
+                    look.enabled = true;
                     
                     setup_animation_with_speed(anim_opt, &mut animation_player, wander.anim_speed);
                 }
@@ -158,25 +154,22 @@ pub struct FloatScorer;
 pub fn float_action_system(
     time: Res<Time>,
     mut info: Query<(
-        Entity,
         Option<&mut DefaultAnimation>,
-        &mut ExternalImpulse
+        &mut ExternalImpulse,
+        &mut SmoothLookTo,
     ), With<FloatHeight>>,
     mut query: Query<(&Actor, &mut ActionState, &FloatAction)>,
-    mut animation_player: Query<&mut AnimationPlayer>,
-    mut commands: Commands
+    mut animation_player: Query<&mut AnimationPlayer>
 ) {
     for (Actor(actor), mut state, float) in query.iter_mut() {
-        if let Ok((entity, anim_opt, mut impulse)) = info.get_mut(*actor) {
+        if let Ok((anim_opt, mut impulse, mut look)) = info.get_mut(*actor) {
             match *state {
                 ActionState::Requested => {
                     *state = ActionState::Executing;
                     setup_animation(anim_opt, &mut animation_player);
-                    commands.entity(entity).insert(SmoothLookTo{
-                        to: Vec3::Y,
-                        up: Vec3::X,
-                        speed: float.turn_speed,
-                    });
+                    look.forward = Vec3::Y;
+                    look.up = Vec3::X;
+                    look.enabled = true;
                 }
                 ActionState::Executing => {
                     match anim_opt {
