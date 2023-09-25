@@ -8,11 +8,15 @@ use crate::{
     world::{BlockCoord, BlockPhysics, Level, LevelSystemSet}, util::plugin::SmoothLookTo,
 };
 
+pub mod scorers;
+
 pub struct AIPlugin;
 
 impl Plugin for AIPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app
+            .add_plugins(scorers::ScorersPlugin)
+            .add_systems(
             Update,
             walk_to_destination_action
                 .in_set(BigBrainSet::Actions)
@@ -27,6 +31,9 @@ pub struct WalkToDestinationAction {
     pub target_dest: Vec3,
     pub stop_distance: f32,
 }
+
+#[derive(Component, Debug, ActionBuilder, Copy, Clone)]
+pub struct AttackAction;
 
 impl Default for WalkToDestinationAction {
     fn default() -> Self {

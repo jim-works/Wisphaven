@@ -3,17 +3,20 @@ use bevy_rapier3d::prelude::*;
 use big_brain::prelude::*;
 
 use crate::{
+    actors::{
+        ai::{scorers::AggroLineOfSightScorer, AttackAction},
+        AggroTargets,
+    },
     controllers::ControllableBundle,
     physics::PhysicsObjectBundle,
-    ui::healthbar::{spawn_billboard_healthbar, HealthbarResources},
     util::SendEventCommand,
     world::LevelLoadState,
 };
 
 use super::{
-    ai::WalkToDestinationAction,
-    world_anchor::WorldAnchor,
-    ActorName, ActorResources, CombatInfo, CombatantBundle, DefaultAnimation, UninitializedActor, Jump, MoveSpeed,
+    ai::WalkToDestinationAction, coin::SpawnCoinEvent, world_anchor::WorldAnchor, ActorName,
+    ActorResources, CombatInfo, CombatantBundle, Damage, DefaultAnimation, Jump, MoveSpeed,
+    UninitializedActor,
 };
 
 #[derive(Resource)]
@@ -41,6 +44,7 @@ impl Plugin for SkeletonPiratePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (load_resources, add_to_registry))
             .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
+            .add_systems(PreUpdate, attack.in_set(BigBrainSet::Actions))
             .add_systems(Update, spawn_skeleton_pirate)
             .add_event::<SpawnSkeletonPirateEvent>();
     }
@@ -72,63 +76,61 @@ pub fn spawn_skeleton_pirate(
     mut commands: Commands,
     skele_res: Res<SkeletonPirateResources>,
     mut spawn_requests: EventReader<SpawnSkeletonPirateEvent>,
-    healthbar_resources: Res<HealthbarResources>,
-    anchor: Query<&GlobalTransform, With<WorldAnchor>>,
+    anchor: Query<(Entity, &GlobalTransform), With<WorldAnchor>>,
 ) {
-    let anchor_position = 
-        anchor
-            .get_single()
-            .ok()
-            .map(|tf| tf.translation())
-            .unwrap_or_default();
-    const ATTACK_RANGE: f32 = 5.0;
+    let (anchor_entity, anchor_position) = anchor
+        .get_single()
+        .ok()
+        .map(|(e, tf)| (e, tf.translation()))
+        .unwrap_or((Entity::PLACEHOLDER, Vec3::ZERO));
+    const ATTACK_RANGE: f32 = 20.0;
     for spawn in spawn_requests.iter() {
-        let id = commands
-            .spawn((
-                SceneBundle {
-                    scene: skele_res.scene.clone_weak(),
-                    transform: spawn.location.compute_transform(),
-                    ..default()
-                },
-                Name::new("SkeletonPirate"),
-                CombatantBundle {
-                    combat_info: CombatInfo::new(10.0, 0.0),
-                    ..default()
-                },
-                PhysicsObjectBundle {
-                    rigidbody: RigidBody::Dynamic,
-                    collider: Collider::capsule(
-                        Vec3::new(0., 0.5, 0.),
-                        Vec3::new(0., 2.4, 0.),
-                        0.5,
-                    ),
-                    ..default()
-                },
-                Friction { coefficient: 0.2, combine_rule: CoefficientCombineRule::Min},
-                ControllableBundle {
-                    jump: Jump::new(12.0, 0),
-                    move_speed: MoveSpeed::new(50.0, 10.0, 5.0),
-                    ..default()
-                },
-                SkeletonPirate { ..default() },
-                UninitializedActor,
-                Thinker::build()
-                    .label("skeleton thinker")
-                    .picker(Highest)
-                    .when(FixedScore::build(0.01), WalkToDestinationAction {
+        commands.spawn((
+            SceneBundle {
+                scene: skele_res.scene.clone_weak(),
+                transform: spawn.location.compute_transform(),
+                ..default()
+            },
+            Name::new("SkeletonPirate"),
+            CombatantBundle {
+                combat_info: CombatInfo::new(10.0, 0.0),
+                ..default()
+            },
+            PhysicsObjectBundle {
+                rigidbody: RigidBody::Dynamic,
+                collider: Collider::capsule(Vec3::new(0., 0.5, 0.), Vec3::new(0., 2.4, 0.), 0.5),
+                ..default()
+            },
+            Friction {
+                coefficient: 0.2,
+                combine_rule: CoefficientCombineRule::Min,
+            },
+            ControllableBundle {
+                jump: Jump::new(12.0, 0),
+                move_speed: MoveSpeed::new(50.0, 10.0, 5.0),
+                ..default()
+            },
+            SkeletonPirate { ..default() },
+            AggroTargets(vec![anchor_entity]),
+            UninitializedActor,
+            Thinker::build()
+                .label("skeleton thinker")
+                .picker(Highest)
+                .when(
+                    FixedScore::build(0.01),
+                    WalkToDestinationAction {
                         target_dest: anchor_position,
-                        stop_distance: ATTACK_RANGE,
+                        stop_distance: ATTACK_RANGE * 0.5,
                         ..default()
-                    }),
-            ))
-            .id();
-        //add healthbar
-        spawn_billboard_healthbar(
-            &mut commands,
-            &healthbar_resources,
-            id,
-            Vec3::new(0.0, 2.0, 0.0),
-        );
+                    },
+                )
+                .when(
+                    AggroLineOfSightScorer {
+                        range: ATTACK_RANGE,
+                    },
+                    AttackAction,
+                ),
+        ));
     }
 }
 
@@ -180,6 +182,47 @@ pub fn setup_skeleton_pirate(
                     break;
                 }
             }
+        }
+    }
+}
+
+fn attack(
+    mut action_query: Query<(&Actor, &mut ActionState), With<AttackAction>>,
+    skele_query: Query<(&GlobalTransform, &AggroTargets), With<SkeletonPirate>>,
+    aggro_query: Query<&GlobalTransform>,
+    mut spawn_coin: EventWriter<SpawnCoinEvent>,
+) {
+    const COIN_OFFSET: Vec3 = Vec3::new(0.0, 2.0, 0.0);
+    const THROW_IMPULSE: f32 = 5.0;
+    let combat = CombatantBundle::default();
+    let damage = Damage::default();
+    for (&Actor(actor), mut state) in action_query.iter_mut() {
+        match *state {
+            ActionState::Requested => {
+                info!("throwing!");
+                *state = ActionState::Executing;
+            }
+            ActionState::Executing => {
+                if let Ok((tf, targets)) = skele_query.get(actor) {
+                    if let Some(target) = targets.last().map(|t| aggro_query.get(*t).ok()).flatten()
+                    {
+                        let spawn_point = tf.translation() + COIN_OFFSET;
+                        spawn_coin.send(SpawnCoinEvent {
+                            location: Transform::from_translation(spawn_point),
+                            velocity: (target.translation() - spawn_point).normalize_or_zero()
+                                * THROW_IMPULSE,
+                            combat: combat.clone(),
+                            owner: actor,
+                            damage,
+                        })
+                    }
+                }
+                *state = ActionState::Success;
+            }
+            ActionState::Cancelled => {
+                *state = ActionState::Failure;
+            },
+            _ => {}
         }
     }
 }

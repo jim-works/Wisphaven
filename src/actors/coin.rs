@@ -2,7 +2,7 @@ use crate::physics::PhysicsObjectBundle;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use super::{CombatantBundle, Damage};
+use super::{CombatantBundle, Damage, projectile::{ProjectileBundle, Projectile}};
 
 #[derive(Resource)]
 pub struct CoinResources {
@@ -19,9 +19,10 @@ pub struct CoinScene;
 
 #[derive(Event)]
 pub struct SpawnCoinEvent {
-    pub location: GlobalTransform,
+    pub location: Transform,
     pub velocity: Vec3,
     pub combat: CombatantBundle,
+    pub owner: Entity,
     pub damage: Damage,
 }
 
@@ -53,7 +54,6 @@ pub fn spawn_coin(
                 scene: res.scene.clone_weak(),
                 transform: spawn
                     .location
-                    .compute_transform()
                     .with_scale(Vec3::new(0.5, 0.5, 0.5)),
                 ..default()
             },
@@ -69,6 +69,14 @@ pub fn spawn_coin(
             Coin {
                 damage: spawn.damage,
             },
+            ProjectileBundle::new(Projectile {
+                owner: spawn.owner,
+                knockback_mult: 1.0,
+                lifetime: Timer::from_seconds(10.0, TimerMode::Once),
+                damage: Damage::default(),
+                despawn_on_hit: true,
+                on_hit_or_despawn: None,
+            }),
             //no UninitializedActor b/c we don't have to do any setup
         ));
     }

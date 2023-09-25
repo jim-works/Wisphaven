@@ -20,9 +20,6 @@ pub fn process_attacks (
                 //die
                 death_writer.send(DeathEvent { final_blow: *attack, damage_taken })
             }
-        } else {
-            warn!("tried to attack entity without combat info");
-            continue;
         }
     }
 }

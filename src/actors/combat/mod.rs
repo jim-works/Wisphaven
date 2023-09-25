@@ -88,3 +88,10 @@ pub struct DeathEvent {
     pub final_blow: AttackEvent,
     pub damage_taken: f32,
 }
+
+//targets the entity is currently considering, based on a stack
+//entity's current target is the top of the stack
+//abilities that change attack target (something like berserker's call from dota)
+//would push a new target onto the vec, add a marker component for the buff, then remove the entity from AggroTargets when the buff expires.
+#[derive(Component, Default, Deref, DerefMut)]
+pub struct AggroTargets(pub Vec<Entity>);
