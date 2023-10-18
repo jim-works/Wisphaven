@@ -91,6 +91,10 @@ impl LevelData {
     ) -> Option<Entity> {
         let mut remove_block = false;
         let mut remove_damage = false;
+        let entity = self.get_block_entity(key);
+        if entity.is_none() {
+            return None; //can't damage an empty block
+        }
         match self.block_damages.get_mut(&key) {
             Some(mut dam) => {
                 let mut damage = dam.value().with_time_reset();
@@ -132,7 +136,6 @@ impl LevelData {
             self.block_damages.remove(&key);
         }
         if remove_block {
-            let entity = self.get_block_entity(key);
             self.set_block_entity(key, BlockType::Empty, id_query, update_writer, commands);
             return entity;
         }

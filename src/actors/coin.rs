@@ -78,6 +78,7 @@ pub fn spawn_coin(
             ProjectileBundle::new(Projectile {
                 owner: spawn.owner,
                 knockback_mult: 1.0,
+                terrain_damage: 0.5,
                 despawn_time: curr_time + LIFETIME,
                 damage: Damage::default(),
                 despawn_on_hit: true,
