@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::world::LevelSystemSet;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
@@ -8,7 +10,7 @@ pub struct ProjectilePlugin;
 
 impl Plugin for ProjectilePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, test_projectile_hit.in_set(LevelSystemSet::Main));
+        app.add_systems(Update, (test_projectile_hit, update_projectile_lifetime).in_set(LevelSystemSet::Main).chain());
     }
 }
 
@@ -22,7 +24,7 @@ pub struct Projectile {
     pub owner: Entity,
     pub damage: Damage,
     pub knockback_mult: f32,
-    pub lifetime: Timer,
+    pub despawn_time: Duration,
     pub despawn_on_hit: bool,
     //usually want same behavior for both, so one function
     pub on_hit_or_despawn: Option<Box<dyn Fn(ProjectileHit, &mut Commands) + Send + Sync>>,
@@ -50,6 +52,23 @@ impl ProjectileBundle {
     }
 }
 
+fn update_projectile_lifetime(
+    query: Query<(Entity, &Projectile)>,
+    mut commands: Commands,
+    time: Res<Time>
+) {
+    let curr_time = time.elapsed();
+    for (entity, proj) in query.iter()
+    {
+        if proj.despawn_time < curr_time {
+            if let Some(action) = &proj.on_hit_or_despawn {
+                action(ProjectileHit { hit: None, projectile: entity }, &mut commands);
+            }
+            commands.entity(entity).despawn_recursive();
+        }
+    }
+}
+
 fn test_projectile_hit(
     query: Query<(
         Entity,
@@ -61,8 +80,6 @@ fn test_projectile_hit(
     mut attack_writer: EventWriter<AttackEvent>,
     mut commands: Commands,
 ) {
-    const EPSILON: f32 = 1e-3;
-    const DETECT_DIST: f32 = 0.05;
     for event in collision_events.iter() {
         match event {
             CollisionEvent::Started(e1, e2, _) => {
@@ -127,6 +144,6 @@ fn proj_hit(
         );
     }
     if proj.despawn_on_hit {
-        commands.entity(proj_entity).despawn();
+        commands.entity(proj_entity).despawn_recursive();
     }
 }

@@ -66,7 +66,7 @@ pub fn float_wander_action_system(
                     look.up = Vec3::Y;
                     look.enabled = true;
                     
-                    setup_animation_with_speed(anim_opt, &mut animation_player, wander.anim_speed);
+                    setup_animation_with_speed(anim_opt, &mut animation_player, Some(wander.anim_speed));
                 }
                 ActionState::Executing | ActionState::Cancelled => {
                     match anim_opt {

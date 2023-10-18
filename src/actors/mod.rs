@@ -185,20 +185,24 @@ pub fn setup_animation(
     anim_opt: Option<Mut<'_, DefaultAnimation>>,
     animation_player: &mut Query<&mut AnimationPlayer>,
 ) {
-    setup_animation_with_speed(anim_opt, animation_player, 1.0);
+    setup_animation_with_speed(anim_opt, animation_player, None);
 }
 
 pub fn setup_animation_with_speed(
     anim_opt: Option<Mut<'_, DefaultAnimation>>,
     animation_player: &mut Query<&mut AnimationPlayer>,
-    speed: f32,
+    speed: Option<f32>,
 ) {
     if let Some(mut anim) = anim_opt {
+        anim.reset();
+        if let Some(speed) = speed {
+            anim.animation_speed = speed;
+        }
         if let Ok(mut anim_player) = animation_player.get_mut(anim.player) {
             anim_player.start(anim.anim.clone_weak());
-            anim_player.set_speed(speed);
-            anim.animation_speed = speed;
-            anim.reset();
+            if let Some(speed) = speed {
+                anim_player.set_speed(speed);
+            }
         }
     }
 }

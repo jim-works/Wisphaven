@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::physics::PhysicsObjectBundle;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
@@ -47,7 +49,10 @@ pub fn spawn_coin(
     res: Res<CoinResources>,
     mut spawn_requests: EventReader<SpawnCoinEvent>,
     _children_query: Query<&Children>,
+    time: Res<Time>
 ) {
+    const LIFETIME: Duration = Duration::from_secs(10);
+    let curr_time = time.elapsed();
     for spawn in spawn_requests.iter() {
         commands.spawn((
             SceneBundle {
@@ -66,13 +71,14 @@ pub fn spawn_coin(
                 velocity: Velocity::linear(spawn.velocity),
                 ..default()
             },
+            Sensor,
             Coin {
                 damage: spawn.damage,
             },
             ProjectileBundle::new(Projectile {
                 owner: spawn.owner,
                 knockback_mult: 1.0,
-                lifetime: Timer::from_seconds(10.0, TimerMode::Once),
+                despawn_time: curr_time + LIFETIME,
                 damage: Damage::default(),
                 despawn_on_hit: true,
                 on_hit_or_despawn: None,

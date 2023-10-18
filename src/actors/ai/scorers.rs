@@ -31,6 +31,7 @@ fn update_ranged_line_of_sight_scorer(
             if let Some(target_tf) = targets.last().map(|t| tf_query.get(*t).ok()).flatten() {
                 if target_tf.translation().distance_squared(actor_tf.translation()) <= range*range {
                     score.set(1.0);
+                    return;
                 }
             }
         }

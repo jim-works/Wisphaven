@@ -77,6 +77,7 @@ pub fn spawn_skeleton_pirate(
     skele_res: Res<SkeletonPirateResources>,
     mut spawn_requests: EventReader<SpawnSkeletonPirateEvent>,
     anchor: Query<(Entity, &GlobalTransform), With<WorldAnchor>>,
+    test: Query<&Name>,
 ) {
     let (anchor_entity, anchor_position) = anchor
         .get_single()
@@ -85,6 +86,7 @@ pub fn spawn_skeleton_pirate(
         .unwrap_or((Entity::PLACEHOLDER, Vec3::ZERO));
     const ATTACK_RANGE: f32 = 20.0;
     for spawn in spawn_requests.iter() {
+        info!("{:?}", test.get(anchor_entity));
         commands.spawn((
             SceneBundle {
                 scene: skele_res.scene.clone_weak(),
@@ -112,6 +114,7 @@ pub fn spawn_skeleton_pirate(
             },
             SkeletonPirate { ..default() },
             AggroTargets(vec![anchor_entity]),
+            DefaultAnimation::new(Handle::default(), Entity::PLACEHOLDER, 0.5, 1.0),
             UninitializedActor,
             Thinker::build()
                 .label("skeleton thinker")
@@ -186,42 +189,79 @@ pub fn setup_skeleton_pirate(
     }
 }
 
+//todo - extract into generic ranged attack system
 fn attack(
     mut action_query: Query<(&Actor, &mut ActionState), With<AttackAction>>,
-    skele_query: Query<(&GlobalTransform, &AggroTargets), With<SkeletonPirate>>,
+    mut skele_query: Query<
+        (
+            &GlobalTransform,
+            &AggroTargets,
+            Option<&mut DefaultAnimation>,
+        ),
+        With<SkeletonPirate>,
+    >,
     aggro_query: Query<&GlobalTransform>,
     mut spawn_coin: EventWriter<SpawnCoinEvent>,
+    time: Res<Time>,
 ) {
     const COIN_OFFSET: Vec3 = Vec3::new(0.0, 2.0, 0.0);
-    const THROW_IMPULSE: f32 = 5.0;
+    const THROW_IMPULSE: f32 = 25.0;
     let combat = CombatantBundle::default();
     let damage = Damage::default();
     for (&Actor(actor), mut state) in action_query.iter_mut() {
         match *state {
             ActionState::Requested => {
-                info!("throwing!");
                 *state = ActionState::Executing;
+                if let Ok((_, _, Some(mut anim))) = skele_query.get_mut(actor) {
+                    anim.reset();
+                }
             }
             ActionState::Executing => {
-                if let Ok((tf, targets)) = skele_query.get(actor) {
+                if let Ok((tf, targets, anim_opt)) = skele_query.get_mut(actor) {
                     if let Some(target) = targets.last().map(|t| aggro_query.get(*t).ok()).flatten()
                     {
                         let spawn_point = tf.translation() + COIN_OFFSET;
-                        spawn_coin.send(SpawnCoinEvent {
-                            location: Transform::from_translation(spawn_point),
-                            velocity: (target.translation() - spawn_point).normalize_or_zero()
-                                * THROW_IMPULSE,
-                            combat: combat.clone(),
-                            owner: actor,
-                            damage,
-                        })
+                        match anim_opt {
+                            Some(mut anim) => {
+                                anim.tick(time.delta_seconds());
+                                if anim.just_acted() {
+                                    spawn_coin.send(SpawnCoinEvent {
+                                        location: Transform::from_translation(spawn_point),
+                                        velocity: (target.translation() - spawn_point)
+                                            .normalize_or_zero()
+                                            * THROW_IMPULSE,
+                                        combat: combat.clone(),
+                                        owner: actor,
+                                        damage,
+                                    });
+                                }
+                                if anim.finished() {
+                                    *state = ActionState::Success;
+                                }
+                                continue;
+                            }
+                            None => {
+                                //no anim so gogogogogogogogogogogogo
+                                spawn_coin.send(SpawnCoinEvent {
+                                    location: Transform::from_translation(spawn_point),
+                                    velocity: (target.translation() - spawn_point)
+                                        .normalize_or_zero()
+                                        * THROW_IMPULSE,
+                                    combat: combat.clone(),
+                                    owner: actor,
+                                    damage,
+                                });
+                                *state = ActionState::Success;
+                                continue;
+                            }
+                        }
                     }
                 }
                 *state = ActionState::Success;
             }
             ActionState::Cancelled => {
                 *state = ActionState::Failure;
-            },
+            }
             _ => {}
         }
     }

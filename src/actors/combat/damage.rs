@@ -7,6 +7,7 @@ pub fn process_attacks (
     mut attack_reader: EventReader<AttackEvent>,
     mut death_writer: EventWriter<DeathEvent>,
     mut combat_query: Query<(&mut CombatInfo, Option<&mut ExternalImpulse>)>,
+    name_query: Query<&Name>,
 ) {
     for attack in attack_reader.iter() {
         if let Ok((mut target_info, impulse)) = combat_query.get_mut(attack.target) {
@@ -15,7 +16,7 @@ pub fn process_attacks (
                 impulse.impulse += attack.knockback*target_info.knockback_multiplier;
             }
             target_info.curr_health = (target_info.curr_health-damage_taken).max(0.0);
-            info!("{:?} attacked {:?} for {} damage (inital damage {:?}). health: {}", attack.attacker, attack.target, damage_taken, attack.damage, target_info.curr_health);
+            info!("{:?} ({:?}) attacked {:?} ({:?}) for {} damage (inital damage {:?}). health: {}", attack.attacker, name_query.get(attack.attacker).ok(), attack.target, name_query.get(attack.target).ok(), damage_taken, attack.damage, target_info.curr_health);
             if target_info.curr_health == 0.0 {
                 //die
                 death_writer.send(DeathEvent { final_blow: *attack, damage_taken })
