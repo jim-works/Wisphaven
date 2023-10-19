@@ -5,7 +5,8 @@ use big_brain::prelude::*;
 
 use crate::{
     controllers::{FrameJump, FrameMovement},
-    world::{BlockCoord, BlockPhysics, Level, LevelSystemSet}, util::plugin::SmoothLookTo,
+    util::plugin::SmoothLookTo,
+    world::{BlockCoord, BlockPhysics, Level, LevelSystemSet},
 };
 
 pub mod scorers;
@@ -14,9 +15,7 @@ pub struct AIPlugin;
 
 impl Plugin for AIPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins(scorers::ScorersPlugin)
-            .add_systems(
+        app.add_plugins(scorers::ScorersPlugin).add_systems(
             Update,
             walk_to_destination_action
                 .in_set(BigBrainSet::Actions)
@@ -43,7 +42,7 @@ impl Default for WalkToDestinationAction {
         Self {
             wait_timer,
             target_dest: Vec3::default(),
-            stop_distance: 0.1
+            stop_distance: 0.1,
         }
     }
 }
@@ -82,7 +81,7 @@ fn walk_to_destination_action(
                     let dest = action.target_dest;
                     let delta = Vec3::new(dest.x, 0.0, dest.z)
                         - Vec3::new(tf.translation.x, 0.0, tf.translation.z);
-                    
+
                     if delta.length_squared() < action.stop_distance * action.stop_distance {
                         //we are close enough
                         *state = ActionState::Success;
@@ -92,7 +91,8 @@ fn walk_to_destination_action(
                     //test if we need to jump over a block
                     if let Some(mut fj) = fj {
                         //if the next block we would enter needs to be jumped over, we set the score to how close we are to it.
-                        let delta = dest - tf.translation;
+                        let delta =
+                            Vec3::new(dest.x - tf.translation.x, 0.0, dest.z - tf.translation.z);
                         let origin = BlockCoord::from(tf.translation) + BlockCoord::new(0, 1, 0);
                         let tf_origin = tf.translation;
                         let mut closest_distance: f32 = 1.0;

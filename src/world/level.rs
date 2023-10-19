@@ -79,6 +79,7 @@ impl LevelData {
     }
     //adds damage to the block at `key`. damage ranges from 0-1, with 1 destroying the block
     //returns the block's entity if it's destroyed
+    //will not do anything if damage = 0
     pub fn damage_block(
         &self,
         key: BlockCoord,
@@ -92,8 +93,8 @@ impl LevelData {
         let mut remove_block = false;
         let mut remove_damage = false;
         let entity = self.get_block_entity(key);
-        if entity.is_none() {
-            return None; //can't damage an empty block
+        if entity.is_none() || amount == 0.0 {
+            return None; //can't damage an empty block, or we did literally no damage
         }
         match self.block_damages.get_mut(&key) {
             Some(mut dam) => {

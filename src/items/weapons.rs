@@ -1,7 +1,12 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::{actors::{AttackEvent, Damage}, world::LevelSystemSet};
+use crate::{
+    actors::{
+        AttackEvent, Damage,
+    },
+    world::LevelSystemSet,
+};
 
 use super::SwingItemEvent;
 
@@ -20,13 +25,19 @@ pub struct MeleeWeaponItem {
     pub knockback: f32,
 }
 
-pub fn attack_melee (
+pub fn attack_melee(
     mut attack_item_reader: EventReader<SwingItemEvent>,
     mut attack_writer: EventWriter<AttackEvent>,
     collision: Res<RapierContext>,
-    weapon_query: Query<&MeleeWeaponItem>
+    weapon_query: Query<&MeleeWeaponItem>,
 ) {
-    for SwingItemEvent { user, inventory_slot: _, stack, tf } in attack_item_reader.iter() {
+    for SwingItemEvent {
+        user,
+        inventory_slot: _,
+        stack,
+        tf,
+    } in attack_item_reader.iter()
+    {
         if let Ok(weapon) = weapon_query.get(stack.id) {
             let groups = QueryFilter {
                 groups: Some(CollisionGroups::new(
@@ -34,9 +45,17 @@ pub fn attack_melee (
                     Group::from_bits_truncate(crate::physics::ACTOR_GROUP),
                 )),
                 ..default()
-            }.exclude_collider(*user);
-            if let Some((hit,_)) = collision.cast_ray(tf.translation(), tf.forward(), 10.0, true, groups) {
-                attack_writer.send(AttackEvent { attacker: *user, target: hit, damage: weapon.damage, knockback: tf.forward()*weapon.knockback })
+            }
+            .exclude_collider(*user);
+            if let Some((hit, _)) =
+                collision.cast_ray(tf.translation(), tf.forward(), 10.0, true, groups)
+            {
+                attack_writer.send(AttackEvent {
+                    attacker: *user,
+                    target: hit,
+                    damage: weapon.damage,
+                    knockback: tf.forward() * weapon.knockback,
+                })
             }
         }
     }

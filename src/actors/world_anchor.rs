@@ -83,7 +83,7 @@ pub fn spawn_world_anchor(
                 PhysicsObjectBundle {
                     rigidbody: RigidBody::Fixed,
                     //center of anchor is at bottom of model, so spawn the collision box offset
-                    collider: Collider::compound(vec![(Vec3::new(0.0,0.5,0.0), Quat::IDENTITY, Collider::cuboid(0.5, 0.5, 0.5))]),
+                    collider: Collider::compound(vec![(Vec3::new(0.0,0.0,0.0), Quat::IDENTITY, Collider::cuboid(0.5, 0.5, 0.5))]),
                     ..default()
                 },
                 WorldAnchor { ..default() },

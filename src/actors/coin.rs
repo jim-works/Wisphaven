@@ -71,7 +71,8 @@ pub fn spawn_coin(
                 velocity: Velocity::linear(spawn.velocity),
                 ..default()
             },
-            Sensor,
+            Damping::default(),
+            SolverGroups::new(Group::empty(), Group::empty()),
             Coin {
                 damage: spawn.damage,
             },

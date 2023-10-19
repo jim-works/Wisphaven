@@ -10,8 +10,7 @@ pub struct DebugItems;
 impl Plugin for DebugItems {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, use_personality_item.in_set(LevelSystemSet::Main))
-            .register_type::<PersonalityTester>()
-        ;
+            .register_type::<PersonalityTester>();
     }
 }
 
@@ -28,29 +27,33 @@ pub fn use_personality_item(
     personality_item: Query<&PersonalityTester>,
     physics: Res<RapierContext>,
 ) {
-    for UseItemEvent { user, inventory_slot: _, stack, tf } in reader.iter() {
+    for UseItemEvent {
+        user,
+        inventory_slot: _,
+        stack,
+        tf,
+    } in reader.iter()
+    {
         if personality_item.contains(stack.id) {
-                let groups = QueryFilter::default().exclude_collider(*user);
-                if let Some((hit, _)) =
-                    physics.cast_ray(tf.translation(), tf.forward(), 10.0, true, groups)
-                {
-                    if let Ok(x) = physical_attributes.get(hit) {
-                        info!("{:?}", x);
-                    }
-                    if let Ok(x) = mental_attributes.get(hit) {
-                        info!("{:?}", x);
-                    }
-                    if let Ok(x) = values.get(hit) {
-                        info!("{:?}", x);
-                    }
-                    if let Ok(x) = tasks.get(hit) {
-                        info!("{:?}", x);
-                    }
-                } else {
-                    info!("No entity hit!");
+            let groups = QueryFilter::default().exclude_collider(*user);
+            if let Some((hit, _)) =
+                physics.cast_ray(tf.translation(), tf.forward(), 10.0, true, groups)
+            {
+                if let Ok(x) = physical_attributes.get(hit) {
+                    info!("{:?}", x);
+                }
+                if let Ok(x) = mental_attributes.get(hit) {
+                    info!("{:?}", x);
+                }
+                if let Ok(x) = values.get(hit) {
+                    info!("{:?}", x);
+                }
+                if let Ok(x) = tasks.get(hit) {
+                    info!("{:?}", x);
                 }
             } else {
-                info!("Using entity has no transform!");
+                info!("No entity hit!");
             }
+        }
     }
 }

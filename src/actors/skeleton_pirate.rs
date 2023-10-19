@@ -8,8 +8,8 @@ use crate::{
         AggroTargets,
     },
     controllers::ControllableBundle,
-    physics::PhysicsObjectBundle,
-    util::SendEventCommand,
+    physics::{PhysicsObjectBundle, GRAVITY},
+    util::{physics::aim_projectile_straight_fallback, SendEventCommand},
     world::LevelLoadState,
 };
 
@@ -100,7 +100,7 @@ pub fn spawn_skeleton_pirate(
             },
             PhysicsObjectBundle {
                 rigidbody: RigidBody::Dynamic,
-                collider: Collider::capsule(Vec3::new(0., 0.5, 0.), Vec3::new(0., 2.4, 0.), 0.5),
+                collider: Collider::capsule(Vec3::new(0., 0.0, 0.), Vec3::new(0., 2.4, 0.), 0.5),
                 ..default()
             },
             Friction {
@@ -196,11 +196,12 @@ fn attack(
         (
             &GlobalTransform,
             &AggroTargets,
+            &Velocity,
             Option<&mut DefaultAnimation>,
         ),
         With<SkeletonPirate>,
     >,
-    aggro_query: Query<&GlobalTransform>,
+    aggro_query: Query<(&GlobalTransform, Option<&Velocity>)>,
     mut spawn_coin: EventWriter<SpawnCoinEvent>,
     time: Res<Time>,
 ) {
@@ -212,13 +213,13 @@ fn attack(
         match *state {
             ActionState::Requested => {
                 *state = ActionState::Executing;
-                if let Ok((_, _, Some(mut anim))) = skele_query.get_mut(actor) {
+                if let Ok((_, _, _, Some(mut anim))) = skele_query.get_mut(actor) {
                     anim.reset();
                 }
             }
             ActionState::Executing => {
-                if let Ok((tf, targets, anim_opt)) = skele_query.get_mut(actor) {
-                    if let Some(target) = targets.last().map(|t| aggro_query.get(*t).ok()).flatten()
+                if let Ok((tf, targets, v, anim_opt)) = skele_query.get_mut(actor) {
+                    if let Some((target, target_v_opt)) = targets.last().map(|t| aggro_query.get(*t).ok()).flatten()
                     {
                         let spawn_point = tf.translation() + COIN_OFFSET;
                         match anim_opt {
@@ -227,9 +228,12 @@ fn attack(
                                 if anim.just_acted() {
                                     spawn_coin.send(SpawnCoinEvent {
                                         location: Transform::from_translation(spawn_point),
-                                        velocity: (target.translation() - spawn_point)
-                                            .normalize_or_zero()
-                                            * THROW_IMPULSE,
+                                        velocity: aim_projectile_straight_fallback(
+                                            target.translation() - spawn_point,
+                                            target_v_opt.unwrap_or(&Velocity::default()).linvel-v.linvel,
+                                            THROW_IMPULSE,
+                                            GRAVITY,
+                                        ),
                                         combat: combat.clone(),
                                         owner: actor,
                                         damage,
@@ -244,9 +248,12 @@ fn attack(
                                 //no anim so gogogogogogogogogogogogo
                                 spawn_coin.send(SpawnCoinEvent {
                                     location: Transform::from_translation(spawn_point),
-                                    velocity: (target.translation() - spawn_point)
-                                        .normalize_or_zero()
-                                        * THROW_IMPULSE,
+                                    velocity: aim_projectile_straight_fallback(
+                                        target.translation() - spawn_point,
+                                        target_v_opt.unwrap_or(&Velocity::default()).linvel-v.linvel,
+                                        THROW_IMPULSE,
+                                        GRAVITY,
+                                    ),
                                     combat: combat.clone(),
                                     owner: actor,
                                     damage,

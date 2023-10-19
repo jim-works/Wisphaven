@@ -3,13 +3,13 @@ pub use level_physics::*;
 
 use bevy::prelude::*;
 
-use crate::world::LevelSystemSet;
+use crate::{world::LevelSystemSet, ui::debug::DebugDrawTransform};
 use bevy_rapier3d::prelude::*;
 
 pub struct PhysicsPlugin;
 
 const SPAWN_CHUNK_TIME_BUDGET_COUNT: u32 = 1000;
-pub const GRAVITY: f32 = -10.0;
+pub const GRAVITY: Vec3 = Vec3::new(0.,-10.0,0.);
 
 pub const PLAYER_GROUP: u32 = 1 << 0;
 pub const TERRAIN_GROUP: u32 = 1 << 1;
@@ -33,7 +33,7 @@ impl Plugin for PhysicsPlugin {
 }
 
 fn configure_physics(mut config: ResMut<RapierConfiguration>) {
-    config.gravity = Vec3::new(0.0, GRAVITY, 0.0);
+    config.gravity = GRAVITY;
 }
 
 #[derive(Bundle)]
@@ -45,6 +45,7 @@ pub struct PhysicsObjectBundle {
     pub external_impulse: ExternalImpulse,
     pub velocity: Velocity,
     pub collision_groups: CollisionGroups,
+    pub debug_draw_transform: DebugDrawTransform,
 }
 
 impl Default for PhysicsObjectBundle {
@@ -60,6 +61,7 @@ impl Default for PhysicsObjectBundle {
                 Group::from_bits_truncate(ACTOR_GROUP),
                 Group::all(),
             ),
+            debug_draw_transform: DebugDrawTransform,
         }
     }
 }

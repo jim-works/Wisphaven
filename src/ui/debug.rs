@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{actors::LocalPlayer, world::chunk::ChunkCoord, worldgen::UsedShaperResources};
+use crate::{actors::{LocalPlayer, Player, skeleton_pirate::SkeletonPirate}, world::chunk::ChunkCoord, worldgen::{UsedShaperResources, GeneratedChunk}, mesher::{ChunkMesh, ChunkMeshChild}};
 
 use super::{state::DebugUIState, styles::get_text_style};
 
@@ -12,8 +12,15 @@ impl Plugin for DebugUIPlugin {
             .add_systems(Startup, init)
             .add_systems(OnEnter(DebugUIState::Shown), spawn_debug)
             .add_systems(OnEnter(DebugUIState::Hidden), despawn_debug)
-            .add_systems(Update,
-                (update_coords, update_chunk_coords, update_noises).run_if(in_state(DebugUIState::Shown)),
+            .add_systems(
+                Update,
+                (
+                    update_coords,
+                    update_chunk_coords,
+                    update_noises,
+                    draw_gizmos,
+                )
+                    .run_if(in_state(DebugUIState::Shown)),
             );
     }
 }
@@ -30,6 +37,9 @@ struct DebugChunkCoordinates;
 struct DebugCoordinates;
 #[derive(Component)]
 struct DebugTerrainNoises;
+
+#[derive(Component)]
+pub struct DebugDrawTransform;
 
 fn init(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(DebugResources(get_text_style(&assets)));
@@ -176,5 +186,13 @@ fn update_noises(
                 resources.0.clone(),
             );
         }
+    }
+}
+
+
+
+fn draw_gizmos(mut gizmo: Gizmos, tf_query: Query<&GlobalTransform, With<DebugDrawTransform>>) {
+    for tf in tf_query.iter() {
+        gizmo.ray(tf.translation(), tf.forward(), Color::RED);
     }
 }

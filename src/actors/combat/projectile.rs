@@ -4,7 +4,7 @@ use crate::world::{
     events::{BlockDamageSetEvent, ChunkUpdatedEvent},
     BlockCoord, BlockId, Level, LevelSystemSet,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashSet};
 use bevy_rapier3d::prelude::*;
 
 use super::{AttackEvent, Damage};
@@ -87,7 +87,6 @@ fn test_projectile_hit(
     query: Query<(
         Entity,
         &Projectile,
-        &GlobalTransform,
         Option<&Velocity>,
         Option<&ProjectileSpawnedInEntity>,
     )>,
@@ -98,40 +97,41 @@ fn test_projectile_hit(
     id_query: Query<&BlockId>,
     mut damage_writer: EventWriter<BlockDamageSetEvent>,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
+    rapier_context: Res<RapierContext>
 ) {
     for event in collision_events.iter() {
         match event {
             CollisionEvent::Started(e1, e2, _) => {
                 //typically don't get duplicated events, so have to check both entities
-                if let Ok((proj_entity, proj, tf, v, opt_in_entity)) = query.get(*e1) {
+                if let Ok((proj_entity, proj, v, opt_in_entity)) = query.get(*e1) {
                     proj_hit(
                         &mut attack_writer,
                         &mut commands,
                         proj_entity,
                         proj,
                         v,
-                        tf.translation(),
                         *e2,
                         opt_in_entity,
                         &level,
                         &id_query,
                         &mut damage_writer,
                         &mut update_writer,
+                        &rapier_context
                     );
-                } else if let Ok((proj_entity, proj, tf, v, opt_in_entity)) = query.get(*e2) {
+                } else if let Ok((proj_entity, proj, v, opt_in_entity)) = query.get(*e2) {
                     proj_hit(
                         &mut attack_writer,
                         &mut commands,
                         proj_entity,
                         proj,
                         v,
-                        tf.translation(),
                         *e1,
                         opt_in_entity,
                         &level,
                         &id_query,
                         &mut damage_writer,
                         &mut update_writer,
+                        &rapier_context
                     );
                 }
             }
@@ -146,17 +146,16 @@ fn proj_hit(
     proj_entity: Entity,
     proj: &Projectile,
     v: Option<&Velocity>,
-    pos: Vec3,
     target: Entity,
     opt_in_entity: Option<&ProjectileSpawnedInEntity>,
     level: &Level,
     id_query: &Query<&BlockId>,
     damage_writer: &mut EventWriter<BlockDamageSetEvent>,
     update_writer: &mut EventWriter<ChunkUpdatedEvent>,
+    rapier_context: &RapierContext
 ) {
-    //todo: improve projectile hit detection by looking at contacts
-    //https://rapier.rs/docs/user_guides/bevy_plugin/advanced_collision_detection/#the-contact-graph
-    
+    const PENETRATION_DEPTH: f32 = 0.05; //amount to follow the normal in a collision to move inside the block when calculating damage
+    const EPSILON: f32 = 0.5; //ignore multiple hits that have positions and normals within epsilon units of each other
     if let Some(&ProjectileSpawnedInEntity(ignore)) = opt_in_entity {
         //don't want to hit the entity we spawn in
         if ignore == target {
@@ -182,15 +181,30 @@ fn proj_hit(
             commands,
         );
     }
-    level.damage_block(
-        BlockCoord::from(pos),
-        proj.terrain_damage,
-        Some(proj_entity),
-        id_query,
-        damage_writer,
-        update_writer,
-        commands,
-    );
+    let mut hits = HashSet::new();
+    for contact_pair in rapier_context.contacts_with(proj_entity) {
+        let invert = contact_pair.collider1() != proj_entity;
+        for manifold in contact_pair.manifolds() {
+            let normal = manifold.normal();
+            for solver_contact in manifold.solver_contacts() {
+                let block_coord = BlockCoord::from(solver_contact.point()+ if invert {-1.0} else {1.0} * PENETRATION_DEPTH*normal);
+                if hits.contains(&block_coord) {
+                    continue;
+                }
+                hits.insert(block_coord);
+                level.damage_block(
+                    block_coord,
+                    proj.terrain_damage,
+                    Some(proj_entity),
+                    id_query,
+                    damage_writer,
+                    update_writer,
+                    commands,
+                );
+            }
+        }
+    }
+    
     if proj.despawn_on_hit {
         commands.entity(proj_entity).despawn_recursive();
     }
