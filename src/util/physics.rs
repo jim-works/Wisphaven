@@ -42,14 +42,12 @@ fn calc_time_to_impact(target: Vec3, proj_speed: f32, gravity: Vec3) -> Option<f
     let c = target.length_squared();
     //solve quadratic a*(t^2)^2+b*(t^2)+c=0
     let discriminant = b * b - 4.0 * a * c;
-    info!("discriminant {}", discriminant);
     if discriminant < 0.0 {
         return None;
     }
     //a is positive, so root1 <= root2
     let root1 = (-b - discriminant.sqrt()) / (2.0 * a);
     let root2 = (-b + discriminant.sqrt()) / (2.0 * a);
-    info!("roots {} {}", root1, root2);
     if root1 >= 0.0 {
         return Some(root1);
     }

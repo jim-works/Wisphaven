@@ -100,7 +100,7 @@ pub fn spawn_skeleton_pirate(
             },
             PhysicsObjectBundle {
                 rigidbody: RigidBody::Dynamic,
-                collider: Collider::capsule(Vec3::new(0., 0.0, 0.), Vec3::new(0., 2.4, 0.), 0.5),
+                collider: Collider::capsule(Vec3::new(0., 0.5, 0.), Vec3::new(0., 2.4, 0.), 0.5),
                 ..default()
             },
             Friction {

@@ -1,7 +1,9 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
+use bevy_rapier3d::na::ComplexField;
 use big_brain::prelude::*;
+use rand_distr::num_traits::Float;
 
 use crate::{
     controllers::{FrameJump, FrameMovement},
@@ -26,7 +28,6 @@ impl Plugin for AIPlugin {
 
 #[derive(Clone, Component, Debug, ActionBuilder)]
 pub struct WalkToDestinationAction {
-    pub wait_timer: Timer,
     pub target_dest: Vec3,
     pub stop_distance: f32,
 }
@@ -36,11 +37,7 @@ pub struct AttackAction;
 
 impl Default for WalkToDestinationAction {
     fn default() -> Self {
-        let mut wait_timer = Timer::from_seconds(0.0, TimerMode::Once);
-        //tick the wait timer so it's finished by default
-        wait_timer.tick(Duration::from_secs(1));
         Self {
-            wait_timer,
             target_dest: Vec3::default(),
             stop_distance: 0.1,
         }
@@ -57,11 +54,10 @@ fn walk_to_destination_action(
     mut query: Query<(&Actor, &mut ActionState, &mut WalkToDestinationAction)>,
     level: Res<Level>,
     block_physics: Query<&BlockPhysics>,
-    time: Res<Time>,
 ) {
     const JUMP_DIST: f32 = 0.75;
     const JUMP_COOLDOWN: Duration = Duration::from_millis(500);
-    for (Actor(actor), mut state, mut action) in query.iter_mut() {
+    for (Actor(actor), mut state, action) in query.iter_mut() {
         if let Ok((tf, mut fm, fj, look_opt)) = info.get_mut(*actor) {
             match *state {
                 ActionState::Requested => {
@@ -72,12 +68,6 @@ fn walk_to_destination_action(
                     //     look.enabled = true;
                     //     look.to = *dest;
                     // }
-                    //we check the wait timer before moving.
-                    //if we move into a wall right after jumping, the friction on the wall will make the jump go nowhere
-                    action.wait_timer.tick(time.delta());
-                    if !action.wait_timer.finished() {
-                        continue;
-                    }
                     let dest = action.target_dest;
                     let delta = Vec3::new(dest.x, 0.0, dest.z)
                         - Vec3::new(tf.translation.x, 0.0, tf.translation.z);
@@ -90,130 +80,16 @@ fn walk_to_destination_action(
                     fm.0 = delta;
                     //test if we need to jump over a block
                     if let Some(mut fj) = fj {
-                        //if the next block we would enter needs to be jumped over, we set the score to how close we are to it.
-                        let delta =
-                            Vec3::new(dest.x - tf.translation.x, 0.0, dest.z - tf.translation.z);
-                        let origin = BlockCoord::from(tf.translation) + BlockCoord::new(0, 1, 0);
-                        let tf_origin = tf.translation;
-                        let mut closest_distance: f32 = 1.0;
-                        //test the 8 neighbors one block above us
-                        // x x x
-                        // x   x
-                        // x x x
-                        if delta.x > 0.0 {
-                            match level
-                                .get_block_entity(origin + BlockCoord::new(1, 0, 0))
-                                .map(|b| block_physics.get(b).ok())
-                                .flatten()
-                            {
-                                Some(BlockPhysics::Empty) | None => {}
-                                _ => {
-                                    closest_distance =
-                                        closest_distance.min(tf_origin.x.ceil() - tf_origin.x);
-                                }
-                            }
-                            //do +x corners
-                            if delta.z > 0.0 {
-                                match level
-                                    .get_block_entity(origin + BlockCoord::new(1, 0, 1))
-                                    .map(|b| block_physics.get(b).ok())
-                                    .flatten()
-                                {
-                                    Some(BlockPhysics::Empty) | None => {}
-                                    _ => {
-                                        closest_distance = closest_distance.min(
-                                            Vec2::new(tf_origin.x.ceil(), tf_origin.y.ceil())
-                                                .distance(Vec2::new(tf_origin.x, tf_origin.z)),
-                                        );
-                                    }
-                                }
-                            } else if delta.z < 0.0 {
-                                match level
-                                    .get_block_entity(origin + BlockCoord::new(1, 0, -1))
-                                    .map(|b| block_physics.get(b).ok())
-                                    .flatten()
-                                {
-                                    Some(BlockPhysics::Empty) | None => {}
-                                    _ => {
-                                        closest_distance = closest_distance.min(
-                                            Vec2::new(tf_origin.x.ceil(), tf_origin.y.floor())
-                                                .distance(Vec2::new(tf_origin.x, tf_origin.z)),
-                                        );
-                                    }
-                                }
-                            }
-                        } else if delta.x < 0.0 {
-                            match level
-                                .get_block_entity(origin + BlockCoord::new(-1, 0, 0))
-                                .map(|b| block_physics.get(b).ok())
-                                .flatten()
-                            {
-                                Some(BlockPhysics::Empty) | None => {}
-                                _ => {
-                                    closest_distance =
-                                        closest_distance.min(tf_origin.x - tf_origin.x.floor());
-                                }
-                            }
-                            //do -x corners
-                            if delta.z > 0.0 {
-                                match level
-                                    .get_block_entity(origin + BlockCoord::new(-1, 0, 1))
-                                    .map(|b| block_physics.get(b).ok())
-                                    .flatten()
-                                {
-                                    Some(BlockPhysics::Empty) | None => {}
-                                    _ => {
-                                        closest_distance = closest_distance.min(
-                                            Vec2::new(tf_origin.x.floor(), tf_origin.y.ceil())
-                                                .distance(Vec2::new(tf_origin.x, tf_origin.z)),
-                                        );
-                                    }
-                                }
-                            } else if delta.z < 0.0 {
-                                match level
-                                    .get_block_entity(origin + BlockCoord::new(-1, 0, -1))
-                                    .map(|b| block_physics.get(b).ok())
-                                    .flatten()
-                                {
-                                    Some(BlockPhysics::Empty) | None => {}
-                                    _ => {
-                                        closest_distance = closest_distance.min(
-                                            Vec2::new(tf_origin.x.floor(), tf_origin.y.floor())
-                                                .distance(Vec2::new(tf_origin.x, tf_origin.z)),
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                        if delta.z > 0.0 {
-                            match level
-                                .get_block_entity(origin + BlockCoord::new(0, 0, 1))
-                                .map(|b| block_physics.get(b).ok())
-                                .flatten()
-                            {
-                                Some(BlockPhysics::Empty) | None => {}
-                                _ => {
-                                    closest_distance =
-                                        closest_distance.min(tf_origin.z.ceil() - tf_origin.z);
-                                }
-                            }
-                        } else if delta.z < 0.0 {
-                            match level
-                                .get_block_entity(origin + BlockCoord::new(0, 0, -1))
-                                .map(|b| block_physics.get(b).ok())
-                                .flatten()
-                            {
-                                Some(BlockPhysics::Empty) | None => {}
-                                _ => {
-                                    closest_distance =
-                                        closest_distance.min(tf_origin.z - tf_origin.z.floor());
-                                }
-                            }
-                        }
-                        if closest_distance < JUMP_DIST {
+                        if get_closest_block_dist(
+                            Vec2::new(delta.x, delta.z).normalize_or_zero(),
+                            tf.translation,
+                            &level,
+                            &block_physics,
+                        )
+                        .map(|(d, _)| d < JUMP_DIST)
+                        .unwrap_or(false)
+                        {
                             fj.0 = true;
-                            //set a wait time so we don't immedately grab on to the block we are trying to jump over
-                            action.wait_timer = Timer::new(JUMP_COOLDOWN, TimerMode::Once);
                         }
                     }
                 }
@@ -221,4 +97,83 @@ fn walk_to_destination_action(
             }
         }
     }
+}
+
+//returns distance to the closest solid block in the surrounding blocks in direction dir, and its position.
+//dir SHOULD BE A UNIT VECTOR!
+//consider the 8 neighbors surrounding jump_test_origin
+// x x x
+// x   x
+// x x x
+//test in the direction of dir. if delta is diagonal (ex 1,1), test all 3 blocks. otherwise, just test delta
+fn get_closest_block_dist(
+    dir: Vec2,
+    jump_test_origin: Vec3,
+    level: &Level,
+    block_physics: &Query<&BlockPhysics>,
+) -> Option<(f32, BlockCoord)> {
+    if dir.x.abs() < f32::EPSILON || dir.y.abs() < f32::EPSILON {
+        return None;
+    }
+    //test if we need to jump over a block
+    let delta = BlockCoord::new(
+        if dir.x > 0. {
+            1
+        } else if dir.x < 0. {
+            -1
+        } else {
+            0
+        },
+        0,
+        if dir.y > 0. {
+            1
+        } else if dir.y < 0. {
+            -1
+        } else {
+            0
+        },
+    );
+    let origin = BlockCoord::from(jump_test_origin) + BlockCoord::new(0, 1, 0);
+    let pos_in_square = Vec2::new(
+        jump_test_origin.x - jump_test_origin.x.floor(),
+        jump_test_origin.z - jump_test_origin.z.floor(),
+    );
+    //test blocks in order of closeness
+    //diagonal will always be furthest away
+    let mut test_blocks = [BlockCoord::new(0,0,0); 3];
+    let mut distances = [0.; 3];
+    if pos_in_square.x.abs() < pos_in_square.y.abs() {
+        test_blocks[0] = origin + BlockCoord::new(delta.x, 0, 0);
+        //distance to x wall of square in direction of dir
+        distances[0] = (dir.x.ceil() - pos_in_square.x).abs();
+        test_blocks[1] = origin + BlockCoord::new(0, 0, delta.z);
+        //distance to z wall of square in direction of dir
+        distances[1] = (dir.y.ceil() - pos_in_square.y).abs();
+        test_blocks[2] = origin + delta;
+        //distance to corner of square in direction of dir
+        distances[2] = Vec2::new(dir.x.ceil(), dir.y.ceil()).distance(pos_in_square);
+    } else {
+        test_blocks[0] = origin + BlockCoord::new(0, 0, delta.z);
+        //distance to z wall of square in direction of dir
+        distances[0] = (dir.y.ceil() - pos_in_square.y).abs();
+        test_blocks[1] = origin + BlockCoord::new(delta.x, 0, 0);
+        //distance to x wall of square in direction of dir
+        distances[1] = (dir.x.ceil() - pos_in_square.x).abs();
+        test_blocks[2] = origin + delta;
+        //distance to corner of square in direction of dir
+        distances[2] = Vec2::new(dir.x.ceil(), dir.y.ceil()).distance(pos_in_square);
+    }
+    for (distance, coord) in distances.into_iter().zip(test_blocks.into_iter()) {
+        match level
+            .get_block_entity(coord)
+            .map(|b| block_physics.get(b).ok())
+            .flatten()
+        {
+            Some(BlockPhysics::Empty) | None => {}
+            _ => {
+                return Some((distance, coord));
+            }
+        }
+    }
+    return None;
 }
