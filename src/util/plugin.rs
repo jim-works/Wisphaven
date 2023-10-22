@@ -47,7 +47,7 @@ impl SmoothLookTo {
 
 impl Default for SmoothLookTo {
     fn default() -> Self {
-        Self { forward: Default::default(), up: Vec3::Y, speed: Default::default(), enabled: false }
+        Self { forward: Vec3::NEG_Z, up: Vec3::Y, speed: 0.5, enabled: false }
     }
 }
 

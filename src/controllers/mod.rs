@@ -42,6 +42,7 @@ impl Plugin for ControllersPlugin {
 }
 
 //vector is the desired proportion of the movespeed to use, it's not normalized, but if the magnitude is greater than 1 it will be.
+//global space
 //reset every frame in do_planar_movement
 #[derive(Component)]
 pub struct FrameMovement(pub Vec3);
@@ -81,7 +82,6 @@ fn do_planar_movement(
     mut query: Query<(
         &mut FrameMovement,
         &mut ExternalImpulse,
-        &GlobalTransform,
         &Velocity,
         &MoveSpeed,
         Option<&Grounded>,
@@ -89,7 +89,7 @@ fn do_planar_movement(
     time: Res<Time>,
 ) {
     const EPSILON: f32 = 1e-3;
-    for (mut fm, mut impulse, tf, v, ms, opt_grounded) in query.iter_mut() {
+    for (mut fm, mut impulse, v, ms, opt_grounded) in query.iter_mut() {
         let speed = fm.0.length();
         let acceleration = ms.get_accel(opt_grounded.is_some_and(|x| x.0));
         //don't actively resist sliding if no input is provided (also smooths out jittering)

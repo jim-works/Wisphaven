@@ -4,19 +4,18 @@ use big_brain::prelude::*;
 
 use crate::{
     actors::{
-        ai::{scorers::AggroLineOfSightScorer, AttackAction},
+        ai::{scorers::AggroScorer, AttackAction, WalkToCurrentTargetAction},
         AggroTargets,
     },
     controllers::ControllableBundle,
     physics::{PhysicsObjectBundle, GRAVITY},
-    util::{physics::aim_projectile_straight_fallback, SendEventCommand},
+    util::{physics::aim_projectile_straight_fallback, plugin::SmoothLookTo, SendEventCommand},
     world::LevelLoadState,
 };
 
 use super::{
-    ai::WalkToDestinationAction, coin::SpawnCoinEvent, world_anchor::WorldAnchor, ActorName,
-    ActorResources, CombatInfo, CombatantBundle, Damage, DefaultAnimation, Jump, MoveSpeed,
-    UninitializedActor,
+    coin::SpawnCoinEvent, world_anchor::WorldAnchor, ActorName, ActorResources, CombatInfo,
+    CombatantBundle, Damage, DefaultAnimation, Jump, MoveSpeed, UninitializedActor,
 };
 
 #[derive(Resource)]
@@ -76,14 +75,10 @@ pub fn spawn_skeleton_pirate(
     mut commands: Commands,
     skele_res: Res<SkeletonPirateResources>,
     mut spawn_requests: EventReader<SpawnSkeletonPirateEvent>,
-    anchor: Query<(Entity, &GlobalTransform), With<WorldAnchor>>,
+    anchor: Query<Entity, With<WorldAnchor>>,
     test: Query<&Name>,
 ) {
-    let (anchor_entity, anchor_position) = anchor
-        .get_single()
-        .ok()
-        .map(|(e, tf)| (e, tf.translation()))
-        .unwrap_or((Entity::PLACEHOLDER, Vec3::ZERO));
+    let anchor_entity = anchor.get_single().ok().unwrap_or(Entity::PLACEHOLDER);
     const ATTACK_RANGE: f32 = 20.0;
     for spawn in spawn_requests.iter() {
         info!("{:?}", test.get(anchor_entity));
@@ -112,8 +107,9 @@ pub fn spawn_skeleton_pirate(
                 move_speed: MoveSpeed::new(50.0, 10.0, 5.0),
                 ..default()
             },
+            SmoothLookTo::default(),
             SkeletonPirate { ..default() },
-            AggroTargets(vec![anchor_entity]),
+            AggroTargets::new(vec![(anchor_entity, i32::MIN)]),
             DefaultAnimation::new(Handle::default(), Entity::PLACEHOLDER, 0.5, 1.0),
             UninitializedActor,
             Thinker::build()
@@ -121,14 +117,13 @@ pub fn spawn_skeleton_pirate(
                 .picker(Highest)
                 .when(
                     FixedScore::build(0.01),
-                    WalkToDestinationAction {
-                        target_dest: anchor_position,
+                    WalkToCurrentTargetAction {
                         stop_distance: ATTACK_RANGE * 0.5,
                         ..default()
                     },
                 )
                 .when(
-                    AggroLineOfSightScorer {
+                    AggroScorer {
                         range: ATTACK_RANGE,
                     },
                     AttackAction,
@@ -219,7 +214,10 @@ fn attack(
             }
             ActionState::Executing => {
                 if let Ok((tf, targets, v, anim_opt)) = skele_query.get_mut(actor) {
-                    if let Some((target, target_v_opt)) = targets.last().map(|t| aggro_query.get(*t).ok()).flatten()
+                    if let Some((target, target_v_opt)) = targets
+                        .current_target()
+                        .map(|t| aggro_query.get(t).ok())
+                        .flatten()
                     {
                         let spawn_point = tf.translation() + COIN_OFFSET;
                         match anim_opt {
@@ -230,7 +228,8 @@ fn attack(
                                         location: Transform::from_translation(spawn_point),
                                         velocity: aim_projectile_straight_fallback(
                                             target.translation() - spawn_point,
-                                            target_v_opt.unwrap_or(&Velocity::default()).linvel-v.linvel,
+                                            target_v_opt.unwrap_or(&Velocity::default()).linvel
+                                                - v.linvel,
                                             THROW_IMPULSE,
                                             GRAVITY,
                                         ),
@@ -250,7 +249,8 @@ fn attack(
                                     location: Transform::from_translation(spawn_point),
                                     velocity: aim_projectile_straight_fallback(
                                         target.translation() - spawn_point,
-                                        target_v_opt.unwrap_or(&Velocity::default()).linvel-v.linvel,
+                                        target_v_opt.unwrap_or(&Velocity::default()).linvel
+                                            - v.linvel,
                                         THROW_IMPULSE,
                                         GRAVITY,
                                     ),

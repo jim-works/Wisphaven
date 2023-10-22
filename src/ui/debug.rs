@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{actors::{LocalPlayer, Player, skeleton_pirate::SkeletonPirate}, world::chunk::ChunkCoord, worldgen::{UsedShaperResources, GeneratedChunk}, mesher::{ChunkMesh, ChunkMeshChild}};
+use crate::{actors::LocalPlayer, world::chunk::ChunkCoord, worldgen::UsedShaperResources};
 
 use super::{state::DebugUIState, styles::get_text_style};
 

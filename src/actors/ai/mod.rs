@@ -1,15 +1,15 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy_rapier3d::na::ComplexField;
 use big_brain::prelude::*;
-use rand_distr::num_traits::Float;
 
 use crate::{
     controllers::{FrameJump, FrameMovement},
     util::plugin::SmoothLookTo,
     world::{BlockCoord, BlockPhysics, Level, LevelSystemSet},
 };
+
+use super::AggroTargets;
 
 pub mod scorers;
 
@@ -19,7 +19,7 @@ impl Plugin for AIPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(scorers::ScorersPlugin).add_systems(
             Update,
-            walk_to_destination_action
+            (walk_to_destination_action, walk_to_entity_action, walk_to_current_target_action)
                 .in_set(BigBrainSet::Actions)
                 .in_set(LevelSystemSet::Main),
         );
@@ -30,19 +30,54 @@ impl Plugin for AIPlugin {
 pub struct WalkToDestinationAction {
     pub target_dest: Vec3,
     pub stop_distance: f32,
+    pub look_in_direction: bool,
 }
-
-#[derive(Component, Debug, ActionBuilder, Copy, Clone)]
-pub struct AttackAction;
 
 impl Default for WalkToDestinationAction {
     fn default() -> Self {
         Self {
             target_dest: Vec3::default(),
-            stop_distance: 0.1,
+            stop_distance: 1.0,
+            look_in_direction: true,
         }
     }
 }
+#[derive(Clone, Component, Debug, ActionBuilder)]
+pub struct WalkToEntityAction {
+    pub target_entity: Entity,
+    pub stop_distance: f32,
+    pub look_in_direction: bool,
+}
+
+impl Default for WalkToEntityAction {
+    fn default() -> Self {
+        Self {
+            target_entity: Entity::PLACEHOLDER,
+            stop_distance: 1.0,
+            look_in_direction: true,
+        }
+    }
+}
+
+#[derive(Clone, Component, Debug, ActionBuilder)]
+pub struct WalkToCurrentTargetAction {
+    pub stop_distance: f32,
+    pub look_in_direction: bool,
+}
+
+impl Default for WalkToCurrentTargetAction {
+    fn default() -> Self {
+        Self {
+            stop_distance: 1.0,
+            look_in_direction: true,
+        }
+    }
+}
+
+#[derive(Component, Debug, ActionBuilder, Copy, Clone)]
+pub struct AttackAction;
+
+
 
 fn walk_to_destination_action(
     mut info: Query<(
@@ -63,7 +98,7 @@ fn walk_to_destination_action(
                 ActionState::Requested => {
                     *state = ActionState::Executing;
                 }
-                ActionState::Executing | ActionState::Cancelled => {
+                ActionState::Executing => {
                     let dest = action.target_dest;
                     let delta = Vec3::new(dest.x, 0.0, dest.z)
                         - Vec3::new(tf.translation.x, 0.0, tf.translation.z);
@@ -71,16 +106,24 @@ fn walk_to_destination_action(
                     if delta.length_squared() < action.stop_distance * action.stop_distance {
                         //we are close enough
                         *state = ActionState::Success;
+                        if action.look_in_direction {
+                            if let Some(mut look) = look_opt {
+                                look.enabled = false;
+                            }
+                        }
                         return;
                     }
-                    
+
                     fm.0 = delta;
                     let delta_normed = delta.normalize_or_zero();
-                    if let Some(mut look) = look_opt {
-                        look.enabled = true;
-                        look.up = Vec3::Y;
-                        look.forward = delta_normed;
+                    if action.look_in_direction {
+                        if let Some(mut look) = look_opt {
+                            look.up = Vec3::Y;
+                            look.forward = delta_normed;
+                            look.enabled = true;
+                        }
                     }
+
                     //test if we need to jump over a block
                     if let Some(mut fj) = fj {
                         if get_closest_block_dist(
@@ -93,6 +136,186 @@ fn walk_to_destination_action(
                         .unwrap_or(false)
                         {
                             fj.0 = true;
+                        }
+                    }
+                }
+                ActionState::Cancelled => {
+                    *state = ActionState::Failure;
+                    if action.look_in_direction {
+                        if let Some(mut look) = look_opt {
+                            look.enabled = false;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        } else {
+            *state = ActionState::Failure;
+        }
+    }
+}
+
+fn walk_to_entity_action(
+    mut info: Query<(
+        &Transform,
+        &mut FrameMovement,
+        Option<&mut FrameJump>,
+        Option<&mut SmoothLookTo>,
+    )>,
+    mut query: Query<(&Actor, &mut ActionState, &mut WalkToEntityAction)>,
+    level: Res<Level>,
+    block_physics: Query<&BlockPhysics>,
+    tf_query: Query<&GlobalTransform>,
+) {
+    const JUMP_DIST: f32 = 0.75;
+    for (Actor(actor), mut state, action) in query.iter_mut() {
+        if let Ok(target_tf) = tf_query.get(action.target_entity) {
+            if let Ok((tf, mut fm, fj, look_opt)) = info.get_mut(*actor) {
+                match *state {
+                    ActionState::Requested => {
+                        *state = ActionState::Executing;
+                    }
+                    ActionState::Executing => {
+                        let dest = target_tf.translation();
+                        let delta = Vec3::new(dest.x, 0.0, dest.z)
+                            - Vec3::new(tf.translation.x, 0.0, tf.translation.z);
+
+                        if delta.length_squared() < action.stop_distance * action.stop_distance {
+                            //we are close enough
+                            *state = ActionState::Success;
+                            if action.look_in_direction {
+                                if let Some(mut look) = look_opt {
+                                    look.enabled = false;
+                                }
+                            }
+                            return;
+                        }
+
+                        fm.0 = delta;
+                        let delta_normed = delta.normalize_or_zero();
+                        if action.look_in_direction {
+                            if let Some(mut look) = look_opt {
+                                look.up = Vec3::Y;
+                                look.forward = delta_normed;
+                                look.enabled = true;
+                            }
+                        }
+
+                        //test if we need to jump over a block
+                        if let Some(mut fj) = fj {
+                            if get_closest_block_dist(
+                                Vec2::new(delta_normed.x, delta_normed.z),
+                                tf.translation,
+                                &level,
+                                &block_physics,
+                            )
+                            .map(|(d, _)| d < JUMP_DIST)
+                            .unwrap_or(false)
+                            {
+                                fj.0 = true;
+                            }
+                        }
+                    }
+                    ActionState::Cancelled => {
+                        *state = ActionState::Failure;
+                        if action.look_in_direction {
+                            if let Some(mut look) = look_opt {
+                                look.enabled = false;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            } else {
+                *state = ActionState::Failure;
+            }
+        } else {
+            //no tf on the target entity to move to
+            *state = ActionState::Failure;
+        }
+    }
+}
+
+fn walk_to_current_target_action(
+    mut info: Query<(
+        &Transform,
+        &AggroTargets,
+        &mut FrameMovement,
+        Option<&mut FrameJump>,
+        Option<&mut SmoothLookTo>,
+    )>,
+    mut query: Query<(&Actor, &mut ActionState, &mut WalkToCurrentTargetAction)>,
+    level: Res<Level>,
+    block_physics: Query<&BlockPhysics>,
+    tf_query: Query<&GlobalTransform>,
+) {
+    const JUMP_DIST: f32 = 0.75;
+    for (Actor(actor), mut state, action) in query.iter_mut() {
+        if let Ok((tf, targets, mut fm, fj, look_opt)) = info.get_mut(*actor) {
+            match *state {
+                ActionState::Requested => {
+                    *state = ActionState::Executing;
+                }
+                ActionState::Executing => {
+                    if let Some(target_tf) = targets
+                        .current_target()
+                        .map(|e| tf_query.get(e).ok())
+                        .flatten()
+                    {
+                        let dest = target_tf.translation();
+                        let delta = Vec3::new(dest.x, 0.0, dest.z)
+                            - Vec3::new(tf.translation.x, 0.0, tf.translation.z);
+
+                        if delta.length_squared() < action.stop_distance * action.stop_distance {
+                            //we are close enough
+                            *state = ActionState::Success;
+                            if action.look_in_direction {
+                                if let Some(mut look) = look_opt {
+                                    look.enabled = false;
+                                }
+                            }
+                            return;
+                        }
+
+                        fm.0 = delta;
+                        let delta_normed = delta.normalize_or_zero();
+                        if action.look_in_direction {
+                            if let Some(mut look) = look_opt {
+                                look.up = Vec3::Y;
+                                look.forward = delta_normed;
+                                look.enabled = true;
+                            }
+                        }
+
+                        //test if we need to jump over a block
+                        if let Some(mut fj) = fj {
+                            if get_closest_block_dist(
+                                Vec2::new(delta_normed.x, delta_normed.z),
+                                tf.translation,
+                                &level,
+                                &block_physics,
+                            )
+                            .map(|(d, _)| d < JUMP_DIST)
+                            .unwrap_or(false)
+                            {
+                                fj.0 = true;
+                            }
+                        }
+                    } else {
+                        //no tf on the target entity to move to
+                        if action.look_in_direction {
+                            if let Some(mut look) = look_opt {
+                                look.enabled = false;
+                            }
+                        }
+                        *state = ActionState::Failure;
+                    }
+                }
+                ActionState::Cancelled => {
+                    *state = ActionState::Failure;
+                    if action.look_in_direction {
+                        if let Some(mut look) = look_opt {
+                            look.enabled = false;
                         }
                     }
                 }
