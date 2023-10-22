@@ -79,7 +79,8 @@ pub fn spawn_skeleton_pirate(
     test: Query<&Name>,
 ) {
     let anchor_entity = anchor.get_single().ok().unwrap_or(Entity::PLACEHOLDER);
-    const ATTACK_RANGE: f32 = 20.0;
+    const ATTACK_RANGE: f32 = 10.0;
+    const AGGRO_RANGE: f32 = ATTACK_RANGE*2.0 + 5.0;
     for spawn in spawn_requests.iter() {
         info!("{:?}", test.get(anchor_entity));
         commands.spawn((
@@ -109,7 +110,7 @@ pub fn spawn_skeleton_pirate(
             },
             SmoothLookTo::default(),
             SkeletonPirate { ..default() },
-            AggroPlayer { range: ATTACK_RANGE*2.0, priority: 0 },
+            AggroPlayer { range: AGGRO_RANGE, priority: 0 },
             AggroTargets::new(vec![(anchor_entity, i32::MIN)]),
             DefaultAnimation::new(Handle::default(), Entity::PLACEHOLDER, 0.5, 1.0),
             UninitializedActor,
