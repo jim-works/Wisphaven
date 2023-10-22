@@ -14,6 +14,7 @@ pub mod tools;
 pub mod debug_items;
 pub mod actor_items;
 pub mod item_attributes;
+pub mod time_items;
 
 pub struct ItemsPlugin;
 
@@ -25,7 +26,7 @@ impl Plugin for ItemsPlugin {
             .add_event::<PickupItemEvent>()
             .add_event::<DropItemEvent>()
             .add_event::<SwingItemEvent>()
-            .add_plugins((debug_items::DebugItems, tools::ToolsPlugin, actor_items::ActorItems, weapons::WeaponItemPlugin, ItemAttributesPlugin))
+            .add_plugins((debug_items::DebugItems, tools::ToolsPlugin, actor_items::ActorItems, weapons::WeaponItemPlugin, ItemAttributesPlugin, time_items::TimeItemsPlugin))
             .add_systems(Update, (block_item::use_block_item, block_item::use_mega_block_item).in_set(LevelSystemSet::Main))
             .add_systems(Update, inventory::tick_item_timers.in_set(LevelSystemSet::Main))
 

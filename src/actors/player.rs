@@ -215,9 +215,9 @@ pub fn spawn_local_player(
         ItemStack::new(
             resources
                 .registry
-                .get_basic(&ItemName::core("personality_tester"))
+                .get_basic(&ItemName::core("moon"))
                 .unwrap(),
-            100,
+            1,
         ),
         &item_query,
         &mut pickup_item,

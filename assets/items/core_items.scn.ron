@@ -203,5 +203,17 @@
         "recursia::items::item_attributes::ConsumableItem": (),
       },
     ),
+    11: (
+      components: {
+        "recursia::items::ItemName": (
+          namespace: "core",
+          name: "moon",
+        ),
+        "recursia::items::NamedItemIcon": (
+            path: "moon.png"
+        ),
+        "recursia::items::time_items::SkipToNightItem": ()
+      },
+    ),
   },
 )

@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use self::chunk::ChunkCoord;
 
-mod atmosphere;
+pub mod atmosphere;
 
 pub mod blocks;
 pub mod effects;

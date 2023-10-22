@@ -19,7 +19,7 @@ pub struct Calendar {
     pub time: GameTime,
 }
 
-#[derive(Default, PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(Default, PartialEq, Eq, Ord, Clone, Copy, Debug)]
 pub struct GameTime {
     pub day: u64,
     pub time: Duration,
@@ -88,13 +88,25 @@ impl Calendar {
 
     //scaled time, not affected by CalendarSpeed
     pub fn time_until(&self, time: GameTime) -> Duration {
-        self.total_day_length() * (time.day - self.time.day) as u32 - (time.time - self.time.time)
+        (self.total_day_length() * time.day.saturating_sub(self.time.day) as u32) + time.time.saturating_sub(self.time.time)
+    }
+
+    pub fn next_night(&self) -> GameTime {
+        if self.time.time >= self.day_length {
+            GameTime::new(self.time.day + 1, self.day_length)
+        } else {
+            GameTime::new(self.time.day, self.day_length)
+        }
+    }
+
+    pub fn next_day(&self) -> GameTime {
+        GameTime::new(self.time.day + 1, Duration::ZERO)
     }
 }
 
 #[derive(Resource)]
 //may overshoot if laggy
-pub struct CalendarSpeed {
+struct CalendarSpeed {
     pub fast_forward_timescale: f32,
     pub target: GameTime,
 }
@@ -109,6 +121,8 @@ pub struct SkipDays {
 pub struct DayStartedEvent;
 #[derive(Event)]
 pub struct NightStartedEvent;
+#[derive(Event)]
+pub struct SpeedupCalendarEvent(pub GameTime);
 
 impl Plugin for AtmospherePlugin {
     fn build(&self, app: &mut App) {
@@ -119,7 +133,10 @@ impl Plugin for AtmospherePlugin {
                 ..default()
             }))
             .add_systems(Startup, setup_environment)
-            .add_systems(PreUpdate, (update_sun_position, update_calendar))
+            .add_systems(
+                PreUpdate,
+                (speedup_time, update_calendar, update_sun_position).chain(),
+            )
             .insert_resource(CycleTimer(Timer::new(
                 bevy::utils::Duration::from_millis(100),
                 TimerMode::Repeating,
@@ -127,13 +144,14 @@ impl Plugin for AtmospherePlugin {
             .add_event::<SkipDays>()
             .add_event::<DayStartedEvent>()
             .add_event::<NightStartedEvent>()
+            .add_event::<SpeedupCalendarEvent>()
             .insert_resource(CalendarSpeed {
                 fast_forward_timescale: 50.0,
                 target: GameTime::default(),
             })
             .insert_resource(Calendar {
-                day_length: Duration::from_secs(5),
-                night_length: Duration::from_secs(5),
+                day_length: Duration::from_secs(100),
+                night_length: Duration::from_secs(100),
                 time: GameTime::default(),
             });
     }
@@ -177,6 +195,13 @@ fn update_calendar(
         time.delta()
     };
     calendar.advance(inc, &mut day_writer, &mut night_writer);
+}
+
+fn speedup_time(mut reader: EventReader<SpeedupCalendarEvent>, mut speed: ResMut<CalendarSpeed>) {
+    for SpeedupCalendarEvent(time) in reader.iter() {
+        info!("setting target time to {:?} (submitted {:?}", speed.target.max(*time), time);
+        speed.target = speed.target.max(*time);
+    }
 }
 
 fn setup_environment(mut commands: Commands) {
