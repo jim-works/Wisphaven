@@ -26,6 +26,9 @@ impl Plugin for AIPlugin {
     }
 }
 
+#[derive(Component, Debug, ActionBuilder, Copy, Clone)]
+pub struct AttackAction;
+
 #[derive(Clone, Component, Debug, ActionBuilder)]
 pub struct WalkToDestinationAction {
     pub target_dest: Vec3,
@@ -42,42 +45,6 @@ impl Default for WalkToDestinationAction {
         }
     }
 }
-#[derive(Clone, Component, Debug, ActionBuilder)]
-pub struct WalkToEntityAction {
-    pub target_entity: Entity,
-    pub stop_distance: f32,
-    pub look_in_direction: bool,
-}
-
-impl Default for WalkToEntityAction {
-    fn default() -> Self {
-        Self {
-            target_entity: Entity::PLACEHOLDER,
-            stop_distance: 1.0,
-            look_in_direction: true,
-        }
-    }
-}
-
-#[derive(Clone, Component, Debug, ActionBuilder)]
-pub struct WalkToCurrentTargetAction {
-    pub stop_distance: f32,
-    pub look_in_direction: bool,
-}
-
-impl Default for WalkToCurrentTargetAction {
-    fn default() -> Self {
-        Self {
-            stop_distance: 1.0,
-            look_in_direction: true,
-        }
-    }
-}
-
-#[derive(Component, Debug, ActionBuilder, Copy, Clone)]
-pub struct AttackAction;
-
-
 
 fn walk_to_destination_action(
     mut info: Query<(
@@ -151,6 +118,23 @@ fn walk_to_destination_action(
             }
         } else {
             *state = ActionState::Failure;
+        }
+    }
+}
+
+#[derive(Clone, Component, Debug, ActionBuilder)]
+pub struct WalkToEntityAction {
+    pub target_entity: Entity,
+    pub stop_distance: f32,
+    pub look_in_direction: bool,
+}
+
+impl Default for WalkToEntityAction {
+    fn default() -> Self {
+        Self {
+            target_entity: Entity::PLACEHOLDER,
+            stop_distance: 1.0,
+            look_in_direction: true,
         }
     }
 }
@@ -232,6 +216,21 @@ fn walk_to_entity_action(
         } else {
             //no tf on the target entity to move to
             *state = ActionState::Failure;
+        }
+    }
+}
+
+#[derive(Clone, Component, Debug, ActionBuilder)]
+pub struct WalkToCurrentTargetAction {
+    pub stop_distance: f32,
+    pub look_in_direction: bool,
+}
+
+impl Default for WalkToCurrentTargetAction {
+    fn default() -> Self {
+        Self {
+            stop_distance: 1.0,
+            look_in_direction: true,
         }
     }
 }
@@ -403,3 +402,4 @@ fn get_closest_block_dist(
     }
     return None;
 }
+

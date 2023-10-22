@@ -4,6 +4,8 @@ mod damage;
 pub mod projectile;
 pub use damage::*;
 
+use super::Player;
+
 pub struct CombatPlugin;
 
 impl Plugin for CombatPlugin {
@@ -12,6 +14,7 @@ impl Plugin for CombatPlugin {
             .add_event::<AttackEvent>()
             .add_event::<DeathEvent>()
             .add_systems(PreUpdate, purge_despawned_targets)
+            .add_systems(Update, update_aggro_on_player)
             .add_systems(PostUpdate, (process_attacks, do_death).chain())
             .register_type::<Damage>();
     }
@@ -111,7 +114,7 @@ impl AggroTargets {
         self.pqueue.get(self.current_target_idx).map(|(t, _)| *t)
     }
     pub fn add_target(&mut self, target: Entity, priority: i32) {
-        if self.pqueue[self.current_target_idx].1 < priority {
+        if self.pqueue.len() > 0 && self.pqueue[self.current_target_idx].1 < priority {
             //this is now the current target
             self.current_target_idx = self.pqueue.len();
         }
@@ -150,4 +153,53 @@ fn purge_despawned_targets(mut query: Query<&mut AggroTargets>, entity_query: Qu
     for mut aggro in query.iter_mut() {
         aggro.pqueue.retain(|(entity, _)| entity_query.contains(*entity));
     }
+}
+
+#[derive(Component)]
+pub struct AggroPlayer {
+    pub range: f32,
+    pub priority: i32
+}
+
+#[derive(Component)]
+#[component(storage = "SparseSet")]
+struct AggroedOnPlayer(Entity);
+
+fn update_aggro_on_player(
+    player_query: Query<(Entity, &GlobalTransform), With<Player>>,
+    mut new_aggro_query: Query<(Entity, &GlobalTransform, &AggroPlayer, &mut AggroTargets), Without<AggroedOnPlayer>>,
+    mut curr_aggro_query: Query<(Entity, &GlobalTransform, &AggroPlayer, &mut AggroTargets, &AggroedOnPlayer)>,
+    mut commands: Commands,
+) {
+    //add new player aggros
+    for (entity, tf, aggro, mut targets) in new_aggro_query.iter_mut() {
+        //get closest player
+        let (sqr_distance, closest_player) = player_query.iter().fold((f32::MAX, Entity::PLACEHOLDER), |(curr_d, curr_player), (player_entity, player_tf)| {
+            let d = tf.translation().distance_squared(player_tf.translation());
+            if d < curr_d {
+                (d, player_entity)
+            } else {
+                (curr_d, curr_player)
+            }
+        });
+        if sqr_distance <= aggro.range*aggro.range {
+            //player in range
+            targets.add_target(closest_player, aggro.priority);
+            commands.entity(entity).insert(AggroedOnPlayer(closest_player));
+        }
+    }
+    //remove player aggros if they go out of range
+    //intentionally not updating to new closest player to make them chase more
+    for (entity, tf, aggro, mut targets, AggroedOnPlayer(player)) in curr_aggro_query.iter_mut() {
+        if let Ok((player_entity, player_tf)) = player_query.get(*player) {
+            if player_tf.translation().distance_squared(tf.translation()) > aggro.range*aggro.range {
+                //player too far, drop aggro
+                targets.remove_target(player_entity);
+                commands.entity(entity).remove::<AggroedOnPlayer>();
+            }
+        } else {
+            warn!("AggroedOnPlayer contains entity that's not a player!");
+            commands.entity(entity).remove::<AggroedOnPlayer>();  
+        }
+    } 
 }

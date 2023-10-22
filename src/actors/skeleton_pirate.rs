@@ -5,7 +5,7 @@ use big_brain::prelude::*;
 use crate::{
     actors::{
         ai::{scorers::AggroScorer, AttackAction, WalkToCurrentTargetAction},
-        AggroTargets,
+        AggroTargets, AggroPlayer,
     },
     controllers::ControllableBundle,
     physics::{PhysicsObjectBundle, GRAVITY},
@@ -109,6 +109,7 @@ pub fn spawn_skeleton_pirate(
             },
             SmoothLookTo::default(),
             SkeletonPirate { ..default() },
+            AggroPlayer { range: ATTACK_RANGE*2.0, priority: 0 },
             AggroTargets::new(vec![(anchor_entity, i32::MIN)]),
             DefaultAnimation::new(Handle::default(), Entity::PLACEHOLDER, 0.5, 1.0),
             UninitializedActor,
