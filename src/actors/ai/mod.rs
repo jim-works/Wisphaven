@@ -64,10 +64,6 @@ fn walk_to_destination_action(
                     *state = ActionState::Executing;
                 }
                 ActionState::Executing | ActionState::Cancelled => {
-                    // if let Some(mut look) = look_opt {
-                    //     look.enabled = true;
-                    //     look.to = *dest;
-                    // }
                     let dest = action.target_dest;
                     let delta = Vec3::new(dest.x, 0.0, dest.z)
                         - Vec3::new(tf.translation.x, 0.0, tf.translation.z);
@@ -77,11 +73,18 @@ fn walk_to_destination_action(
                         *state = ActionState::Success;
                         return;
                     }
+                    
                     fm.0 = delta;
+                    let delta_normed = delta.normalize_or_zero();
+                    if let Some(mut look) = look_opt {
+                        look.enabled = true;
+                        look.up = Vec3::Y;
+                        look.forward = delta_normed;
+                    }
                     //test if we need to jump over a block
                     if let Some(mut fj) = fj {
                         if get_closest_block_dist(
-                            Vec2::new(delta.x, delta.z).normalize_or_zero(),
+                            Vec2::new(delta_normed.x, delta_normed.z),
                             tf.translation,
                             &level,
                             &block_physics,
@@ -140,7 +143,7 @@ fn get_closest_block_dist(
     );
     //test blocks in order of closeness
     //diagonal will always be furthest away
-    let mut test_blocks = [BlockCoord::new(0,0,0); 3];
+    let mut test_blocks = [BlockCoord::new(0, 0, 0); 3];
     let mut distances = [0.; 3];
     if pos_in_square.x.abs() < pos_in_square.y.abs() {
         test_blocks[0] = origin + BlockCoord::new(delta.x, 0, 0);

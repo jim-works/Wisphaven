@@ -30,8 +30,8 @@ pub struct FollowPlayer {}
 #[derive(Component)]
 pub struct PlayerActionOrigin {}
 
-pub fn move_player(mut query: Query<(&ActionState<Action>, &mut FrameMovement), With<Player>>) {
-    for (act, mut fm) in query.iter_mut() {
+pub fn move_player(mut query: Query<(&ActionState<Action>, &Transform, &mut FrameMovement), With<Player>>) {
+    for (act, tf, mut fm) in query.iter_mut() {
         let mut dv = Vec3::ZERO;
         dv.z -= if act.pressed(Action::MoveForward) {
             1.0
@@ -53,7 +53,7 @@ pub fn move_player(mut query: Query<(&ActionState<Action>, &mut FrameMovement), 
         } else {
             0.0
         };
-        fm.0 = dv;
+        fm.0 = tf.rotation*dv;
     }
 }
 

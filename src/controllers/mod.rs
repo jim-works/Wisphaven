@@ -81,7 +81,7 @@ fn do_planar_movement(
     mut query: Query<(
         &mut FrameMovement,
         &mut ExternalImpulse,
-        &Transform,
+        &GlobalTransform,
         &Velocity,
         &MoveSpeed,
         Option<&Grounded>,
@@ -90,19 +90,18 @@ fn do_planar_movement(
 ) {
     const EPSILON: f32 = 1e-3;
     for (mut fm, mut impulse, tf, v, ms, opt_grounded) in query.iter_mut() {
-        let local_movement = fm.0;
-        let local_speed = local_movement.length();
+        let speed = fm.0.length();
         let acceleration = ms.get_accel(opt_grounded.is_some_and(|x| x.0));
         //don't actively resist sliding if no input is provided (also smooths out jittering)
-        if local_speed < EPSILON {
+        if speed < EPSILON {
             fm.0 = Vec3::ZERO;
             continue;
         }
         //global space
-        let mut v_desired = if local_speed > 1.0 {
-            tf.rotation * (local_movement * (ms.max_speed / local_speed))
+        let mut v_desired = if speed > 1.0 {
+            fm.0 * (ms.max_speed / speed)
         } else {
-            tf.rotation * local_movement * ms.max_speed
+            fm.0 * ms.max_speed
         };
         v_desired.y = 0.0;
 

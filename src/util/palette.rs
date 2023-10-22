@@ -131,7 +131,7 @@ impl<const SIZE: usize> BlockPalette<BlockType, SIZE> {
         query: &Query<&T>,
     ) -> Vec<(u16, T, u16)> {
         let _span = info_span!("map_palette", name = "map_palette").entered();
-
+        //todo: iter_many?
         let mut mapped_palette = Vec::with_capacity(self.palette.len());
         for (key, val, r) in self.palette.iter() {
             let block = match val {
