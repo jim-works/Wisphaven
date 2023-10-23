@@ -18,12 +18,15 @@ impl Plugin for TimeItemsPlugin {
 pub struct SkipToNightItem;
 
 fn use_skip_to_night_item(
-    reader: EventReader<UseItemEvent>,
+    mut reader: EventReader<UseItemEvent>,
     mut writer: EventWriter<SpeedupCalendarEvent>,
+    query: Query<With<SkipToNightItem>>,
     cal: Res<Calendar>
 ) {
-    if !reader.is_empty() {
-        info!("Skipping to night...");
-        writer.send(SpeedupCalendarEvent(cal.next_night()));
+    for e in reader.iter() {
+        if query.contains(e.stack.id) {
+            info!("Skipping to night...");
+            writer.send(SpeedupCalendarEvent(cal.next_night()));
+        }
     }
 }

@@ -69,3 +69,7 @@ pub fn prng_sample_range(range: Range<u64>, seed: u64) -> u64 {
     let diff = rng % (range.end-range.start);
     range.start + diff
 }
+
+pub fn prng_select<T>(seed: u64, slice: &[T]) -> Option<&T> {
+    slice.get(get_next_prng(seed) as usize % slice.len())
+}

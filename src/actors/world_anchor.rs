@@ -13,7 +13,7 @@ pub struct WorldAnchorResources {
 }
 
 //can use presence of this resource to easily detect if we're ready to spawn waves
-#[derive(Component, Resource, Default)]
+#[derive(Component, Resource, Default, Clone, Copy)]
 pub struct WorldAnchor;
 
 #[derive(Component)]
