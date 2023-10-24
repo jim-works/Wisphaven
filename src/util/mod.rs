@@ -167,3 +167,10 @@ impl<T: bevy::prelude::Event> bevy::ecs::system::Command for SendEventCommand<T>
         world.send_event(self.0);
     }
 }
+
+pub fn get_wrapping<T>(slice: &[T], idx: usize) -> Option<&T> {
+    match slice.len() {
+        0 => None,
+        len => slice.get(idx % len)
+    }
+}

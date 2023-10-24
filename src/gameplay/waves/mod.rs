@@ -1,14 +1,14 @@
 use std::{f32::consts::PI, time::Duration};
 
 use bevy::prelude::*;
+use rand::{thread_rng, RngCore};
 
 use crate::{
     actors::world_anchor::WorldAnchor,
-    util::prng_select,
     world::{
         atmosphere::{Calendar, NightStartedEvent},
         BlockCoord, Level,
-    },
+    }, util::get_wrapping,
 };
 
 use self::spawns::SkeletonPirateSpawn;
@@ -32,6 +32,7 @@ impl Plugin for WavesPlugin {
             to_spawn: Vec::new(),
             possible_spawns: vec![Spawn { strength: 1, wave_strength_cutoff: None, action: Box::new(SkeletonPirateSpawn) }],
             spawn_points: Vec::new(),
+            wave_pause_interval: Duration::from_secs(5)
         })
         .add_state::<AssaultState>();
     }
@@ -50,19 +51,19 @@ pub struct Assault {
     pub to_spawn: Vec<WaveInfo>,
     pub possible_spawns: Vec<Spawn>,
     pub spawn_points: Vec<SpawnPoint>,
-    
+    pub wave_pause_interval: Duration,
 }
 
 pub struct SpawnPoint {
     location: Vec3,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WaveInfo {
     pub initial_strength: u64,
     pub remaining_strength: u64,
     pub duration: Duration,
-    pub start_time: Duration,
+    pub end_time: Duration,
     pub next_spawn_time: Duration,
 }
 
@@ -72,7 +73,7 @@ impl WaveInfo {
             initial_strength: strength,
             remaining_strength: strength,
             duration,
-            start_time: Duration::ZERO,
+            end_time: Duration::ZERO,
             next_spawn_time: Duration::ZERO,
         }
     }
@@ -99,7 +100,7 @@ impl Spawn {
 fn trigger_assault(
     mut assault: ResMut<Assault>,
     mut next_state: ResMut<NextState<AssaultState>>,
-    night_event: EventReader<NightStartedEvent>,
+    mut night_event: EventReader<NightStartedEvent>,
     calendar: Res<Calendar>,
     level: Res<Level>,
     anchor_query: Query<&GlobalTransform, With<WorldAnchor>>,
@@ -107,6 +108,7 @@ fn trigger_assault(
     if night_event.is_empty() {
         return;
     }
+    night_event.clear();
     assault.spawn_points.clear();
     if let Ok(tf) = anchor_query.get_single() {
         info!("triggering assault...");
@@ -139,7 +141,7 @@ fn trigger_assault(
                 assault.spawn_points.push(SpawnPoint {
                     location: spawn_point.center(),
                 });
-                info!("added spawnpoint!");
+                info!("added spawnpoint at {:?}!", spawn_point.center());
             }
         }
         next_state.set(AssaultState::Finished);
@@ -147,7 +149,11 @@ fn trigger_assault(
     info!("Assault begins on night {}!", calendar.time.day);
     assault.to_spawn.push(WaveInfo::new(
         get_wave_strength(&calendar),
-        Duration::from_secs(10),
+        Duration::from_secs(2),
+    ));
+    assault.to_spawn.push(WaveInfo::new(
+        get_wave_strength(&calendar),
+        Duration::from_secs(2),
     ));
     next_state.set(AssaultState::Spawning);
 }
@@ -161,16 +167,23 @@ fn spawn_wave(
     time: Res<Time>,
     mut commands: Commands,
     mut assault_state: ResMut<NextState<AssaultState>>,
-    calendar: Res<Calendar>
 ) {
     let current_time = time.elapsed();
-    let wave_num = assault.to_spawn.len() as u64;
+    let mut rng = thread_rng();
     if let Some(mut wave) = assault.to_spawn.last().cloned() {
-        if wave.next_spawn_time != Duration::ZERO && wave.next_spawn_time < current_time {
+        if wave.next_spawn_time != Duration::ZERO && wave.next_spawn_time > current_time {
             return;
         }
-        if wave.remaining_strength == 0 {
+        if wave.end_time == Duration::ZERO && wave.remaining_strength == 0 {
+            wave.end_time = current_time;
+            let idx = assault.to_spawn.len() - 1;
+            assault.to_spawn[idx] = wave;
+            info!("finished wave!");
+            return;
+        }
+        if wave.end_time != Duration::ZERO && current_time > wave.end_time + assault.wave_pause_interval {
             assault.to_spawn.pop();
+            info!("done waiting after wave pause");
             return;
         }
         let possible_spawns: Vec<&Spawn> = assault
@@ -180,34 +193,24 @@ fn spawn_wave(
                 spawn.usable(wave.initial_strength) && spawn.strength <= wave.remaining_strength
             })
             .collect();
-        if let Some(spawn) = prng_select(get_seed(0, calendar.time.day, wave_num, wave.remaining_strength), &possible_spawns) {
-            if let Some(spawnpoint) = prng_select(get_seed(1, calendar.time.day, wave_num, wave.remaining_strength), &assault.spawn_points) {
+        if let Some(spawn) = get_wrapping(&possible_spawns, rng.next_u32() as usize) {
+            if let Some(spawnpoint) =  get_wrapping(&assault.spawn_points, rng.next_u32() as usize) {
                 wave.remaining_strength -= spawn.strength;
                 spawn.action.spawn(&mut commands, spawnpoint.location);
                 wave.next_spawn_time = current_time + wave.duration.mul_f32(spawn.strength as f32 / wave.initial_strength as f32);
-                info!("spawned");
                 let idx = assault.to_spawn.len() - 1;
+                info!("spawn strength {:?} wave {:?}", spawn.strength, wave);
                 assault.to_spawn[idx] = wave;
             } else {
                 warn!("no spawnpoint for wave");
             }
         } else {
-            //spawn was empty
-            assault.to_spawn.pop();
+            //no possible spawns, make sure wave is finished
+            wave.remaining_strength = 0;
             return;
         }
     } else {
         assault_state.set(AssaultState::Finished);
         info!("assault finished");
     }
-}
-
-
-fn get_seed(prime: u64, day: u64, idx: u64, idx2: u64) -> u64 {
-    prime
-        .wrapping_add(day.wrapping_add(123765).wrapping_mul(16235))
-        .wrapping_mul(123973)
-        .wrapping_add(idx.wrapping_add(1109).wrapping_mul(7))
-        .wrapping_mul(11)
-        .wrapping_add(idx2.wrapping_add(721).wrapping_mul(13))
 }

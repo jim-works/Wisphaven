@@ -76,13 +76,11 @@ pub fn spawn_skeleton_pirate(
     skele_res: Res<SkeletonPirateResources>,
     mut spawn_requests: EventReader<SpawnSkeletonPirateEvent>,
     anchor: Query<Entity, With<WorldAnchor>>,
-    test: Query<&Name>,
 ) {
     let anchor_entity = anchor.get_single().ok().unwrap_or(Entity::PLACEHOLDER);
     const ATTACK_RANGE: f32 = 10.0;
     const AGGRO_RANGE: f32 = ATTACK_RANGE*2.0 + 5.0;
     for spawn in spawn_requests.iter() {
-        info!("{:?}", test.get(anchor_entity));
         commands.spawn((
             SceneBundle {
                 scene: skele_res.scene.clone_weak(),
