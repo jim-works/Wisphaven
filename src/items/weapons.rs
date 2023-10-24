@@ -2,19 +2,18 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 use crate::{
-    actors::{
-        AttackEvent, Damage,
-    },
+    actors::{coin::SpawnCoinEvent, AttackEvent, CombatInfo, Damage, CombatantBundle},
     world::LevelSystemSet,
 };
 
-use super::SwingItemEvent;
+use super::{SwingItemEvent, UseItemEvent};
 
 pub struct WeaponItemPlugin;
 
 impl Plugin for WeaponItemPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, attack_melee.in_set(LevelSystemSet::Main));
+        app.add_systems(Update, (attack_melee, launch_coin).in_set(LevelSystemSet::Main))
+            .register_type::<CoinLauncherItem>();
     }
 }
 
@@ -23,6 +22,13 @@ impl Plugin for WeaponItemPlugin {
 pub struct MeleeWeaponItem {
     pub damage: Damage,
     pub knockback: f32,
+}
+
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
+pub struct CoinLauncherItem {
+    pub damage: Damage,
+    pub speed: f32,
 }
 
 pub fn attack_melee(
@@ -57,6 +63,33 @@ pub fn attack_melee(
                     knockback: tf.forward() * weapon.knockback,
                 })
             }
+        }
+    }
+}
+
+pub fn launch_coin(
+    mut attack_item_reader: EventReader<UseItemEvent>,
+    mut writer: EventWriter<SpawnCoinEvent>,
+    weapon_query: Query<&CoinLauncherItem>,
+) {
+    for UseItemEvent {
+        user,
+        inventory_slot: _,
+        stack,
+        tf,
+    } in attack_item_reader.iter()
+    {
+        if let Ok(weapon) = weapon_query.get(stack.id) {
+            writer.send(SpawnCoinEvent {
+                location: Transform::from_translation(tf.translation()),
+                velocity: tf.forward() * weapon.speed,
+                combat: CombatantBundle {
+                    combat_info: CombatInfo::new(1.0, 0.0),
+                    ..default()
+                },
+                owner: *user,
+                damage: weapon.damage,
+            })
         }
     }
 }

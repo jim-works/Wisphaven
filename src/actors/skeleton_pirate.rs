@@ -106,7 +106,7 @@ pub fn spawn_skeleton_pirate(
                 move_speed: MoveSpeed::new(50.0, 10.0, 5.0),
                 ..default()
             },
-            SmoothLookTo::default(),
+            SmoothLookTo::new(0.7),
             SkeletonPirate { ..default() },
             AggroPlayer { range: AGGRO_RANGE, priority: 0 },
             AggroTargets::new(vec![(anchor_entity, i32::MIN)]),

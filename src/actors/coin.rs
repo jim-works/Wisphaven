@@ -11,11 +11,6 @@ pub struct CoinResources {
     pub scene: Handle<Scene>,
 }
 
-#[derive(Component, Default)]
-pub struct Coin {
-    pub damage: Damage,
-}
-
 #[derive(Component)]
 pub struct CoinScene;
 
@@ -73,15 +68,12 @@ pub fn spawn_coin(
             },
             Damping::default(),
             SolverGroups::new(Group::empty(), Group::empty()),
-            Coin {
-                damage: spawn.damage,
-            },
             ProjectileBundle::new(Projectile {
                 owner: spawn.owner,
                 knockback_mult: 1.0,
                 terrain_damage: 0.5,
                 despawn_time: curr_time + LIFETIME,
-                damage: Damage::default(),
+                damage: spawn.damage,
                 despawn_on_hit: true,
                 on_hit_or_despawn: None,
             }),

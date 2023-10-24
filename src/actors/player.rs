@@ -239,7 +239,7 @@ pub fn spawn_local_player(
         ItemStack::new(
             resources
                 .registry
-                .get_basic(&ItemName::core("mega_air"))
+                .get_basic(&ItemName::core("coin_launcher"))
                 .unwrap(),
             100,
         ),

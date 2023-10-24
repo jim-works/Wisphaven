@@ -215,5 +215,20 @@
         "recursia::items::time_items::SkipToNightItem": ()
       },
     ),
+    12: (
+      components: {
+        "recursia::items::ItemName": (
+          namespace: "core",
+          name: "coin_launcher",
+        ),
+        "recursia::items::NamedItemIcon": (
+            path: "coin.png"
+        ),
+        "recursia::items::weapons::CoinLauncherItem": (
+          speed: 25.0,
+          damage: Damage (amount: 2.0)
+        )
+      },
+    ),
   },
 )
