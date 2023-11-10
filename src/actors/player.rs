@@ -143,18 +143,6 @@ pub fn spawn_local_player(
         ItemStack::new(
             resources
                 .registry
-                .get_basic(&ItemName::core("grass_block"))
-                .unwrap(),
-            100,
-        ),
-        &item_query,
-        &mut pickup_item,
-        &mut equip_item,
-    );
-    inventory.pickup_item(
-        ItemStack::new(
-            resources
-                .registry
                 .get_basic(&ItemName::core("world_anchor"))
                 .unwrap(),
             1,
@@ -194,18 +182,6 @@ pub fn spawn_local_player(
                 .get_basic(&ItemName::core("ruby_axe"))
                 .unwrap(),
             1,
-        ),
-        &item_query,
-        &mut pickup_item,
-        &mut equip_item,
-    );
-    inventory.pickup_item(
-        ItemStack::new(
-            resources
-                .registry
-                .get_basic(&ItemName::core("tnt_block"))
-                .unwrap(),
-            100,
         ),
         &item_query,
         &mut pickup_item,

@@ -17,7 +17,7 @@ use crate::{
     items::{
         block_item::BlockItem, inventory::Inventory, DropItemEvent, ItemIcon, PickupItemEvent,
     },
-    world::{BlockMesh, BlockResources, LevelSystemSet}, mesher::{ChunkMaterial, ArrayTextureMaterial},
+    world::{BlockMesh, LevelSystemSet}, mesher::{ChunkMaterial, ArrayTextureMaterial},
 };
 
 use super::{state::UIState, styles::get_small_text_style};
@@ -332,7 +332,6 @@ fn update_icons(
     block_item_query: Query<&BlockItem>,
     block_mesh_query: Query<&BlockMesh>,
     materials: Res<ChunkMaterial>,
-    resources: Res<BlockResources>,
     mut commands: Commands,
 ) {
     if pickup_reader.is_empty() && drop_reader.is_empty() {
@@ -342,7 +341,10 @@ fn update_icons(
         info!("Updating inventory icons!");
         for (index, (mut vis, mut image, mut ui_slot)) in label_query.iter_mut().enumerate() {
             if let Some(stored_entity) = ui_slot.1 {
-                commands.entity(stored_entity).despawn_recursive();
+                if let Some(ec) = commands.get_entity(stored_entity) {
+                    ec.despawn_recursive();
+                }
+                ui_slot.1 = None;
             }
             match inv.get(ui_slot.0) {
                 Some(stack) => match icon_query.get(stack.id) {
@@ -355,11 +357,7 @@ fn update_icons(
                             Ok(item) => {
                                 //render block item
                                 //todo - despawn if dynamic
-                                match resources
-                                    .registry
-                                    .get_entity(resources.registry.get_id(&item.0), &mut commands)
-                                    .map(|block_entity| block_mesh_query.get(block_entity).ok())
-                                    .flatten()
+                                match block_mesh_query.get(item.0).ok()
                                     .map(|block_mesh| block_mesh.single_mesh.as_ref())
                                     .flatten()
                                 {

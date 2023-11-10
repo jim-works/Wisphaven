@@ -161,6 +161,10 @@ impl Inventory {
                             });
                         }
                     }
+                    pickup_writer.send(PickupItemEvent {
+                        user: self.owner,
+                        stack: item,
+                    });
                 }
                 None => {
                     //pick up the whole stack into an empty slot

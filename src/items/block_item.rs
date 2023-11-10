@@ -1,22 +1,20 @@
 use bevy::prelude::*;
 
-use crate::world::{Level, BlockCoord, BlockResources, BlockName, BlockId, events::ChunkUpdatedEvent};
+use crate::world::{Level, BlockCoord, BlockResources, BlockName, BlockId, events::ChunkUpdatedEvent, BlockType};
 
 use super::UseItemEvent;
 
-#[derive(Component, Reflect, Default)]
-#[reflect(Component)]
-pub struct BlockItem(pub BlockName);
+#[derive(Component)]
+pub struct BlockItem(pub Entity);
 
 #[derive(Component, Reflect, Default)]
 #[reflect(Component)]
 pub struct MegaBlockItem(pub BlockName, pub i32);
 
-pub fn use_block_item(
+pub fn use_block_entity_item(
     mut reader: EventReader<UseItemEvent>,
     block_query: Query<&BlockItem>,
     level: Res<Level>,
-    resources: Res<BlockResources>,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
     id_query: Query<&BlockId>,
     mut commands: Commands,
@@ -24,8 +22,7 @@ pub fn use_block_item(
     for UseItemEvent { user: _, inventory_slot: _, stack, tf } in reader.iter() {
         if let Ok(block_item) = block_query.get(stack.id) {
             if let Some(hit) = level.blockcast(tf.translation(), tf.forward()*10.0) {
-                let id = resources.registry.get_id(&block_item.0);
-                level.set_block(hit.block_pos+hit.normal, id, &resources.registry, &id_query, &mut update_writer, &mut commands);
+                level.set_block_entity(hit.block_pos+hit.normal, BlockType::Filled(block_item.0), &id_query, &mut update_writer, &mut commands);
             }
         }
     }

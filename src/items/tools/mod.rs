@@ -2,12 +2,12 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::{QueryFilter, RapierContext};
 use serde::{Deserialize, Serialize};
 
-use crate::world::{
+use crate::{world::{
     events::{BlockDamageSetEvent, BlockHitEvent, ChunkUpdatedEvent},
     BlockCoord, BlockId, Level, LevelSystemSet,
-};
+}, actors::Player};
 
-use super::SwingItemEvent;
+use super::{SwingItemEvent, inventory::Inventory, CreatorItem, ItemStack, MaxStackSize, PickupItemEvent, EquipItemEvent};
 
 pub mod abilities;
 
@@ -82,6 +82,11 @@ fn deal_block_damage(
     tool_query: Query<&Tool>,
     level: Res<Level>,
     id_query: Query<&BlockId>,
+    mut player_query: Query<&mut Inventory, With<Player>>,
+    block_query: Query<&CreatorItem>,
+    data_query: Query<&MaxStackSize>,
+    mut pickup_writer: EventWriter<PickupItemEvent>,
+    mut equip_writer: EventWriter<EquipItemEvent>,
     mut writer: EventWriter<BlockDamageSetEvent>,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
     mut commands: Commands,
@@ -105,7 +110,8 @@ fn deal_block_damage(
                         .copied() //entity that hit the block had tool power
                         .unwrap_or_default(),
                 ); //...or nothing and use default tool
-            level.damage_block(
+            //todo - remove this once item drops are entities
+            if let Some(broken) = level.damage_block(
                 *block_position,
                 calc_block_damage(resistance, tool),
                 *item,
@@ -113,7 +119,13 @@ fn deal_block_damage(
                 &mut writer,
                 &mut update_writer,
                 &mut commands,
-            );
+            ) {
+                if let Some(mut inv) = user.map(|e| player_query.get_mut(e).ok()).flatten() {
+                    if let Ok(CreatorItem(item)) = block_query.get(broken) {
+                        inv.pickup_item(ItemStack::new(*item, 1), &data_query, &mut pickup_writer, &mut equip_writer);
+                    }
+                }
+            }
         }
     }
 }

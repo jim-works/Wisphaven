@@ -1,36 +1,6 @@
 (
   resources: {},
   entities: {
-    1: (
-      components: {
-        "recursia::items::ItemName": (
-          namespace: "core",
-          name: "grass_block",
-        ),
-        "recursia::items::block_item::BlockItem": (
-          BlockName(
-            namespace: "core",
-            name: "grass"
-          )
-        ),
-        "recursia::items::item_attributes::ConsumableItem": (),
-      },
-    ),
-    2: (
-      components: {
-        "recursia::items::ItemName": (
-          namespace: "core",
-          name: "tnt_block",
-        ),
-        "recursia::items::block_item::BlockItem": (
-          BlockName(
-            namespace: "core",
-            name: "tnt"
-          )
-        ),
-        "recursia::items::item_attributes::ConsumableItem": (),
-      },
-    ),
     3: (
       components: {
         "recursia::items::ItemName": (

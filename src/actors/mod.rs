@@ -18,6 +18,7 @@ pub mod glowjelly;
 pub mod personality;
 pub mod skeleton_pirate;
 pub mod world_anchor;
+pub mod ghost;
 
 #[cfg(test)]
 mod test;

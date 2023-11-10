@@ -1,37 +1,46 @@
-use std::{ops::AddAssign, sync::Arc, path::PathBuf};
+use std::{ops::AddAssign, path::PathBuf, sync::Arc};
 
-use crate::{util::Direction, serialization::BlockTextureMap};
+use crate::{
+    items::{loot::{LootTable, LootTableDrop}, block_item::BlockItem, ItemName, item_attributes::ConsumableItem, CreatorItem, ItemBundle, MaxStackSize},
+    serialization::BlockTextureMap,
+    util::Direction,
+};
 use bevy::{prelude::*, utils::HashMap};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use super::{chunk::{ChunkCoord, CHUNK_SIZE_I32, ChunkIdx}, Id};
+use super::{
+    chunk::{ChunkCoord, ChunkIdx, CHUNK_SIZE_I32},
+    Id,
+};
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BlockType {
     #[default]
     Empty,
-    Filled(Entity)
+    Filled(Entity),
 }
 
-#[derive(Default, Clone, Debug, PartialEq, Eq, Hash, Component, Reflect, Serialize, Deserialize)]
+#[derive(
+    Default, Clone, Debug, PartialEq, Eq, Hash, Component, Reflect, Serialize, Deserialize,
+)]
 #[reflect(Component)]
 pub struct BlockName {
     pub namespace: String,
-    pub name: String
+    pub name: String,
 }
 
 impl BlockName {
     pub fn new(namespace: impl Into<String>, name: impl Into<String>) -> Self {
         Self {
             namespace: namespace.into(),
-            name: name.into()
+            name: name.into(),
         }
     }
     //creates a name for the core namespace
     pub fn core(name: impl Into<String>) -> Self {
         Self {
             namespace: "core".into(),
-            name: name.into()
+            name: name.into(),
         }
     }
 }
@@ -82,7 +91,7 @@ pub struct BlockEntity(Vec<BlockData>);
 #[reflect(Component)]
 pub struct NamedBlockMesh {
     pub use_transparent_shader: bool,
-    pub shape: NamedBlockMeshShape
+    pub shape: NamedBlockMeshShape,
 }
 
 impl NamedBlockMesh {
@@ -113,10 +122,18 @@ impl NamedBlockMeshShape {
     pub fn to_block_mesh(self, map: &BlockTextureMap) -> BlockMeshShape {
         match self {
             NamedBlockMeshShape::Empty => BlockMeshShape::Empty,
-            NamedBlockMeshShape::Uniform(name) => BlockMeshShape::Uniform(*map.0.get(&name).unwrap()),
-            NamedBlockMeshShape::MultiTexture(names) => BlockMeshShape::MultiTexture(names.map(|name| *map.0.get(&name).unwrap())),
-            NamedBlockMeshShape::BottomSlab(height, names) => BlockMeshShape::BottomSlab(height, names.map(|name| *map.0.get(&name).unwrap())),
-            NamedBlockMeshShape::Cross(names) => BlockMeshShape::Cross(names.map(|name| *map.0.get(&name).unwrap()))
+            NamedBlockMeshShape::Uniform(name) => {
+                BlockMeshShape::Uniform(*map.0.get(&name).unwrap())
+            }
+            NamedBlockMeshShape::MultiTexture(names) => {
+                BlockMeshShape::MultiTexture(names.map(|name| *map.0.get(&name).unwrap()))
+            }
+            NamedBlockMeshShape::BottomSlab(height, names) => {
+                BlockMeshShape::BottomSlab(height, names.map(|name| *map.0.get(&name).unwrap()))
+            }
+            NamedBlockMeshShape::Cross(names) => {
+                BlockMeshShape::Cross(names.map(|name| *map.0.get(&name).unwrap()))
+            }
         }
     }
 }
@@ -125,7 +142,7 @@ impl NamedBlockMeshShape {
 pub struct BlockMesh {
     pub use_transparent_shader: bool,
     pub shape: BlockMeshShape,
-    pub single_mesh: Option<Handle<Mesh>>
+    pub single_mesh: Option<Handle<Mesh>>,
 }
 
 #[derive(Clone, PartialEq, Default)]
@@ -142,7 +159,7 @@ pub enum BlockMeshShape {
     BottomSlab(f32, [u32; 6]),
     //x-shaped criss-cross (like minecraft flower). each face is a unit square at a 45 degree angle centered in the block
     //technically 4 faces, two for each direction (forward and backwards face) so we don't have to have a special two-sided material
-    Cross([u32; 2])
+    Cross([u32; 2]),
 }
 
 impl BlockMeshShape {
@@ -184,7 +201,7 @@ impl BlockPhysics {
 
 //0 = healthy, 1 = broken
 #[derive(Clone, Copy)]
-pub struct BlockDamage{
+pub struct BlockDamage {
     pub damage: f32,
     pub seconds_to_next_heal: f32,
 }
@@ -195,27 +212,29 @@ impl BlockDamage {
     pub fn new(damage: f32) -> Self {
         Self {
             damage,
-            seconds_to_next_heal: Self::SECONDS_PER_TICK
+            seconds_to_next_heal: Self::SECONDS_PER_TICK,
         }
     }
     pub fn with_time_reset(self) -> Self {
         Self {
             damage: self.damage,
-            seconds_to_next_heal: Self::SECONDS_PER_TICK
+            seconds_to_next_heal: Self::SECONDS_PER_TICK,
         }
     }
 }
 
 impl Default for BlockDamage {
     fn default() -> Self {
-        Self { damage: Default::default(), seconds_to_next_heal: Self::SECONDS_PER_TICK }
+        Self {
+            damage: Default::default(),
+            seconds_to_next_heal: Self::SECONDS_PER_TICK,
+        }
     }
 }
 
-
 #[derive(Resource)]
 pub struct BlockResources {
-    pub registry: Arc<BlockRegistry>
+    pub registry: Arc<BlockRegistry>,
 }
 
 pub type BlockNameIdMap = HashMap<BlockName, BlockId>;
@@ -225,7 +244,7 @@ pub struct BlockRegistry {
     pub basic_entities: Vec<Entity>,
     pub dynamic_generators: Vec<Box<dyn BlockGenerator>>,
     //block ids may not be stable across program runs
-    pub id_map: BlockNameIdMap
+    pub id_map: BlockNameIdMap,
 }
 
 impl BlockRegistry {
@@ -233,7 +252,16 @@ impl BlockRegistry {
     pub fn add_basic(&mut self, name: BlockName, entity: Entity, commands: &mut Commands) {
         info!("added block {:?}", name);
         let id = BlockId(Id::Basic(self.basic_entities.len() as u32));
-        commands.entity(entity).insert(id);
+        let item_name = ItemName::core(name.name.clone());
+        let item = commands.spawn((ItemBundle { name: item_name, max_stack_size: MaxStackSize(999) } , BlockItem(entity), ConsumableItem)).id();
+        commands.entity(entity).insert((
+            id,
+            LootTable {
+                drops: vec![LootTableDrop::Item(item)],
+                ..default()
+            },
+            CreatorItem(item)
+        ));
         self.basic_entities.push(entity);
         self.id_map.insert(name, id);
     }
@@ -242,16 +270,11 @@ impl BlockRegistry {
         self.dynamic_generators.push(generator);
         self.id_map.insert(name, id);
     }
-    pub fn create_basic(&mut self, name: BlockName, mesh: BlockMesh, physics: BlockPhysics, commands: &mut Commands) -> Entity{
-        let entity = commands.spawn((name.clone(), mesh, physics)).id();
-        self.add_basic(name, entity, commands);
-        entity
-    }
     pub fn get_basic(&self, name: &BlockName) -> Option<Entity> {
         let id = self.id_map.get(name)?;
         match id {
             BlockId(Id::Basic(id)) => self.basic_entities.get(*id as usize).copied(),
-            _ => None
+            _ => None,
         }
     }
     pub fn get_id(&self, name: &BlockName) -> BlockId {
@@ -260,7 +283,7 @@ impl BlockRegistry {
             None => {
                 error!("Couldn't find block id for name {:?}", name);
                 BlockId(Id::Empty)
-            },
+            }
         }
     }
     pub fn get_entity(&self, block_id: BlockId, commands: &mut Commands) -> Option<Entity> {
@@ -274,7 +297,12 @@ impl BlockRegistry {
             }),
         }
     }
-    pub fn generate_entity(&self, block_id: BlockId, position: BlockCoord, commands: &mut Commands) -> Option<Entity> {
+    pub fn generate_entity(
+        &self,
+        block_id: BlockId,
+        position: BlockCoord,
+        commands: &mut Commands,
+    ) -> Option<Entity> {
         match block_id {
             BlockId(Id::Empty) => None,
             BlockId(Id::Basic(id)) => self.basic_entities.get(id as usize).copied(),
@@ -294,7 +322,12 @@ impl BlockRegistry {
             None => BlockType::Empty,
         }
     }
-    pub fn generate_block_type(&self, id: BlockId, pos: BlockCoord, commands: &mut Commands) -> BlockType {
+    pub fn generate_block_type(
+        &self,
+        id: BlockId,
+        pos: BlockCoord,
+        commands: &mut Commands,
+    ) -> BlockType {
         match self.generate_entity(id, pos, commands) {
             Some(id) => BlockType::Filled(id),
             None => BlockType::Empty,
@@ -303,7 +336,7 @@ impl BlockRegistry {
     pub fn remove_entity(id_query: &Query<&BlockId>, b: BlockType, commands: &mut Commands) {
         match b {
             BlockType::Filled(entity) => match id_query.get(entity) {
-                Ok(BlockId(Id::Empty)) | Ok(BlockId(Id::Basic(_))) | Err(_) => {},
+                Ok(BlockId(Id::Empty)) | Ok(BlockId(Id::Basic(_))) | Err(_) => {}
                 Ok(BlockId(Id::Dynamic(_))) => commands.entity(entity).despawn_recursive(),
             },
             BlockType::Empty => {}
@@ -386,7 +419,7 @@ impl std::ops::Mul<i32> for BlockCoord {
     type Output = BlockCoord;
 
     fn mul(self, rhs: i32) -> Self::Output {
-        Self::new(self.x*rhs,self.y*rhs,self.z*rhs)
+        Self::new(self.x * rhs, self.y * rhs, self.z * rhs)
     }
 }
 
@@ -408,23 +441,19 @@ impl From<ChunkCoord> for BlockCoord {
 
 impl From<ChunkIdx> for BlockCoord {
     fn from(v: ChunkIdx) -> Self {
-        BlockCoord::new(
-            v.x as i32,
-            v.y as i32,
-            v.z as i32,
-        )
+        BlockCoord::new(v.x as i32, v.y as i32, v.z as i32)
     }
 }
 
 impl From<Direction> for BlockCoord {
     fn from(value: Direction) -> Self {
         match value {
-            Direction::PosX => BlockCoord::new(1,0,0),
-            Direction::PosY => BlockCoord::new(0,1,0),
-            Direction::PosZ => BlockCoord::new(0,0,1),
-            Direction::NegX => BlockCoord::new(-1,0,0),
-            Direction::NegY => BlockCoord::new(0,-1,0),
-            Direction::NegZ => BlockCoord::new(0,0,-1),
+            Direction::PosX => BlockCoord::new(1, 0, 0),
+            Direction::PosY => BlockCoord::new(0, 1, 0),
+            Direction::PosZ => BlockCoord::new(0, 0, 1),
+            Direction::NegX => BlockCoord::new(-1, 0, 0),
+            Direction::NegY => BlockCoord::new(0, -1, 0),
+            Direction::NegZ => BlockCoord::new(0, 0, -1),
         }
     }
 }

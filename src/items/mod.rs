@@ -1,20 +1,21 @@
-use std::{sync::Arc, path::PathBuf};
+use std::{path::PathBuf, sync::Arc};
 
 use bevy::{prelude::*, utils::HashMap};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::world::{LevelSystemSet, Id};
+use crate::world::{Id, LevelSystemSet};
 
 use self::item_attributes::ItemAttributesPlugin;
 
-pub mod inventory;
-pub mod block_item;
-pub mod weapons;
-pub mod tools;
-pub mod debug_items;
 pub mod actor_items;
+pub mod block_item;
+pub mod debug_items;
+pub mod inventory;
 pub mod item_attributes;
+pub mod loot;
 pub mod time_items;
+pub mod tools;
+pub mod weapons;
 
 pub struct ItemsPlugin;
 
@@ -26,17 +27,31 @@ impl Plugin for ItemsPlugin {
             .add_event::<PickupItemEvent>()
             .add_event::<DropItemEvent>()
             .add_event::<SwingItemEvent>()
-            .add_plugins((debug_items::DebugItems, tools::ToolsPlugin, actor_items::ActorItems, weapons::WeaponItemPlugin, ItemAttributesPlugin, time_items::TimeItemsPlugin))
-            .add_systems(Update, (block_item::use_block_item, block_item::use_mega_block_item).in_set(LevelSystemSet::Main))
-            .add_systems(Update, inventory::tick_item_timers.in_set(LevelSystemSet::Main))
-
+            .add_plugins((
+                debug_items::DebugItems,
+                tools::ToolsPlugin,
+                actor_items::ActorItems,
+                weapons::WeaponItemPlugin,
+                ItemAttributesPlugin,
+                time_items::TimeItemsPlugin,
+                loot::LootPlugin,
+            ))
+            .add_systems(
+                Update,
+                (
+                    block_item::use_block_entity_item,
+                    block_item::use_mega_block_item,
+                )
+                    .in_set(LevelSystemSet::Main),
+            )
+            .add_systems(
+                Update,
+                inventory::tick_item_timers.in_set(LevelSystemSet::Main),
+            )
             .register_type::<NamedItemIcon>()
             .register_type::<ItemName>()
             .register_type::<weapons::MeleeWeaponItem>()
-            .register_type::<block_item::BlockItem>()
-            .register_type::<block_item::MegaBlockItem>()
-
-        ;
+            .register_type::<block_item::MegaBlockItem>();
     }
 }
 
@@ -47,28 +62,33 @@ pub struct ItemStack {
 }
 impl ItemStack {
     pub(crate) fn new(id: Entity, size: u32) -> ItemStack {
-        Self {id, size}
+        Self { id, size }
     }
 }
 
-#[derive(Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
+#[derive(
+    Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize,
+)]
 #[reflect(Component)]
 pub struct ItemName {
     pub namespace: String,
     pub name: String,
 }
 
-
-
-#[derive(Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
+#[derive(
+    Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize,
+)]
 #[reflect(Component)]
 pub struct NamedItemIcon {
-    pub path: PathBuf
+    pub path: PathBuf,
 }
 
 impl ItemName {
     pub fn new(namespace: impl Into<String>, name: impl Into<String>) -> Self {
-        Self { namespace: namespace.into(), name: name.into() }
+        Self {
+            namespace: namespace.into(),
+            name: name.into(),
+        }
     }
     pub fn core(name: impl Into<String>) -> Self {
         Self::new("core", name)
@@ -78,7 +98,6 @@ impl ItemName {
 #[derive(Bundle)]
 pub struct ItemBundle {
     pub name: ItemName,
-    pub icon: ItemIcon,
     pub max_stack_size: MaxStackSize,
 }
 
@@ -103,65 +122,69 @@ impl From<ItemId> for Id {
 #[reflect(Component)]
 pub struct MaxStackSize(pub u32);
 
-pub fn create_item<T: Bundle>(info: ItemBundle, icon: ItemIcon, bundle: T, commands: &mut Commands) -> Entity {
+pub fn create_item<T: Bundle>(
+    info: ItemBundle,
+    icon: ItemIcon,
+    bundle: T,
+    commands: &mut Commands,
+) -> Entity {
     create_raw_item(info, (icon, bundle), commands)
 }
 
 //lessens the requirements for an item (for example without an icon)
 pub fn create_raw_item<T: Bundle>(info: ItemBundle, bundle: T, commands: &mut Commands) -> Entity {
-    commands.spawn(
-        (info,
-        bundle)
-    ).id()
+    commands.spawn((info, bundle)).id()
 }
 
 #[derive(Component)]
 pub struct ItemIcon(pub Handle<Image>);
 
-
-
 #[derive(Event)]
 pub struct UseItemEvent {
     pub user: Entity,
     pub inventory_slot: usize,
-    pub stack: ItemStack, 
-    pub tf: GlobalTransform
+    pub stack: ItemStack,
+    pub tf: GlobalTransform,
 }
 #[derive(Event)]
-pub struct SwingItemEvent{
+pub struct SwingItemEvent {
     pub user: Entity,
     pub inventory_slot: usize,
-    pub stack: ItemStack, 
-    pub tf: GlobalTransform
+    pub stack: ItemStack,
+    pub tf: GlobalTransform,
 }
 #[derive(Event)]
-pub struct EquipItemEvent{
+pub struct EquipItemEvent {
     pub user: Entity,
     pub inventory_slot: usize,
-    pub stack: ItemStack
+    pub stack: ItemStack,
 }
 #[derive(Event)]
-pub struct UnequipItemEvent{
+pub struct UnequipItemEvent {
     pub user: Entity,
     pub inventory_slot: usize,
-    pub stack: ItemStack
+    pub stack: ItemStack,
 }
 #[derive(Event)]
-pub struct PickupItemEvent{
+pub struct PickupItemEvent {
     pub user: Entity,
     //no slot because we can pick up items into multiple slots at once
-    pub stack: ItemStack
+    pub stack: ItemStack,
 }
 #[derive(Event)]
-pub struct DropItemEvent{
+pub struct DropItemEvent {
     pub user: Entity,
     pub inventory_slot: usize,
-    pub stack: ItemStack
+    pub stack: ItemStack,
 }
+
+#[derive(Component)]
+// place on blocks, actors, etc to denote that they are placed/spawned by the referenced item entity
+pub struct CreatorItem(pub Entity);
 
 #[derive(Resource)]
 pub struct ItemResources {
-    pub registry: Arc<ItemRegistry>
+    pub registry: Arc<ItemRegistry>,
 }
 
 pub type ItemNameIdMap = HashMap<ItemName, ItemId>;
@@ -176,7 +199,7 @@ pub struct ItemRegistry {
     pub basic_entities: Vec<Entity>,
     pub dynamic_generators: Vec<Box<dyn ItemGenerator>>,
     //block ids may not be stable across program runs
-    pub id_map: ItemNameIdMap
+    pub id_map: ItemNameIdMap,
 }
 
 impl ItemRegistry {
@@ -193,7 +216,7 @@ impl ItemRegistry {
         self.dynamic_generators.push(generator);
         self.id_map.insert(name, id);
     }
-    pub fn create_basic(&mut self, bundle: ItemBundle, commands: &mut Commands) -> Entity{
+    pub fn create_basic(&mut self, bundle: ItemBundle, commands: &mut Commands) -> Entity {
         let name = bundle.name.clone();
         let entity = commands.spawn(bundle).id();
         self.add_basic(name, entity, commands);
@@ -203,7 +226,7 @@ impl ItemRegistry {
         let id = self.id_map.get(name)?;
         match id {
             ItemId(Id::Basic(id)) => self.basic_entities.get(*id as usize).copied(),
-            _ => None
+            _ => None,
         }
     }
     pub fn get_id(&self, name: &ItemName) -> ItemId {
@@ -212,7 +235,7 @@ impl ItemRegistry {
             None => {
                 error!("Couldn't find block id for name {:?}", name);
                 ItemId(Id::Empty)
-            },
+            }
         }
     }
     pub fn get_entity(&self, item_id: ItemId, commands: &mut Commands) -> Option<Entity> {
