@@ -39,6 +39,7 @@ impl Plugin for ActorPlugin {
             coin::CoinPlugin,
             player::PlayerPlugin,
             ai::AIPlugin,
+            ghost::GhostPlugin,
         ))
         .add_systems(Update, idle_action_system)
         .insert_resource(ActorResources {
