@@ -1,14 +1,14 @@
 use bevy::prelude::*;
 
-use crate::world::{LevelSystemSet, atmosphere::{SpeedupCalendarEvent, Calendar}};
+use crate::world::atmosphere::{SpeedupCalendarEvent, Calendar};
 
-use super::UseItemEvent;
+use super::{UseItemEvent, ItemSystemSet};
 
 pub struct TimeItemsPlugin;
 
 impl Plugin for TimeItemsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, use_skip_to_night_item.in_set(LevelSystemSet::Main))
+        app.add_systems(Update, use_skip_to_night_item.in_set(ItemSystemSet::ItemUsageProcessing))
             .register_type::<SkipToNightItem>();
     }
 }

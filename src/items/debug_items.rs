@@ -1,15 +1,15 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::{QueryFilter, RapierContext};
 
-use crate::{actors::personality::components::*, world::LevelSystemSet};
+use crate::actors::personality::components::*;
 
-use super::UseItemEvent;
+use super::{UseItemEvent, ItemSystemSet};
 
 pub struct DebugItems;
 
 impl Plugin for DebugItems {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, use_personality_item.in_set(LevelSystemSet::Main))
+        app.add_systems(Update, use_personality_item.in_set(ItemSystemSet::ItemUsageProcessing))
             .register_type::<PersonalityTester>();
     }
 }

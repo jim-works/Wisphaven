@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{world::{
     events::{BlockDamageSetEvent, BlockHitEvent, ChunkUpdatedEvent},
-    BlockCoord, BlockId, Level, LevelSystemSet,
+    BlockCoord, BlockId, Level,
 }, actors::Player};
 
-use super::{SwingItemEvent, inventory::Inventory, CreatorItem, ItemStack, MaxStackSize, PickupItemEvent, EquipItemEvent};
+use super::{SwingItemEvent, inventory::Inventory, CreatorItem, ItemStack, MaxStackSize, PickupItemEvent, EquipItemEvent, ItemSystemSet};
 
 pub mod abilities;
 
@@ -20,7 +20,7 @@ impl Plugin for ToolsPlugin {
             .register_type::<ToolResistance>()
             .add_systems(
                 Update,
-                (on_swing, deal_block_damage).in_set(LevelSystemSet::Main),
+                (on_swing, deal_block_damage).in_set(ItemSystemSet::ItemUsageProcessing),
             );
     }
 }

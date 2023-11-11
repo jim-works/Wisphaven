@@ -1,18 +1,15 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::{
-    actors::{coin::SpawnCoinEvent, AttackEvent, CombatInfo, Damage, CombatantBundle},
-    world::LevelSystemSet,
-};
+use crate::actors::{coin::SpawnCoinEvent, AttackEvent, CombatInfo, Damage, CombatantBundle};
 
-use super::{SwingItemEvent, UseItemEvent};
+use super::{SwingItemEvent, UseItemEvent, ItemSystemSet};
 
 pub struct WeaponItemPlugin;
 
 impl Plugin for WeaponItemPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (attack_melee, launch_coin).in_set(LevelSystemSet::Main))
+        app.add_systems(Update, (attack_melee, launch_coin).in_set(ItemSystemSet::ItemUsageProcessing))
             .register_type::<CoinLauncherItem>();
     }
 }

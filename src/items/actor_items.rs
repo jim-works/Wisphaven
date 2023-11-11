@@ -2,18 +2,15 @@ use bevy::prelude::*;
 use bevy_hanabi::prelude::*;
 use bevy_rapier3d::prelude::{CollisionGroups, Group, QueryFilter, RapierContext};
 
-use crate::{
-    actors::{ActorName, ActorResources},
-    world::LevelSystemSet,
-};
+use crate::actors::{ActorName, ActorResources};
 
-use super::UseItemEvent;
+use super::{UseItemEvent, ItemSystemSet};
 
 pub struct ActorItems;
 
 impl Plugin for ActorItems {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, do_spawn_actors.in_set(LevelSystemSet::Main))
+        app.add_systems(Update, do_spawn_actors.in_set(ItemSystemSet::ItemUsageProcessing))
             .add_systems(Startup, setup)
             .register_type::<SpawnActorItem>();
     }

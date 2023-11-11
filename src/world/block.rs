@@ -1,7 +1,12 @@
 use std::{ops::AddAssign, path::PathBuf, sync::Arc};
 
 use crate::{
-    items::{loot::{LootTable, LootTableDrop}, block_item::BlockItem, ItemName, item_attributes::ConsumableItem, CreatorItem, ItemBundle, MaxStackSize},
+    items::{
+        block_item::BlockItem,
+        item_attributes::ConsumableItem,
+        loot::{LootTable, LootTableDrop},
+        CreatorItem, ItemBundle, ItemName, MaxStackSize,
+    },
     serialization::BlockTextureMap,
     util::Direction,
 };
@@ -253,14 +258,23 @@ impl BlockRegistry {
         info!("added block {:?}", name);
         let id = BlockId(Id::Basic(self.basic_entities.len() as u32));
         let item_name = ItemName::core(name.name.clone());
-        let item = commands.spawn((ItemBundle { name: item_name, max_stack_size: MaxStackSize(999) } , BlockItem(entity), ConsumableItem)).id();
+        let item = commands
+            .spawn((
+                ItemBundle {
+                    name: item_name,
+                    max_stack_size: MaxStackSize(999),
+                },
+                BlockItem(entity),
+                ConsumableItem,
+            ))
+            .id();
         commands.entity(entity).insert((
             id,
             LootTable {
                 drops: vec![LootTableDrop::Item(item)],
                 ..default()
             },
-            CreatorItem(item)
+            CreatorItem(item),
         ));
         self.basic_entities.push(entity);
         self.id_map.insert(name, id);
@@ -455,5 +469,28 @@ impl From<Direction> for BlockCoord {
             Direction::NegY => BlockCoord::new(0, -1, 0),
             Direction::NegZ => BlockCoord::new(0, 0, -1),
         }
+    }
+}
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct BlockVolume {
+    pub min_corner: BlockCoord,
+    pub max_corner: BlockCoord,
+}
+
+impl BlockVolume {
+    //returns true if min <= other min and max >= other max.
+    //contains itself!
+    pub fn contains(&self, other: BlockVolume) -> bool {
+        (self.min_corner.x <= other.min_corner.x
+            && self.min_corner.y <= other.min_corner.y
+            && self.min_corner.z <= other.min_corner.z)
+            && (self.max_corner.x >= other.max_corner.x
+                && self.max_corner.y >= other.max_corner.y
+                && self.max_corner.z >= other.max_corner.z)
+    }
+
+    pub fn new(min_corner: BlockCoord, max_corner: BlockCoord) -> Self {
+        BlockVolume { min_corner, max_corner }
     }
 }

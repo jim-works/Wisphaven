@@ -9,6 +9,7 @@ use self::item_attributes::ItemAttributesPlugin;
 
 pub mod actor_items;
 pub mod block_item;
+pub mod crafting;
 pub mod debug_items;
 pub mod inventory;
 pub mod item_attributes;
@@ -27,6 +28,15 @@ impl Plugin for ItemsPlugin {
             .add_event::<PickupItemEvent>()
             .add_event::<DropItemEvent>()
             .add_event::<SwingItemEvent>()
+            .configure_sets(
+                Update,
+                (
+                    ItemSystemSet::ItemUsage.in_set(LevelSystemSet::Main),
+                    ItemSystemSet::ItemUsageProcessing.in_set(LevelSystemSet::Main),
+                    ItemSystemSet::ItemDropPickup.in_set(LevelSystemSet::Main),
+                    ItemSystemSet::ItemDropPickupProcessing.in_set(LevelSystemSet::Main),
+                ).chain(),
+            )
             .add_plugins((
                 debug_items::DebugItems,
                 tools::ToolsPlugin,
@@ -35,6 +45,7 @@ impl Plugin for ItemsPlugin {
                 ItemAttributesPlugin,
                 time_items::TimeItemsPlugin,
                 loot::LootPlugin,
+                crafting::CraftingPlugin,
             ))
             .add_systems(
                 Update,
@@ -42,17 +53,25 @@ impl Plugin for ItemsPlugin {
                     block_item::use_block_entity_item,
                     block_item::use_mega_block_item,
                 )
-                    .in_set(LevelSystemSet::Main),
+                    .in_set(ItemSystemSet::ItemUsageProcessing),
             )
             .add_systems(
                 Update,
-                inventory::tick_item_timers.in_set(LevelSystemSet::Main),
+                inventory::tick_item_timers.in_set(ItemSystemSet::ItemUsage),
             )
             .register_type::<NamedItemIcon>()
             .register_type::<ItemName>()
             .register_type::<weapons::MeleeWeaponItem>()
             .register_type::<block_item::MegaBlockItem>();
     }
+}
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub enum ItemSystemSet {
+    ItemUsage,
+    ItemUsageProcessing,
+    ItemDropPickup,
+    ItemDropPickupProcessing,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

@@ -3,14 +3,14 @@ use std::time::Duration;
 use bevy::prelude::*;
 use serde::{Serialize, Deserialize};
 
-use super::{UseItemEvent, DropItemEvent, UnequipItemEvent, inventory::Inventory};
+use super::{UseItemEvent, DropItemEvent, UnequipItemEvent, inventory::Inventory, ItemSystemSet};
 
 pub struct ItemAttributesPlugin;
 
 impl Plugin for ItemAttributesPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_systems(Update, consume_items)
+            .add_systems(Update, consume_items.in_set(ItemSystemSet::ItemDropPickup))
             .register_type::<ConsumableItem>()
             .register_type::<ItemSwingSpeed>()
             .register_type::<ItemUseSpeed>()
