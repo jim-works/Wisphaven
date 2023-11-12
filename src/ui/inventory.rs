@@ -307,7 +307,6 @@ fn update_counts(
         return;
     }
     if let Ok(inv) = inventory_query.get_single() {
-        info!("Updating inventory counts!");
         for (mut vis, mut text, ui_slot) in label_query.iter_mut() {
             match inv.get(ui_slot.0) {
                 Some(stack) => {
@@ -338,7 +337,6 @@ fn update_icons(
         return;
     }
     if let Ok(inv) = inventory_query.get_single() {
-        info!("Updating inventory icons!");
         for (index, (mut vis, mut image, mut ui_slot)) in label_query.iter_mut().enumerate() {
             if let Some(stored_entity) = ui_slot.1 {
                 if let Some(ec) = commands.get_entity(stored_entity) {
@@ -369,7 +367,6 @@ fn update_icons(
                                         ui_slot.1 = Some(preview_entity);
                                         image.texture = preview;
                                         *vis.as_mut() = Visibility::Inherited;
-                                        info!("CREATED BLOCK PREVIEW");
                                     }
                                     None => *vis.as_mut() = Visibility::Hidden,
                                 }

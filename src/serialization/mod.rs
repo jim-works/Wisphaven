@@ -11,7 +11,7 @@ use crate::{
     world::{
         chunk::{ArrayChunk, ChunkCoord, ChunkTrait, BLOCKS_PER_CHUNK},
         events::CreateLevelEvent,
-        BlockId, BlockRegistry, BlockType, Id, LevelLoadState, LevelSystemSet,
+        BlockId, BlockRegistry, BlockType, Id, LevelLoadState, LevelSystemSet, BlockResources,
     },
 };
 
@@ -58,12 +58,13 @@ impl Plugin for SerializationPlugin {
                     apply_deferred,
                     setup::start_loading_blocks,
                     setup::start_loading_items,
+                    setup::start_loading_recipes,
                 )
                     .chain(),
             )
             .add_systems(
                 Update,
-                (setup::load_block_registry, setup::load_item_registry)
+                (setup::load_block_registry, setup::load_item_registry, setup::load_recipe_list.run_if(resource_exists::<BlockResources>()))
                     .run_if(in_state(state::GameLoadState::LoadingAssets)),
             )
             .add_systems(
@@ -153,6 +154,9 @@ pub struct LoadingBlocks;
 
 #[derive(Component)]
 pub struct LoadingItems;
+
+#[derive(Component)]
+pub struct LoadingRecipes;
 
 #[derive(Resource)]
 pub struct SaveTimer(Timer);

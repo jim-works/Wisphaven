@@ -5,15 +5,24 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::items::{ItemRegistry, ItemResources, ItemName, NamedItemIcon, ItemIcon, ItemId, ItemNameIdMap};
-use crate::mesher::{TerrainTexture, mesh_single_block};
-use crate::serialization::{LoadingBlocks, LoadingItems};
-use crate::serialization::db::{LevelDB, LevelDBErr};
-use crate::serialization::queries::{CREATE_CHUNK_TABLE, CREATE_WORLD_INFO_TABLE, LOAD_WORLD_INFO, INSERT_WORLD_INFO};
-use crate::world::{LevelLoadState, BlockName, BlockResources, BlockRegistry, BlockNameIdMap, BlockId, Id, LevelData, NamedBlockMesh};
-use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
+use crate::items::crafting::recipes::{BasicBlockRecipe, NamedBasicBlockRecipe, RecipeList};
 
-use super::{BlockTextureMap, LoadedToSavedIdMap, ItemTextureMap, SavedToLoadedIdMap};
+use crate::items::{
+    ItemIcon, ItemId, ItemName, ItemNameIdMap, ItemRegistry, ItemResources, NamedItemIcon,
+};
+use crate::mesher::{mesh_single_block, TerrainTexture};
+use crate::serialization::db::{LevelDB, LevelDBErr};
+use crate::serialization::queries::{
+    CREATE_CHUNK_TABLE, CREATE_WORLD_INFO_TABLE, INSERT_WORLD_INFO, LOAD_WORLD_INFO,
+};
+use crate::serialization::{LoadingBlocks, LoadingItems, LoadingRecipes};
+use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
+use crate::world::{
+    BlockId, BlockName, BlockNameIdMap, BlockRegistry, BlockResources, Id,
+    LevelData, LevelLoadState, NamedBlockMesh,
+};
+
+use super::{BlockTextureMap, ItemTextureMap, LoadedToSavedIdMap, SavedToLoadedIdMap};
 
 pub fn load_settings() -> Settings {
     Settings::default()
@@ -25,21 +34,35 @@ pub fn load_terrain_texture(
     assets: Res<AssetServer>,
     settings: Res<Settings>,
 ) {
-    let textures: Vec<Handle<Image>> = assets.load_folder(settings.block_tex_path.as_path())
-                                            .into_iter()
-                                            .flat_map(|v| v.into_iter().map(|t| t.typed()))
-                                            .collect();
+    let textures: Vec<Handle<Image>> = assets
+        .load_folder(settings.block_tex_path.as_path())
+        .into_iter()
+        .flat_map(|v| v.into_iter().map(|t| t.typed()))
+        .collect();
     if textures.len() == 0 {
-        warn!("No block textures found at {}", settings.block_tex_path.as_path().display());
+        warn!(
+            "No block textures found at {}",
+            settings.block_tex_path.as_path().display()
+        );
         return;
     }
-    
+
     let mut names = HashMap::new();
     for (i, texture) in textures.iter().enumerate() {
         //`get_handle_path` returns "textures/blocks/folder/name.png"
         //this removes the "textures/blocks" to leave us with "folder/name.png"
-        let texture_name: PathBuf = assets.get_handle_path(texture).unwrap().path().strip_prefix(settings.block_tex_path.as_path()).unwrap().to_path_buf();
-        info!("Loaded texture name {} with id {}", texture_name.display(), i);
+        let texture_name: PathBuf = assets
+            .get_handle_path(texture)
+            .unwrap()
+            .path()
+            .strip_prefix(settings.block_tex_path.as_path())
+            .unwrap()
+            .to_path_buf();
+        info!(
+            "Loaded texture name {} with id {}",
+            texture_name.display(),
+            i
+        );
         names.insert(texture_name, i as u32);
     }
     commands.insert_resource(BlockTextureMap(names));
@@ -52,74 +75,122 @@ pub fn load_item_textures(
     assets: Res<AssetServer>,
     settings: Res<Settings>,
 ) {
-    let textures: Vec<Handle<Image>> = assets.load_folder(settings.item_tex_path.as_path())
-                                            .into_iter()
-                                            .flat_map(|v| v.into_iter().map(|t| t.typed()))
-                                            .collect();
+    let textures: Vec<Handle<Image>> = assets
+        .load_folder(settings.item_tex_path.as_path())
+        .into_iter()
+        .flat_map(|v| v.into_iter().map(|t| t.typed()))
+        .collect();
     if textures.len() == 0 {
-        warn!("No item textures found at {}", settings.block_tex_path.as_path().display());
+        warn!(
+            "No item textures found at {}",
+            settings.block_tex_path.as_path().display()
+        );
         return;
     }
-    
+
     let mut names = HashMap::new();
     for texture in textures.iter() {
         //`get_handle_path` returns "textures/items/folder/name.png"
         //this removes the "textures/items" to leave us with "folder/name.png"
-        let texture_name: PathBuf = assets.get_handle_path(texture).unwrap().path().strip_prefix(settings.item_tex_path.as_path()).unwrap().to_path_buf();
+        let texture_name: PathBuf = assets
+            .get_handle_path(texture)
+            .unwrap()
+            .path()
+            .strip_prefix(settings.item_tex_path.as_path())
+            .unwrap()
+            .to_path_buf();
         info!("Loaded item texture name {}", texture_name.display());
         names.insert(texture_name, texture.clone());
     }
     commands.insert_resource(ItemTextureMap(names));
 }
 
-pub fn start_loading_blocks (
+pub fn start_loading_blocks(
     assets: Res<AssetServer>,
     settings: Res<Settings>,
     mut commands: Commands,
 ) {
-    let block_scenes: Vec<Handle<DynamicScene>> = assets.load_folder(settings.block_type_path.as_path())
-                                            .into_iter()
-                                            .flat_map(|v| v.into_iter().map(|t| t.typed()))
-                                            .collect();
+    let block_scenes: Vec<Handle<DynamicScene>> = assets
+        .load_folder(settings.block_type_path.as_path())
+        .into_iter()
+        .flat_map(|v| v.into_iter().map(|t| t.typed()))
+        .collect();
     if block_scenes.len() == 0 {
-        warn!("No blocks found at {}", settings.block_type_path.as_path().display());
+        warn!(
+            "No blocks found at {}",
+            settings.block_type_path.as_path().display()
+        );
         return;
     }
     info!("Spawning {} blocks scenes", block_scenes.len());
     for block_scene in block_scenes {
-        commands.spawn(
-(DynamicSceneBundle {
+        commands.spawn((
+            DynamicSceneBundle {
                 scene: block_scene,
                 ..default()
             },
             Name::new("blocks"),
-            LoadingBlocks
+            LoadingBlocks,
         ));
     }
 }
 
-pub fn start_loading_items (
+pub fn start_loading_items(
     assets: Res<AssetServer>,
     settings: Res<Settings>,
     mut commands: Commands,
 ) {
-    let item_scenes: Vec<Handle<DynamicScene>> = assets.load_folder(settings.item_type_path.as_path())
-                                            .into_iter()
-                                            .flat_map(|v| v.into_iter().map(|t| t.typed()))
-                                            .collect();
+    let item_scenes: Vec<Handle<DynamicScene>> = assets
+        .load_folder(settings.item_type_path.as_path())
+        .into_iter()
+        .flat_map(|v| v.into_iter().map(|t| t.typed()))
+        .collect();
     if item_scenes.len() == 0 {
-        warn!("No items found at {}", settings.item_type_path.as_path().display());
+        warn!(
+            "No items found at {}",
+            settings.item_type_path.as_path().display()
+        );
         return;
     }
     info!("Spawning {} item scenes", item_scenes.len());
     for item_scene in item_scenes {
-        commands.spawn(
-(DynamicSceneBundle {
+        commands.spawn((
+            DynamicSceneBundle {
                 scene: item_scene,
                 ..default()
             },
             Name::new("items"),
-            LoadingItems
+            LoadingItems,
+        ));
+    }
+}
+
+pub fn start_loading_recipes(
+    assets: Res<AssetServer>,
+    settings: Res<Settings>,
+    mut commands: Commands,
+) {
+    let recipe_scenes: Vec<Handle<DynamicScene>> = assets
+        .load_folder(settings.recipe_path.as_path())
+        .into_iter()
+        .flat_map(|v| v.into_iter().map(|t| t.typed()))
+        .collect();
+    if recipe_scenes.len() == 0 {
+        warn!(
+            "No recipes found at {}",
+            settings.item_type_path.as_path().display()
+        );
+        return;
+    }
+    info!("Spawning {} recipe scenes", recipe_scenes.len());
+    for recipe_scene in recipe_scenes {
+        commands.spawn((
+            DynamicSceneBundle {
+                scene: recipe_scene,
+                ..default()
+            },
+            Name::new("recipe"),
+            LoadingRecipes,
         ));
     }
 }
@@ -131,14 +202,20 @@ pub fn load_block_registry(
     loading_blocks: Query<(Entity, Option<&Children>), With<LoadingBlocks>>,
     block_name_query: Query<&BlockName>,
     name_resolution_query: Query<&NamedBlockMesh>,
-    block_resources: Option<Res<BlockResources>>
+    block_resources: Option<Res<BlockResources>>,
 ) {
     //make sure there are no still loading block scenes before we make the registry
-    if block_resources.is_some() || loading_blocks.iter().any(|(_, opt_children)| opt_children.is_none()) {
+    if block_resources.is_some()
+        || loading_blocks
+            .iter()
+            .any(|(_, opt_children)| opt_children.is_none())
+    {
         return;
     }
     let mut registry = BlockRegistry::default();
-    registry.id_map.insert(BlockName::core("empty"), BlockId(Id::Empty));
+    registry
+        .id_map
+        .insert(BlockName::core("empty"), BlockId(Id::Empty));
     for (scene_entity, children) in loading_blocks.iter() {
         info!("Loading block scene");
         commands.entity(scene_entity).remove::<LoadingBlocks>();
@@ -147,7 +224,8 @@ pub fn load_block_registry(
             if let Ok(named_mesh) = name_resolution_query.get(*child) {
                 let mut mesh = named_mesh.clone().to_block_mesh(&texture_map);
                 mesh.single_mesh = mesh_single_block(&mesh, &mut meshes);
-                commands.entity(*child)
+                commands
+                    .entity(*child)
                     .insert(mesh)
                     .remove::<NamedBlockMesh>();
             }
@@ -155,12 +233,13 @@ pub fn load_block_registry(
                 Ok(name) => registry.add_basic(name.clone(), *child, &mut commands),
                 Err(e) => warn!("Block doesn't have a name! Error {:?}", e),
             }
-            
         }
     }
 
     info!("Finished loading {} block types", registry.id_map.len());
-    commands.insert_resource(BlockResources {registry: std::sync::Arc::new(registry)});
+    commands.insert_resource(BlockResources {
+        registry: std::sync::Arc::new(registry),
+    });
 }
 
 pub fn load_item_registry(
@@ -169,10 +248,14 @@ pub fn load_item_registry(
     loading_items: Query<(Entity, Option<&Children>), With<LoadingItems>>,
     item_name_query: Query<&ItemName>,
     name_resolution_query: Query<&NamedItemIcon>,
-    item_resources: Option<Res<ItemResources>>
+    item_resources: Option<Res<ItemResources>>,
 ) {
     //make sure there are no still loading block scenes before we make the registry
-    if item_resources.is_some() || loading_items.iter().any(|(_, opt_children)| opt_children.is_none()) {
+    if item_resources.is_some()
+        || loading_items
+            .iter()
+            .any(|(_, opt_children)| opt_children.is_none())
+    {
         return;
     }
     let mut registry = ItemRegistry::default();
@@ -184,26 +267,91 @@ pub fn load_item_registry(
             if let Ok(named_icon) = name_resolution_query.get(*child) {
                 match texture_map.0.get(&named_icon.path) {
                     Some(handle) => {
-                        commands.entity(*child)
+                        commands
+                            .entity(*child)
                             .insert(ItemIcon(handle.clone()))
                             .remove::<NamedItemIcon>();
-                    },
-                    None =>{
-                        error!("Icon not found in item texture map: {}", named_icon.path.display())
-                    },
+                    }
+                    None => {
+                        error!(
+                            "Icon not found in item texture map: {}",
+                            named_icon.path.display()
+                        )
+                    }
                 }
-                
             }
             match item_name_query.get(*child) {
                 Ok(name) => registry.add_basic(name.clone(), *child, &mut commands),
                 Err(e) => warn!("Item doesn't have a name! Error {:?}", e),
             }
-            
         }
     }
 
     info!("Finished loading {} item types", registry.id_map.len());
-    commands.insert_resource(ItemResources {registry: std::sync::Arc::new(registry)});
+    commands.insert_resource(ItemResources {
+        registry: std::sync::Arc::new(registry),
+    });
+}
+
+pub fn load_recipe_list(
+    mut commands: Commands,
+    loading_recipes: Query<(Entity, Option<&Children>), With<LoadingRecipes>>,
+    named_recipe: Query<&NamedBasicBlockRecipe>,
+    block_registry: Res<BlockResources>,
+    recipe_list: Option<Res<RecipeList>>,
+) {
+    //make sure there are no still loading recipe scenes before we make the registry
+    if recipe_list.is_some()
+        || loading_recipes
+            .iter()
+            .any(|(_, opt_children)| opt_children.is_none())
+    {
+        return;
+    }
+    //not happy with this, along with all the register type nonsense.
+    //todo - look into asset v2 when updating to 0.12 or just use serde_json
+    //  don't think I'll add a lot of components to recipes after all...
+    let recipes: Vec<BasicBlockRecipe> = loading_recipes
+        .iter()
+        .flat_map(|(scene_entity, opt_children)| {
+            commands.entity(scene_entity).remove::<LoadingRecipes>();
+            let mut recipes = Vec::with_capacity(opt_children.unwrap().len());
+            for recipe_entity in opt_children.unwrap() {
+                let NamedBasicBlockRecipe { recipe, products } =
+                    named_recipe.get(*recipe_entity).unwrap();
+                let mut id_recipe = Vec::with_capacity(recipe.len());
+                for y_row in recipe.iter() {
+                    let mut y_row_id = Vec::with_capacity(y_row.len());
+                    for x_row in y_row.iter() {
+                        y_row_id.push(
+                            x_row
+                                .iter()
+                                .map(|opt_name| {
+                                    opt_name
+                                        .as_ref()
+                                        .map(|name| block_registry.registry.get_basic(&name))
+                                        .flatten()
+                                })
+                                .collect::<Vec<_>>(),
+                        )
+                    }
+                    id_recipe.push(y_row_id);
+                }
+                let id_products = products
+                    .iter()
+                    .map(|(coord, name)| (*coord, block_registry.registry.get_basic(name).into()))
+                    .collect();
+                commands
+                    .entity(*recipe_entity)
+                    .remove::<NamedBasicBlockRecipe>();
+                recipes.push(BasicBlockRecipe::new(&id_recipe, id_products).unwrap());
+            }
+            recipes
+        })
+        .collect();
+
+    info!("Finished loading {} recipes", recipes.len());
+    commands.insert_resource(RecipeList::new(recipes));
 }
 
 pub fn on_level_created(
@@ -218,24 +366,30 @@ pub fn on_level_created(
     info!("on_level_created");
     if let Some(event) = reader.iter().next() {
         fs::create_dir_all(settings.env_path.as_path()).unwrap();
-        let db = LevelDB::new(settings.env_path.join(event.name.to_owned() + ".db").as_path());
+        let db = LevelDB::new(
+            settings
+                .env_path
+                .join(event.name.to_owned() + ".db")
+                .as_path(),
+        );
         match db {
             Ok(mut db) => {
-                if let Some(err) = db.immediate_execute_command(|sql| sql.execute(CREATE_CHUNK_TABLE, [])) {
+                if let Some(err) =
+                    db.immediate_execute_command(|sql| sql.execute(CREATE_CHUNK_TABLE, []))
+                {
                     error!("Error creating chunk table: {:?}", err);
                     return;
                 }
-                if let Some(err) = db.immediate_execute_command(|sql| sql.execute(CREATE_WORLD_INFO_TABLE, [])) {
+                if let Some(err) =
+                    db.immediate_execute_command(|sql| sql.execute(CREATE_WORLD_INFO_TABLE, []))
+                {
                     error!("Error creating world info table: {:?}", err);
                     return;
                 }
                 load_block_palette(&mut db, &mut commands, &block_resources.registry);
                 load_item_palette(&mut db, &mut commands, &item_resources.registry);
                 commands.insert_resource(db);
-                commands.insert_resource(Level(Arc::new(LevelData::new(
-                    event.name,
-                    8008135,
-                ))));
+                commands.insert_resource(Level(Arc::new(LevelData::new(event.name, 8008135))));
                 next_state.set(LevelLoadState::Loading);
                 info!("in state loading!");
             }
@@ -247,33 +401,53 @@ pub fn on_level_created(
 }
 
 fn load_block_palette(db: &mut LevelDB, commands: &mut Commands, registry: &BlockRegistry) {
-    match db.immediate_execute_query(LOAD_WORLD_INFO, rusqlite::params!["block_palette"], |row| Ok(row.get(0)?)) {
+    match db.immediate_execute_query(LOAD_WORLD_INFO, rusqlite::params!["block_palette"], |row| {
+        Ok(row.get(0)?)
+    }) {
         Ok(data) => {
             match create_block_id_maps_from_palette(&data, registry) {
                 Some((mut saved_to_loaded, mut loaded_to_saved)) => {
                     //if we have new blocks that were not in the palette before, add them
-                    let palette = create_palette_from_block_id_map(registry, &mut saved_to_loaded, &mut loaded_to_saved);
-                    if let Some (err) = db.immediate_execute_command(|sql| sql.execute(INSERT_WORLD_INFO, rusqlite::params!["block_palette", palette])) {
+                    let palette = create_palette_from_block_id_map(
+                        registry,
+                        &mut saved_to_loaded,
+                        &mut loaded_to_saved,
+                    );
+                    if let Some(err) = db.immediate_execute_command(|sql| {
+                        sql.execute(
+                            INSERT_WORLD_INFO,
+                            rusqlite::params!["block_palette", palette],
+                        )
+                    }) {
                         error!("Error updating block palette! {:?}", err);
                         return;
                     }
                     //put the updated maps in the world
                     commands.insert_resource(saved_to_loaded);
                     commands.insert_resource(loaded_to_saved);
-                },
+                }
                 None => {
                     error!("Couldn't create saved block id map!");
                     return;
-                },
+                }
             }
-        },
+        }
         Err(LevelDBErr::Sqlite(rusqlite::Error::QueryReturnedNoRows)) => {
             //there is no palette saved, so we create one using only our current map.
             //This happens when a new world is created
             let mut saved_to_loaded = SavedToLoadedIdMap::default();
             let mut loaded_to_saved = LoadedToSavedIdMap::default();
-            let palette = create_palette_from_block_id_map(registry, &mut saved_to_loaded, &mut loaded_to_saved);
-            if let Some (err) = db.immediate_execute_command(|sql| sql.execute(INSERT_WORLD_INFO, rusqlite::params!["block_palette", palette])) {
+            let palette = create_palette_from_block_id_map(
+                registry,
+                &mut saved_to_loaded,
+                &mut loaded_to_saved,
+            );
+            if let Some(err) = db.immediate_execute_command(|sql| {
+                sql.execute(
+                    INSERT_WORLD_INFO,
+                    rusqlite::params!["block_palette", palette],
+                )
+            }) {
                 error!("Error creating block palette! {:?}", err);
                 return;
             }
@@ -283,50 +457,59 @@ fn load_block_palette(db: &mut LevelDB, commands: &mut Commands, registry: &Bloc
         Err(e) => {
             error!("Error messing with block palette in db: {:?}", e);
             return;
-        },
+        }
     };
 }
 
-fn create_block_id_maps_from_palette(data: &Vec<u8>, registry: &BlockRegistry) -> Option<(SavedToLoadedIdMap<BlockId>, LoadedToSavedIdMap<BlockId>)> {
+fn create_block_id_maps_from_palette(
+    data: &Vec<u8>,
+    registry: &BlockRegistry,
+) -> Option<(SavedToLoadedIdMap<BlockId>, LoadedToSavedIdMap<BlockId>)> {
     match bincode::deserialize::<BlockNameIdMap>(data) {
         Ok(saved_map) => {
             let mut saved_to_loaded = SavedToLoadedIdMap::default();
             let mut loaded_to_saved = LoadedToSavedIdMap::default();
             for (name, saved_map_id) in saved_map.iter() {
                 match registry.id_map.get(name) {
-                    Some(loaded_map_id) => 
-                    {
-                        info!("Mapped saved block {:?} (id: {:?}) to loaded block id {:?}", name, saved_map_id, loaded_map_id);
+                    Some(loaded_map_id) => {
+                        info!(
+                            "Mapped saved block {:?} (id: {:?}) to loaded block id {:?}",
+                            name, saved_map_id, loaded_map_id
+                        );
                         saved_to_loaded.insert(*saved_map_id, *loaded_map_id);
                         loaded_to_saved.insert(*loaded_map_id, *saved_map_id);
-                    },
+                    }
                     None => {
                         error!("Unknown block name in palette: {:?}", name);
-                        return None
-                    },
+                        return None;
+                    }
                 }
             }
             Some((saved_to_loaded, loaded_to_saved))
-        },
+        }
         Err(e) => {
             error!("couldn't load block id map from palette, {}", e);
             None
-        },
+        }
     }
 }
 
 //if we have loaded blocks that aren't in the world, this will add them to the map.
 //returns the new palette map to be saved to disk
-fn create_palette_from_block_id_map(registry: &BlockRegistry, saved_to_loaded: &mut SavedToLoadedIdMap<BlockId>, loaded_to_saved: &mut LoadedToSavedIdMap<BlockId>) -> Vec<u8> {
+fn create_palette_from_block_id_map(
+    registry: &BlockRegistry,
+    saved_to_loaded: &mut SavedToLoadedIdMap<BlockId>,
+    loaded_to_saved: &mut LoadedToSavedIdMap<BlockId>,
+) -> Vec<u8> {
     let mut palette = BlockNameIdMap::new();
     for (name, id) in registry.id_map.iter() {
         if !loaded_to_saved.map.contains_key(id) {
             //this block was not mapped to a saved block id, so its a new block. We set it to itself.
             //ids are always in the range 0..<block_count, and we verify that we have all saved blocks loaded before this point
             //so id must be >= saved_block_count, therefore, we aren't overwriting anything with this save_to_loaded.insert
-            let new_id = BlockId(id.0.with_id(saved_to_loaded.max_key_id+1));
+            let new_id = BlockId(id.0.with_id(saved_to_loaded.max_key_id + 1));
             assert_eq!(saved_to_loaded.insert(new_id, *id), None);
-            loaded_to_saved.insert(*id,new_id);
+            loaded_to_saved.insert(*id, new_id);
             info!("Added block {:?} to block palette with id {:?}", name, id);
         }
         palette.insert(name.clone(), loaded_to_saved.get(id).unwrap());
@@ -335,33 +518,53 @@ fn create_palette_from_block_id_map(registry: &BlockRegistry, saved_to_loaded: &
 }
 
 fn load_item_palette(db: &mut LevelDB, commands: &mut Commands, registry: &ItemRegistry) {
-    match db.immediate_execute_query(LOAD_WORLD_INFO, rusqlite::params!["item_palette"], |row| Ok(row.get(0)?)) {
+    match db.immediate_execute_query(LOAD_WORLD_INFO, rusqlite::params!["item_palette"], |row| {
+        Ok(row.get(0)?)
+    }) {
         Ok(data) => {
             match create_item_id_maps_from_palette(&data, registry) {
                 Some((mut saved_to_loaded, mut loaded_to_saved)) => {
                     //if we have new blocks that were not in the palette before, add them
-                    let palette = create_palette_from_item_id_map(registry, &mut saved_to_loaded, &mut loaded_to_saved);
-                    if let Some (err) = db.immediate_execute_command(|sql| sql.execute(INSERT_WORLD_INFO, rusqlite::params!["item_palette", palette])) {
+                    let palette = create_palette_from_item_id_map(
+                        registry,
+                        &mut saved_to_loaded,
+                        &mut loaded_to_saved,
+                    );
+                    if let Some(err) = db.immediate_execute_command(|sql| {
+                        sql.execute(
+                            INSERT_WORLD_INFO,
+                            rusqlite::params!["item_palette", palette],
+                        )
+                    }) {
                         error!("Error updating item palette! {:?}", err);
                         return;
                     }
                     //put the updated maps in the world
                     commands.insert_resource(saved_to_loaded);
                     commands.insert_resource(loaded_to_saved);
-                },
+                }
                 None => {
                     error!("Couldn't create saved block id map!");
                     return;
-                },
+                }
             }
-        },
+        }
         Err(LevelDBErr::Sqlite(rusqlite::Error::QueryReturnedNoRows)) => {
             //there is no palette saved, so we create one using only our current map.
             //This happens when a new world is created
             let mut saved_to_loaded = SavedToLoadedIdMap::default();
             let mut loaded_to_saved = LoadedToSavedIdMap::default();
-            let palette = create_palette_from_item_id_map(registry, &mut saved_to_loaded, &mut loaded_to_saved);
-            if let Some (err) = db.immediate_execute_command(|sql| sql.execute(INSERT_WORLD_INFO, rusqlite::params!["item_palette", palette])) {
+            let palette = create_palette_from_item_id_map(
+                registry,
+                &mut saved_to_loaded,
+                &mut loaded_to_saved,
+            );
+            if let Some(err) = db.immediate_execute_command(|sql| {
+                sql.execute(
+                    INSERT_WORLD_INFO,
+                    rusqlite::params!["item_palette", palette],
+                )
+            }) {
                 error!("Error creating item palette! {:?}", err);
                 return;
             }
@@ -371,50 +574,59 @@ fn load_item_palette(db: &mut LevelDB, commands: &mut Commands, registry: &ItemR
         Err(e) => {
             error!("Error messing with item palette in db: {:?}", e);
             return;
-        },
+        }
     };
 }
 
-fn create_item_id_maps_from_palette(data: &Vec<u8>, registry: &ItemRegistry) -> Option<(SavedToLoadedIdMap<ItemId>, LoadedToSavedIdMap<ItemId>)> {
+fn create_item_id_maps_from_palette(
+    data: &Vec<u8>,
+    registry: &ItemRegistry,
+) -> Option<(SavedToLoadedIdMap<ItemId>, LoadedToSavedIdMap<ItemId>)> {
     match bincode::deserialize::<ItemNameIdMap>(data) {
         Ok(saved_map) => {
             let mut saved_to_loaded = SavedToLoadedIdMap::default();
             let mut loaded_to_saved = LoadedToSavedIdMap::default();
             for (name, saved_map_id) in saved_map.iter() {
                 match registry.id_map.get(name) {
-                    Some(loaded_map_id) => 
-                    {
-                        info!("Mapped saved block {:?} (id: {:?}) to loaded block id {:?}", name, saved_map_id, loaded_map_id);
+                    Some(loaded_map_id) => {
+                        info!(
+                            "Mapped saved block {:?} (id: {:?}) to loaded block id {:?}",
+                            name, saved_map_id, loaded_map_id
+                        );
                         saved_to_loaded.insert(*saved_map_id, *loaded_map_id);
                         loaded_to_saved.insert(*loaded_map_id, *saved_map_id);
-                    },
+                    }
                     None => {
                         error!("Unknown block name in palette: {:?}", name);
-                        return None
-                    },
+                        return None;
+                    }
                 }
             }
             Some((saved_to_loaded, loaded_to_saved))
-        },
+        }
         Err(e) => {
             error!("couldn't load block id map from palette, {}", e);
             None
-        },
+        }
     }
 }
 
 //if we have loaded items that aren't in the world, this will add them to the map.
 //returns the new palette map to be saved to disk
-fn create_palette_from_item_id_map(registry: &ItemRegistry, saved_to_loaded: &mut SavedToLoadedIdMap<ItemId>, loaded_to_saved: &mut LoadedToSavedIdMap<ItemId>) -> Vec<u8> {
+fn create_palette_from_item_id_map(
+    registry: &ItemRegistry,
+    saved_to_loaded: &mut SavedToLoadedIdMap<ItemId>,
+    loaded_to_saved: &mut LoadedToSavedIdMap<ItemId>,
+) -> Vec<u8> {
     let mut palette = ItemNameIdMap::new();
     for (name, id) in registry.id_map.iter() {
         if !loaded_to_saved.map.contains_key(id) {
             //this item was not mapped to a saved item id, so its a new item. We set it to itself.
             //ids are always in the range 0..<count, and we verify that we have all saved items loaded before this point
             //so id must be >= saved_count, therefore, we aren't overwriting anything with this save_to_loaded.insert
-            let new_id = ItemId(id.0.with_id(saved_to_loaded.max_key_id+1));
+            let new_id = ItemId(id.0.with_id(saved_to_loaded.max_key_id + 1));
             assert_eq!(saved_to_loaded.insert(new_id, *id), None);
-            loaded_to_saved.insert(*id,new_id);
+            loaded_to_saved.insert(*id, new_id);
             info!("Added item {:?} to item palette with id {:?}", name, id);
         }
         palette.insert(name.clone(), loaded_to_saved.get(id).unwrap());

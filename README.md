@@ -46,7 +46,7 @@ The goal of this phase is to get the most basic gameplay in.
 
 🗹 Blocks drop items
 
-☐ Crafting
+🗹 Crafting
 
 ☐ Ability to die
 

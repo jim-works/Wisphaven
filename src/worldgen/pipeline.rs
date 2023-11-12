@@ -425,7 +425,7 @@ pub fn poll_gen_lod_queue(
     let _my_span = info_span!("poll_gen_lod_queue", name = "poll_gen_lod_queue").entered();
     let now = Instant::now();
     for (entity, mut tf, mut task) in query.iter_mut() {
-        if let Some(mut data) = future::block_on(future::poll_once(&mut task.task)) {
+        if let Some(data) = future::block_on(future::poll_once(&mut task.task)) {
             tf.translation = data.get_block_pos(ChunkIdx::new(0, 0, 0));
             commands.entity(entity).remove::<LODShapingTask>().insert((
                 GeneratedLODChunk {},

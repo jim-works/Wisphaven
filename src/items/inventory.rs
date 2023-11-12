@@ -102,7 +102,6 @@ impl Inventory {
                 })
             }
             self.selected_slot = new_slot;
-            info!("selected slot {}", self.selected_slot);
         }
     }
     pub fn has_item(&self, item: Entity) -> bool {

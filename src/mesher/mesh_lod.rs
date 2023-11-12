@@ -1,6 +1,5 @@
 use super::generator::*;
 
-use crate::util::Direction;
 use crate::world::chunk::*;
 use crate::world::{Level, *};
 use crate::worldgen::GeneratedLODChunk;

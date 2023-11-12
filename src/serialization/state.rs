@@ -1,6 +1,6 @@
 use bevy::{prelude::*, asset::LoadState};
 
-use crate::{mesher::TerrainTexture, world::BlockResources, items::ItemResources};
+use crate::{mesher::TerrainTexture, world::BlockResources, items::{ItemResources, crafting::recipes::RecipeList}};
 
 use super::ItemTextureMap;
 
@@ -44,9 +44,10 @@ pub fn check_load_state(
     mut next: ResMut<NextState<GameLoadState>>,
     block_types: Option<Res<BlockResources>>,
     item_types: Option<Res<ItemResources>>,
+    recipes: Option<Res<RecipeList>>,
     block_textures: Res<TexturesLoaded>
 ) {
-    if block_textures.0 && block_types.is_some() && item_types.is_some() {
+    if block_textures.0 && block_types.is_some() && item_types.is_some() && recipes.is_some() {
         info!("Finished loading!");
         next.set(GameLoadState::CreatingLevel)
     }

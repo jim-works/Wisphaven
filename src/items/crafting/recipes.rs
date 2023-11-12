@@ -1,15 +1,14 @@
 use bevy::prelude::*;
 
 use crate::{
-    items::weapons::MeleeWeaponItem,
     util::iterators::BlockVolumeIterator,
     world::{
         events::{BlockHitEvent, ChunkUpdatedEvent},
-        BlockCoord, BlockId, BlockName, BlockResources, BlockType, BlockVolume, Level,
+        BlockCoord, BlockId, BlockType, BlockVolume, Level, BlockName,
     },
 };
 
-use super::{CraftingSystemSet, RecipeCandidateEvent, RecipeCraftedEvent};
+use super::{CraftingSystemSet, RecipeCandidateEvent, RecipeCraftedEvent, RecipeId, CraftingHammer};
 
 pub struct RecipesPlugin;
 
@@ -22,19 +21,48 @@ impl Plugin for RecipesPlugin {
         .add_systems(
             Update,
             basic_recipe_actor.in_set(CraftingSystemSet::RecipeActor),
-        );
+        )
+        .register_type::<NamedBasicBlockRecipe>()
+        .register_type::<Option<BlockName>>()
+        .register_type::<Vec<Option<BlockName>>>()
+        .register_type::<Vec<Vec<Option<BlockName>>>>()
+        .register_type::<Vec<Vec<Vec<Option<BlockName>>>>>()
+        .register_type::<(BlockCoord, BlockName)>()
+        .register_type::<Vec<(BlockCoord, BlockName)>>();
     }
 }
 
+#[derive(Resource)]
 pub struct RecipeList {
-    pub basic: Vec<BasicBlockRecipe>
+    pub basic: Vec<BasicBlockRecipe>,
 }
 
+impl RecipeList {
+    pub fn new(mut basic: Vec<BasicBlockRecipe>) -> Self {
+        for (idx, recipe) in basic.iter_mut().enumerate() {
+            recipe.id = RecipeId(idx);
+        }
+        Self {
+            basic
+        }
+    }
+}
+
+#[derive(Component, Clone, PartialEq, Default, Reflect)]
+//loaded from file, converted to BasicBlockRecipe for use in game
+#[reflect(Component)]
+pub struct NamedBasicBlockRecipe {
+    pub recipe: Vec<Vec<Vec<Option<BlockName>>>>,
+    pub products: Vec<(BlockCoord, BlockName)>
+}
+
+#[derive(Debug)]
 pub struct BasicBlockRecipe {
     //(x,y,z)
     size: (usize, usize, usize),
     recipe: Vec<Option<Entity>>,
     products: Vec<(BlockCoord, BlockType)>, //blocks to place relative to (0,0,0) corner
+    pub id: RecipeId,
 }
 
 impl BasicBlockRecipe {
@@ -69,6 +97,7 @@ impl BasicBlockRecipe {
             size,
             recipe: flat_recipe,
             products,
+            id: RecipeId(0)
         })
     }
 
@@ -76,27 +105,17 @@ impl BasicBlockRecipe {
         self.size
     }
 
-    //blocks in [[[option<entity>; x]; y]; z]
-    pub fn verify_exact(&self, blocks: &Vec<Vec<Vec<Option<Entity>>>>) -> bool {
-        if blocks.len() != self.size.2 {
-            return false; //z size doesn't match
-        }
-        for (iz, z) in blocks.iter().enumerate() {
-            if z.len() != self.size.1 {
-                return false; //y size doesn't match
-            }
-            for (iy, y) in z.iter().enumerate() {
-                if y.len() != self.size.0 {
-                    return false; //x size doesn't match
-                }
-                for (ix, block) in y.iter().enumerate() {
-                    if self[(ix, iy, iz)] != *block {
-                        return false; //block doesn't match
-                    }
-                }
-            }
-        }
-        true
+    fn get_recipe_entry(&self, at: BlockCoord) -> Option<Entity> {
+        let idx =
+            at.x as usize + at.y as usize * self.size.0 + at.z as usize * self.size.0 * self.size.1;
+        return self.recipe[idx];
+    }
+
+    pub fn verify_exact(&self, origin: BlockCoord, level: &Level) -> bool {
+        //todo - optimize: it would be faster to get all block entities up front to reduce hashmap queries
+        BlockVolumeIterator::new(self.size.0 as u32, self.size.1 as u32, self.size.2 as u32)
+            .map(|offset| (offset + origin, self.get_recipe_entry(offset)))
+            .all(|(world_pos, expected)| level.get_block_entity(world_pos) == expected)
     }
 
     pub fn spawn_products(
@@ -121,6 +140,10 @@ impl BasicBlockRecipe {
             commands,
         );
     }
+
+    pub fn get_volume(&self, origin: BlockCoord) -> BlockVolume {
+        BlockVolume::new(origin, origin+BlockCoord::new(self.size.0 as i32, self.size.1 as i32, self.size.2 as i32))
+    }
 }
 
 impl std::ops::Index<(usize, usize, usize)> for BasicBlockRecipe {
@@ -134,10 +157,10 @@ impl std::ops::Index<(usize, usize, usize)> for BasicBlockRecipe {
 
 fn basic_recipe_checker(
     mut hit_reader: EventReader<BlockHitEvent>,
-    item_query: Query<&MeleeWeaponItem>,
-    block_query: Query<&BlockName>,
+    item_query: Query<&CraftingHammer>,
     mut recipe_writer: EventWriter<RecipeCandidateEvent>,
     level: Res<Level>,
+    recipes: Res<RecipeList>,
 ) {
     for BlockHitEvent {
         item,
@@ -148,44 +171,30 @@ fn basic_recipe_checker(
     {
         if !item.map(|i| item_query.contains(i)).unwrap_or(false) {
             continue; //not item we care about
-        }
-        if level
-            .get_block_entity(*block_position)
-            .map(|e| {
-                block_query
-                    .get(e)
-                    .map(|name| *name == BlockName::core("log"))
-                    .unwrap_or(false)
-            })
-            .unwrap_or(false)
-        {
-            recipe_writer.send(RecipeCandidateEvent(super::RecipeCraftedEvent {
-                volume: BlockVolume::new(*block_position, *block_position),
-                id: super::RecipeId(0),
-            }))
+        };
+
+        for recipe in recipes.basic.iter() {
+            info!("testing recipe {:?}", recipe);
+            if recipe.verify_exact(*block_position, &level) {
+                info!("true");
+                recipe_writer.send(RecipeCandidateEvent(RecipeCraftedEvent { volume: recipe.get_volume(*block_position), id: recipe.id }))
+            }
         }
     }
 }
 
 fn basic_recipe_actor(
     mut reader: EventReader<RecipeCraftedEvent>,
+    recipes: Res<RecipeList>,
     level: Res<Level>,
-    registry: Res<BlockResources>,
     id_query: Query<&BlockId>,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
     mut commands: Commands,
 ) {
-    let tnt = registry.registry.get_id(&BlockName::core("tnt"));
     for RecipeCraftedEvent { volume, id } in reader.iter() {
-        if id.0 == 0 {
-            level.set_block(
-                volume.min_corner,
-                tnt,
-                &registry.registry,
-                &id_query,
-                &mut update_writer,
-                &mut commands,
-            )
+        if let Some(recipe) = recipes.basic.get(id.0) {
+            recipe.spawn_products(volume.min_corner, &level, &id_query, &mut update_writer, &mut commands);
+            info!("crafted recipe with id: {}", id.0);
         }
     }
 }

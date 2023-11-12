@@ -25,6 +25,15 @@ pub enum BlockType {
     Filled(Entity),
 }
 
+impl From<Option<Entity>> for BlockType {
+    fn from(value: Option<Entity>) -> Self {
+        match value {
+            Some(e) => BlockType::Filled(e),
+            None => BlockType::Empty,
+        }
+    }
+}
+
 #[derive(
     Default, Clone, Debug, PartialEq, Eq, Hash, Component, Reflect, Serialize, Deserialize,
 )]
@@ -358,7 +367,10 @@ impl BlockRegistry {
     }
 }
 
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Component, Reflect, Serialize, Deserialize,
+)]
+#[reflect(Component)]
 pub struct BlockCoord {
     pub x: i32,
     pub y: i32,

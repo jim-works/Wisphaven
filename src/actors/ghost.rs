@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
-use big_brain::prelude::*;
 
 use crate::{
     physics::PhysicsObjectBundle,

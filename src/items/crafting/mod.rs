@@ -23,7 +23,8 @@ impl Plugin for CraftingPlugin {
             )
             .add_systems(Update, recipe_picker.in_set(CraftingSystemSet::RecipePicker))
             .add_event::<RecipeCandidateEvent>()
-            .add_event::<RecipeCraftedEvent>();
+            .add_event::<RecipeCraftedEvent>()
+            .register_type::<CraftingHammer>();
     }
 }
 
@@ -47,6 +48,12 @@ pub struct RecipeCraftedEvent {
     pub volume: BlockVolume,
     pub id: RecipeId,
 }
+
+#[derive(
+    Copy, Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize,
+)]
+#[reflect(Component)]
+pub struct CraftingHammer;
 
 fn recipe_picker(
     mut candidate_events: EventReader<RecipeCandidateEvent>,

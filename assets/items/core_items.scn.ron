@@ -200,5 +200,27 @@
         )
       },
     ),
+    13: (
+      components: {
+        "recursia::items::ItemName": (
+          namespace: "core",
+          name: "ruby_hammer",
+        ),
+        "recursia::items::NamedItemIcon": (
+            path: "ruby_hammer.png"
+        ),
+        "recursia::items::crafting::CraftingHammer": (),
+        "recursia::items::item_attributes::ItemSwingSpeed": (
+            windup: (
+                secs: 0,
+                nanos: 0,
+            ),
+            backswing: (
+                secs: 0,
+                nanos: 500000000,
+            )
+        ),
+      },
+    ),
   },
 )

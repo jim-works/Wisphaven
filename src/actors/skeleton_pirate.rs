@@ -10,7 +10,6 @@ use crate::{
     controllers::ControllableBundle,
     physics::{PhysicsObjectBundle, GRAVITY},
     util::{physics::aim_projectile_straight_fallback, plugin::SmoothLookTo, SendEventCommand},
-    world::LevelLoadState,
 };
 
 use super::{
@@ -42,7 +41,6 @@ pub struct SkeletonPiratePlugin;
 impl Plugin for SkeletonPiratePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (load_resources, add_to_registry))
-            .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
             .add_systems(PreUpdate, attack.in_set(BigBrainSet::Actions))
             .add_systems(Update, spawn_skeleton_pirate)
             .add_event::<SpawnSkeletonPirateEvent>();
@@ -63,12 +61,6 @@ fn add_to_registry(mut res: ResMut<ActorResources>) {
             commands.add(SendEventCommand(SpawnSkeletonPirateEvent { location: tf }))
         }),
     );
-}
-
-fn trigger_spawning(mut writer: EventWriter<SpawnSkeletonPirateEvent>) {
-    writer.send(SpawnSkeletonPirateEvent {
-        location: GlobalTransform::from_xyz(10.0, 25.0, 0.0),
-    });
 }
 
 pub fn spawn_skeleton_pirate(
