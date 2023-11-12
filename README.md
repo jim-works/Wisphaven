@@ -77,3 +77,22 @@ The goal of this phase is to get the most basic gameplay in.
 ## Contributing
 
 I am currently not looking for contributions, but I'm open to suggestions! Feel free to put ideas in the issues.
+
+## License
+GPL3 - See LICENSE.txt
+
+Recursia - a voxel adventure game.
+Copyright (C) 2023 James Moore
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+Contact:
+Email - jim4m80@gmail.com
