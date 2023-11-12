@@ -19,6 +19,7 @@ pub mod palette;
 pub mod plugin;
 pub mod bevy_utils;
 pub mod physics;
+pub mod iterators;
 
 use bevy::{prelude::{Vec3, DerefMut, Deref}, time::Timer};
 

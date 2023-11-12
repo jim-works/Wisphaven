@@ -54,12 +54,20 @@ fn recipe_picker(
     mut candidates: Local<Vec<RecipeCraftedEvent>>,
 ) {
     for RecipeCandidateEvent(event) in candidate_events.iter() {
-        let mut contained = false;
+        let mut discarded = false;
+        //to remove ambiguities, if two bounding boxes of recipes overlap, only keep the larger volume of the two
+        //O(n^2) alogrithm, but shouldn't be very many recipes per update
         candidates.retain(|other| {
-            contained = contained || other.volume.contains(event.volume);
-            !event.volume.contains(other.volume)
+            if event.volume.intersects(other.volume) {
+                //keep larger of the two
+                let keep_other = other.volume.volume() > event.volume.volume();
+                discarded = discarded || keep_other;
+                return keep_other;
+            }
+            //doesn't intersect, so keep both
+            true
         });
-        if !contained {
+        if !discarded {
             candidates.push(*event);
         }
     }

@@ -490,7 +490,22 @@ impl BlockVolume {
                 && self.max_corner.z >= other.max_corner.z)
     }
 
+    pub fn intersects(&self, other: BlockVolume) -> bool {
+        (self.min_corner.x <= other.max_corner.x && self.max_corner.x >= other.min_corner.x)
+            && (self.min_corner.y <= other.max_corner.y && self.max_corner.y >= other.min_corner.y)
+            && (self.min_corner.z <= other.max_corner.z && self.max_corner.z >= other.min_corner.z)
+    }
+
+    pub fn volume(&self) -> i32 {
+        (self.max_corner.x - self.min_corner.x)
+            * (self.max_corner.y - self.min_corner.y)
+            * (self.max_corner.z - self.min_corner.z)
+    }
+
     pub fn new(min_corner: BlockCoord, max_corner: BlockCoord) -> Self {
-        BlockVolume { min_corner, max_corner }
+        BlockVolume {
+            min_corner,
+            max_corner,
+        }
     }
 }
