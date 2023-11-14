@@ -378,7 +378,7 @@ pub struct BlockCoord {
 }
 
 impl BlockCoord {
-    pub fn new(x: i32, y: i32, z: i32) -> BlockCoord {
+    pub const fn new(x: i32, y: i32, z: i32) -> BlockCoord {
         BlockCoord { x, y, z }
     }
     //returns coordinate at negative corner of block
@@ -414,6 +414,11 @@ impl BlockCoord {
             BlockCoord::new(0, 0, self.z.signum())
         }
     }
+
+    pub fn square_magnitude(self) -> i32 {
+        self.x*self.x + self.y*self.y + self.z*self.z
+    }
+
     pub fn abs(self) -> BlockCoord {
         BlockCoord::new(self.x.abs(), self.y.abs(), self.z.abs())
     }
@@ -430,6 +435,14 @@ impl std::ops::Sub<BlockCoord> for BlockCoord {
     type Output = Self;
     fn sub(self, rhs: BlockCoord) -> Self::Output {
         BlockCoord::new(self.x - rhs.x, self.y - rhs.y, self.z - rhs.z)
+    }
+}
+
+impl std::ops::SubAssign for BlockCoord {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.x -= rhs.x;
+        self.y -= rhs.y;
+        self.z -= rhs.z;
     }
 }
 
@@ -480,44 +493,6 @@ impl From<Direction> for BlockCoord {
             Direction::NegX => BlockCoord::new(-1, 0, 0),
             Direction::NegY => BlockCoord::new(0, -1, 0),
             Direction::NegZ => BlockCoord::new(0, 0, -1),
-        }
-    }
-}
-
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct BlockVolume {
-    pub min_corner: BlockCoord,
-    pub max_corner: BlockCoord,
-}
-
-impl BlockVolume {
-    //returns true if min <= other min and max >= other max.
-    //contains itself!
-    pub fn contains(&self, other: BlockVolume) -> bool {
-        (self.min_corner.x <= other.min_corner.x
-            && self.min_corner.y <= other.min_corner.y
-            && self.min_corner.z <= other.min_corner.z)
-            && (self.max_corner.x >= other.max_corner.x
-                && self.max_corner.y >= other.max_corner.y
-                && self.max_corner.z >= other.max_corner.z)
-    }
-
-    pub fn intersects(&self, other: BlockVolume) -> bool {
-        (self.min_corner.x <= other.max_corner.x && self.max_corner.x >= other.min_corner.x)
-            && (self.min_corner.y <= other.max_corner.y && self.max_corner.y >= other.min_corner.y)
-            && (self.min_corner.z <= other.max_corner.z && self.max_corner.z >= other.min_corner.z)
-    }
-
-    pub fn volume(&self) -> i32 {
-        (self.max_corner.x - self.min_corner.x)
-            * (self.max_corner.y - self.min_corner.y)
-            * (self.max_corner.z - self.min_corner.z)
-    }
-
-    pub fn new(min_corner: BlockCoord, max_corner: BlockCoord) -> Self {
-        BlockVolume {
-            min_corner,
-            max_corner,
         }
     }
 }

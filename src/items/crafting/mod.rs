@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::world::*;
+use crate::util::iterators::BlockVolume;
 
 use super::ItemSystemSet;
 

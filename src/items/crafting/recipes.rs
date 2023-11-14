@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
 use crate::{
-    util::iterators::BlockVolumeIterator,
+    util::iterators::{BlockVolumeIterator, BlockVolume},
     world::{
         events::{BlockHitEvent, ChunkUpdatedEvent},
-        BlockCoord, BlockId, BlockType, BlockVolume, Level, BlockName,
+        BlockCoord, BlockId, BlockType, Level, BlockName,
     },
 };
 

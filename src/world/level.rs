@@ -4,7 +4,7 @@ use crate::{
     mesher::NeedsMesh,
     physics::NeedsPhysics,
     serialization::{ChunkSaveFormat, NeedsLoading, NeedsSaving},
-    util::{max_component_norm, Direction},
+    util::{max_component_norm, Direction, iterators::{BlockVolume, BlockVolumeContainer}},
     world::BlockcastHit,
     worldgen::{ChunkNeedsGenerated, GeneratedChunk, GenerationPhase},
 };
@@ -75,6 +75,17 @@ impl LevelData {
                 BlockType::Filled(entity) => Some(entity),
             },
             None => None,
+        }
+    }
+    pub fn get_blocks_in_volume(&self, volume: BlockVolume) -> BlockVolumeContainer {
+        let mut container = BlockVolumeContainer::new(volume);
+        self.fill_volume_container(&mut container);
+        container
+    }
+    pub fn fill_volume_container(&self, container: &mut BlockVolumeContainer) {
+        //todo - optimize to get needed chunks all at once
+        for pos in container.volume().iter() {
+            container[pos] = self.get_block(pos);
         }
     }
     //adds damage to the block at `key`. damage ranges from 0-1, with 1 destroying the block
