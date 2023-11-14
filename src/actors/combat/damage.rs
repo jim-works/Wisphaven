@@ -43,7 +43,10 @@ pub fn do_death(
         if let Ok(death) = death_type.get(dying_entity) {
             match death.death_type {
                 DeathType::Default => commands.entity(dying_entity).despawn_recursive(),
-                DeathType::LocalPlayer => info!("Local player died!"),
+                DeathType::LocalPlayer => {
+                    info!("Local Player died");
+                    commands.entity(dying_entity).despawn_recursive();
+                },
                 DeathType::RemotePlayer => info!("Remote player died!"),
                 DeathType::Immortal => {}
             }

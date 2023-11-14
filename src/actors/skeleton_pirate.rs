@@ -195,7 +195,7 @@ fn attack(
     const COIN_OFFSET: Vec3 = Vec3::new(0.0, 2.0, 0.0);
     const THROW_IMPULSE: f32 = 25.0;
     let combat = CombatantBundle::default();
-    let damage = Damage::default();
+    let damage = Damage { amount: 1.0 };
     for (&Actor(actor), mut state) in action_query.iter_mut() {
         match *state {
             ActionState::Requested => {
