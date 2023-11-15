@@ -22,13 +22,13 @@ in the same folder as this file.
 - Saving/loading terrain
 - Scuffed multiplayer
 - Basic combat
-- Modular item/block system
+- Modular item, block, and crafting recipe systems
 
 ## Basic development roadmap
 
 I will be posting development updates on my [YouTube channel](https://www.youtube.com/channel/UCsfEWFba7Zo1DPNHisczM-g)
 
-### v0.1 - prototype (in progress)
+### v0.1 - prototype (done!)
 
 The goal of this phase is to get the most basic gameplay in.
 
@@ -48,9 +48,7 @@ The goal of this phase is to get the most basic gameplay in.
 
 🗹 Crafting
 
-☐ Ability to die
-
-☐ Post devlog
+🗹 Ability to die
 
 ### v0.2 - Better Combat and Basic NPCs
 
