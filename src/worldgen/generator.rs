@@ -11,7 +11,7 @@ use bevy::prelude::*;
 
 use super::{DecorationSettings, ShaperSettings, pipeline::Heightmap};
 
-
+#[allow(clippy::needless_range_loop)] //more readable with range
 pub fn shape_chunk<
     const NOISE: usize,
     const HEIGHTMAP: usize,

@@ -31,10 +31,10 @@ impl Plugin for ItemsPlugin {
             .configure_sets(
                 Update,
                 (
-                    ItemSystemSet::ItemUsage.in_set(LevelSystemSet::Main),
-                    ItemSystemSet::ItemUsageProcessing.in_set(LevelSystemSet::Main),
-                    ItemSystemSet::ItemDropPickup.in_set(LevelSystemSet::Main),
-                    ItemSystemSet::ItemDropPickupProcessing.in_set(LevelSystemSet::Main),
+                    ItemSystemSet::Usage.in_set(LevelSystemSet::Main),
+                    ItemSystemSet::UsageProcessing.in_set(LevelSystemSet::Main),
+                    ItemSystemSet::DropPickup.in_set(LevelSystemSet::Main),
+                    ItemSystemSet::DropPickupProcessing.in_set(LevelSystemSet::Main),
                 ).chain(),
             )
             .add_plugins((
@@ -53,11 +53,11 @@ impl Plugin for ItemsPlugin {
                     block_item::use_block_entity_item,
                     block_item::use_mega_block_item,
                 )
-                    .in_set(ItemSystemSet::ItemUsageProcessing),
+                    .in_set(ItemSystemSet::UsageProcessing),
             )
             .add_systems(
                 Update,
-                inventory::tick_item_timers.in_set(ItemSystemSet::ItemUsage),
+                inventory::tick_item_timers.in_set(ItemSystemSet::Usage),
             )
             .register_type::<NamedItemIcon>()
             .register_type::<ItemName>()
@@ -68,10 +68,10 @@ impl Plugin for ItemsPlugin {
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum ItemSystemSet {
-    ItemUsage,
-    ItemUsageProcessing,
-    ItemDropPickup,
-    ItemDropPickupProcessing,
+    Usage,
+    UsageProcessing,
+    DropPickup,
+    DropPickupProcessing,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -261,10 +261,10 @@ impl ItemRegistry {
         match item_id {
             ItemId(Id::Empty) => None,
             ItemId(Id::Basic(id)) => self.basic_entities.get(id as usize).copied(),
-            ItemId(Id::Dynamic(id)) => self.dynamic_generators.get(id as usize).and_then(|gen| {
+            ItemId(Id::Dynamic(id)) => self.dynamic_generators.get(id as usize).map(|gen| {
                 let id = Self::setup_item(item_id, commands);
                 gen.generate(id, commands);
-                Some(id)
+                id
             }),
         }
     }

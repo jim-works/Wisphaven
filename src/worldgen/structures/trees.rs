@@ -309,7 +309,7 @@ pub fn get_cactus(
             };
             match x {
                 TreeAlphabet::Replace(x) => {
-                    Some(get_moves(get_next_prng((idx as u64).wrapping_add(seed)) as usize % OPTIONS, *x))
+                    Some(get_moves(get_next_prng(idx.wrapping_add(seed)) as usize % OPTIONS, *x))
                 }
                 _ => None,
             }

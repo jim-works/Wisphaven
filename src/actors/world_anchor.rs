@@ -1,6 +1,6 @@
 use crate::{
     physics::PhysicsObjectBundle,
-    ui::healthbar::{spawn_billboard_healthbar, HealthbarResources}, util::SendEventCommand
+    ui::healthbar::spawn_billboard_healthbar, util::SendEventCommand
 };
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
@@ -61,7 +61,6 @@ pub fn spawn_world_anchor(
     mut commands: Commands,
     res: Res<WorldAnchorResources>,
     mut spawn_requests: EventReader<SpawnWorldAnchorEvent>,
-    healthbar_resources: Res<HealthbarResources>,
     _children_query: Query<&Children>,
 ) {
     for spawn in spawn_requests.iter() {
@@ -86,7 +85,7 @@ pub fn spawn_world_anchor(
                     collider: Collider::compound(vec![(Vec3::new(0.0,0.0,0.0), Quat::IDENTITY, Collider::cuboid(0.5, 0.5, 0.5))]),
                     ..default()
                 },
-                WorldAnchor { ..default() },
+                WorldAnchor,
                 //no UninitializedActor b/c we don't have to do any setup
             ))
             .id();
@@ -94,7 +93,6 @@ pub fn spawn_world_anchor(
         //add healthbar
         spawn_billboard_healthbar(
             &mut commands,
-            &healthbar_resources,
             id,
             Vec3::new(0.0, 2.0, 0.0),
         );

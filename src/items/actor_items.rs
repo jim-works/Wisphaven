@@ -10,7 +10,7 @@ pub struct ActorItems;
 
 impl Plugin for ActorItems {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, do_spawn_actors.in_set(ItemSystemSet::ItemUsageProcessing))
+        app.add_systems(Update, do_spawn_actors.in_set(ItemSystemSet::UsageProcessing))
             .add_systems(Startup, setup)
             .register_type::<SpawnActorItem>();
     }

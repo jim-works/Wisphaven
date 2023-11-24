@@ -73,7 +73,7 @@ impl BasicBlockRecipe {
         recipe: &Vec<Vec<Vec<Option<Entity>>>>,
         products: Vec<(BlockCoord, BlockType)>,
     ) -> Option<Self> {
-        if recipe.len() == 0 || recipe[0].len() == 0 || recipe[0][0].len() == 0 {
+        if recipe.is_empty() || recipe[0].is_empty() || recipe[0][0].is_empty() {
             error!("Recipe length was 0 on an axis");
             return None;
         }
@@ -108,7 +108,7 @@ impl BasicBlockRecipe {
     fn get_recipe_entry(&self, at: BlockCoord) -> Option<Entity> {
         let idx =
             at.x as usize + at.y as usize * self.size.0 + at.z as usize * self.size.0 * self.size.1;
-        return self.recipe[idx];
+        self.recipe[idx]
     }
 
     pub fn verify_exact(&self, origin: BlockCoord, level: &Level) -> bool {

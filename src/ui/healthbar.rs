@@ -48,7 +48,6 @@ fn init(
 
 pub fn spawn_billboard_healthbar(
     commands: &mut Commands,
-    healthbar_resources: &Res<HealthbarResources>,
     tracking: Entity,
     offset: Vec3,
 ) -> Entity {

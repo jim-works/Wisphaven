@@ -10,7 +10,7 @@ pub struct ItemAttributesPlugin;
 impl Plugin for ItemAttributesPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_systems(Update, consume_items.in_set(ItemSystemSet::ItemDropPickup))
+            .add_systems(Update, consume_items.in_set(ItemSystemSet::DropPickup))
             .register_type::<ConsumableItem>()
             .register_type::<ItemSwingSpeed>()
             .register_type::<ItemUseSpeed>()

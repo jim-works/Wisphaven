@@ -120,6 +120,7 @@ impl From<Vec3> for Direction {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum Corner {
     NXNYNZ=0,
     NXNYPZ=1,

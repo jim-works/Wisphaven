@@ -4,7 +4,10 @@ use crate::{
     mesher::NeedsMesh,
     physics::NeedsPhysics,
     serialization::{ChunkSaveFormat, NeedsLoading, NeedsSaving},
-    util::{max_component_norm, Direction, iterators::{BlockVolume, BlockVolumeContainer}},
+    util::{
+        iterators::{BlockVolume, BlockVolumeContainer},
+        max_component_norm, Direction,
+    },
     world::BlockcastHit,
     worldgen::{ChunkNeedsGenerated, GeneratedChunk, GenerationPhase},
 };
@@ -262,14 +265,11 @@ impl LevelData {
     ) {
         for dir in Direction::iter() {
             if let Some(neighbor_ref) = self.get_chunk(coord.offset(dir)) {
-                match neighbor_ref.value() {
-                    ChunkType::Full(c) => {
-                        commands
-                            .entity(c.entity)
-                            .insert((NeedsMesh {}, NeedsPhysics {}));
-                        update_writer.send(ChunkUpdatedEvent { coord: c.position });
-                    }
-                    _ => {}
+                if let ChunkType::Full(c) = neighbor_ref.value() {
+                    commands
+                        .entity(c.entity)
+                        .insert((NeedsMesh {}, NeedsPhysics {}));
+                    update_writer.send(ChunkUpdatedEvent { coord: c.position });
                 }
             }
         }
@@ -477,19 +477,11 @@ impl LevelData {
         for (coord, buf) in buffer.buf {
             //if the chunk is already generated, add the contents of the buffer to the chunk
             if let Some(mut chunk_ref) = self.get_chunk_mut(coord) {
-                match chunk_ref.value_mut() {
-                    ChunkType::Full(ref mut c) => {
-                        buf.apply_to(c.blocks.as_mut());
-                        Self::update_chunk_only::<true>(
-                            c.entity,
-                            c.position,
-                            commands,
-                            update_writer,
-                        );
-                        //self.update_chunk_neighbors_only(c.position, commands);
-                        continue;
-                    }
-                    _ => {}
+                if let ChunkType::Full(ref mut c) = chunk_ref.value_mut() {
+                    buf.apply_to(c.blocks.as_mut());
+                    Self::update_chunk_only::<true>(c.entity, c.position, commands, update_writer);
+                    //self.update_chunk_neighbors_only(c.position, commands);
+                    continue;
                 }
             }
             //we break if we updated a chunk in the world, so now we merge the buffer
@@ -512,23 +504,20 @@ impl LevelData {
         let _my_span = info_span!("add_array_buffer", name = "add_array_buffer").entered();
         //if the chunk is already generated, add the contents of the buffer to the chunk
         if let Some(mut chunk_ref) = self.get_chunk_mut(coord) {
-            match chunk_ref.value_mut() {
-                ChunkType::Full(ref mut c) => {
-                    let mut start = 0;
-                    for (block, run) in buf {
-                        if !matches!(*block, BlockType::Empty) {
-                            for i in start..start + *run as usize {
-                                c.set_block(i, *block);
-                            }
+            if let ChunkType::Full(ref mut c) = chunk_ref.value_mut() {
+                let mut start = 0;
+                for (block, run) in buf {
+                    if !matches!(*block, BlockType::Empty) {
+                        for i in start..start + *run as usize {
+                            c.set_block(i, *block);
                         }
-                        start += *run as usize;
                     }
-                    Self::update_chunk_only::<true>(c.entity, c.position, commands, update_writer);
-                    //self.update_chunk_neighbors_only(c.position, commands);
-                    //we've already spawned in the buffer, so we shouldn't store it
-                    return;
+                    start += *run as usize;
                 }
-                _ => {}
+                Self::update_chunk_only::<true>(c.entity, c.position, commands, update_writer);
+                //self.update_chunk_neighbors_only(c.position, commands);
+                //we've already spawned in the buffer, so we shouldn't store it
+                return;
             }
         }
         //we break if we updated a chunk in the world, so now we merge the buffer
@@ -541,8 +530,8 @@ impl LevelData {
         let mut start = 0;
         for (block, run) in buf {
             if !matches!(*block, BlockType::Empty) {
-                for i in start..start + *run as usize {
-                    stored_buf[i] = *block;
+                for stored_block in stored_buf.iter_mut().skip(start).take(*run as usize) {
+                    *stored_block = *block;
                 }
             }
             start += *run as usize;
@@ -596,20 +585,17 @@ impl LevelData {
                 ChunkType::Ungenerated(id) => Some(*id),
                 ChunkType::Generating(_, chunk) => Some(chunk.entity),
                 ChunkType::Full(chunk) => Some(chunk.entity),
-            }
+            };
         }
         None
     }
     pub fn update_chunk_phase(&self, key: ChunkCoord, phase: GenerationPhase) {
         let _my_span = info_span!("update_chunk_phase", name = "update_chunk_phase").entered();
         if let Some(mut c) = self.get_chunk_mut(key) {
-            match c.value_mut() {
-                ChunkType::Generating(old_phase, _) => {
-                    if phase > *old_phase {
-                        *old_phase = phase;
-                    }
+            if let ChunkType::Generating(old_phase, _) = c.value_mut() {
+                if phase > *old_phase {
+                    *old_phase = phase;
                 }
-                _ => {}
             }
         }
     }

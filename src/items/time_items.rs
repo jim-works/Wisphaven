@@ -8,7 +8,7 @@ pub struct TimeItemsPlugin;
 
 impl Plugin for TimeItemsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, use_skip_to_night_item.in_set(ItemSystemSet::ItemUsageProcessing))
+        app.add_systems(Update, use_skip_to_night_item.in_set(ItemSystemSet::UsageProcessing))
             .register_type::<SkipToNightItem>();
     }
 }

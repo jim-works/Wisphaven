@@ -33,7 +33,7 @@ pub fn process_tnt(
     mut commands: Commands,
 ) {
     for used in uses.iter() {
-        if let Ok(_) = tnt_query.get(used.block_used) {
+        if tnt_query.get(used.block_used).is_ok() {
             level.set_block_entity(
                 used.block_position,
                 BlockType::Empty,

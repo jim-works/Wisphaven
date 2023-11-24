@@ -2,12 +2,18 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::{QueryFilter, RapierContext};
 use serde::{Deserialize, Serialize};
 
-use crate::{world::{
-    events::{BlockDamageSetEvent, BlockHitEvent, ChunkUpdatedEvent},
-    BlockCoord, BlockId, Level,
-}, actors::Player};
+use crate::{
+    actors::Player,
+    world::{
+        events::{BlockDamageSetEvent, BlockHitEvent, ChunkUpdatedEvent},
+        BlockCoord, BlockId, Level,
+    },
+};
 
-use super::{SwingItemEvent, inventory::Inventory, CreatorItem, ItemStack, MaxStackSize, PickupItemEvent, EquipItemEvent, ItemSystemSet};
+use super::{
+    inventory::Inventory, CreatorItem, EquipItemEvent, ItemStack, ItemSystemSet, MaxStackSize,
+    PickupItemEvent, SwingItemEvent,
+};
 
 pub mod abilities;
 
@@ -20,7 +26,7 @@ impl Plugin for ToolsPlugin {
             .register_type::<ToolResistance>()
             .add_systems(
                 Update,
-                (on_swing, deal_block_damage).in_set(ItemSystemSet::ItemUsageProcessing),
+                (on_swing, deal_block_damage).in_set(ItemSystemSet::UsageProcessing),
             );
     }
 }
@@ -57,7 +63,13 @@ pub fn on_swing(
     mut writer: EventWriter<BlockHitEvent>,
     collision: Res<RapierContext>,
 ) {
-    for SwingItemEvent { user, inventory_slot: _, stack, tf } in reader.iter() {
+    for SwingItemEvent {
+        user,
+        inventory_slot: _,
+        stack,
+        tf,
+    } in reader.iter()
+    {
         if let Some((_, t)) = collision.cast_ray(
             tf.translation(),
             tf.forward(),
@@ -101,16 +113,14 @@ fn deal_block_damage(
         if let Some(block_hit) = level.get_block_entity(*block_position) {
             let resistance = resistance_query.get(block_hit).copied().unwrap_or_default();
             let tool = item
-                .map(|i| tool_query.get(i).ok())
-                .flatten()
+                .and_then(|i| tool_query.get(i).ok())
                 .copied() //block was hit with a tool, so use that
                 .unwrap_or(
-                    user.map(|entity| tool_query.get(entity).ok())
-                        .flatten()
+                    user.and_then(|entity| tool_query.get(entity).ok())
                         .copied() //entity that hit the block had tool power
                         .unwrap_or_default(),
                 ); //...or nothing and use default tool
-            //todo - remove this once item drops are entities
+                   //todo - remove this once item drops are entities
             if let Some(broken) = level.damage_block(
                 *block_position,
                 calc_block_damage(resistance, tool),
@@ -120,9 +130,14 @@ fn deal_block_damage(
                 &mut update_writer,
                 &mut commands,
             ) {
-                if let Some(mut inv) = user.map(|e| player_query.get_mut(e).ok()).flatten() {
+                if let Some(mut inv) = user.and_then(|e| player_query.get_mut(e).ok()) {
                     if let Ok(CreatorItem(item)) = block_query.get(broken) {
-                        inv.pickup_item(ItemStack::new(*item, 1), &data_query, &mut pickup_writer, &mut equip_writer);
+                        inv.pickup_item(
+                            ItemStack::new(*item, 1),
+                            &data_query,
+                            &mut pickup_writer,
+                            &mut equip_writer,
+                        );
                     }
                 }
             }

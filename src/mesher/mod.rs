@@ -1,8 +1,6 @@
 mod generator;
 pub use generator::*;
 
-mod mesh_lod;
-
 pub mod materials;
 pub use materials::{ChunkMaterial, ArrayTextureMaterial};
 
@@ -13,8 +11,6 @@ use bevy::{
 
 use crate::{world::LevelSystemSet, serialization::state::GameLoadState};
 
-use self::mesh_lod::LODMeshTimer;
-
 pub struct MesherPlugin;
 
 const SPAWN_MESH_TIME_BUDGET_COUNT: u32 = 1000;
@@ -23,15 +19,11 @@ impl Plugin for MesherPlugin {
     fn build(&self, app: &mut App) {
 
         app.add_plugins(MaterialPlugin::<ArrayTextureMaterial>::default())
-            .insert_resource(LODMeshTimer {
-                timer: Timer::from_seconds(0.05, TimerMode::Repeating),
-            })
             .add_systems(
                 Update,
                 (
                     generator::poll_mesh_queue,
                     generator::queue_meshing,
-                    mesh_lod::queue_meshing_lod,
                 )
                     .in_set(LevelSystemSet::AfterLoadingAndMain))
             .add_systems(Startup, materials::init)

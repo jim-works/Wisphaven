@@ -208,8 +208,7 @@ fn attack(
                 if let Ok((tf, targets, v, anim_opt)) = skele_query.get_mut(actor) {
                     if let Some((target, target_v_opt)) = targets
                         .current_target()
-                        .map(|t| aggro_query.get(t).ok())
-                        .flatten()
+                        .and_then(|t| aggro_query.get(t).ok())
                     {
                         let spawn_point = tf.translation() + COIN_OFFSET;
                         match anim_opt {

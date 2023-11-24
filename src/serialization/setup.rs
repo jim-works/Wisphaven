@@ -39,7 +39,7 @@ pub fn load_terrain_texture(
         .into_iter()
         .flat_map(|v| v.into_iter().map(|t| t.typed()))
         .collect();
-    if textures.len() == 0 {
+    if textures.is_empty() {
         warn!(
             "No block textures found at {}",
             settings.block_tex_path.as_path().display()
@@ -80,7 +80,7 @@ pub fn load_item_textures(
         .into_iter()
         .flat_map(|v| v.into_iter().map(|t| t.typed()))
         .collect();
-    if textures.len() == 0 {
+    if textures.is_empty() {
         warn!(
             "No item textures found at {}",
             settings.block_tex_path.as_path().display()
@@ -115,7 +115,7 @@ pub fn start_loading_blocks(
         .into_iter()
         .flat_map(|v| v.into_iter().map(|t| t.typed()))
         .collect();
-    if block_scenes.len() == 0 {
+    if block_scenes.is_empty() {
         warn!(
             "No blocks found at {}",
             settings.block_type_path.as_path().display()
@@ -145,7 +145,7 @@ pub fn start_loading_items(
         .into_iter()
         .flat_map(|v| v.into_iter().map(|t| t.typed()))
         .collect();
-    if item_scenes.len() == 0 {
+    if item_scenes.is_empty() {
         warn!(
             "No items found at {}",
             settings.item_type_path.as_path().display()
@@ -175,7 +175,7 @@ pub fn start_loading_recipes(
         .into_iter()
         .flat_map(|v| v.into_iter().map(|t| t.typed()))
         .collect();
-    if recipe_scenes.len() == 0 {
+    if recipe_scenes.is_empty() {
         warn!(
             "No recipes found at {}",
             settings.item_type_path.as_path().display()
@@ -222,7 +222,7 @@ pub fn load_block_registry(
         for child in children.unwrap() {
             //do name resolution
             if let Ok(named_mesh) = name_resolution_query.get(*child) {
-                let mut mesh = named_mesh.clone().to_block_mesh(&texture_map);
+                let mut mesh = named_mesh.clone().into_block_mesh(&texture_map);
                 mesh.single_mesh = mesh_single_block(&mesh, &mut meshes);
                 commands
                     .entity(*child)
@@ -329,8 +329,7 @@ pub fn load_recipe_list(
                                 .map(|opt_name| {
                                     opt_name
                                         .as_ref()
-                                        .map(|name| block_registry.registry.get_basic(&name))
-                                        .flatten()
+                                        .and_then(|name| block_registry.registry.get_basic(name))
                                 })
                                 .collect::<Vec<_>>(),
                         )
@@ -401,8 +400,8 @@ pub fn on_level_created(
 }
 
 fn load_block_palette(db: &mut LevelDB, commands: &mut Commands, registry: &BlockRegistry) {
-    match db.immediate_execute_query(LOAD_WORLD_INFO, rusqlite::params!["block_palette"], |row| {
-        Ok(row.get(0)?)
+    match db.execute_query_sync(LOAD_WORLD_INFO, rusqlite::params!["block_palette"], |row| {
+        row.get(0)
     }) {
         Ok(data) => {
             match create_block_id_maps_from_palette(&data, registry) {
@@ -428,7 +427,6 @@ fn load_block_palette(db: &mut LevelDB, commands: &mut Commands, registry: &Bloc
                 }
                 None => {
                     error!("Couldn't create saved block id map!");
-                    return;
                 }
             }
         }
@@ -456,11 +454,11 @@ fn load_block_palette(db: &mut LevelDB, commands: &mut Commands, registry: &Bloc
         }
         Err(e) => {
             error!("Error messing with block palette in db: {:?}", e);
-            return;
         }
-    };
+    }
 }
 
+#[allow(clippy::ptr_arg)] //must be vec, sql cannot retrieve [u8]
 fn create_block_id_maps_from_palette(
     data: &Vec<u8>,
     registry: &BlockRegistry,
@@ -518,8 +516,8 @@ fn create_palette_from_block_id_map(
 }
 
 fn load_item_palette(db: &mut LevelDB, commands: &mut Commands, registry: &ItemRegistry) {
-    match db.immediate_execute_query(LOAD_WORLD_INFO, rusqlite::params!["item_palette"], |row| {
-        Ok(row.get(0)?)
+    match db.execute_query_sync(LOAD_WORLD_INFO, rusqlite::params!["item_palette"], |row| {
+        row.get(0)
     }) {
         Ok(data) => {
             match create_item_id_maps_from_palette(&data, registry) {
@@ -545,7 +543,6 @@ fn load_item_palette(db: &mut LevelDB, commands: &mut Commands, registry: &ItemR
                 }
                 None => {
                     error!("Couldn't create saved block id map!");
-                    return;
                 }
             }
         }
@@ -573,11 +570,11 @@ fn load_item_palette(db: &mut LevelDB, commands: &mut Commands, registry: &ItemR
         }
         Err(e) => {
             error!("Error messing with item palette in db: {:?}", e);
-            return;
         }
-    };
+    }
 }
 
+#[allow(clippy::ptr_arg)] //must be vec, sql cannot retrieve [u8]
 fn create_item_id_maps_from_palette(
     data: &Vec<u8>,
     registry: &ItemRegistry,

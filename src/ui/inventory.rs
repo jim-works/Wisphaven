@@ -356,8 +356,7 @@ fn update_icons(
                                 //render block item
                                 //todo - despawn if dynamic
                                 match block_mesh_query.get(item.0).ok()
-                                    .map(|block_mesh| block_mesh.single_mesh.as_ref())
-                                    .flatten()
+                                    .and_then(|block_mesh| block_mesh.single_mesh.as_ref())
                                 {
                                     Some(mesh) => {
                                         //spawn these entities super far out because lighting affects all layers
@@ -447,7 +446,7 @@ fn spawn_block_preview(
                         ..default()
                     },
                     projection: Projection::Orthographic(OrthographicProjection {
-                        scale: 2.0 / SLOT_PX as f32, // smaller numbers here make the block look bigger
+                        scale: 2.0 / SLOT_PX, // smaller numbers here make the block look bigger
                         ..default()
                     }),
                     transform: Transform::from_translation(CAMERA_OFFSET)

@@ -52,7 +52,7 @@ pub fn get_next_prng(input: u64) -> u64
     let input = input as u32;
     let state = (input | 1) ^ input.wrapping_mul(input);
     let word = 277803737_u32.wrapping_mul(state.rotate_right((state >> 28).wrapping_add(4)) ^ state);
-    return ((word >> 22) ^ word) as u64;
+    ((word >> 22) ^ word) as u64
 }
 
 pub fn mut_next_prng(input: &mut u64) -> u64 {

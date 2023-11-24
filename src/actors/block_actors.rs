@@ -78,10 +78,7 @@ fn falling_block_spawner(
 ) {
     for event in reader.iter() {
         let block_mesh = mesh_query.get(event.block).ok();
-        match block_mesh
-            .map(|component| component.single_mesh.clone())
-            .flatten()
-        {
+        match block_mesh.and_then(|component| component.single_mesh.clone()) {
             Some(mesh) => {
                 commands.spawn((
                     PhysicsObjectBundle {
@@ -117,7 +114,7 @@ fn falling_block_spawner(
                     },
                     FallingBlock(event.block, event.place_on_landing),
                 ));
-            },
+            }
         };
     }
 }

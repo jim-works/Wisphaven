@@ -258,8 +258,7 @@ fn walk_to_current_target_action(
                 ActionState::Executing => {
                     if let Some(target_tf) = targets
                         .current_target()
-                        .map(|e| tf_query.get(e).ok())
-                        .flatten()
+                        .and_then(|e| tf_query.get(e).ok())
                     {
                         let dest = target_tf.translation();
                         let delta = Vec3::new(dest.x, 0.0, dest.z)
@@ -391,8 +390,7 @@ fn get_closest_block_dist(
     for (distance, coord) in distances.into_iter().zip(test_blocks.into_iter()) {
         match level
             .get_block_entity(coord)
-            .map(|b| block_physics.get(b).ok())
-            .flatten()
+            .and_then(|b| block_physics.get(b).ok())
         {
             Some(BlockPhysics::Empty) | None => {}
             _ => {
@@ -400,6 +398,6 @@ fn get_closest_block_dist(
             }
         }
     }
-    return None;
+    None
 }
 

@@ -110,7 +110,7 @@ impl<const SIZE: usize> BlockPalette<BlockType, SIZE> {
     ) -> BlockPalette<T, SIZE> {
         let _span = info_span!("get_components", name = "get_components").entered();
         BlockPalette {
-            data: self.data.clone(),
+            data: self.data,
             palette: self.map_palette(query),
         }
     }

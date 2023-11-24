@@ -59,7 +59,7 @@ impl Iterator for BlockVolumeIterator {
         if self.z_i >= self.z_len {
             self.done = true;
         }
-        return ret;
+        ret
     }
 }
 

@@ -11,7 +11,7 @@ use crate::{
 mod pipeline;
 mod generator;
 pub use pipeline::{
-    ChunkNeedsGenerated, GeneratedChunk, GeneratedLODChunk, ShaperSettings
+    ChunkNeedsGenerated, GeneratedChunk, ShaperSettings
 };
 
 use self::{

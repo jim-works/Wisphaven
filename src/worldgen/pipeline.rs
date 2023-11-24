@@ -147,7 +147,7 @@ pub fn queue_generating<
         //must be async so that it's a future
         let mut ec = commands.entity(entity);
         ec.remove::<ChunkNeedsGenerated>();
-        let id = id.0.clone();
+        let id = id.0;
         let level_data = level.0.clone();
         match gen_request {
             ChunkNeedsGenerated::Full => {
@@ -263,11 +263,11 @@ pub fn poll_decoration_waiters(
     }
 }
 
-fn can_decorate<'a>(
+fn can_decorate(
     chunk: ChunkCoord,
-    level: &'a LevelData,
+    level: &LevelData,
 ) -> Option<(
-    dashmap::mapref::one::RefMut<'a, ChunkCoord, ChunkType, ahash::RandomState>,
+    dashmap::mapref::one::RefMut<'_, ChunkCoord, ChunkType, ahash::RandomState>,
     ChunkType,
 )> {
     //can only hold one mutable reference into level without deadlocking, so we must clone the top_chunk 
@@ -369,10 +369,10 @@ pub fn poll_structure_waiters(
     }
 }
 
-fn can_structure<'a>(
+fn can_structure(
     chunk: ChunkCoord,
-    level: &'a LevelData,
-) -> Option<dashmap::mapref::one::RefMut<'a, ChunkCoord, ChunkType, ahash::RandomState>> {
+    level: &LevelData,
+) -> Option<dashmap::mapref::one::RefMut<'_, ChunkCoord, ChunkType, ahash::RandomState>> {
     //this is very ugly but not sure how to make it better
     if let Some(mut c) = level.get_chunk_mut(chunk) {
         if let ChunkType::Generating(phase, _) = c.value_mut() {
@@ -397,7 +397,7 @@ pub fn poll_structure_task(
     for (entity, mut task) in decoration_query.iter_mut() {
         if let Some((pos, buf)) = future::block_on(future::poll_once(&mut task.task)) {
             level.add_buffer(
-                buf.to_block_type(&resources.registry, &mut commands),
+                buf.into_block_type(&resources.registry, &mut commands),
                 &mut commands,
                 &mut update_writer
             );

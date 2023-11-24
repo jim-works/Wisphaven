@@ -9,7 +9,7 @@ pub struct WeaponItemPlugin;
 
 impl Plugin for WeaponItemPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (attack_melee, launch_coin).in_set(ItemSystemSet::ItemUsageProcessing))
+        app.add_systems(Update, (attack_melee, launch_coin).in_set(ItemSystemSet::UsageProcessing))
             .register_type::<CoinLauncherItem>();
     }
 }

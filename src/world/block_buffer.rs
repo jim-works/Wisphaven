@@ -8,7 +8,7 @@ pub struct BlockBuffer<T: Clone + Default + PartialEq> {
 }
 
 impl BlockBuffer<BlockId> {
-    pub fn to_block_type(
+    pub fn into_block_type(
         self,
         registry: &BlockRegistry,
         commands: &mut Commands,

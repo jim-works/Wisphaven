@@ -4,7 +4,7 @@ use big_brain::prelude::*;
 
 use crate::{
     physics::{shape_intersects_with_actors, PhysicsObjectBundle},
-    ui::healthbar::{spawn_billboard_healthbar, HealthbarResources},
+    ui::healthbar::spawn_billboard_healthbar,
     world::LevelLoadState, util::{SendEventCommand, plugin::SmoothLookTo},
 };
 
@@ -78,7 +78,6 @@ pub fn spawn_glowjelly(
     mut commands: Commands,
     jelly_res: Res<GlowjellyResources>,
     mut spawn_requests: EventReader<SpawnGlowjellyEvent>,
-    healthbar_resources: Res<HealthbarResources>,
     _children_query: Query<&Children>,
 ) {
     for spawn in spawn_requests.iter() {
@@ -146,7 +145,6 @@ pub fn spawn_glowjelly(
         //add healthbar
         spawn_billboard_healthbar(
             &mut commands,
-            &healthbar_resources,
             id,
             Vec3::new(0.0, 2.0, 0.0),
         );

@@ -32,15 +32,13 @@ impl ItemAction {
         }
     }
     pub fn try_swing(&mut self, tf: GlobalTransform) {
-        match self {
-            ItemAction::None => *self = ItemAction::SwingingWindup(default(), tf),
-            _ => (),
+        if let ItemAction::None = self {
+            *self = ItemAction::SwingingWindup(default(), tf);
         }
     }
     pub fn try_use(&mut self, tf: GlobalTransform) {
-        match self {
-            ItemAction::None => *self = ItemAction::UsingWindup(default(), tf),
-            _ => (),
+        if let ItemAction::None = self {
+            *self = ItemAction::UsingWindup(default(), tf);
         }
     }
 }
@@ -311,12 +309,22 @@ pub fn tick_item_timers(
                         match use_speed_query.get(stack.id).ok().fallback(base_use_speed) {
                             Some(use_speed) => {
                                 if elapsed.elapsed() >= use_speed.windup {
-                                    use_writer.send(UseItemEvent { user: owner, inventory_slot, stack: *stack, tf: *use_pos });
+                                    use_writer.send(UseItemEvent {
+                                        user: owner,
+                                        inventory_slot,
+                                        stack: *stack,
+                                        tf: *use_pos,
+                                    });
                                     *action = ItemAction::UsingBackswing(default());
                                 }
                             }
                             _ => {
-                                use_writer.send(UseItemEvent{ user: owner, inventory_slot, stack: *stack, tf: *use_pos });
+                                use_writer.send(UseItemEvent {
+                                    user: owner,
+                                    inventory_slot,
+                                    stack: *stack,
+                                    tf: *use_pos,
+                                });
                                 *action = ItemAction::None;
                             }
                         }
@@ -341,12 +349,22 @@ pub fn tick_item_timers(
                         {
                             Some(swing_speed) => {
                                 if elapsed.elapsed() >= swing_speed.windup {
-                                    swing_writer.send(SwingItemEvent{ user: owner, inventory_slot, stack: *stack, tf: *use_pos });
+                                    swing_writer.send(SwingItemEvent {
+                                        user: owner,
+                                        inventory_slot,
+                                        stack: *stack,
+                                        tf: *use_pos,
+                                    });
                                     *action = ItemAction::SwingingBackswing(default());
                                 }
                             }
                             _ => {
-                                swing_writer.send(SwingItemEvent{ user: owner, inventory_slot, stack: *stack, tf: *use_pos });
+                                swing_writer.send(SwingItemEvent {
+                                    user: owner,
+                                    inventory_slot,
+                                    stack: *stack,
+                                    tf: *use_pos,
+                                });
                                 *action = ItemAction::None;
                             }
                         }

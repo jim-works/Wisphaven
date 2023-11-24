@@ -16,9 +16,6 @@ pub const CREATE_WORLD_INFO_TABLE: &str = "
 pub const SAVE_CHUNK_DATA: &str = "
             INSERT OR REPLACE INTO data (tid,x, y, z, data)
             VALUES (?1,?2,?3,?4,?5)";
-pub const DELETE_CHUNK_DATA: &str = "
-            DELETE FROM data
-            WHERE tid = ?1 AND x = ?2 AND y = ?3 AND z = ?4";
 pub const LOAD_CHUNK_DATA: &str = "
             SELECT data FROM data
             WHERE tid = ?1 AND x = ?2 AND y = ?3 AND z = ?4";

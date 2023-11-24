@@ -109,10 +109,10 @@ pub struct NamedBlockMesh {
 }
 
 impl NamedBlockMesh {
-    pub fn to_block_mesh(self, map: &BlockTextureMap) -> BlockMesh {
+    pub fn into_block_mesh(self, map: &BlockTextureMap) -> BlockMesh {
         BlockMesh {
             use_transparent_shader: self.use_transparent_shader,
-            shape: self.shape.to_block_mesh(map),
+            shape: self.shape.into_block_mesh(map),
             single_mesh: None,
         }
     }
@@ -133,7 +133,7 @@ pub enum NamedBlockMeshShape {
 }
 
 impl NamedBlockMeshShape {
-    pub fn to_block_mesh(self, map: &BlockTextureMap) -> BlockMeshShape {
+    pub fn into_block_mesh(self, map: &BlockTextureMap) -> BlockMeshShape {
         match self {
             NamedBlockMeshShape::Empty => BlockMeshShape::Empty,
             NamedBlockMeshShape::Uniform(name) => {
@@ -313,10 +313,10 @@ impl BlockRegistry {
         match block_id {
             BlockId(Id::Empty) => None,
             BlockId(Id::Basic(id)) => self.basic_entities.get(id as usize).copied(),
-            BlockId(Id::Dynamic(id)) => self.dynamic_generators.get(id as usize).and_then(|gen| {
+            BlockId(Id::Dynamic(id)) => self.dynamic_generators.get(id as usize).map(|gen| {
                 let id = Self::setup_block(block_id, commands);
                 gen.default(id, commands);
-                Some(id)
+                id
             }),
         }
     }
@@ -329,10 +329,10 @@ impl BlockRegistry {
         match block_id {
             BlockId(Id::Empty) => None,
             BlockId(Id::Basic(id)) => self.basic_entities.get(id as usize).copied(),
-            BlockId(Id::Dynamic(id)) => self.dynamic_generators.get(id as usize).and_then(|gen| {
+            BlockId(Id::Dynamic(id)) => self.dynamic_generators.get(id as usize).map(|gen| {
                 let id = Self::setup_block(block_id, commands);
                 gen.generate(id, position, commands);
-                Some(id)
+                id
             }),
         }
     }

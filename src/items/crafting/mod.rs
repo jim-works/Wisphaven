@@ -15,9 +15,9 @@ impl Plugin for CraftingPlugin {
             .configure_sets(
                 Update,
                 (
-                    CraftingSystemSet::RecipeCheckers.in_set(ItemSystemSet::ItemUsageProcessing),
-                    CraftingSystemSet::RecipePicker.in_set(ItemSystemSet::ItemUsageProcessing),
-                    CraftingSystemSet::RecipeActor.in_set(ItemSystemSet::ItemUsageProcessing),
+                    CraftingSystemSet::RecipeCheckers.in_set(ItemSystemSet::UsageProcessing),
+                    CraftingSystemSet::RecipePicker.in_set(ItemSystemSet::UsageProcessing),
+                    CraftingSystemSet::RecipeActor.in_set(ItemSystemSet::UsageProcessing),
                 )
                     .chain(),
             )
@@ -34,6 +34,7 @@ impl Plugin for CraftingPlugin {
 pub struct RecipeId(pub usize);
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+#[allow(clippy::enum_variant_names)]
 pub enum CraftingSystemSet {
     RecipeCheckers, //take in item usage events, fires recipe candidate event
     RecipePicker,   //take in recipe candidate events, fires recipe crafted event

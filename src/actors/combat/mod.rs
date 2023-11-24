@@ -114,7 +114,7 @@ impl AggroTargets {
         self.pqueue.get(self.current_target_idx).map(|(t, _)| *t)
     }
     pub fn add_target(&mut self, target: Entity, priority: i32) {
-        if self.pqueue.len() > 0 && self.pqueue[self.current_target_idx].1 < priority {
+        if !self.pqueue.is_empty() && self.pqueue[self.current_target_idx].1 < priority {
             //this is now the current target
             self.current_target_idx = self.pqueue.len();
         }

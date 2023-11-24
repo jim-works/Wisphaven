@@ -97,45 +97,42 @@ fn test_projectile_hit(
     id_query: Query<&BlockId>,
     mut damage_writer: EventWriter<BlockDamageSetEvent>,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
-    rapier_context: Res<RapierContext>
+    rapier_context: Res<RapierContext>,
 ) {
     for event in collision_events.iter() {
-        match event {
-            CollisionEvent::Started(e1, e2, _) => {
-                //typically don't get duplicated events, so have to check both entities
-                if let Ok((proj_entity, proj, v, opt_in_entity)) = query.get(*e1) {
-                    proj_hit(
-                        &mut attack_writer,
-                        &mut commands,
-                        proj_entity,
-                        proj,
-                        v,
-                        *e2,
-                        opt_in_entity,
-                        &level,
-                        &id_query,
-                        &mut damage_writer,
-                        &mut update_writer,
-                        &rapier_context
-                    );
-                } else if let Ok((proj_entity, proj, v, opt_in_entity)) = query.get(*e2) {
-                    proj_hit(
-                        &mut attack_writer,
-                        &mut commands,
-                        proj_entity,
-                        proj,
-                        v,
-                        *e1,
-                        opt_in_entity,
-                        &level,
-                        &id_query,
-                        &mut damage_writer,
-                        &mut update_writer,
-                        &rapier_context
-                    );
-                }
+        if let CollisionEvent::Started(e1, e2, _) = event {
+            //typically don't get duplicated events, so have to check both entities
+            if let Ok((proj_entity, proj, v, opt_in_entity)) = query.get(*e1) {
+                proj_hit(
+                    &mut attack_writer,
+                    &mut commands,
+                    proj_entity,
+                    proj,
+                    v,
+                    *e2,
+                    opt_in_entity,
+                    &level,
+                    &id_query,
+                    &mut damage_writer,
+                    &mut update_writer,
+                    &rapier_context,
+                );
+            } else if let Ok((proj_entity, proj, v, opt_in_entity)) = query.get(*e2) {
+                proj_hit(
+                    &mut attack_writer,
+                    &mut commands,
+                    proj_entity,
+                    proj,
+                    v,
+                    *e1,
+                    opt_in_entity,
+                    &level,
+                    &id_query,
+                    &mut damage_writer,
+                    &mut update_writer,
+                    &rapier_context,
+                );
             }
-            _ => {}
         }
     }
 }
@@ -152,7 +149,7 @@ fn proj_hit(
     id_query: &Query<&BlockId>,
     damage_writer: &mut EventWriter<BlockDamageSetEvent>,
     update_writer: &mut EventWriter<ChunkUpdatedEvent>,
-    rapier_context: &RapierContext
+    rapier_context: &RapierContext,
 ) {
     const PENETRATION_DEPTH: f32 = 0.05; //amount to follow the normal in a collision to move inside the block when calculating damage
     const EPSILON: f32 = 0.5; //ignore multiple hits that have positions and normals within epsilon units of each other
@@ -187,7 +184,10 @@ fn proj_hit(
         for manifold in contact_pair.manifolds() {
             let normal = manifold.normal();
             for solver_contact in manifold.solver_contacts() {
-                let block_coord = BlockCoord::from(solver_contact.point()+ if invert {-1.0} else {1.0} * PENETRATION_DEPTH*normal);
+                let block_coord = BlockCoord::from(
+                    solver_contact.point()
+                        + if invert { -1.0 } else { 1.0 } * PENETRATION_DEPTH * normal,
+                );
                 if hits.contains(&block_coord) {
                     continue;
                 }
@@ -204,7 +204,7 @@ fn proj_hit(
             }
         }
     }
-    
+
     if proj.despawn_on_hit {
         commands.entity(proj_entity).despawn_recursive();
     }

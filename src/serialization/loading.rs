@@ -31,7 +31,6 @@ pub fn queue_terrain_loading(
                 LoadCommand {
                     position: *coord,
                     to_load: vec![ChunkTable::Terrain, ChunkTable::Buffers],
-                    to_delete: vec![],
                 }
             })
             .collect(),
@@ -69,8 +68,7 @@ pub fn load_chunk_terrain(
         if let Some(entity) = level.get_chunk_entity(*coord) {
             if !LOADING_ENABLED || terrain_data.is_empty() {
                 commands.entity(entity).insert(ChunkNeedsGenerated::Full);
-            } else 
-            {
+            } else {
                 match bincode::deserialize::<ChunkSaveFormat>(terrain_data.as_slice()) {
                     Ok(mut parsed) => {
                         parsed.map_to_loaded(&map);

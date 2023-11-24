@@ -22,13 +22,12 @@ pub fn aim_projectile(
     //so we solve for time to impact twice
     const VERTICAL_CORRECTION: Vec3 = Vec3::new(0.0,1.0,0.0); //not sure why but we always aim low by some amount proportional to time
     let t = calc_time_to_impact(target_offset, proj_speed, -gravity);
-    return t
-        .map(|t| calc_time_to_impact(target_offset + target_rel_v * t, proj_speed, -gravity))
-        .flatten()
+    t
+        .and_then(|t| calc_time_to_impact(target_offset + target_rel_v * t, proj_speed, -gravity))
         .map(|t| {
             (target_offset + target_rel_v * t - 0.5 * t * t * gravity+VERTICAL_CORRECTION*t).normalize_or_zero()
                 * proj_speed
-        });
+        })
 }
 
 fn calc_time_to_impact(target: Vec3, proj_speed: f32, gravity: Vec3) -> Option<f32> {
@@ -54,5 +53,5 @@ fn calc_time_to_impact(target: Vec3, proj_speed: f32, gravity: Vec3) -> Option<f
     if root2 >= 0.0 {
         return Some(root2);
     }
-    return None;
+    None
 }

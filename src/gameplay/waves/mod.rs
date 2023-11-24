@@ -219,7 +219,7 @@ fn search_for_spawn_volume(
         );
         container.recycle(check_volume);
         level.fill_volume_container(container);
-        if !desired_volume_validity ^ valid_spawn_volume(&container) {
+        if !desired_volume_validity ^ valid_spawn_volume(container) {
             return Some(check_volume.center());
         }
         if offset.square_magnitude() > max_offset * max_offset {

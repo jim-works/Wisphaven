@@ -79,7 +79,7 @@ pub struct LocalClient {
     local_port: u16,
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct LocalEntityMap {
     local_to_remote: EntityMap,
     remote_to_local: EntityMap,
@@ -106,7 +106,7 @@ impl LocalEntityMap {
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct LocalMap<T> {
     local_to_remote: HashMap<T, T>,
     remote_to_local: HashMap<T, T>,
@@ -134,24 +134,6 @@ where
     }
     pub fn remote_to_local(&self) -> &HashMap<T, T> {
         &self.remote_to_local
-    }
-}
-
-impl Default for LocalEntityMap {
-    fn default() -> Self {
-        Self {
-            local_to_remote: Default::default(),
-            remote_to_local: Default::default(),
-        }
-    }
-}
-
-impl<T> Default for LocalMap<T> {
-    fn default() -> Self {
-        Self {
-            local_to_remote: Default::default(),
-            remote_to_local: Default::default(),
-        }
     }
 }
 

@@ -20,8 +20,7 @@ impl Plugin for ChunkLoaderPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            entity_loader::do_loading
-                .in_set(LevelSystemSet::LoadingAndMain),
+            entity_loader::do_loading.in_set(LevelSystemSet::LoadingAndMain),
         )
         .add_systems(
             PostUpdate,
@@ -88,13 +87,10 @@ pub fn finish_loading_trigger(
         loader.for_each_center_chunk(|coord| {
             target += 1;
             if let Some(chunk_ref) = level.get_chunk(coord + tf.translation().into()) {
-                match chunk_ref.value() {
-                    crate::world::chunk::ChunkType::Full(chunk) => {
-                        if loaded_chunk_query.contains(chunk.entity) {
-                            loaded += 1;
-                        }
+                if let crate::world::chunk::ChunkType::Full(chunk) = chunk_ref.value() {
+                    if loaded_chunk_query.contains(chunk.entity) {
+                        loaded += 1;
                     }
-                    _ => {}
                 }
             }
         });

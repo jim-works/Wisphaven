@@ -18,7 +18,7 @@ impl Plugin for ScorersPlugin {
 //1.0 if in range and (todo) in line of sight, 0.0 otherwise
 #[derive(Component, ScorerBuilder, Clone, Copy, Debug)]
 pub struct AggroScorer {
-    pub range: f32
+    pub range: f32,
 }
 
 fn update_ranged_line_of_sight_scorer(
@@ -28,8 +28,12 @@ fn update_ranged_line_of_sight_scorer(
 ) {
     for (&Actor(actor), mut score, AggroScorer { range }) in query.iter_mut() {
         if let Ok((targets, actor_tf)) = actor_query.get(actor) {
-            if let Some(target_tf) = targets.current_target().map(|t| tf_query.get(t).ok()).flatten() {
-                if target_tf.translation().distance_squared(actor_tf.translation()) <= range*range {
+            if let Some(target_tf) = targets.current_target().and_then(|t| tf_query.get(t).ok()) {
+                if target_tf
+                    .translation()
+                    .distance_squared(actor_tf.translation())
+                    <= range * range
+                {
                     score.set(1.0);
                     return;
                 }

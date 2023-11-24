@@ -134,7 +134,7 @@ fn handle_client_messages(
                         message
                     );
                     endpoint.try_send_group_message_on(
-                        users.infos.keys().into_iter(),
+                        users.infos.keys(),
                         ChannelId::UnorderedReliable,
                         ServerMessage::ChatMessage { client_id, message },
                     );
@@ -233,7 +233,6 @@ fn handle_join(
                 users
                     .infos
                     .keys()
-                    .into_iter()
                     .filter(|id| **id != client_id),
                 ServerMessage::ClientConnected { client_id, info },
             )
@@ -266,7 +265,7 @@ fn handle_disconnect(
 
         endpoint
             .send_group_message(
-                users.infos.keys().into_iter(),
+                users.infos.keys(),
                 ServerMessage::ClientDisconnected { client_id },
             )
             .unwrap();
@@ -341,7 +340,7 @@ fn sync_entity_updates(
         })
         .collect();
     if let Err(e) = server.endpoint().send_group_message_on(
-        clients.infos.keys().into_iter(),
+        clients.infos.keys(),
         ChannelId::Unreliable,
         ServerMessage::UpdateEntities {
             transforms,
@@ -379,7 +378,7 @@ fn send_chunk(
             if let Err(e) = server.endpoint().send_message(
                 client_id,
                 ServerMessage::Chunk {
-                    chunk: ChunkSaveFormat::palette_ids_only_no_map((c.position, &c.blocks), &id_query),
+                    chunk: ChunkSaveFormat::palette_ids_only_no_map((c.position, &c.blocks), id_query),
                 },
             ) {
                 error!("{}", e);

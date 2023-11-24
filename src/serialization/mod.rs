@@ -246,7 +246,7 @@ impl ChunkSaveFormat {
     ) -> Self {
         let data = value
             .1
-            .get_components(&query)
+            .get_components(query)
             .iter()
             .dedup_with_count()
             .map(|(run, block)| (map.get(block).unwrap(), run as u16))
@@ -264,7 +264,7 @@ impl ChunkSaveFormat {
     ) -> Self {
         let data = value
             .1
-            .get_components(&query)
+            .get_components(query)
             .iter()
             .dedup_with_count()
             .map(|(run, block)| (*block, run as u16))

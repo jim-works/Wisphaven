@@ -120,7 +120,7 @@ pub fn do_loading(
         }
     }
     for (coord, entity) in to_unload {
-        if let Some(_) = level.remove_chunk(coord) {
+        if level.remove_chunk(coord).is_some() {
             despawn_writer.send(DespawnChunkEvent(entity))
         }
     }

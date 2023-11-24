@@ -10,8 +10,8 @@ use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::*;
 
-use crate::world::chunk::*;
 use super::queries::*;
+use crate::world::chunk::*;
 
 #[derive(Resource)]
 pub struct LevelDB {
@@ -27,7 +27,6 @@ pub struct SaveCommand(pub ChunkTable, pub ChunkCoord, pub Vec<u8>);
 pub struct LoadCommand {
     pub position: ChunkCoord,
     pub to_load: Vec<ChunkTable>,
-    pub to_delete: Vec<ChunkTable>,
 }
 
 enum LevelDBResult {
@@ -66,16 +65,22 @@ impl LevelDB {
             load_queue: VecDeque::new(),
         })
     }
-    pub fn immediate_execute_command(&mut self, f: impl FnOnce(PooledConnection<SqliteConnectionManager>) -> Result<usize, rusqlite::Error>
-            + Send) -> Option<LevelDBErr> {
+    pub fn immediate_execute_command(
+        &mut self,
+        f: impl FnOnce(PooledConnection<SqliteConnectionManager>) -> Result<usize, rusqlite::Error>
+            + Send,
+    ) -> Option<LevelDBErr> {
         match self.pool.get() {
-            Ok(conn) => f(conn)
-                .map_err(LevelDBErr::Sqlite)
-                .err(),
+            Ok(conn) => f(conn).map_err(LevelDBErr::Sqlite).err(),
             Err(e) => Some(LevelDBErr::R2D2(e)),
         }
     }
-    pub fn immediate_execute_query<T>(&mut self, sql: &str, p: impl Params, f: impl FnOnce(&Row)->Result<T>) -> Result<T, LevelDBErr> {
+    pub fn execute_query_sync<T>(
+        &mut self,
+        sql: &str,
+        p: impl Params,
+        f: impl FnOnce(&Row) -> Result<T>,
+    ) -> Result<T, LevelDBErr> {
         match self.pool.get() {
             Ok(conn) => conn.query_row(sql, p, f).map_err(LevelDBErr::Sqlite),
             Err(e) => Err(LevelDBErr::R2D2(e)),
@@ -121,44 +126,28 @@ fn do_loading(
 ) -> Result<LevelDBResult, LevelDBErr> {
     let mut results = Vec::new();
     match conn.prepare_cached(LOAD_CHUNK_DATA) {
-        Ok(mut load_stmt) => match conn.prepare_cached(DELETE_CHUNK_DATA) {
-            Ok(mut del_stmt) => {
-                for LoadCommand {
-                    position,
-                    to_load,
-                    to_delete,
-                } in data
-                {
-                    let mut coord_result = Vec::new();
-                    //loading
-                    for tid in to_load {
-                        let result = load_stmt.query_row(
-                            params![tid as i32, position.x, position.y, position.z],
-                            |row| Ok(row.get(0)?),
-                        );
-                        match result {
-                            Ok(data) => coord_result.push((tid, data)),
-                            Err(rusqlite::Error::QueryReturnedNoRows) => {
-                                coord_result.push((tid, Vec::new()))
-                            }
-                            Err(e) => return Err(LevelDBErr::Sqlite(e)),
+        Ok(mut load_stmt) => {
+            for LoadCommand { position, to_load } in data {
+                let mut coord_result = Vec::new();
+                //loading
+                for tid in to_load {
+                    let result = load_stmt.query_row(
+                        params![tid as i32, position.x, position.y, position.z],
+                        |row| row.get(0),
+                    );
+                    match result {
+                        Ok(data) => coord_result.push((tid, data)),
+                        Err(rusqlite::Error::QueryReturnedNoRows) => {
+                            coord_result.push((tid, Vec::new()))
                         }
+                        Err(e) => return Err(LevelDBErr::Sqlite(e)),
                     }
-                    //deleting
-                    for tid in to_delete {
-                        // if let Err(e) = del_stmt
-                        //     .execute(params![tid as i32, position.x, position.y, position.z])
-                        // {
-                        //     return Err(LevelDBErr::Sqlite(e));
-                        // }
-                    }
-                    results.push(DataFromDBEvent(position, coord_result));
                 }
-                Ok(LevelDBResult::Load(results))
+                results.push(DataFromDBEvent(position, coord_result));
             }
-            Err(e) => Err(LevelDBErr::Sqlite(e)),
-        },
-        Err(e) => return Err(LevelDBErr::Sqlite(e)),
+            Ok(LevelDBResult::Load(results))
+        }
+        Err(e) => Err(LevelDBErr::Sqlite(e)),
     }
 }
 

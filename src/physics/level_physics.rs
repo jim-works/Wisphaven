@@ -146,7 +146,7 @@ fn gen_physics<T: ChunkStorage<BlockPhysics>>(chunk: &Chunk<T,BlockPhysics>, dat
             || chunk[ChunkIdx::new(coord.x+1, coord.y, coord.z)].has_hole(crate::util::Direction::NegX)
             || chunk[ChunkIdx::new(coord.x-1, coord.y, coord.z)].has_hole(crate::util::Direction::PosX)
         {
-            if let Some(col) = get_collider(&b, coord) {
+            if let Some(col) = get_collider(b, coord) {
                 compound.push(col);
             }
         }

@@ -235,7 +235,7 @@ impl StructureGenerator for BiomeStructureGenerator {
                     BlockCoord::from(chunk.position)
                         + BlockCoord::new(pos.x as i32, pos.y as i32, pos.z as i32),
                     pos,
-                    &chunk,
+                    chunk,
                 );
             }
         }

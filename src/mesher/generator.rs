@@ -74,10 +74,17 @@ impl MeshData {
 #[derive(Component)]
 pub struct ChunkMeshChild;
 
-const SQRT_2_4: f32 = 0.353553390593; //sqrt(2)/4
+const SQRT_2_4: f32 = 0.35355339; //sqrt(2)/4
 
 pub fn queue_meshing(
-    query: Query<(Entity, &ChunkCoord), (With<GeneratedChunk>, With<NeedsMesh>, Without<DontMeshChunk>)>,
+    query: Query<
+        (Entity, &ChunkCoord),
+        (
+            With<GeneratedChunk>,
+            With<NeedsMesh>,
+            Without<DontMeshChunk>,
+        ),
+    >,
     level: Res<Level>,
     mesh_query: Query<&BlockMesh>,
     commands: ParallelCommands,
@@ -1043,11 +1050,7 @@ fn add_ao(
     data: &mut MeshData,
 ) {
     fn should_add_ao(neighbor: &BlockMesh) -> bool {
-        !neighbor.use_transparent_shader
-            && match neighbor.shape {
-                BlockMeshShape::Empty => false,
-                _ => true,
-            }
+        !neighbor.use_transparent_shader && !matches!(neighbor.shape, BlockMeshShape::Empty)
     }
     let side1_coord = FatChunkIdx::new(
         coord.x + if pos_x { 1 } else { -1 },

@@ -350,6 +350,6 @@ impl GeneratingChunk {
             };
             mapped_palette.push((*key,block,*r));
         }
-        self.with_storage(Box::new(BlockPalette { data: self.blocks.data.clone(), palette: mapped_palette }))
+        self.with_storage(Box::new(BlockPalette { data: self.blocks.data, palette: mapped_palette }))
     }
 }

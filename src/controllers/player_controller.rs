@@ -70,7 +70,7 @@ pub fn rotate_mouse(
     mut query: Query<(&mut Transform, &mut RotateWithMouse, &ActionState<Action>)>,
     ui_state: Res<State<UIState>>,
 ) {
-    if !world_mouse_active(&ui_state.get()) {
+    if !world_mouse_active(ui_state.get()) {
         return;
     }
     const SENSITIVITY: f32 = 0.01;
@@ -127,7 +127,7 @@ pub fn player_punch(
     collision: Res<RapierContext>,
     ui_state: Res<State<UIState>>,
 ) {
-    if !world_mouse_active(&ui_state.get()) {
+    if !world_mouse_active(ui_state.get()) {
         return;
     }
     if let Ok((tf, act)) = camera_query.get_single() {
@@ -189,7 +189,7 @@ pub fn player_use(
     usable_block_query: Query<&UsableBlock>,
     mut block_use_writer: EventWriter<BlockUsedEvent>,
 ) {
-    if !world_mouse_active(&ui_state.get()) {
+    if !world_mouse_active(ui_state.get()) {
         return;
     }
     if let Ok((mut inv, entity)) = player_query.get_single_mut() {
@@ -222,7 +222,7 @@ pub fn player_scroll_inventory(
     mut unequip_writer: EventWriter<UnequipItemEvent>,
     ui_state: Res<State<UIState>>,
 ) {
-    if !world_mouse_active(&ui_state.get()) {
+    if !world_mouse_active(ui_state.get()) {
         return;
     }
     const SCROLL_SENSITIVITY: f32 = 0.05;

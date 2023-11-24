@@ -19,7 +19,7 @@ pub struct Calendar {
     pub time: GameTime,
 }
 
-#[derive(Default, PartialEq, Eq, Ord, Clone, Copy, Debug)]
+#[derive(Default, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct GameTime {
     pub day: u64,
     pub time: Duration,
@@ -33,8 +33,14 @@ impl GameTime {
 
 impl PartialOrd for GameTime {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match self.day.partial_cmp(&other.day) {
-            Some(core::cmp::Ordering::Equal) => self.time.partial_cmp(&other.time),
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GameTime {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.day.cmp(&other.day) {
+            core::cmp::Ordering::Equal => self.time.cmp(&other.time),
             ord => ord,
         }
     }
@@ -56,11 +62,11 @@ impl Calendar {
         let day_prop = self.day_length.as_secs_f32() / total_length;
         let night_prop = self.night_length.as_secs_f32() / total_length;
         let progress = self.time.time.as_secs_f32() / total_length;
-        return if self.in_day() {
+        if self.in_day() {
             0.5 * progress / day_prop
         } else {
             0.5 + 0.5 * (progress - day_prop) / night_prop
-        };
+        }
     }
 
     //todo:
