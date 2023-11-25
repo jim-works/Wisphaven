@@ -141,6 +141,7 @@ fn update_grounded(
                 Vec3::new(0.0, DETECT_DIST, 0.0),
                 col,
                 1.0,
+                true,
                 groups,
             )
             .is_some();

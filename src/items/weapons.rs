@@ -39,7 +39,7 @@ pub fn attack_melee(
         inventory_slot: _,
         stack,
         tf,
-    } in attack_item_reader.iter()
+    } in attack_item_reader.read()
     {
         if let Ok(weapon) = weapon_query.get(stack.id) {
             let groups = QueryFilter {
@@ -74,7 +74,7 @@ pub fn launch_coin(
         inventory_slot: _,
         stack,
         tf,
-    } in attack_item_reader.iter()
+    } in attack_item_reader.read()
     {
         if let Ok(weapon) = weapon_query.get(stack.id) {
             writer.send(SpawnCoinEvent {

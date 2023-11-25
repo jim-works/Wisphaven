@@ -1,3 +1,4 @@
+use bevy::asset::LoadedFolder;
 pub use bevy::prelude::*;
 use bevy::utils::HashMap;
 
@@ -18,180 +19,184 @@ use crate::serialization::queries::{
 use crate::serialization::{LoadingBlocks, LoadingItems, LoadingRecipes};
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
 use crate::world::{
-    BlockId, BlockName, BlockNameIdMap, BlockRegistry, BlockResources, Id,
-    LevelData, LevelLoadState, NamedBlockMesh,
+    BlockId, BlockName, BlockNameIdMap, BlockRegistry, BlockResources, Id, LevelData,
+    LevelLoadState, NamedBlockMesh,
 };
 
 use super::{BlockTextureMap, ItemTextureMap, LoadedToSavedIdMap, SavedToLoadedIdMap};
+
+#[derive(Resource, Deref, Clone)]
+pub struct LoadingBlockTextures(Handle<LoadedFolder>);
+
+#[derive(Resource, Deref, Clone)]
+pub struct LoadingItemTextures(Handle<LoadedFolder>);
+
+#[derive(Resource, Deref, Clone)]
+pub struct LoadingBlockScenes(Handle<LoadedFolder>);
+
+#[derive(Resource, Deref, Clone)]
+pub struct LoadingItemScenes(Handle<LoadedFolder>);
+
+#[derive(Resource, Deref, Clone)]
+pub struct LoadingRecipeScenes(Handle<LoadedFolder>);
 
 pub fn load_settings() -> Settings {
     Settings::default()
 }
 
 //begins loading the terrain texture images and creates the filename->texture id map
-pub fn load_terrain_texture(
-    mut commands: Commands,
-    assets: Res<AssetServer>,
-    settings: Res<Settings>,
-) {
-    let textures: Vec<Handle<Image>> = assets
-        .load_folder(settings.block_tex_path.as_path())
-        .into_iter()
-        .flat_map(|v| v.into_iter().map(|t| t.typed()))
-        .collect();
-    if textures.is_empty() {
-        warn!(
-            "No block textures found at {}",
-            settings.block_tex_path.as_path().display()
-        );
-        return;
-    }
+pub fn load_folders(mut commands: Commands, assets: Res<AssetServer>, settings: Res<Settings>) {
+    commands.insert_resource(LoadingBlockTextures(
+        assets.load_folder(settings.block_tex_path),
+    ));
+    commands.insert_resource(LoadingItemTextures(
+        assets.load_folder(settings.item_tex_path),
+    ));
+    commands.insert_resource(LoadingBlockScenes(
+        assets.load_folder(settings.block_type_path),
+    ));
+    commands.insert_resource(LoadingItemScenes(
+        assets.load_folder(settings.item_type_path),
+    ));
+    commands.insert_resource(LoadingRecipeScenes(
+        assets.load_folder(settings.recipe_path),
+    ));
+}
 
-    let mut names = HashMap::new();
-    for (i, texture) in textures.iter().enumerate() {
-        //`get_handle_path` returns "textures/blocks/folder/name.png"
-        //this removes the "textures/blocks" to leave us with "folder/name.png"
-        let texture_name: PathBuf = assets
-            .get_handle_path(texture)
-            .unwrap()
-            .path()
-            .strip_prefix(settings.block_tex_path.as_path())
-            .unwrap()
-            .to_path_buf();
-        info!(
-            "Loaded texture name {} with id {}",
-            texture_name.display(),
-            i
-        );
-        names.insert(texture_name, i as u32);
+pub fn load_block_textures(
+    mut commands: Commands,
+    assets: Res<Assets<LoadedFolder>>,
+    settings: Res<Settings>,
+    loading_blocks: Res<LoadingBlockTextures>,
+    mut asset_events: EventReader<AssetEvent<LoadedFolder>>,
+) {
+    for event in asset_events.read() {
+        if let AssetEvent::LoadedWithDependencies { id } = event {
+            if *id == loading_blocks.0.id() {
+                commands.remove_resource::<LoadingBlockTextures>();
+                let textures: Vec<Handle<Image>> = assets
+                    .get(loading_blocks.0.clone())
+                    .unwrap()
+                    .handles
+                    .iter()
+                    .map(|handle| handle.clone().typed())
+                    .collect();
+                if textures.is_empty() {
+                    warn!("No block textures found at {}", settings.block_tex_path);
+                    return;
+                }
+
+                let mut names = HashMap::new();
+                for (i, texture) in textures.iter().enumerate() {
+                    //`get_handle_path` returns "textures/blocks/folder/name.png"
+                    //this removes the "textures/blocks" to leave us with "folder/name.png"
+                    let texture_name: PathBuf = texture
+                        .path()
+                        .unwrap()
+                        .path()
+                        .strip_prefix(settings.block_tex_path)
+                        .unwrap()
+                        .to_path_buf();
+                    info!(
+                        "Loaded block texture name {} with id {}",
+                        texture_name.display(),
+                        i
+                    );
+                    names.insert(texture_name, i as u32);
+                }
+                commands.insert_resource(BlockTextureMap(names));
+                commands.insert_resource(TerrainTexture(textures));
+            }
+        }
     }
-    commands.insert_resource(BlockTextureMap(names));
-    commands.insert_resource(TerrainTexture(textures));
 }
 
 //begins loading the item texture images and creates the filename->texture id map
 pub fn load_item_textures(
     mut commands: Commands,
-    assets: Res<AssetServer>,
+    assets: Res<Assets<LoadedFolder>>,
     settings: Res<Settings>,
+    loading_blocks: Res<LoadingItemTextures>,
+    mut asset_events: EventReader<AssetEvent<LoadedFolder>>,
 ) {
-    let textures: Vec<Handle<Image>> = assets
-        .load_folder(settings.item_tex_path.as_path())
-        .into_iter()
-        .flat_map(|v| v.into_iter().map(|t| t.typed()))
-        .collect();
-    if textures.is_empty() {
-        warn!(
-            "No item textures found at {}",
-            settings.block_tex_path.as_path().display()
-        );
-        return;
-    }
+    for event in asset_events.read() {
+        if let AssetEvent::LoadedWithDependencies { id } = event {
+            if *id == loading_blocks.0.id() {
+                commands.remove_resource::<LoadingItemTextures>();
+                let textures: Vec<Handle<Image>> = assets
+                    .get(loading_blocks.0.clone())
+                    .unwrap()
+                    .handles
+                    .iter()
+                    .map(|handle| handle.clone().typed())
+                    .collect();
+                if textures.is_empty() {
+                    warn!("No item textures found at {}", settings.item_tex_path);
+                    return;
+                }
 
-    let mut names = HashMap::new();
-    for texture in textures.iter() {
-        //`get_handle_path` returns "textures/items/folder/name.png"
-        //this removes the "textures/items" to leave us with "folder/name.png"
-        let texture_name: PathBuf = assets
-            .get_handle_path(texture)
-            .unwrap()
-            .path()
-            .strip_prefix(settings.item_tex_path.as_path())
-            .unwrap()
-            .to_path_buf();
-        info!("Loaded item texture name {}", texture_name.display());
-        names.insert(texture_name, texture.clone());
-    }
-    commands.insert_resource(ItemTextureMap(names));
-}
-
-pub fn start_loading_blocks(
-    assets: Res<AssetServer>,
-    settings: Res<Settings>,
-    mut commands: Commands,
-) {
-    let block_scenes: Vec<Handle<DynamicScene>> = assets
-        .load_folder(settings.block_type_path.as_path())
-        .into_iter()
-        .flat_map(|v| v.into_iter().map(|t| t.typed()))
-        .collect();
-    if block_scenes.is_empty() {
-        warn!(
-            "No blocks found at {}",
-            settings.block_type_path.as_path().display()
-        );
-        return;
-    }
-    info!("Spawning {} blocks scenes", block_scenes.len());
-    for block_scene in block_scenes {
-        commands.spawn((
-            DynamicSceneBundle {
-                scene: block_scene,
-                ..default()
-            },
-            Name::new("blocks"),
-            LoadingBlocks,
-        ));
+                let mut names = HashMap::new();
+                for (i, texture) in textures.iter().enumerate() {
+                    //`get_handle_path` returns "textures/items/folder/name.png"
+                    //this removes the "textures/items" to leave us with "folder/name.png"
+                    let texture_name: PathBuf = texture
+                        .path()
+                        .unwrap()
+                        .path()
+                        .strip_prefix(settings.item_tex_path)
+                        .unwrap()
+                        .to_path_buf();
+                    info!(
+                        "Loaded item texture name {} with id {}",
+                        texture_name.display(),
+                        i
+                    );
+                    names.insert(texture_name, texture.clone());
+                }
+                commands.insert_resource(ItemTextureMap(names));
+            }
+        }
     }
 }
 
-pub fn start_loading_items(
-    assets: Res<AssetServer>,
-    settings: Res<Settings>,
+pub fn start_loading_scene<Scene: Resource + std::ops::Deref<Target=Handle<LoadedFolder>>> (
+    input: In<(impl Bundle + Clone, &'static str)>,
     mut commands: Commands,
+    assets: Res<Assets<LoadedFolder>>,
+    settings: Res<Settings>,
+    loading_scenes: Res<Scene>,
+    mut asset_events: EventReader<AssetEvent<LoadedFolder>>,
 ) {
-    let item_scenes: Vec<Handle<DynamicScene>> = assets
-        .load_folder(settings.item_type_path.as_path())
-        .into_iter()
-        .flat_map(|v| v.into_iter().map(|t| t.typed()))
-        .collect();
-    if item_scenes.is_empty() {
-        warn!(
-            "No items found at {}",
-            settings.item_type_path.as_path().display()
-        );
-        return;
-    }
-    info!("Spawning {} item scenes", item_scenes.len());
-    for item_scene in item_scenes {
-        commands.spawn((
-            DynamicSceneBundle {
-                scene: item_scene,
-                ..default()
-            },
-            Name::new("items"),
-            LoadingItems,
-        ));
-    }
-}
+    let (bundle, name) = input.0;
+    for event in asset_events.read() {
+        if let AssetEvent::LoadedWithDependencies { id } = event {
+            if *id == loading_scenes.id() {
+                commands.remove_resource::<Scene>();
+                let scenes: Vec<Handle<DynamicScene>> = assets
+                    .get(loading_scenes.deref().clone())
+                    .unwrap()
+                    .handles
+                    .iter()
+                    .map(|handle| handle.clone().typed())
+                    .collect();
+                if scenes.is_empty() {
+                    warn!("No {} found at {}", name, settings.block_type_path);
+                    return;
+                }
 
-pub fn start_loading_recipes(
-    assets: Res<AssetServer>,
-    settings: Res<Settings>,
-    mut commands: Commands,
-) {
-    let recipe_scenes: Vec<Handle<DynamicScene>> = assets
-        .load_folder(settings.recipe_path.as_path())
-        .into_iter()
-        .flat_map(|v| v.into_iter().map(|t| t.typed()))
-        .collect();
-    if recipe_scenes.is_empty() {
-        warn!(
-            "No recipes found at {}",
-            settings.item_type_path.as_path().display()
-        );
-        return;
-    }
-    info!("Spawning {} recipe scenes", recipe_scenes.len());
-    for recipe_scene in recipe_scenes {
-        commands.spawn((
-            DynamicSceneBundle {
-                scene: recipe_scene,
-                ..default()
-            },
-            Name::new("recipe"),
-            LoadingRecipes,
-        ));
+                info!("Spawning {} {} scenes", scenes.len(), name);
+                for block_scene in scenes {
+                    commands.spawn((
+                        DynamicSceneBundle {
+                            scene: block_scene,
+                            ..default()
+                        },
+                        Name::new(name),
+                        bundle.clone(),
+                    ));
+                }
+            }
+        }
     }
 }
 
@@ -363,11 +368,10 @@ pub fn on_level_created(
 ) {
     const MAX_DBS: u32 = 1;
     info!("on_level_created");
-    if let Some(event) = reader.iter().next() {
-        fs::create_dir_all(settings.env_path.as_path()).unwrap();
+    if let Some(event) = reader.read().next() {
+        fs::create_dir_all(settings.env_path).unwrap();
         let db = LevelDB::new(
-            settings
-                .env_path
+            std::path::Path::new(settings.env_path)
                 .join(event.name.to_owned() + ".db")
                 .as_path(),
         );

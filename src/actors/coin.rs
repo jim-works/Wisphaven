@@ -48,7 +48,7 @@ pub fn spawn_coin(
 ) {
     const LIFETIME: Duration = Duration::from_secs(10);
     let curr_time = time.elapsed();
-    for spawn in spawn_requests.iter() {
+    for spawn in spawn_requests.read() {
         commands.spawn((
             SceneBundle {
                 scene: res.scene.clone_weak(),

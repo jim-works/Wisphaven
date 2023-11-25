@@ -80,7 +80,7 @@ pub fn spawn_glowjelly(
     mut spawn_requests: EventReader<SpawnGlowjellyEvent>,
     _children_query: Query<&Children>,
 ) {
-    for spawn in spawn_requests.iter() {
+    for spawn in spawn_requests.read() {
         let id = commands
             .spawn((
                 SceneBundle {

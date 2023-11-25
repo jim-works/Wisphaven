@@ -76,7 +76,7 @@ fn falling_block_spawner(
     materials: Res<ChunkMaterial>,
     resources: Res<FallingBlockResources>,
 ) {
-    for event in reader.iter() {
+    for event in reader.read() {
         let block_mesh = mesh_query.get(event.block).ok();
         match block_mesh.and_then(|component| component.single_mesh.clone()) {
             Some(mesh) => {
@@ -156,7 +156,7 @@ fn on_block_landed(
     mut commands: Commands,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
 ) {
-    for event in reader.iter() {
+    for event in reader.read() {
         let mut exists = false;
         if let Some(mut ec) = commands.get_entity(event.faller) {
             exists = true;

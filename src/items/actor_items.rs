@@ -113,7 +113,7 @@ fn do_spawn_actors(
 ) {
     const REACH: f32 = 10.0;
     const BACKWARD_DIST: f32 = 0.5;
-    for UseItemEvent { user: _, inventory_slot: _, stack, tf } in reader.iter() {
+    for UseItemEvent { user: _, inventory_slot: _, stack, tf } in reader.read() {
         if let Ok(item) = item_query.get(stack.id) {
             let groups = QueryFilter {
                 groups: Some(CollisionGroups::new(

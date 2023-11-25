@@ -32,7 +32,7 @@ pub fn use_personality_item(
         inventory_slot: _,
         stack,
         tf,
-    } in reader.iter()
+    } in reader.read()
     {
         if personality_item.contains(stack.id) {
             let groups = QueryFilter::default().exclude_collider(*user);

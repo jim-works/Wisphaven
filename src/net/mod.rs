@@ -148,7 +148,7 @@ fn process_transform_updates(
 ) {
     const LOCAL_PLAYER_UPDATE_SQR_DIST: f32 = 1.0; //only update our local position if there's a desync with the server to avoid
                                                     //stuttery or frozen movement
-    for UpdateEntityTransform { entity, transform } in reader.iter() {
+    for UpdateEntityTransform { entity, transform } in reader.read() {
         if let Ok(mut tf) = query.get_mut(*entity) {
             if local_player_query.contains(*entity) && tf.translation.distance_squared(transform.translation) < LOCAL_PLAYER_UPDATE_SQR_DIST {
                 continue;
@@ -168,7 +168,7 @@ fn process_velocity_updates(
 ) {
     const LOCAL_PLAYER_UPDATE_SQR_DIST: f32 = 100.0; //only update our local position if there's a desync with the server to avoid
                                                     //stuttery or frozen movement
-    for UpdateEntityVelocity { entity, velocity } in reader.iter() {
+    for UpdateEntityVelocity { entity, velocity } in reader.read() {
         if let Ok(mut v) = query.get_mut(*entity) {
             if local_player_query.contains(*entity) && v.linvel.distance_squared(*velocity) < LOCAL_PLAYER_UPDATE_SQR_DIST {
                 continue;

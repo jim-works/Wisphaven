@@ -68,7 +68,7 @@ pub fn on_swing(
         inventory_slot: _,
         stack,
         tf,
-    } in reader.iter()
+    } in reader.read()
     {
         if let Some((_, t)) = collision.cast_ray(
             tf.translation(),
@@ -108,7 +108,7 @@ fn deal_block_damage(
         user,
         block_position,
         hit_forward: _,
-    } in reader.iter()
+    } in reader.read()
     {
         if let Some(block_hit) = level.get_block_entity(*block_position) {
             let resistance = resistance_query.get(block_hit).copied().unwrap_or_default();

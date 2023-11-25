@@ -167,7 +167,7 @@ fn basic_recipe_checker(
         user: _,
         hit_forward: _,
         block_position,
-    } in hit_reader.iter()
+    } in hit_reader.read()
     {
         if !item.map(|i| item_query.contains(i)).unwrap_or(false) {
             continue; //not item we care about
@@ -191,7 +191,7 @@ fn basic_recipe_actor(
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
     mut commands: Commands,
 ) {
-    for RecipeCraftedEvent { volume, id } in reader.iter() {
+    for RecipeCraftedEvent { volume, id } in reader.read() {
         if let Some(recipe) = recipes.basic.get(id.0) {
             recipe.spawn_products(volume.min_corner, &level, &id_query, &mut update_writer, &mut commands);
             info!("crafted recipe with id: {}", id.0);

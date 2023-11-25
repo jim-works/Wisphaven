@@ -66,7 +66,7 @@ fn axe_ability_system(
         user: _,
         block_position,
         hit_forward: _,
-    } in reader.iter()
+    } in reader.read()
     {
         if let Some(item) = item {
             if let Ok((
@@ -230,7 +230,7 @@ fn shovel_ability_system(
         user: _,
         block_position,
         hit_forward,
-    } in reader.iter()
+    } in reader.read()
     {
         if let Some(item) = item {
             if let Ok((

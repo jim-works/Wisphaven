@@ -204,7 +204,7 @@ fn update_calendar(
 }
 
 fn speedup_time(mut reader: EventReader<SpeedupCalendarEvent>, mut speed: ResMut<CalendarSpeed>) {
-    for SpeedupCalendarEvent(time) in reader.iter() {
+    for SpeedupCalendarEvent(time) in reader.read() {
         info!("setting target time to {:?} (submitted {:?}", speed.target.max(*time), time);
         speed.target = speed.target.max(*time);
     }

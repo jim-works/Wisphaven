@@ -189,7 +189,7 @@ fn load_lod(
 
 pub fn despawn_chunks(mut commands: Commands, mut despawn_reader: EventReader<DespawnChunkEvent>) {
     let _my_span = info_span!("despawn_chunks", name = "despawn_chunks").entered();
-    for e in despawn_reader.iter() {
+    for e in despawn_reader.read() {
         if let Some(ec) = commands.get_entity(e.0) {
             ec.despawn_recursive();
         }

@@ -11,7 +11,7 @@ use crate::{
     world::{
         chunk::{ArrayChunk, ChunkCoord, ChunkTrait, BLOCKS_PER_CHUNK},
         events::CreateLevelEvent,
-        BlockId, BlockRegistry, BlockType, Id, LevelLoadState, LevelSystemSet, BlockResources,
+        BlockId, BlockRegistry, BlockResources, BlockType, Id, LevelLoadState, LevelSystemSet,
     },
 };
 
@@ -45,33 +45,51 @@ impl Plugin for SerializationPlugin {
                     save::do_saving,
                     save::save_all,
                 )
-                    .in_set(LevelSystemSet::AfterLoadingAndMain).run_if(not(in_state(NetworkType::Client))),
+                    .in_set(LevelSystemSet::AfterLoadingAndMain)
+                    .run_if(not(in_state(NetworkType::Client))),
             )
             .add_systems(PostUpdate, db::finish_up.in_set(LevelSystemSet::PostUpdate))
             .insert_resource(setup::load_settings())
-            //must apply_system_buffers before load_block_registry gets called because load_terrain_texture creates a resources that is needed in load_block_registry
+            .add_systems(PreStartup, (setup::load_folders,).chain())
             .add_systems(
-                PreStartup,
+                Update,
                 (
-                    setup::load_terrain_texture,
-                    setup::load_item_textures,
-                    apply_deferred,
-                    setup::start_loading_blocks,
-                    setup::start_loading_items,
-                    setup::start_loading_recipes,
+                    setup::load_block_textures
+                        .run_if(resource_exists::<setup::LoadingBlockTextures>()),
+                    setup::load_item_textures
+                        .run_if(resource_exists::<setup::LoadingItemTextures>()),
+                    (|| (LoadingBlocks, "blocks"))
+                        .pipe(setup::start_loading_scene::<setup::LoadingBlockScenes>)
+                        .run_if(resource_exists::<setup::LoadingBlockScenes>()),
+                    (|| (LoadingRecipes, "recipes"))
+                        .pipe(setup::start_loading_scene::<setup::LoadingRecipeScenes>)
+                        .run_if(resource_exists::<setup::LoadingRecipeScenes>()),
+                    (|| (LoadingItems, "items"))
+                        .pipe(setup::start_loading_scene::<setup::LoadingItemScenes>)
+                        .run_if(resource_exists::<setup::LoadingItemScenes>()),
+                    (|mut n: ResMut<NextState<state::GameLoadState>>| {
+                        n.set(state::GameLoadState::LoadingAssets)
+                    })
+                    .run_if(not(resource_exists::<setup::LoadingBlockTextures>()))
+                    .run_if(not(resource_exists::<setup::LoadingItemTextures>()))
+                    .run_if(not(resource_exists::<setup::LoadingBlockScenes>()))
+                    .run_if(not(resource_exists::<setup::LoadingRecipeScenes>()))
+                    .run_if(not(resource_exists::<setup::LoadingItemScenes>())),
                 )
-                    .chain(),
+                    .run_if(in_state(state::GameLoadState::Preloading)),
             )
             .add_systems(
                 Update,
-                (setup::load_block_registry, setup::load_item_registry, setup::load_recipe_list.run_if(resource_exists::<BlockResources>()))
+                (
+                    setup::load_block_registry,
+                    setup::load_item_registry,
+                    setup::load_recipe_list.run_if(resource_exists::<BlockResources>()),
+                )
                     .run_if(in_state(state::GameLoadState::LoadingAssets)),
             )
             .add_systems(
                 Update,
-                create_level.run_if(
-                    in_state(state::GameLoadState::CreatingLevel)
-                ),
+                create_level.run_if(in_state(state::GameLoadState::CreatingLevel)),
             )
             .add_event::<SaveChunkEvent>()
             .add_event::<db::DataFromDBEvent>()
@@ -149,13 +167,13 @@ pub struct NeedsSaving;
 #[derive(Component)]
 pub struct NeedsLoading;
 
-#[derive(Component)]
+#[derive(Component, Copy, Clone)]
 pub struct LoadingBlocks;
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct LoadingItems;
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct LoadingRecipes;
 
 #[derive(Resource)]
@@ -260,7 +278,7 @@ impl ChunkSaveFormat {
     //will replace with the empty block if the entities in the block array do not have a BlockId component
     pub fn palette_ids_only_no_map(
         value: (ChunkCoord, &BlockPalette<BlockType, BLOCKS_PER_CHUNK>),
-        query: &Query<&BlockId>
+        query: &Query<&BlockId>,
     ) -> Self {
         let data = value
             .1

@@ -247,7 +247,7 @@ fn handle_server_events(
     mut commands: Commands,
 ) {
     // The server signals us about users that lost connection
-    for client in connection_lost_events.iter() {
+    for client in connection_lost_events.read() {
         handle_disconnect(server.endpoint_mut(), &mut users, client.id, &mut commands);
     }
 }
@@ -419,7 +419,7 @@ fn push_chunks_chunk_boundary_crossed(
         entity,
         old_position,
         new_position,
-    } in crossed_reader.iter()
+    } in crossed_reader.read()
     {
         if let Ok(RemoteClient(Some(id))) = remotes.get(*entity) {
             settings.player_loader.for_each_chunk(|offset| {
@@ -446,7 +446,7 @@ fn push_chunks_chunk_updated(
     id_query: Query<&BlockId>,
 ) {
     //TODO: spatially partition players so we don't have to check every player for every chunk
-    for ChunkUpdatedEvent { coord } in reader.iter() {
+    for ChunkUpdatedEvent { coord } in reader.read() {
         info!("Chunk updated at {:?}", coord);
         for (tf, remote) in remotes.iter() {
             if !settings

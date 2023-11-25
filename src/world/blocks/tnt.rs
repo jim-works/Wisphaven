@@ -32,7 +32,7 @@ pub fn process_tnt(
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
     mut commands: Commands,
 ) {
-    for used in uses.iter() {
+    for used in uses.read() {
         if tnt_query.get(used.block_used).is_ok() {
             level.set_block_entity(
                 used.block_position,
@@ -56,7 +56,7 @@ pub fn tnt_landed(
     tnt_query: Query<&TNTBlock>,
     mut reader: EventReader<LandedFallingBlockEvent>
 ) {
-    for event in reader.iter() {
+    for event in reader.read() {
         if let Ok(tnt) = tnt_query.get(event.block) {
             explosions.send(ExplosionEvent { radius: tnt.explosion_strength, origin: event.position });
         }

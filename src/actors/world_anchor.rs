@@ -63,7 +63,7 @@ pub fn spawn_world_anchor(
     mut spawn_requests: EventReader<SpawnWorldAnchorEvent>,
     _children_query: Query<&Children>,
 ) {
-    for spawn in spawn_requests.iter() {
+    for spawn in spawn_requests.read() {
         let id = commands
             .spawn((
                 SceneBundle {

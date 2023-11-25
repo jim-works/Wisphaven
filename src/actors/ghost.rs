@@ -61,7 +61,7 @@ fn spawn_ghost(
     res: Res<GhostResources>,
     mut spawn_requests: EventReader<SpawnGhostEvent>,
 ) {
-    for spawn in spawn_requests.iter() {
+    for spawn in spawn_requests.read() {
         commands.spawn((
             SceneBundle {
                 scene: res.scene.clone_weak(),

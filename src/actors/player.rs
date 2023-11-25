@@ -6,7 +6,6 @@ use bevy::{
 };
 use bevy_atmosphere::prelude::AtmosphereCamera;
 use bevy_quinnet::client::Client;
-use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::InputManagerBundle;
 
 use crate::{
@@ -18,7 +17,7 @@ use crate::{
         server::{SyncPosition, SyncVelocity},
         ClientMessage, NetworkType, PlayerList, RemoteClient,
     },
-    physics::*,
+    physics::{*, movement::*},
     world::{settings::Settings, *},
 };
 
@@ -291,13 +290,7 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
     commands.entity(entity).insert((
         Player { hit_damage: Damage { amount: 1.0} },
         TransformBundle::from_transform(Transform::from_translation(spawn_point)),
-        PhysicsObjectBundle {
-            collision_groups: CollisionGroups::new(
-                Group::from_bits_truncate(PLAYER_GROUP | ACTOR_GROUP),
-                Group::all(),
-            ),
-            ..default()
-        },
+        PhysicsBundle::default(),
         ItemUseSpeed {
             windup: Duration::ZERO,
             backswing: Duration::from_millis(100),
@@ -322,7 +315,7 @@ fn send_updated_position_client(
                 bevy_quinnet::shared::channel::ChannelId::Unreliable,
                 ClientMessage::UpdatePosition {
                     transform: *tf,
-                    velocity: v.linvel,
+                    velocity: v.0,
                 },
             )
             .unwrap();
@@ -330,7 +323,7 @@ fn send_updated_position_client(
 }
 
 fn handle_disconnect(mut commands: Commands, mut removed: RemovedComponents<RemoteClient>) {
-    for entity in removed.iter() {
+    for entity in removed.read() {
         //TODO: make this better
         commands.entity(entity).remove::<(
             SyncPosition,

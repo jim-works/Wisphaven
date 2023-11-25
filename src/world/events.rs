@@ -76,7 +76,7 @@ fn process_explosions(
     resources: Res<BlockResources>,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
 ) {
-    for event in reader.iter() {
+    for event in reader.read() {
         let size = event.radius.ceil() as i32;
         let mut changes = Vec::with_capacity((size*size*size) as usize);
         for x in -size..size+1 {

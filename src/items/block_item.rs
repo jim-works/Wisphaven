@@ -19,7 +19,7 @@ pub fn use_block_entity_item(
     id_query: Query<&BlockId>,
     mut commands: Commands,
 ) {
-    for UseItemEvent { user: _, inventory_slot: _, stack, tf } in reader.iter() {
+    for UseItemEvent { user: _, inventory_slot: _, stack, tf } in reader.read() {
         if let Ok(block_item) = block_query.get(stack.id) {
             if let Some(hit) = level.blockcast(tf.translation(), tf.forward()*10.0) {
                 level.set_block_entity(hit.block_pos+hit.normal, BlockType::Filled(block_item.0), &id_query, &mut update_writer, &mut commands);
@@ -37,7 +37,7 @@ pub fn use_mega_block_item(
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
     mut commands: Commands,
 ) {
-    for UseItemEvent { user: _, inventory_slot: _, stack, tf } in reader.iter() {
+    for UseItemEvent { user: _, inventory_slot: _, stack, tf } in reader.read() {
         if let Ok(block_item) = megablock_query.get(stack.id) {
             let id = resources.registry.get_id(&block_item.0);
             let size = block_item.1;

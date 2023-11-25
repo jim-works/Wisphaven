@@ -99,7 +99,7 @@ fn test_projectile_hit(
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
     rapier_context: Res<RapierContext>,
 ) {
-    for event in collision_events.iter() {
+    for event in collision_events.read() {
         if let CollisionEvent::Started(e1, e2, _) = event {
             //typically don't get duplicated events, so have to check both entities
             if let Ok((proj_entity, proj, v, opt_in_entity)) = query.get(*e1) {

@@ -50,33 +50,33 @@ pub struct LevelPlugin;
 
 impl Plugin for LevelPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_set(
+        app.configure_sets(
             PostUpdate,
             LevelSystemSet::PostUpdate.run_if(in_state(LevelLoadState::Loaded)),
         )
-        .configure_set(
+        .configure_sets(
             Update,
             LevelSystemSet::AfterLoadingAndMain
                 .run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded)))
                 .after(LevelSystemSet::LoadingAndMain)
                 .after(LevelSystemSet::Main),
         )
-        .configure_set(
+        .configure_sets(
             Update,
             LevelSystemSet::Main.run_if(in_state(LevelLoadState::Loaded)),
         )
-        .configure_set(
+        .configure_sets(
             Update,
             LevelSystemSet::Despawn
                 .after(LevelSystemSet::Main)
                 .after(LevelSystemSet::LoadingAndMain)
                 .after(LevelSystemSet::AfterLoadingAndMain),
         )
-        .configure_set(
+        .configure_sets(
             Update,
             LevelSystemSet::Despawn.run_if(in_state(LevelLoadState::Loaded)),
         )
-        .configure_set(
+        .configure_sets(
             Update,
             LevelSystemSet::LoadingAndMain.run_if(
                 in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded)),

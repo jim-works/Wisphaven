@@ -72,7 +72,7 @@ pub fn spawn_skeleton_pirate(
     let anchor_entity = anchor.get_single().ok().unwrap_or(Entity::PLACEHOLDER);
     const ATTACK_RANGE: f32 = 10.0;
     const AGGRO_RANGE: f32 = ATTACK_RANGE*2.0 + 5.0;
-    for spawn in spawn_requests.iter() {
+    for spawn in spawn_requests.read() {
         commands.spawn((
             SceneBundle {
                 scene: skele_res.scene.clone_weak(),

@@ -44,7 +44,7 @@ fn consume_items(
     consumable_query: Query<&ConsumableItem>,
     mut inventory_query: Query<&mut Inventory>,
 ) {
-    for UseItemEvent { user, inventory_slot, stack, tf: _ } in events.iter() {
+    for UseItemEvent { user, inventory_slot, stack, tf: _ } in events.read() {
         if !consumable_query.contains(stack.id) {
             continue;
         }

@@ -42,7 +42,7 @@ pub fn do_saving(
 ) {
     let mut saved = 0;
     //get unique coordinates
-    let to_save = HashSet::from_iter(save_events.iter().map(|x| x.0));
+    let to_save = HashSet::from_iter(save_events.read().map(|x| x.0));
     let mut save_data = Vec::new();
     for coord in to_save {
         if let Some(chunk_ref) = level.get_chunk(coord) {
