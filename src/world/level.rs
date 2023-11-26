@@ -60,7 +60,7 @@ impl LevelData {
             buffers: DashMap::with_hasher(ahash::RandomState::new()),
             block_damages: DashMap::with_hasher(ahash::RandomState::new()),
             lod_chunks: DashMap::with_hasher(ahash::RandomState::new()),
-            spawn_point: Vec3::new(0.0, 50.0, 0.0),
+            spawn_point: Vec3::new(0.0, 0.0, 10.0),
         }
     }
     pub fn get_block(&self, key: BlockCoord) -> Option<BlockType> {

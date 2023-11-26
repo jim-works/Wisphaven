@@ -81,15 +81,14 @@ impl Default for ControllableBundle {
 fn do_planar_movement(
     mut query: Query<(
         &mut FrameMovement,
-        &mut ExternalImpulse,
-        &Velocity,
+        &mut crate::physics::movement::Velocity,
         &MoveSpeed,
         Option<&Grounded>,
     )>,
     time: Res<Time>,
 ) {
     const EPSILON: f32 = 1e-3;
-    for (mut fm, mut impulse, v, ms, opt_grounded) in query.iter_mut() {
+    for (mut fm, mut v, ms, opt_grounded) in query.iter_mut() {
         let speed = fm.0.length();
         let acceleration = ms.get_accel(opt_grounded.is_some_and(|x| x.0));
         //don't actively resist sliding if no input is provided (also smooths out jittering)
@@ -107,12 +106,12 @@ fn do_planar_movement(
 
         //create impulse that pushes us in the desired direction
         //this impulse will be pushing back into the circle of radius ms.max, so no need to normalize
-        let mut dv = v_desired - v.linvel;
+        let mut dv = v_desired - v.0;
         dv.y = 0.0;
         let dv_len = dv.length();
         //don't overcorrect
         if dv_len > EPSILON {
-            impulse.impulse += dv * (acceleration * time.delta_seconds() / dv_len);
+            v.0 += dv * (acceleration * time.delta_seconds() / dv_len);
         }
         fm.0 = Vec3::ZERO;
     }
@@ -151,23 +150,23 @@ fn update_grounded(
 fn do_jump(
     mut query: Query<(
         &mut FrameJump,
-        &mut ExternalImpulse,
+        &mut crate::physics::movement::Velocity,
         &mut Jump,
         &Grounded,
     )>
 ) {
-    for (mut fj, mut impulse, mut jump, grounded) in query.iter_mut() {
+    for (mut fj, mut v, mut jump, grounded) in query.iter_mut() {
         if !fj.0 {
             continue;
         }
         if grounded.0 {
             //on ground, refill jumps
             jump.extra_jumps_remaining = jump.extra_jump_count;
-            impulse.impulse.y += jump.current_height;
+            v.y += jump.current_height;
         } else if jump.extra_jumps_remaining > 0 {
             //we aren't on the ground, so use an extra jump
-            jump.extra_jumps_remaining -= 1;
-            impulse.impulse.y += jump.current_height;
+            // jump.extra_jumps_remaining -= 1;
+            v.y += jump.current_height;
         }
         fj.0 = false; //reset frame jump
     }

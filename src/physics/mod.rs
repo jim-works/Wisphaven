@@ -4,7 +4,7 @@ pub use level_physics::*;
 
 use bevy::prelude::*;
 
-use crate::{ui::debug::DebugDrawTransform, world::LevelSystemSet};
+use crate::{ui::debug::DebugDrawTransform, world::{LevelSystemSet, LevelLoadState}};
 use bevy_rapier3d::prelude::*;
 
 pub mod collision;
@@ -19,6 +19,7 @@ pub const JUMPABLE_GROUP: u32 = 1 << 2;
 pub const ACTOR_GROUP: u32 = 1 << 3;
 
 pub const TPS: f64 = 64.0;
+pub const TICK_SCALE: f64 = 64.0/TPS;
 
 //run in fixed update
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -35,8 +36,9 @@ impl Plugin for PhysicsPlugin {
         app.add_plugins((
             RapierPhysicsPlugin::<NoUserData>::default(),
             movement::MovementPlugin,
+            collision::CollisionPlugin,
         ))
-        .insert_resource(Time::<Fixed>::from_hz(1.0/TPS))
+        .insert_resource(Time::<Fixed>::from_hz(TPS))
         .configure_sets(
             FixedUpdate,
             (
@@ -44,7 +46,7 @@ impl Plugin for PhysicsPlugin {
                 PhysicsSystemSet::UpdatePositionVelocity,
                 PhysicsSystemSet::CollisionResolution,
             )
-                .chain(),
+                .chain().run_if(in_state(LevelLoadState::Loaded)),
         )
         .add_systems(
             Update,
@@ -78,6 +80,7 @@ pub struct PhysicsObjectBundle {
 pub struct PhysicsBundle {
     pub velocity: movement::Velocity,
     pub gravity: movement::GravityMult,
+    pub collider: collision::Collider,
 }
 
 impl Default for PhysicsObjectBundle {

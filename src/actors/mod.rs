@@ -63,11 +63,11 @@ pub struct MoveSpeed {
 impl Default for MoveSpeed {
     fn default() -> Self {
         MoveSpeed {
-            grounded_accel: 75.0,
-            aerial_accel: 15.0,
+            grounded_accel: 1.0,
+            aerial_accel: 0.2,
             accel_mult: 1.0,
             accel_add: 0.0,
-            max_speed: 10.0,
+            max_speed: 0.1,
         }
     }
 }
@@ -104,8 +104,8 @@ pub struct Jump {
 impl Default for Jump {
     fn default() -> Self {
         Jump {
-            base_height: 6.0,
-            current_height: 6.0,
+            base_height: 0.125,
+            current_height: 0.125,
             extra_jumps_remaining: 1,
             extra_jump_count: 1,
         }

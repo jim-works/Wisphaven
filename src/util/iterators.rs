@@ -1,4 +1,7 @@
-use crate::world::{BlockCoord, BlockType};
+use crate::{
+    physics::collision::Aabb,
+    world::{BlockCoord, BlockType},
+};
 use bevy::prelude::*;
 
 pub struct BlockVolumeIterator {
@@ -24,7 +27,7 @@ impl BlockVolumeIterator {
         }
     }
 
-    pub fn from_volume(volume: BlockVolume) -> impl Iterator<Item=BlockCoord> {
+    pub fn from_volume(volume: BlockVolume) -> impl Iterator<Item = BlockCoord> {
         let size = volume.max_corner - volume.min_corner;
         Self {
             x_len: size.x,
@@ -98,7 +101,7 @@ impl BlockVolume {
     }
 
     pub fn center(&self) -> Vec3 {
-        self.min_corner.to_vec3() + self.size().to_vec3()/2.0
+        self.min_corner.to_vec3() + self.size().to_vec3() / 2.0
     }
 
     pub fn new(min_corner: BlockCoord, max_corner_exclusive: BlockCoord) -> Self {
@@ -111,8 +114,20 @@ impl BlockVolume {
     pub fn new_inclusive(min_corner: BlockCoord, max_corner_inclusive: BlockCoord) -> Self {
         BlockVolume {
             min_corner,
-            max_corner: max_corner_inclusive+BlockCoord::new(1,1,1),
+            max_corner: max_corner_inclusive + BlockCoord::new(1, 1, 1),
         }
+    }
+
+    pub fn from_aabb(value: Aabb, offset: Vec3) -> Self {
+        let max_corner = value.extents+offset;
+        Self::new_inclusive(
+            BlockCoord::from(-value.extents+offset),
+            BlockCoord::new(
+                max_corner.x.floor() as i32,
+                max_corner.y.floor() as i32,
+                max_corner.z.floor() as i32,
+            ),
+        )
     }
 
     pub fn iter(self) -> impl Iterator<Item = BlockCoord> {
@@ -209,44 +224,44 @@ fn test_volume_iterator_one() {
 
 #[test]
 fn test_block_volume_iterator() {
-    let volume = BlockVolume::new(BlockCoord::new(0,0,0), BlockCoord::new(10,10,10));
+    let volume = BlockVolume::new(BlockCoord::new(0, 0, 0), BlockCoord::new(10, 10, 10));
     let mut count = 0;
     for _ in volume.iter() {
         count += 1;
     }
-    assert_eq!(count, 10*10*10);
+    assert_eq!(count, 10 * 10 * 10);
 }
 
 #[test]
 fn test_block_volume_inclusive_iterator() {
-    let volume = BlockVolume::new_inclusive(BlockCoord::new(0,0,0), BlockCoord::new(10,10,10));
+    let volume = BlockVolume::new_inclusive(BlockCoord::new(0, 0, 0), BlockCoord::new(10, 10, 10));
     let mut count = 0;
     for _ in volume.iter() {
         count += 1;
     }
-    assert_eq!(count, 11*11*11);
+    assert_eq!(count, 11 * 11 * 11);
 }
 
 #[test]
 fn test_block_volume_container_iterator() {
-    let volume = BlockVolume::new(BlockCoord::new(0,0,0), BlockCoord::new(10,10,10));
+    let volume = BlockVolume::new(BlockCoord::new(0, 0, 0), BlockCoord::new(10, 10, 10));
     let mut container = BlockVolumeContainer::new(volume);
     let mut count = 0;
     for coord in volume.iter() {
         container[coord] = Some(BlockType::Empty);
         count += 1;
     }
-    assert_eq!(count, 10*10*10);
+    assert_eq!(count, 10 * 10 * 10);
 }
 
 #[test]
 fn test_block_volume_container_inclusive_iterator() {
-    let volume = BlockVolume::new_inclusive(BlockCoord::new(0,0,0), BlockCoord::new(10,10,10));
+    let volume = BlockVolume::new_inclusive(BlockCoord::new(0, 0, 0), BlockCoord::new(10, 10, 10));
     let mut container = BlockVolumeContainer::new(volume);
     let mut count = 0;
     for coord in volume.iter() {
         container[coord] = Some(BlockType::Empty);
         count += 1;
     }
-    assert_eq!(count, 11*11*11);
+    assert_eq!(count, 11 * 11 * 11);
 }

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::PhysicsSystemSet;
+use super::{PhysicsSystemSet, TICK_SCALE};
 
 //local space, without local rotation
 #[derive(Component, Default, Deref, DerefMut, PartialEq, Clone, Copy)]
@@ -30,7 +30,7 @@ pub struct MovementPlugin;
 
 impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Gravity(Vec3::new(0.0, -0.05, 0.0)))
+        app.insert_resource(Gravity(Vec3::new(0.0, -0.005, 0.0)))
             .add_systems(
                 FixedUpdate,
                 update_position_velocity.in_set(PhysicsSystemSet::UpdatePositionVelocity),
@@ -51,7 +51,7 @@ fn update_position_velocity(
         let a = opt_a.unwrap_or(&Acceleration::default()).0
             + opt_g.unwrap_or(&GravityMult::default()).0 * gravity.0;
         //adding half acceleration for proper integration
-        tf.translation += v.0 + 0.5 * a;
-        v.0 += a;
+        tf.translation += v.0 * TICK_SCALE as f32 + 0.5 * a * (TICK_SCALE * TICK_SCALE) as f32;
+        v.0 += a * TICK_SCALE as f32;
     }
 }
