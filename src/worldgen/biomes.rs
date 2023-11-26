@@ -4,9 +4,9 @@ use bevy::prelude::{Vec2, Vec3};
 use bracket_noise::prelude::*;
 
 use crate::{
-    util::{get_next_prng, Buckets, Spline, SplineNoise, ToSeed},
+    util::{Buckets, Spline, SplineNoise, prng_3d},
     world::{
-        chunk::{ChunkIdx, GeneratingChunk, CHUNK_SIZE_U64},
+        chunk::{ChunkIdx, GeneratingChunk},
         BlockCoord, BlockId, BlockName, BlockRegistry,
     },
 };
@@ -214,24 +214,18 @@ impl StructureGenerator for BiomeStructureGenerator {
     fn generate(
         &self,
         buffer: &mut crate::world::BlockBuffer<BlockId>,
+        world_seed: u64,
         world_pos: BlockCoord,
         _: ChunkIdx,
         chunk: &GeneratingChunk,
     ) -> bool {
-        let mut rng = get_next_prng(world_pos.to_seed());
         for structure in &self.structures {
             for _ in 0..structure.rolls_per_chunk {
-                let x = get_next_prng(rng);
-                let y = get_next_prng(x);
-                let z = get_next_prng(y);
-                rng = get_next_prng(z);
-                let pos = ChunkIdx::new(
-                    (x % CHUNK_SIZE_U64) as u8,
-                    (y % CHUNK_SIZE_U64) as u8,
-                    (z % CHUNK_SIZE_U64) as u8,
-                );
+                let coord = prng_3d(world_seed, world_pos);
+                let pos = ChunkIdx::from(coord);
                 structure.gen.generate(
                     buffer,
+                    world_seed,
                     BlockCoord::from(chunk.position)
                         + BlockCoord::new(pos.x as i32, pos.y as i32, pos.z as i32),
                     pos,

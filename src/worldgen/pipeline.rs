@@ -355,7 +355,7 @@ pub fn poll_structure_waiters(
                             }
                             let mut c = structure_requirements.unwrap();
                             if let ChunkType::Generating(_, ref mut chunk) = c.value_mut() {
-                                let buf = structures::gen_structures(chunk, biomes, &decor_settings.biomes);
+                                let buf = structures::gen_structures(chunk, level.seed, biomes, &decor_settings.biomes);
                                 return (pos, buf)
                             }
                             unreachable!()
