@@ -17,7 +17,7 @@ use crate::{
         server::{SyncPosition, SyncVelocity},
         ClientMessage, NetworkType, PlayerList, RemoteClient,
     },
-    physics::{*, movement::*},
+    physics::{*, movement::*, collision::{Collider, ColliderShape}},
     world::{settings::Settings, *},
 };
 
@@ -290,7 +290,13 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
     commands.entity(entity).insert((
         Player { hit_damage: Damage { amount: 1.0} },
         TransformBundle::from_transform(Transform::from_translation(spawn_point)),
-        PhysicsBundle::default(),
+        PhysicsBundle {
+            collider: Collider {
+                shape: ColliderShape::Box(collision::Aabb { extents: Vec3::new(0.4, 0.8, 0.4) }),
+                offset: Vec3::new(0., 0.8, 0.),
+            },
+            ..default()
+        },
         ItemUseSpeed {
             windup: Duration::ZERO,
             backswing: Duration::from_millis(100),

@@ -220,5 +220,6 @@ fn setup_environment(mut commands: Commands) {
             ..default()
         },
         Sun, // Marks the light as Sun
+        Name::new("Sun")
     ));
 }

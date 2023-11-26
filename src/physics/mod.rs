@@ -2,7 +2,7 @@ mod level_physics;
 
 pub use level_physics::*;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, transform::TransformSystem};
 
 use crate::{ui::debug::DebugDrawTransform, world::{LevelSystemSet, LevelLoadState}};
 use bevy_rapier3d::prelude::*;
@@ -48,6 +48,7 @@ impl Plugin for PhysicsPlugin {
             )
                 .chain().run_if(in_state(LevelLoadState::Loaded)),
         )
+        .configure_sets(FixedUpdate, TransformSystem::TransformPropagate.after(PhysicsSystemSet::CollisionResolution))
         .add_systems(
             Update,
             (

@@ -265,3 +265,24 @@ fn test_block_volume_container_inclusive_iterator() {
     }
     assert_eq!(count, 11 * 11 * 11);
 }
+
+#[test]
+fn test_aabb_to_block_volume_inclusive() {
+    let aabb = Aabb { extents: Vec3::new(0.4,0.75,0.4) };
+    let volume = BlockVolume::from_aabb(aabb, Vec3::new(-0.4,-0.75,-0.4));
+    //since edges are on edges of cells, it should include those cells
+    //aka: 2x3x2 = 12
+    assert_eq!(volume.volume(), 12);
+    assert_eq!(volume.max_corner, BlockCoord::new(1,1,1));
+    assert_eq!(volume.min_corner, BlockCoord::new(-1,-2,-1));
+}
+
+#[test]
+fn test_aabb_to_block_volume() {
+    let aabb = Aabb { extents: Vec3::new(0.4,0.75,0.4) };
+    let volume = BlockVolume::from_aabb(aabb, Vec3::new(0.5,0.8,0.5));
+    //should be fully enclosed in a 1x2x1 column
+    assert_eq!(volume.volume(), 2);
+    assert_eq!(volume.max_corner, BlockCoord::new(1,2,1));
+    assert_eq!(volume.min_corner, BlockCoord::new(0,0,0));
+}
