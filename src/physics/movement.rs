@@ -33,25 +33,34 @@ impl Plugin for MovementPlugin {
         app.insert_resource(Gravity(Vec3::new(0.0, -0.005, 0.0)))
             .add_systems(
                 FixedUpdate,
-                update_position_velocity.in_set(PhysicsSystemSet::UpdatePositionVelocity),
+                (update_kinematics_no_acceleration, update_kinematics_acceleration).in_set(PhysicsSystemSet::UpdatePositionVelocity),
             );
     }
 }
 
-fn update_position_velocity(
+//simpler (and faster) to extract this out
+fn update_kinematics_no_acceleration(
+    mut query: Query<(&mut Transform, &Velocity), Without<Acceleration>>,
+) {
+    for (mut tf, v) in query.iter_mut() {
+        tf.translation += v.0 * TICK_SCALE as f32;
+    }
+}
+
+fn update_kinematics_acceleration(
     mut query: Query<(
         &mut Transform,
         &mut Velocity,
-        Option<&Acceleration>,
+        &mut Acceleration,
         Option<&GravityMult>,
     )>,
     gravity: Res<Gravity>,
 ) {
-    for (mut tf, mut v, opt_a, opt_g) in query.iter_mut() {
-        let a = opt_a.unwrap_or(&Acceleration::default()).0
-            + opt_g.unwrap_or(&GravityMult::default()).0 * gravity.0;
+    for (mut tf, mut v, mut a, opt_g) in query.iter_mut() {
         //adding half acceleration for proper integration
-        tf.translation += v.0 * TICK_SCALE as f32 + 0.5 * a * (TICK_SCALE * TICK_SCALE) as f32;
-        v.0 += a * TICK_SCALE as f32;
+        tf.translation += v.0 * TICK_SCALE as f32 + 0.5 * a.0 * (TICK_SCALE * TICK_SCALE) as f32;
+        v.0 += a.0 * TICK_SCALE as f32;
+        //reset acceleration
+        a.0 = opt_g.map(|g| g.0).unwrap_or(0.0) * gravity.0;
     }
 }

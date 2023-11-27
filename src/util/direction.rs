@@ -1,4 +1,5 @@
 use bevy::prelude::{Vec3, IVec3};
+use bitflags::bitflags;
 
 use crate::world::{BlockCoord, chunk::{ChunkCoord, ChunkIdx, CHUNK_SIZE_U8, FatChunkIdx, CHUNK_SIZE_I8}};
 
@@ -116,6 +117,18 @@ impl From<Vec3> for Direction {
         } else {
             Direction::NegZ
         }
+    }
+}
+
+bitflags! {
+    #[derive(Default)]
+    pub struct DirectionFlags : u8 {
+        const PosX = 0b000001;
+        const PosY = 0b000010;
+        const PosZ = 0b000100;
+        const NegX = 0b001000;
+        const NegY = 0b010000;
+        const NegZ = 0b100000;
     }
 }
 

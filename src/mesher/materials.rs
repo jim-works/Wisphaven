@@ -339,7 +339,7 @@ impl Default for ArrayTextureMaterial {
             emissive: Color::BLACK,
             emissive_texture: None,
             // Matches Blender's default roughness.
-            perceptual_roughness: 0.5,
+            perceptual_roughness: 0.75,
             // Metallic should generally be set to 0.0 or 1.0.
             metallic: 0.0,
             metallic_roughness_texture: None,

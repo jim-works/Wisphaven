@@ -15,7 +15,6 @@ pub const GRAVITY: Vec3 = Vec3::new(0., -10.0, 0.);
 
 pub const PLAYER_GROUP: u32 = 1 << 0;
 pub const TERRAIN_GROUP: u32 = 1 << 1;
-pub const JUMPABLE_GROUP: u32 = 1 << 2;
 pub const ACTOR_GROUP: u32 = 1 << 3;
 
 pub const TPS: f64 = 64.0;
@@ -80,8 +79,11 @@ pub struct PhysicsObjectBundle {
 #[derive(Bundle, Default)]
 pub struct PhysicsBundle {
     pub velocity: movement::Velocity,
+    pub acceleration: movement::Acceleration,
     pub gravity: movement::GravityMult,
     pub collider: collision::Collider,
+    pub colliding_directions: collision::CollidingDirections,
+    pub friction: collision::Friction,
 }
 
 impl Default for PhysicsObjectBundle {
