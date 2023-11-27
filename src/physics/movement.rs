@@ -1,6 +1,6 @@
 use bevy::{prelude::*, transform::TransformSystem};
 
-use crate::{util::{lerp_delta_time, f64_powi}, physics::TPS};
+use crate::physics::TPS;
 
 use super::{PhysicsSystemSet, TICK_SCALE};
 
@@ -116,13 +116,12 @@ fn interpolate_tf_translation(
     time: Res<Time>,
 ) {
     //lerp speed needs to be slower if tick rate is slower
-    //passes eye test, don't care enough to investigate the math
-    const INTERPOLATION_SPEED: f32 = 1.0-(1.0/f64_powi(TPS,5) as f32);
-    let lerp_time = lerp_delta_time(INTERPOLATION_SPEED, time.delta_seconds());
+    //passes eye test, which is all we care about fr fr
+    let lerp_time = (time.delta_seconds() * TPS as f32).min(1.0);
     for (mut tf, interpolator) in query.iter_mut() {
         info!(
             "interpolated {}: tf {:?} target {:?}",
-            INTERPOLATION_SPEED, tf.translation, interpolator.target.translation
+            lerp_time, tf.translation, interpolator.target.translation
         );
         tf.translation = tf
             .translation
