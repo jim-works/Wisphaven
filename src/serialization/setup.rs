@@ -17,6 +17,7 @@ use crate::serialization::queries::{
     CREATE_CHUNK_TABLE, CREATE_WORLD_INFO_TABLE, INSERT_WORLD_INFO, LOAD_WORLD_INFO,
 };
 use crate::serialization::{LoadingBlocks, LoadingItems, LoadingRecipes};
+use crate::util::string::Version;
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
 use crate::world::{
     BlockId, BlockName, BlockNameIdMap, BlockRegistry, BlockResources, Id, LevelData,
@@ -159,7 +160,7 @@ pub fn load_item_textures(
     }
 }
 
-pub fn start_loading_scene<Scene: Resource + std::ops::Deref<Target=Handle<LoadedFolder>>> (
+pub fn start_loading_scene<Scene: Resource + std::ops::Deref<Target = Handle<LoadedFolder>>>(
     input: In<(impl Bundle + Clone, &'static str)>,
     mut commands: Commands,
     assets: Res<Assets<LoadedFolder>>,
@@ -367,8 +368,8 @@ pub fn on_level_created(
     mut commands: Commands,
 ) {
     const MAX_DBS: u32 = 1;
-    info!("on_level_created");
     if let Some(event) = reader.read().next() {
+        info!("on level created event received");
         fs::create_dir_all(settings.env_path).unwrap();
         let db = LevelDB::new(
             std::path::Path::new(settings.env_path)
@@ -378,16 +379,23 @@ pub fn on_level_created(
         match db {
             Ok(mut db) => {
                 if let Some(err) =
-                    db.immediate_execute_command(|sql| sql.execute(CREATE_CHUNK_TABLE, []))
+                    db.execute_command_sync(|sql| sql.execute(CREATE_CHUNK_TABLE, []))
                 {
                     error!("Error creating chunk table: {:?}", err);
                     return;
                 }
                 if let Some(err) =
-                    db.immediate_execute_command(|sql| sql.execute(CREATE_WORLD_INFO_TABLE, []))
+                    db.execute_command_sync(|sql| sql.execute(CREATE_WORLD_INFO_TABLE, []))
                 {
                     error!("Error creating world info table: {:?}", err);
                     return;
+                }
+                match check_level_version(&mut db) {
+                    Err(err) => {
+                        error!("Error checking level version: {:?}", err);
+                        return;
+                    }
+                    _ => {}
                 }
                 load_block_palette(&mut db, &mut commands, &block_resources.registry);
                 load_item_palette(&mut db, &mut commands, &item_resources.registry);
@@ -402,7 +410,44 @@ pub fn on_level_created(
         }
     }
 }
-
+fn check_level_version(db: &mut LevelDB) -> Result<(), LevelDBErr> {
+    match db.execute_query_sync(LOAD_WORLD_INFO, rusqlite::params!["version"], |row| {
+        row.get::<_, Vec<u8>>(0)
+    }) {
+        Ok(data) => match bincode::deserialize::<&str>(&data) {
+            Ok(version) => {
+                let my_version = Version::game_version();
+                let saved_version = Version::from(version);
+                info!("saved version of level is {:?}, my version is {:?}", saved_version, my_version);
+                if saved_version > my_version && !my_version.game_compatible(&saved_version) {
+                    error!("Opening a newer world version than I can handle: {:?}", version);
+                    return Err(LevelDBErr::NewWorldVersion)
+                }
+            }
+            Err(e) => {
+                error!("Corrupt world version: {:?}", e);
+                return Err(LevelDBErr::Bincode(e));
+            }
+        },
+        Err(LevelDBErr::Sqlite(rusqlite::Error::QueryReturnedNoRows)) => {} //this is fine - new worlds have no version
+        Err(e) => {
+            error!("Error getting world version from db: {:?}", e);
+            return Err(e);
+        }
+    }
+    if let Some(err) = db.execute_command_sync(|sql| {
+        sql.execute(
+            INSERT_WORLD_INFO,
+            rusqlite::params![
+                "version",
+                bincode::serialize(env!("CARGO_PKG_VERSION")).unwrap()
+            ],
+        )
+    }) {
+        return Err(err);
+    }
+    Ok(())
+}
 fn load_block_palette(db: &mut LevelDB, commands: &mut Commands, registry: &BlockRegistry) {
     match db.execute_query_sync(LOAD_WORLD_INFO, rusqlite::params!["block_palette"], |row| {
         row.get(0)
@@ -416,7 +461,7 @@ fn load_block_palette(db: &mut LevelDB, commands: &mut Commands, registry: &Bloc
                         &mut saved_to_loaded,
                         &mut loaded_to_saved,
                     );
-                    if let Some(err) = db.immediate_execute_command(|sql| {
+                    if let Some(err) = db.execute_command_sync(|sql| {
                         sql.execute(
                             INSERT_WORLD_INFO,
                             rusqlite::params!["block_palette", palette],
@@ -444,7 +489,7 @@ fn load_block_palette(db: &mut LevelDB, commands: &mut Commands, registry: &Bloc
                 &mut saved_to_loaded,
                 &mut loaded_to_saved,
             );
-            if let Some(err) = db.immediate_execute_command(|sql| {
+            if let Some(err) = db.execute_command_sync(|sql| {
                 sql.execute(
                     INSERT_WORLD_INFO,
                     rusqlite::params!["block_palette", palette],
@@ -532,7 +577,7 @@ fn load_item_palette(db: &mut LevelDB, commands: &mut Commands, registry: &ItemR
                         &mut saved_to_loaded,
                         &mut loaded_to_saved,
                     );
-                    if let Some(err) = db.immediate_execute_command(|sql| {
+                    if let Some(err) = db.execute_command_sync(|sql| {
                         sql.execute(
                             INSERT_WORLD_INFO,
                             rusqlite::params!["item_palette", palette],
@@ -560,7 +605,7 @@ fn load_item_palette(db: &mut LevelDB, commands: &mut Commands, registry: &ItemR
                 &mut saved_to_loaded,
                 &mut loaded_to_saved,
             );
-            if let Some(err) = db.immediate_execute_command(|sql| {
+            if let Some(err) = db.execute_command_sync(|sql| {
                 sql.execute(
                     INSERT_WORLD_INFO,
                     rusqlite::params!["item_palette", palette],

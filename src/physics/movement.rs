@@ -119,10 +119,6 @@ fn interpolate_tf_translation(
     //passes eye test, which is all we care about fr fr
     let lerp_time = (time.delta_seconds() * TPS as f32).min(1.0);
     for (mut tf, interpolator) in query.iter_mut() {
-        info!(
-            "interpolated {}: tf {:?} target {:?}",
-            lerp_time, tf.translation, interpolator.target.translation
-        );
         tf.translation = tf
             .translation
             .lerp(interpolator.target.translation, lerp_time);
