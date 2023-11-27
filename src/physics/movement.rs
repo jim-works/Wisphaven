@@ -1,4 +1,6 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, transform::TransformSystem};
+
+use crate::{util::{lerp_delta_time, f64_powi}, physics::TPS};
 
 use super::{PhysicsSystemSet, TICK_SCALE};
 
@@ -26,6 +28,21 @@ impl Default for GravityMult {
     }
 }
 
+#[derive(Component)]
+pub struct InterpolatedAttribute<T: Component> {
+    pub old: T,
+    pub target: T,
+}
+
+impl<T: Component + Clone> From<T> for InterpolatedAttribute<T> {
+    fn from(value: T) -> Self {
+        Self {
+            old: value.clone(),
+            target: value,
+        }
+    }
+}
+
 pub struct MovementPlugin;
 
 impl Plugin for MovementPlugin {
@@ -33,8 +50,21 @@ impl Plugin for MovementPlugin {
         app.insert_resource(Gravity(Vec3::new(0.0, -0.005, 0.0)))
             .add_systems(
                 FixedUpdate,
-                (update_kinematics_no_acceleration, update_kinematics_acceleration).in_set(PhysicsSystemSet::UpdatePositionVelocity),
-            );
+                (
+                    snap_tf_interpolation,
+                    (
+                        update_kinematics_no_acceleration,
+                        update_kinematics_acceleration,
+                    ),
+                )
+                    .chain()
+                    .in_set(PhysicsSystemSet::UpdatePositionVelocity),
+            )
+            .add_systems(
+                FixedUpdate,
+                set_tf_interpolation_target.after(PhysicsSystemSet::CollisionResolution),
+            )
+            .add_systems(PostUpdate, interpolate_tf_translation.before(TransformSystem::TransformPropagate));
     }
 }
 
@@ -62,5 +92,40 @@ fn update_kinematics_acceleration(
         v.0 += a.0 * TICK_SCALE as f32;
         //reset acceleration
         a.0 = opt_g.map(|g| g.0).unwrap_or(0.0) * gravity.0;
+    }
+}
+
+fn set_tf_interpolation_target(
+    mut query: Query<(&mut Transform, &mut InterpolatedAttribute<Transform>)>,
+) {
+    for (mut tf, mut interpolator) in query.iter_mut() {
+        interpolator.old = interpolator.target;
+        interpolator.target = *tf;
+        *tf = interpolator.old;
+    }
+}
+
+fn snap_tf_interpolation(mut query: Query<(&mut Transform, &InterpolatedAttribute<Transform>)>) {
+    for (mut tf, interpolator) in query.iter_mut() {
+        *tf = interpolator.target;
+    }
+}
+
+fn interpolate_tf_translation(
+    mut query: Query<(&mut Transform, &InterpolatedAttribute<Transform>)>,
+    time: Res<Time>,
+) {
+    //lerp speed needs to be slower if tick rate is slower
+    //passes eye test, don't care enough to investigate the math
+    const INTERPOLATION_SPEED: f32 = 1.0-(1.0/f64_powi(TPS,5) as f32);
+    let lerp_time = lerp_delta_time(INTERPOLATION_SPEED, time.delta_seconds());
+    for (mut tf, interpolator) in query.iter_mut() {
+        info!(
+            "interpolated {}: tf {:?} target {:?}",
+            INTERPOLATION_SPEED, tf.translation, interpolator.target.translation
+        );
+        tf.translation = tf
+            .translation
+            .lerp(interpolator.target.translation, lerp_time);
     }
 }

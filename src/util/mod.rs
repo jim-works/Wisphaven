@@ -175,3 +175,26 @@ pub fn get_wrapping<T>(slice: &[T], idx: usize) -> Option<&T> {
         len => slice.get(idx % len)
     }
 }
+
+//these can't be put in a trait.... great!
+pub const fn f32_powi(b: f32, power: u32) -> f32 {
+    let mut res = b;
+    let mut idx = 0;
+    //why can I not use for loops in const??
+    while idx < power {
+        res *= b;
+        idx += 1;
+    }
+    res
+}
+
+pub const fn f64_powi(b: f64, power: u32) -> f64 {
+    let mut res = b;
+    let mut idx = 0;
+    //why can I not use for loops in const??
+    while idx < power {
+        res *= b;
+        idx += 1;
+    }
+    res
+}

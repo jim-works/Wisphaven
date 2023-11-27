@@ -290,6 +290,7 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
     commands.entity(entity).insert((
         Player { hit_damage: Damage { amount: 1.0} },
         TransformBundle::from_transform(Transform::from_translation(spawn_point)),
+        InterpolatedAttribute::from(Transform::from_translation(spawn_point)),
         PhysicsBundle {
             collider: Collider {
                 shape: ColliderShape::Box(collision::Aabb { extents: Vec3::new(0.4, 0.8, 0.4) }),
