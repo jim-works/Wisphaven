@@ -50,7 +50,7 @@ impl Plugin for SerializationPlugin {
             )
             .add_systems(PostUpdate, db::finish_up.in_set(LevelSystemSet::PostUpdate))
             .insert_resource(setup::load_settings())
-            .add_systems(PreStartup, (setup::load_folders,).chain())
+            .add_systems(PreStartup, setup::load_folders)
             .add_systems(
                 Update,
                 (

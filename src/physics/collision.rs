@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 
 use crate::{
-    util::{iterators::BlockVolume, DirectionFlags},
+    util::{
+        iterators::{AxesIter, BlockVolume, VolumeContainer},
+        DirectionFlags,
+    },
     world::{BlockCoord, BlockPhysics, Level},
 };
 
@@ -14,7 +17,9 @@ impl Plugin for CollisionPlugin {
         app.add_systems(
             FixedUpdate,
             resolve_terrain_collisions.in_set(PhysicsSystemSet::CollisionResolution),
-        );
+        )
+        .register_type::<Collider>()
+        .register_type::<Aabb>();
     }
 }
 
@@ -27,9 +32,10 @@ impl Default for Friction {
     }
 }
 
-#[derive(Component, Default)]
+#[derive(Component, Copy, Clone, PartialEq, Default, Reflect)]
+#[reflect(Component)]
 pub struct Collider {
-    pub shape: ColliderShape,
+    pub shape: Aabb,
     pub offset: Vec3,
 }
 
@@ -37,356 +43,220 @@ pub struct Collider {
 pub struct CollidingDirections(pub DirectionFlags);
 
 impl Collider {
-    fn resolve(
+    pub fn min_time_to_collision<'a>(
         &self,
-        potential_overlap: BlockVolume,
-        p: &mut Vec3,
-        v: &mut Vec3,
-        a: &mut Vec3,
-        normal: Vec3,
-        friction: Option<&Friction>,
-        level: &Level,
-        block_query: &Query<(&BlockPhysics, Option<&Friction>)>,
-        mut shape_resolver: impl FnMut(
-            &ColliderShape,
-            BlockCoord,
-            Option<&BlockPhysics>,
-            &mut Vec3,
-            &mut Vec3,
-        ) -> bool,
-    ) -> bool {
-        let mut collision = false;
-        let mut relative_position = *p + self.offset;
-        let mut block_sum_frictions = 0.;
-        let mut frictions = 0;
-        for coord in potential_overlap.iter() {
-            let (physics, block_friction) = level
-                .get_block_entity(coord)
-                .and_then(|b| block_query.get(b).ok())
-                .map(|(phys, opt_fric)| (Some(phys), opt_fric))
-                .unwrap_or((None, None));
-            let collides_with_block =
-                shape_resolver(&self.shape, coord, physics, &mut relative_position, v);
-            collision |= collides_with_block;
-            match (friction, block_friction, collides_with_block) {
-                (Some(_), Some(coeff), true) => {
-                    frictions += 1;
-                    block_sum_frictions += coeff.0;
-                }
-                _ => {}
-            }
-        }
-        *p = relative_position - self.offset;
-        if let Some(&Friction(coeff)) = friction {
-            if collision {
-                let friction_coeff = (coeff + block_sum_frictions) / (frictions + 1) as f32;
-                //rejection is component of velocity perpendicular to normal force
-                let perp = v.reject_from(normal);
-                let perp_length = perp.length();
-                let dir = if perp_length.is_finite() && perp_length != 0.0 {
-                    perp / perp_length
-                } else {
-                    Vec3::ZERO
-                };
-                //friction cannot be more than the current acceleration
-                let magnitude = (friction_coeff * normal.length()).min(perp_length);
-                *a -= magnitude * dir;
-            }
-        }
-        collision
-    }
-
-    fn get_potential_overlap(
-        &self,
+        potential_overlap: impl Iterator<Item = (BlockCoord, &'a BlockPhysics)>,
         p: Vec3,
-        shape_overlap_provider: impl Fn(&ColliderShape, Vec3) -> BlockVolume,
-    ) -> BlockVolume {
-        shape_overlap_provider(&self.shape, p + self.offset)
+        v: Vec3,
+    ) -> Option<(BlockCoord, Vec3, f32)> {
+        let position = p + self.offset;
+        let mut min_collision = None;
+        for (coord, block) in potential_overlap {
+            let block_collider = match block {
+                BlockPhysics::Empty => {
+                    continue;
+                }
+                BlockPhysics::Solid => Collider {
+                    shape: Aabb::new(Vec3::splat(0.5)),
+                    offset: Vec3::splat(0.5),
+                },
+                BlockPhysics::Aabb(collider) => *collider,
+            };
+            let d = self.shape.distance(
+                coord.to_vec3() + block_collider.offset - position,
+                block_collider.shape,
+            );
+            let t = Vec3::new(
+                if v.x == 0.0 { f32::INFINITY } else { d.x / v.x },
+                if v.y == 0.0 { f32::INFINITY } else { d.y / v.y },
+                if v.z == 0.0 { f32::INFINITY } else { d.z / v.z },
+            );
+            let min = f32::min(t.x, f32::min(t.y, t.z));
+            if min == f32::INFINITY {
+                continue;
+            }
+            match min_collision {
+                Some((_, _, min_t)) => {
+                    if min < min_t {
+                        min_collision = Some((coord, t, min));
+                    }
+                }
+                None => {
+                    min_collision = Some((coord, t, min));
+                }
+            }
+        }
+        min_collision
     }
-}
 
-#[derive(Clone, Debug)]
-pub enum ColliderShape {
-    Box(Aabb),
-}
-
-impl Default for ColliderShape {
-    fn default() -> Self {
-        Self::Box(Aabb {
-            extents: Vec3::new(0.5, 0.5, 0.5),
-        })
+    fn calc_friction() {
+        // let mut block_sum_frictions = 0.;
+        // let mut frictions = 0;
+        // if let Some(&Friction(coeff)) = friction {
+        //     if collision {
+        //         let friction_coeff = (coeff + block_sum_frictions) / (frictions + 1) as f32;
+        //         //rejection is component of velocity perpendicular to normal force
+        //         let perp = v.reject_from(normal);
+        //         let perp_length = perp.length();
+        //         let dir = if perp_length.is_finite() && perp_length != 0.0 {
+        //             perp / perp_length
+        //         } else {
+        //             Vec3::ZERO
+        //         };
+        //         //friction cannot be more than the current acceleration
+        //         let magnitude = (friction_coeff * normal.length()).min(perp_length);
+        //         *a -= magnitude * dir;
+        //     }
+        // }
     }
-}
 
-impl ColliderShape {
     const FACE_SHRINK_MULT: f32 = 0.99; //shrinks each face on the box collider by this proportion to avoid conflicting collisions against walls
 
-    //self.position + delta = aabb.position
-    pub fn intersects_aabb(&self, delta: Vec3, aabb: Aabb) -> bool {
-        let min_corner = delta - aabb.extents;
-        let max_corner = delta + aabb.extents;
-        match self {
-            ColliderShape::Box(my_aabb) => {
-                (-my_aabb.extents.x <= max_corner.x
-                    && -my_aabb.extents.y <= max_corner.y
-                    && -my_aabb.extents.z <= max_corner.z)
-                    && (my_aabb.extents.x >= min_corner.x
-                        && my_aabb.extents.y >= min_corner.y
-                        && my_aabb.extents.z >= min_corner.z)
-            }
-        }
-    }
-
-    fn resolve(
-        &self,
-        p: &mut Vec3,
-        v: &mut Vec3,
-        level: &Level,
-        block_physics: &Query<&BlockPhysics>,
-        potential_overlap: BlockVolume,
-        mut resolver: impl FnMut(
-            &ColliderShape,
-            BlockCoord,
-            Option<&BlockPhysics>,
-            &mut Vec3,
-            &mut Vec3,
-        ) -> bool,
-    ) -> bool {
-        let mut collision = false;
-        for coord in potential_overlap.iter() {
-            collision |= resolver(
-                self,
-                coord,
-                level
-                    .get_block_entity(coord)
-                    .and_then(|b| block_physics.get(b).ok()),
-                p,
-                v,
-            );
-        }
-        collision
-    }
+    // fn resolve(
+    //     &self,
+    //     p: &mut Vec3,
+    //     v: &mut Vec3,
+    //     level: &Level,
+    //     block_physics: &Query<&BlockPhysics>,
+    //     potential_overlap: BlockVolume,
+    //     mut resolver: impl FnMut(
+    //         &ColliderShape,
+    //         BlockCoord,
+    //         Option<&BlockPhysics>,
+    //         &mut Vec3,
+    //         &mut Vec3,
+    //     ) -> bool,
+    // ) -> bool {
+    //     let mut collision = false;
+    //     for coord in potential_overlap.iter() {
+    //         collision |= resolver(
+    //             self,
+    //             coord,
+    //             level
+    //                 .get_block_entity(coord)
+    //                 .and_then(|b| block_physics.get(b).ok()),
+    //             p,
+    //             v,
+    //         );
+    //     }
+    //     collision
+    // }
 
     pub fn potential_overlapping_blocks_neg_y(&self, delta: Vec3) -> BlockVolume {
-        match self {
-            ColliderShape::Box(aabb) => BlockVolume::from_aabb(
-                Aabb {
-                    extents: Vec3::new(aabb.extents.x, 0.0, aabb.extents.z)
-                        * Self::FACE_SHRINK_MULT,
-                },
-                delta - Vec3::new(0., aabb.extents.y, 0.),
-            ),
-        }
+        BlockVolume::from_aabb(
+            Aabb {
+                extents: Vec3::new(self.shape.extents.x, 0.0, self.shape.extents.z)
+                    * Self::FACE_SHRINK_MULT,
+            },
+            self.offset + delta - Vec3::new(0., self.shape.extents.y, 0.),
+        )
     }
 
-    //assumes block is in the set returned by potential overlapping blocks
-    fn resolve_terrain_collision_neg_y(
-        &self,
-        coord: BlockCoord,
-        block_physics: Option<&BlockPhysics>,
-        position: &mut Vec3,
-        velocity: &mut Vec3,
-    ) -> bool {
-        match self {
-            ColliderShape::Box(aabb) => match block_physics {
-                Some(BlockPhysics::Solid) => {
-                    velocity.y = 0.0;
-                    position.y = (coord.y + 1) as f32 + aabb.extents.y;
-                    true
-                }
-                Some(BlockPhysics::BottomSlab(_height)) => {
-                    todo!()
-                }
-                Some(BlockPhysics::Empty) | None => false,
-            },
-        }
-    }
+    // //assumes block is in the set returned by potential overlapping blocks
+    // fn resolve_terrain_collision_neg_y(
+    //     &self,
+    //     coord: BlockCoord,
+    //     block_physics: Option<&BlockPhysics>,
+    //     position: &mut Vec3,
+    //     velocity: &mut Vec3,
+    // ) -> bool {
+    //     match self {
+    //         ColliderShape::Box(aabb) => match block_physics {
+    //             Some(BlockPhysics::Solid) => {
+    //                 velocity.y = 0.0;
+    //                 position.y = (coord.y + 1) as f32 + aabb.extents.y;
+    //                 true
+    //             }
+    //             Some(BlockPhysics::BottomSlab(_height)) => {
+    //                 todo!()
+    //             }
+    //             Some(BlockPhysics::Empty) | None => false,
+    //         },
+    //     }
+    // }
 
     pub fn potential_overlapping_blocks_pos_y(&self, delta: Vec3) -> BlockVolume {
-        match self {
-            ColliderShape::Box(aabb) => BlockVolume::from_aabb(
-                Aabb {
-                    extents: Vec3::new(aabb.extents.x, 0.0, aabb.extents.z)
-                        * Self::FACE_SHRINK_MULT,
-                },
-                delta + Vec3::new(0., aabb.extents.y, 0.),
+        BlockVolume::from_aabb(
+            Aabb::new(
+                Vec3::new(self.shape.extents.x, 0.0, self.shape.extents.z) * Self::FACE_SHRINK_MULT,
             ),
-        }
-    }
-
-    //assumes block is in the set returned by potential overlapping blocks
-    fn resolve_terrain_collision_pos_y(
-        &self,
-        coord: BlockCoord,
-        block_physics: Option<&BlockPhysics>,
-        position: &mut Vec3,
-        velocity: &mut Vec3,
-    ) -> bool {
-        match self {
-            ColliderShape::Box(aabb) => match block_physics {
-                Some(BlockPhysics::Solid) => {
-                    velocity.y = 0.0;
-                    position.y = coord.y as f32 - aabb.extents.y;
-                    true
-                }
-                Some(BlockPhysics::BottomSlab(_height)) => {
-                    todo!()
-                }
-                Some(BlockPhysics::Empty) | None => false,
-            },
-        }
+            self.offset + delta + Vec3::new(0., self.shape.extents.y, 0.),
+        )
     }
 
     pub fn potential_overlapping_blocks_pos_x(&self, delta: Vec3) -> BlockVolume {
-        match self {
-            ColliderShape::Box(aabb) => BlockVolume::from_aabb(
-                Aabb {
-                    extents: Vec3::new(0.0, aabb.extents.y, aabb.extents.z)
-                        * Self::FACE_SHRINK_MULT,
-                },
-                delta + Vec3::new(aabb.extents.x, 0., 0.),
+        BlockVolume::from_aabb(
+            Aabb::new(
+                Vec3::new(0.0, self.shape.extents.y, self.shape.extents.z) * Self::FACE_SHRINK_MULT,
             ),
-        }
-    }
-
-    //assumes block is in the set returned by potential overlapping blocks
-    fn resolve_terrain_collision_pos_x(
-        &self,
-        coord: BlockCoord,
-        block_physics: Option<&BlockPhysics>,
-        position: &mut Vec3,
-        velocity: &mut Vec3,
-    ) -> bool {
-        match self {
-            ColliderShape::Box(aabb) => match block_physics {
-                Some(BlockPhysics::Solid) => {
-                    velocity.x = 0.0;
-                    position.x = coord.x as f32 - aabb.extents.x;
-                    true
-                }
-                Some(BlockPhysics::BottomSlab(_height)) => {
-                    todo!()
-                }
-                Some(BlockPhysics::Empty) | None => false,
-            },
-        }
+            self.offset + delta + Vec3::new(self.shape.extents.x, 0., 0.),
+        )
     }
 
     pub fn potential_overlapping_blocks_neg_x(&self, delta: Vec3) -> BlockVolume {
-        match self {
-            ColliderShape::Box(aabb) => BlockVolume::from_aabb(
-                Aabb {
-                    extents: Vec3::new(0.0, aabb.extents.y, aabb.extents.z)
-                        * Self::FACE_SHRINK_MULT,
-                },
-                delta - Vec3::new(aabb.extents.x, 0., 0.),
+        BlockVolume::from_aabb(
+            Aabb::new(
+                Vec3::new(0.0, self.shape.extents.y, self.shape.extents.z) * Self::FACE_SHRINK_MULT,
             ),
-        }
-    }
-
-    //assumes block is in the set returned by potential overlapping blocks
-    fn resolve_terrain_collision_neg_x(
-        &self,
-        coord: BlockCoord,
-        block_physics: Option<&BlockPhysics>,
-        position: &mut Vec3,
-        velocity: &mut Vec3,
-    ) -> bool {
-        match self {
-            ColliderShape::Box(aabb) => match block_physics {
-                Some(BlockPhysics::Solid) => {
-                    velocity.x = 0.0;
-                    position.x = (coord.x + 1) as f32 + aabb.extents.x;
-                    true
-                }
-                Some(BlockPhysics::BottomSlab(_height)) => {
-                    todo!()
-                }
-                Some(BlockPhysics::Empty) | None => false,
-            },
-        }
+            self.offset + delta - Vec3::new(self.shape.extents.x, 0., 0.),
+        )
     }
 
     pub fn potential_overlapping_blocks_pos_z(&self, delta: Vec3) -> BlockVolume {
-        match self {
-            ColliderShape::Box(aabb) => BlockVolume::from_aabb(
-                Aabb {
-                    extents: Vec3::new(aabb.extents.x, aabb.extents.y, 0.0)
-                        * Self::FACE_SHRINK_MULT,
-                },
-                delta + Vec3::new(0., 0., aabb.extents.z),
+        BlockVolume::from_aabb(
+            Aabb::new(
+                Vec3::new(self.shape.extents.x, self.shape.extents.y, 0.0) * Self::FACE_SHRINK_MULT,
             ),
-        }
-    }
-
-    //assumes block is in the set returned by potential overlapping blocks
-    fn resolve_terrain_collision_pos_z(
-        &self,
-        coord: BlockCoord,
-        block_physics: Option<&BlockPhysics>,
-        position: &mut Vec3,
-        velocity: &mut Vec3,
-    ) -> bool {
-        match self {
-            ColliderShape::Box(aabb) => match block_physics {
-                Some(BlockPhysics::Solid) => {
-                    velocity.z = 0.0;
-                    position.z = coord.z as f32 - aabb.extents.z;
-                    true
-                }
-                Some(BlockPhysics::BottomSlab(_height)) => {
-                    todo!()
-                }
-                Some(BlockPhysics::Empty) | None => false,
-            },
-        }
+            self.offset + delta + Vec3::new(0., 0., self.shape.extents.z),
+        )
     }
 
     pub fn potential_overlapping_blocks_neg_z(&self, delta: Vec3) -> BlockVolume {
-        match self {
-            ColliderShape::Box(aabb) => BlockVolume::from_aabb(
-                Aabb {
-                    extents: Vec3::new(aabb.extents.x, aabb.extents.y, 0.0)
-                        * Self::FACE_SHRINK_MULT,
-                },
-                delta - Vec3::new(0., 0., aabb.extents.z),
+        BlockVolume::from_aabb(
+            Aabb::new(
+                Vec3::new(self.shape.extents.x, self.shape.extents.y, 0.0) * Self::FACE_SHRINK_MULT,
             ),
-        }
-    }
-
-    //assumes block is in the set returned by potential overlapping blocks
-    fn resolve_terrain_collision_neg_z(
-        &self,
-        coord: BlockCoord,
-        block_physics: Option<&BlockPhysics>,
-        position: &mut Vec3,
-        velocity: &mut Vec3,
-    ) -> bool {
-        match self {
-            ColliderShape::Box(aabb) => match block_physics {
-                Some(BlockPhysics::Solid) => {
-                    velocity.z = 0.0;
-                    position.z = (coord.z + 1) as f32 + aabb.extents.z;
-                    true
-                }
-                Some(BlockPhysics::BottomSlab(_height)) => {
-                    todo!()
-                }
-                Some(BlockPhysics::Empty) | None => false,
-            },
-        }
+            self.offset + delta - Vec3::new(0., 0., self.shape.extents.z),
+        )
     }
 }
 
 //axis-aligned bounding box
 //not a collider atm
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Reflect, PartialEq)]
 pub struct Aabb {
     pub extents: Vec3,
 }
 
+impl Aabb {
+    pub fn new(extents: Vec3) -> Self {
+        Self { extents }
+    }
+    //self.position + delta = other.position
+    pub fn intersects(self, delta: Vec3, other: Aabb) -> bool {
+        self.distance(delta, other).axes_iter().any(|d| d <= 0.0)
+    }
+
+    //self.position + delta = other.position
+    //returns distance from outside of this box to other box (negative distance if inside)
+    pub fn distance(self, delta: Vec3, other: Aabb) -> Vec3 {
+        delta - self.extents - other.extents
+    }
+}
+
+impl Default for Aabb {
+    fn default() -> Self {
+        Self {
+            extents: Vec3::new(0.5, 0.5, 0.5),
+        }
+    }
+}
+
 #[derive(Component, Copy, Clone)]
 pub struct IgnoreTerrainCollision;
+
+#[derive(Component, Copy, Clone, Default, Debug)]
+pub struct DesiredPosition(pub Vec3);
 
 fn resolve_terrain_collisions(
     mut objects: Query<
@@ -396,206 +266,90 @@ fn resolve_terrain_collisions(
             &mut Acceleration,
             &mut CollidingDirections,
             &Collider,
+            &mut DesiredPosition,
             Option<&Friction>,
         ),
         Without<IgnoreTerrainCollision>,
     >,
-    block_physics: Query<(&BlockPhysics, Option<&Friction>)>,
+    block_physics: Query<&BlockPhysics>,
     level: Res<Level>,
 ) {
-    for (mut tf, mut v, mut a, mut directions, col, fric) in objects.iter_mut() {
-        let mut corrected_position = tf.translation;
-        let mut corrected_velocity = v.0;
-
-        directions.0.set(
-            DirectionFlags::PosY,
-            col.resolve(
-                col.get_potential_overlap(
-                    corrected_position,
-                    ColliderShape::potential_overlapping_blocks_pos_y,
-                ),
-                &mut corrected_position,
-                &mut corrected_velocity,
-                &mut a,
-                Vec3::NEG_Y,
-                None,
-                &level,
-                &block_physics,
-                ColliderShape::resolve_terrain_collision_pos_y,
-            ),
-        );
-
-        directions.0.set(
-            DirectionFlags::NegY,
-            col.resolve(
-                col.get_potential_overlap(
-                    corrected_position,
-                    ColliderShape::potential_overlapping_blocks_neg_y,
-                ),
-                &mut corrected_position,
-                &mut corrected_velocity,
-                &mut a,
-                Vec3::Y,
-                fric,
-                &level,
-                &block_physics,
-                ColliderShape::resolve_terrain_collision_neg_y,
-            ),
-        );
-        //todo - resolve collisions in order of axis magnitudes
-        //correct is using time to collision - but i don't care enough for now
-        //this is causing the snapping / hitching / teleporting when you move into a wall
-        //https://nightblade9.github.io/godot-gamedev/2020/a-primer-on-aabb-collision-resolution.html
-
-        if corrected_velocity.x.abs() > corrected_velocity.z.abs() {
-            //x velocity is larger, do x collisions before z
-            directions.0.set(
-                DirectionFlags::PosX,
-                col.resolve(
-                    col.get_potential_overlap(
-                        corrected_position,
-                        ColliderShape::potential_overlapping_blocks_pos_x,
-                    ),
-                    &mut corrected_position,
-                    &mut corrected_velocity,
-                    &mut a,
-                    Vec3::NEG_X,
-                    None,
-                    &level,
-                    &block_physics,
-                    ColliderShape::resolve_terrain_collision_pos_x,
-                ),
+    let mut overlaps: Vec<VolumeContainer<crate::world::BlockType>> = Vec::with_capacity(3);
+    for (mut tf, mut v, mut a, mut directions, col, mut desired_pos, fric) in objects.iter_mut() {
+        directions.0 = DirectionFlags::default();
+        // info!("tf: {:?}, v: {:?}, desired: {:?}", tf, v, desired_pos);
+        if v.x > 0.0 {
+            overlaps.push(
+                level.get_blocks_in_volume(col.potential_overlapping_blocks_pos_x(desired_pos.0)),
             );
-
-            directions.0.set(
-                DirectionFlags::NegX,
-                col.resolve(
-                    col.get_potential_overlap(
-                        corrected_position,
-                        ColliderShape::potential_overlapping_blocks_neg_x,
-                    ),
-                    &mut corrected_position,
-                    &mut corrected_velocity,
-                    &mut a,
-                    Vec3::X,
-                    None,
-                    &level,
-                    &block_physics,
-                    ColliderShape::resolve_terrain_collision_neg_x,
-                ),
-            );
-
-            directions.0.set(
-                DirectionFlags::PosZ,
-                col.resolve(
-                    col.get_potential_overlap(
-                        corrected_position,
-                        ColliderShape::potential_overlapping_blocks_pos_z,
-                    ),
-                    &mut corrected_position,
-                    &mut corrected_velocity,
-                    &mut a,
-                    Vec3::NEG_Z,
-                    None,
-                    &level,
-                    &block_physics,
-                    ColliderShape::resolve_terrain_collision_pos_z,
-                ),
-            );
-
-            directions.0.set(
-                DirectionFlags::NegZ,
-                col.resolve(
-                    col.get_potential_overlap(
-                        corrected_position,
-                        ColliderShape::potential_overlapping_blocks_neg_z,
-                    ),
-                    &mut corrected_position,
-                    &mut corrected_velocity,
-                    &mut a,
-                    Vec3::Z,
-                    None,
-                    &level,
-                    &block_physics,
-                    ColliderShape::resolve_terrain_collision_neg_z,
-                ),
-            );
-        } else {
-            //z velocity is larger, do z collisions before x
-            directions.0.set(
-                DirectionFlags::PosZ,
-                col.resolve(
-                    col.get_potential_overlap(
-                        corrected_position,
-                        ColliderShape::potential_overlapping_blocks_pos_z,
-                    ),
-                    &mut corrected_position,
-                    &mut corrected_velocity,
-                    &mut a,
-                    Vec3::NEG_Z,
-                    None,
-                    &level,
-                    &block_physics,
-                    ColliderShape::resolve_terrain_collision_pos_z,
-                ),
-            );
-
-            directions.0.set(
-                DirectionFlags::NegZ,
-                col.resolve(
-                    col.get_potential_overlap(
-                        corrected_position,
-                        ColliderShape::potential_overlapping_blocks_neg_z,
-                    ),
-                    &mut corrected_position,
-                    &mut corrected_velocity,
-                    &mut a,
-                    Vec3::Z,
-                    None,
-                    &level,
-                    &block_physics,
-                    ColliderShape::resolve_terrain_collision_neg_z,
-                ),
-            );
-
-            directions.0.set(
-                DirectionFlags::PosX,
-                col.resolve(
-                    col.get_potential_overlap(
-                        corrected_position,
-                        ColliderShape::potential_overlapping_blocks_pos_x,
-                    ),
-                    &mut corrected_position,
-                    &mut corrected_velocity,
-                    &mut a,
-                    Vec3::NEG_X,
-                    None,
-                    &level,
-                    &block_physics,
-                    ColliderShape::resolve_terrain_collision_pos_x,
-                ),
-            );
-
-            directions.0.set(
-                DirectionFlags::NegX,
-                col.resolve(
-                    col.get_potential_overlap(
-                        corrected_position,
-                        ColliderShape::potential_overlapping_blocks_neg_x,
-                    ),
-                    &mut corrected_position,
-                    &mut corrected_velocity,
-                    &mut a,
-                    Vec3::X,
-                    None,
-                    &level,
-                    &block_physics,
-                    ColliderShape::resolve_terrain_collision_neg_x,
-                ),
+        } else if v.x < 0.0 {
+            overlaps.push(
+                level.get_blocks_in_volume(col.potential_overlapping_blocks_neg_x(desired_pos.0)),
             );
         }
 
-        tf.translation = corrected_position;
-        v.0 = corrected_velocity;
+        if v.y > 0.0 {
+            overlaps.push(
+                level.get_blocks_in_volume(col.potential_overlapping_blocks_pos_y(desired_pos.0)),
+            );
+        } else if v.y < 0.0 {
+            overlaps.push(
+                level.get_blocks_in_volume(col.potential_overlapping_blocks_neg_y(desired_pos.0)),
+            );
+        }
+
+        if v.z > 0.0 {
+            overlaps.push(
+                level.get_blocks_in_volume(col.potential_overlapping_blocks_pos_z(desired_pos.0)),
+            );
+        } else if v.z < 0.0 {
+            overlaps.push(
+                level.get_blocks_in_volume(col.potential_overlapping_blocks_neg_z(desired_pos.0)),
+            );
+        }
+        let overlaps_iter = overlaps.iter().flat_map(|v| {
+            v.iter().filter_map(|(coord, block)| {
+                    block
+                        .and_then(|b| b.entity())
+                        .and_then(|e| block_physics.get(e).ok())
+                        .and_then(|p| Some((coord, p)))
+                
+            })
+        });
+        let min_time_to_collision = col.min_time_to_collision(overlaps_iter, tf.translation, v.0);
+        if let Some((_block_pos, times, min_time)) = min_time_to_collision {
+            info!("min_time: {:?}", min_time);
+            desired_pos.0 = tf.translation + min_time * v.0;
+            //do velocity resolution and set collision direction flag
+            if times.x == min_time {
+                if v.0.x > 0.0 {
+                    directions.0.set(DirectionFlags::PosX, true);
+                }
+                if v.0.x < 0.0 {
+                    directions.0.set(DirectionFlags::NegX, true);
+                }
+                v.0.x = 0.0;
+            }
+            if times.y == min_time {
+                if v.0.y > 0.0 {
+                    directions.0.set(DirectionFlags::PosY, true);
+                }
+                if v.0.y < 0.0 {
+                    directions.0.set(DirectionFlags::NegY, true);
+                }
+                v.0.y = 0.0;
+            }
+            if times.z == min_time {
+                if v.0.z > 0.0 {
+                    directions.0.set(DirectionFlags::PosZ, true);
+                }
+                if v.0.z < 0.0 {
+                    directions.0.set(DirectionFlags::NegZ, true);
+                }
+                v.0.z = 0.0;
+            }
+        }
+
+       tf.translation = desired_pos.0;
     }
 }

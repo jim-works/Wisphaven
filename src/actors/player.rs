@@ -11,17 +11,21 @@ use leafwing_input_manager::InputManagerBundle;
 use crate::{
     chunk_loading::ChunkLoader,
     controllers::{self, *},
-    items::{inventory::Inventory, *, item_attributes::{ItemUseSpeed, ItemSwingSpeed}},
+    items::{
+        inventory::Inventory,
+        item_attributes::{ItemSwingSpeed, ItemUseSpeed},
+        *,
+    },
     net::{
         client::ClientState,
         server::{SyncPosition, SyncVelocity},
         ClientMessage, NetworkType, PlayerList, RemoteClient,
     },
-    physics::{*, movement::*, collision::{Collider, ColliderShape}},
+    physics::{collision::Collider, movement::*, *},
     world::{settings::Settings, *},
 };
 
-use super::{CombatInfo, CombatantBundle, DeathInfo, Damage};
+use super::{CombatInfo, CombatantBundle, Damage, DeathInfo};
 
 #[derive(Component)]
 pub struct Player {
@@ -288,12 +292,14 @@ pub fn spawn_local_player(
 
 fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Commands) {
     commands.entity(entity).insert((
-        Player { hit_damage: Damage { amount: 1.0} },
+        Player {
+            hit_damage: Damage { amount: 1.0 },
+        },
         TransformBundle::from_transform(Transform::from_translation(spawn_point)),
         InterpolatedAttribute::from(Transform::from_translation(spawn_point)),
         PhysicsBundle {
             collider: Collider {
-                shape: ColliderShape::Box(collision::Aabb { extents: Vec3::new(0.4, 0.8, 0.4) }),
+                shape: collision::Aabb::new(Vec3::new(0.4, 0.8, 0.4)),
                 offset: Vec3::new(0., 0.8, 0.),
             },
             ..default()

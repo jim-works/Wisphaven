@@ -1,11 +1,10 @@
-mod level_physics;
-
-pub use level_physics::*;
-
 use bevy::{prelude::*, transform::TransformSystem};
 
-use crate::{ui::debug::DebugDrawTransform, world::{LevelSystemSet, LevelLoadState}};
+use crate::{ui::debug::DebugDrawTransform, world::LevelLoadState};
 use bevy_rapier3d::prelude::*;
+
+#[cfg(test)]
+mod tests;
 
 pub mod collision;
 pub mod movement;
@@ -48,14 +47,6 @@ impl Plugin for PhysicsPlugin {
                 .chain().run_if(in_state(LevelLoadState::Loaded)),
         )
         .configure_sets(FixedUpdate, TransformSystem::TransformPropagate.after(PhysicsSystemSet::CollisionResolution))
-        .add_systems(
-            Update,
-            (
-                level_physics::queue_gen_physics,
-                level_physics::poll_gen_physics_queue,
-            )
-                .in_set(LevelSystemSet::AfterLoadingAndMain),
-        )
         .add_systems(Startup, configure_physics);
     }
 }
@@ -83,6 +74,7 @@ pub struct PhysicsBundle {
     pub gravity: movement::GravityMult,
     pub collider: collision::Collider,
     pub colliding_directions: collision::CollidingDirections,
+    pub desired_position: collision::DesiredPosition,
     pub friction: collision::Friction,
 }
 

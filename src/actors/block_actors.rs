@@ -126,26 +126,26 @@ fn falling_block_placer(
     physics_query: Query<&BlockPhysics>,
 ) {
     for (entity, tf, falling_block) in block_query.iter() {
-        let bottom_pos = tf.translation() - Vec3::new(0.0, 0.5, 0.0);
-        if let Some(hit_entity) = level.get_block_entity(bottom_pos.into()) {
-            if let Ok(physics) = physics_query.get(hit_entity) {
-                match physics {
-                    BlockPhysics::Empty => {}
-                    BlockPhysics::Solid => writer.send(LandedFallingBlockEvent {
-                        position: tf.translation().into(),
-                        block: falling_block.0,
-                        place_on_landing: falling_block.1,
-                        faller: entity,
-                    }),
-                    BlockPhysics::BottomSlab(height) => writer.send(LandedFallingBlockEvent {
-                        position: (tf.translation() + Vec3::new(0.0, 1.0 - height, 0.0)).into(),
-                        block: falling_block.0,
-                        place_on_landing: falling_block.1,
-                        faller: entity,
-                    }),
-                }
-            }
-        }
+        // let bottom_pos = tf.translation() - Vec3::new(0.0, 0.5, 0.0);
+        // if let Some(hit_entity) = level.get_block_entity(bottom_pos.into()) {
+        //     if let Ok(physics) = physics_query.get(hit_entity) {
+        //         match physics {
+        //             BlockPhysics::Empty => {}
+        //             BlockPhysics::Solid => writer.send(LandedFallingBlockEvent {
+        //                 position: tf.translation().into(),
+        //                 block: falling_block.0,
+        //                 place_on_landing: falling_block.1,
+        //                 faller: entity,
+        //             }),
+        //             BlockPhysics::BottomSlab(height) => writer.send(LandedFallingBlockEvent {
+        //                 position: (tf.translation() + Vec3::new(0.0, 1.0 - height, 0.0)).into(),
+        //                 block: falling_block.0,
+        //                 place_on_landing: falling_block.1,
+        //                 faller: entity,
+        //             }),
+        //         }
+        //     }
+        // }
     }
 }
 

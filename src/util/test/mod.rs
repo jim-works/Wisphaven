@@ -5,6 +5,11 @@ use crate::{util::max_component_norm, world::{chunk::{BLOCKS_PER_CHUNK, ChunkCoo
 
 use super::{Direction, palette::BlockPalette};
 
+#[cfg(test)]
+mod iterators;
+#[cfg(test)]
+mod string;
+
 #[test]
 pub fn test_max_component_norm() {
     //test in each direction

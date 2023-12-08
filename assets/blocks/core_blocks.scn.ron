@@ -71,7 +71,6 @@
           namespace: "core",
           name: "log_slab",
         ),
-        "recursia::world::block::BlockPhysics": BottomSlab(0.5),
         "recursia::world::block::NamedBlockMesh": (
             shape: BottomSlab(0.5, ("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
         )
@@ -112,7 +111,6 @@
           namespace: "core",
           name: "snow_sheet",
         ),
-        "recursia::world::block::BlockPhysics": BottomSlab(0.25),
         "recursia::world::block::NamedBlockMesh": (
             shape: BottomSlab(0.25, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
         ),

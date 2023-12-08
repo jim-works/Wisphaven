@@ -2,10 +2,9 @@ use std::{ops::Deref, sync::Arc};
 
 use crate::{
     mesher::NeedsMesh,
-    physics::NeedsPhysics,
     serialization::{ChunkSaveFormat, NeedsLoading, NeedsSaving},
     util::{
-        iterators::{BlockVolume, BlockVolumeContainer},
+        iterators::{BlockVolume, VolumeContainer},
         max_component_norm, Direction,
     },
     world::BlockcastHit,
@@ -80,12 +79,12 @@ impl LevelData {
             None => None,
         }
     }
-    pub fn get_blocks_in_volume(&self, volume: BlockVolume) -> BlockVolumeContainer {
-        let mut container = BlockVolumeContainer::new(volume);
+    pub fn get_blocks_in_volume(&self, volume: BlockVolume) -> VolumeContainer<BlockType> {
+        let mut container = VolumeContainer::new(volume);
         self.fill_volume_container(&mut container);
         container
     }
-    pub fn fill_volume_container(&self, container: &mut BlockVolumeContainer) {
+    pub fn fill_volume_container(&self, container: &mut VolumeContainer<BlockType>) {
         //todo - optimize to get needed chunks all at once
         for pos in container.volume().iter() {
             container[pos] = self.get_block(pos);
@@ -249,11 +248,11 @@ impl LevelData {
         if SAVE {
             commands
                 .entity(chunk_entity)
-                .insert((NeedsMesh, NeedsPhysics, NeedsSaving));
+                .insert((NeedsMesh, NeedsSaving));
         } else {
             commands
                 .entity(chunk_entity)
-                .insert((NeedsMesh, NeedsPhysics));
+                .insert(NeedsMesh);
         }
         update_writer.send(ChunkUpdatedEvent { coord });
     }
@@ -268,7 +267,7 @@ impl LevelData {
                 if let ChunkType::Full(c) = neighbor_ref.value() {
                     commands
                         .entity(c.entity)
-                        .insert((NeedsMesh {}, NeedsPhysics {}));
+                        .insert(NeedsMesh {});
                     update_writer.send(ChunkUpdatedEvent { coord: c.position });
                 }
             }

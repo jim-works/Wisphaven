@@ -186,10 +186,10 @@ pub fn start_loading_scene<Scene: Resource + std::ops::Deref<Target = Handle<Loa
                 }
 
                 info!("Spawning {} {} scenes", scenes.len(), name);
-                for block_scene in scenes {
+                for scene in scenes {
                     commands.spawn((
                         DynamicSceneBundle {
-                            scene: block_scene,
+                            scene,
                             ..default()
                         },
                         Name::new(name),

@@ -4,7 +4,6 @@ use std::time::{Duration, Instant};
 
 use crate::{
     mesher::NeedsMesh,
-    physics::NeedsPhysics,
     util::{get_next_prng, SplineNoise},
     world::{
         chunk::*, BlockBuffer, BlockId, BlockName, BlockResources, Id, Level, LevelData,
@@ -406,8 +405,7 @@ pub fn poll_structure_task(
                 .entity(entity)
                 .remove::<StructureTask>()
                 .insert(GeneratedChunk {})
-                .insert(NeedsMesh {})
-                .insert(NeedsPhysics {});
+                .insert(NeedsMesh {});
             let duration = Instant::now().duration_since(now).as_millis();
             if duration > ADD_TIME_BUDGET_MS {
                 break;

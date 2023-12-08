@@ -8,8 +8,6 @@ edition = "2021"
 # Enable a small amount of optimization in debug mode
 [profile.dev]
 opt-level = 1
-#speed up compilation by removing debugger symbols (stack traces still work)
-debug = 0
 
 # Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
