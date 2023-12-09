@@ -9,6 +9,7 @@
 #![allow(dead_code)]
 //don't care too much about precision here, so I'll allow this
 #![feature(const_fn_floating_point_arithmetic)]
+#![feature(assert_matches)]
 
 use std::{env, net::Ipv4Addr};
 

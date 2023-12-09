@@ -7,7 +7,7 @@
     pbr_types::STANDARD_MATERIAL_FLAGS_UNLIT_BIT,
 }
 
-#import recursia::{
+#import wisphaven::{
     array_texture_input::pbr_input_from_array_texture_material,
     array_texture_io::{Vertex, VertexOutput, FragmentOutput}
 }

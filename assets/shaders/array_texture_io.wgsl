@@ -1,4 +1,4 @@
-#define_import_path recursia::array_texture_io
+#define_import_path wisphaven::array_texture_io
 
 //from https://github.com/bevyengine/bevy/blob/527d3a5885daa4b43df7054f7787dad47f06135d/crates/bevy_pbr/src/render/mesh.wgsl
 struct Vertex {

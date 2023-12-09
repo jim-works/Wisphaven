@@ -26,7 +26,7 @@ fn test_aabb_intersects_false() {
 #[test]
 fn test_aabb_distance_exterior() {
     assert_eq!(
-        Aabb::distance(
+        Aabb::axis_distance(
             Aabb::new(Vec3::new(0.5, 1.0, 1.5)),
             Vec3::new(2.5, 5.0, 7.5),
             Aabb::new(Vec3::new(1.0, 2.0, 3.0))
@@ -38,7 +38,7 @@ fn test_aabb_distance_exterior() {
 #[test]
 fn test_aabb_distance_interior() {
     assert_eq!(
-        Aabb::distance(
+        Aabb::axis_distance(
             Aabb::new(Vec3::new(0.5, 1.0, 1.5)),
             Vec3::new(0.5, 2.0, 7.5),
             Aabb::new(Vec3::new(1.0, 2.0, 3.0))

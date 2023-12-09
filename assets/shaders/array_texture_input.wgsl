@@ -1,4 +1,4 @@
-#define_import_path recursia::array_texture_input
+#define_import_path wisphaven::array_texture_input
 
 #import bevy_pbr::{
     pbr_functions,
@@ -15,7 +15,7 @@
 #import bevy_pbr::gtao_utils::gtao_multibounce
 #endif
 
-#import recursia::array_texture_io::VertexOutput
+#import wisphaven::array_texture_io::VertexOutput
 
 //overriding to use array textures: https://github.com/bevyengine/bevy/blob/main/crates/bevy_pbr/src/render/pbr_bindings.wgsl
 //binding 0 is starndard material

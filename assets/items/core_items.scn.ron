@@ -3,18 +3,18 @@
   entities: {
     3: (
       components: {
-        "recursia::items::ItemName": (
+        "wisphaven::items::ItemName": (
           namespace: "core",
           name: "dagger",
         ),
-        "recursia::items::NamedItemIcon": (
+        "wisphaven::items::NamedItemIcon": (
             path: "dagger.png"
         ),
-        "recursia::items::weapons::MeleeWeaponItem": (
+        "wisphaven::items::weapons::MeleeWeaponItem": (
             damage: Damage (amount: 5.0),
             knockback: 5.0,
         ),
-        "recursia::items::item_attributes::ItemSwingSpeed": (
+        "wisphaven::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 0,
                 nanos: 0,
@@ -28,50 +28,50 @@
     ),
     4: (
       components: {
-        "recursia::items::ItemName": (
+        "wisphaven::items::ItemName": (
           namespace: "core",
           name: "personality_tester",
         ),
-        "recursia::items::NamedItemIcon": (
+        "wisphaven::items::NamedItemIcon": (
             path: "personality_tester.png"
         ),
-        "recursia::items::debug_items::PersonalityTester": (),
+        "wisphaven::items::debug_items::PersonalityTester": (),
       },
     ),
     5: (
       components: {
-        "recursia::items::ItemName": (
+        "wisphaven::items::ItemName": (
           namespace: "core",
           name: "mega_air",
         ),
-        "recursia::items::NamedItemIcon": (
+        "wisphaven::items::NamedItemIcon": (
             path: "vacuum.png"
         ),
-        "recursia::items::block_item::MegaBlockItem": (
+        "wisphaven::items::block_item::MegaBlockItem": (
           BlockName(
             namespace: "core",
             name: "empty"
           ),
           10
         ),
-        "recursia::items::item_attributes::ConsumableItem": (),
+        "wisphaven::items::item_attributes::ConsumableItem": (),
       },
     ),
     6: (
       components: {
-        "recursia::items::ItemName": (
+        "wisphaven::items::ItemName": (
           namespace: "core",
           name: "ruby_pickaxe",
         ),
-        "recursia::items::NamedItemIcon": (
+        "wisphaven::items::NamedItemIcon": (
             path: "ruby_pickaxe.png"
         ),
-        "recursia::items::tools::Tool": (
+        "wisphaven::items::tools::Tool": (
             pickaxe: 3,
             shovel: 2,
             axe: 2,
         ),
-        "recursia::items::item_attributes::ItemSwingSpeed": (
+        "wisphaven::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 0,
                 nanos: 0,
@@ -85,17 +85,17 @@
     ),
     7: (
       components: {
-        "recursia::items::ItemName": (
+        "wisphaven::items::ItemName": (
           namespace: "core",
           name: "ruby_axe",
         ),
-        "recursia::items::NamedItemIcon": (
+        "wisphaven::items::NamedItemIcon": (
             path: "ruby_axe.png"
         ),
-        "recursia::items::tools::Tool": (
+        "wisphaven::items::tools::Tool": (
             axe: 3
         ),
-        "recursia::items::item_attributes::ItemSwingSpeed": (
+        "wisphaven::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 0,
                 nanos: 0,
@@ -105,7 +105,7 @@
                 nanos: 500000000,
             )
         ),
-        "recursia::items::tools::abilities::AxeAbility": (
+        "wisphaven::items::tools::abilities::AxeAbility": (
             max_blocks: 10,
             search_radius: 2,
             damage_mult: 1.0
@@ -114,17 +114,17 @@
     ),
     8: (
       components: {
-        "recursia::items::ItemName": (
+        "wisphaven::items::ItemName": (
           namespace: "core",
           name: "ruby_shovel",
         ),
-        "recursia::items::NamedItemIcon": (
+        "wisphaven::items::NamedItemIcon": (
             path: "ruby_shovel.png"
         ),
-        "recursia::items::tools::Tool": (
+        "wisphaven::items::tools::Tool": (
             shovel: 3
         ),
-        "recursia::items::item_attributes::ItemSwingSpeed": (
+        "wisphaven::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 0,
                 nanos: 0,
@@ -134,7 +134,7 @@
                 nanos: 500000000,
             )
         ),
-        "recursia::items::tools::abilities::ShovelAbility": (
+        "wisphaven::items::tools::abilities::ShovelAbility": (
             radius: 2,
             length: 10,
             damage_mult: 1.0
@@ -143,58 +143,58 @@
     ),
     9: (
       components: {
-        "recursia::items::ItemName": (
+        "wisphaven::items::ItemName": (
           namespace: "core",
           name: "glowjelly_jar",
         ),
-        "recursia::items::NamedItemIcon": (
+        "wisphaven::items::NamedItemIcon": (
             path: "glowjelly_jar.png"
         ),
-        "recursia::items::actor_items::SpawnActorItem": (ActorName(
+        "wisphaven::items::actor_items::SpawnActorItem": (ActorName(
           namespace: "core",
           name: "glowjelly",
         )),
-        "recursia::items::item_attributes::ConsumableItem": (),
+        "wisphaven::items::item_attributes::ConsumableItem": (),
       },
     ),
     10: (
       components: {
-        "recursia::items::ItemName": (
+        "wisphaven::items::ItemName": (
           namespace: "core",
           name: "world_anchor",
         ),
-        "recursia::items::NamedItemIcon": (
+        "wisphaven::items::NamedItemIcon": (
             path: "world_anchor.png"
         ),
-        "recursia::items::actor_items::SpawnActorItem": (ActorName(
+        "wisphaven::items::actor_items::SpawnActorItem": (ActorName(
           namespace: "core",
           name: "world_anchor",
         )),
-        "recursia::items::item_attributes::ConsumableItem": (),
+        "wisphaven::items::item_attributes::ConsumableItem": (),
       },
     ),
     11: (
       components: {
-        "recursia::items::ItemName": (
+        "wisphaven::items::ItemName": (
           namespace: "core",
           name: "moon",
         ),
-        "recursia::items::NamedItemIcon": (
+        "wisphaven::items::NamedItemIcon": (
             path: "moon.png"
         ),
-        "recursia::items::time_items::SkipToNightItem": ()
+        "wisphaven::items::time_items::SkipToNightItem": ()
       },
     ),
     12: (
       components: {
-        "recursia::items::ItemName": (
+        "wisphaven::items::ItemName": (
           namespace: "core",
           name: "coin_launcher",
         ),
-        "recursia::items::NamedItemIcon": (
+        "wisphaven::items::NamedItemIcon": (
             path: "coin.png"
         ),
-        "recursia::items::weapons::CoinLauncherItem": (
+        "wisphaven::items::weapons::CoinLauncherItem": (
           speed: 25.0,
           damage: Damage (amount: 2.0)
         )
@@ -202,15 +202,15 @@
     ),
     13: (
       components: {
-        "recursia::items::ItemName": (
+        "wisphaven::items::ItemName": (
           namespace: "core",
           name: "ruby_hammer",
         ),
-        "recursia::items::NamedItemIcon": (
+        "wisphaven::items::NamedItemIcon": (
             path: "ruby_hammer.png"
         ),
-        "recursia::items::crafting::CraftingHammer": (),
-        "recursia::items::item_attributes::ItemSwingSpeed": (
+        "wisphaven::items::crafting::CraftingHammer": (),
+        "wisphaven::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 0,
                 nanos: 0,

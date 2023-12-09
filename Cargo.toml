@@ -1,5 +1,5 @@
 [package]
-name = "recursia"
+name = "wisphaven"
 version = "0.1.1" #not exactly using semver. will have game saves be compatible if major/minor versions are equal
 edition = "2021"
 

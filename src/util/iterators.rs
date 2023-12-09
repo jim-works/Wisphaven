@@ -192,24 +192,46 @@ impl<T> std::ops::IndexMut<BlockCoord> for VolumeContainer<T> {
     }
 }
 
-pub trait AxesIter<T> {
-    fn axes_iter(self) -> impl Iterator<Item=T>;
+pub trait AxisIter<T> {
+    fn axis_iter(self) -> impl Iterator<Item=T>;
 }
 
-impl AxesIter<f32> for Vec3 {
-    fn axes_iter(self) -> impl Iterator<Item=f32> {
+impl AxisIter<f32> for Vec3 {
+    fn axis_iter(self) -> impl Iterator<Item=f32> {
         self.to_array().into_iter()
     }
 }
 
-impl AxesIter<i32> for BlockCoord {
-    fn axes_iter(self) -> impl Iterator<Item=i32> {
+impl AxisIter<i32> for BlockCoord {
+    fn axis_iter(self) -> impl Iterator<Item=i32> {
         [self.x, self.y, self.z].into_iter()
     }
 }
 
-impl AxesIter<i32> for ChunkCoord {
-    fn axes_iter(self) -> impl Iterator<Item=i32> {
+impl AxisIter<i32> for ChunkCoord {
+    fn axis_iter(self) -> impl Iterator<Item=i32> {
         [self.x, self.y, self.z].into_iter()
+    }
+}
+
+pub trait AxisMap<Elem> {
+    fn axis_map(self, f: impl FnMut(Elem) -> Elem) -> Self;
+}
+
+impl AxisMap<f32> for Vec3 {
+    fn axis_map(self, mut f: impl FnMut(f32) -> f32) -> Self {
+        Vec3::new((f)(self.x), (f)(self.y), (f)(self.z))
+    }
+}
+
+impl AxisMap<i32> for BlockCoord {
+    fn axis_map(self, mut f: impl FnMut(i32) -> i32) -> Self {
+        BlockCoord::new((f)(self.x), (f)(self.y), (f)(self.z))
+    }
+}
+
+impl AxisMap<i32> for ChunkCoord {
+    fn axis_map(self, mut f: impl FnMut(i32) -> i32) -> Self {
+        ChunkCoord::new((f)(self.x), (f)(self.y), (f)(self.z))
     }
 }

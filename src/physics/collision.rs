@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     util::{
-        iterators::{AxesIter, BlockVolume, VolumeContainer},
+        iterators::{AxisIter, BlockVolume, VolumeContainer},
         DirectionFlags,
     },
     world::{BlockCoord, BlockPhysics, Level},
@@ -32,7 +32,7 @@ impl Default for Friction {
     }
 }
 
-#[derive(Component, Copy, Clone, PartialEq, Default, Reflect)]
+#[derive(Component, Copy, Clone, PartialEq, Default, Reflect, Debug)]
 #[reflect(Component)]
 pub struct Collider {
     pub shape: Aabb,
@@ -43,6 +43,17 @@ pub struct Collider {
 pub struct CollidingDirections(pub DirectionFlags);
 
 impl Collider {
+    pub fn from_block(physics: &BlockPhysics) -> Option<Self> {
+        match physics {
+            BlockPhysics::Empty => None,
+            BlockPhysics::Solid => Some(Collider {
+                shape: Aabb::new(Vec3::splat(0.5)),
+                offset: Vec3::splat(0.5),
+            }),
+            BlockPhysics::Aabb(col) => Some(*col),
+        }
+    }
+
     pub fn min_time_to_collision<'a>(
         &self,
         potential_overlap: impl Iterator<Item = (BlockCoord, &'a BlockPhysics)>,
@@ -52,37 +63,29 @@ impl Collider {
         let position = p + self.offset;
         let mut min_collision = None;
         for (coord, block) in potential_overlap {
-            let block_collider = match block {
-                BlockPhysics::Empty => {
+            if let Some(block_collider) = Collider::from_block(block) {
+                let d = self.shape.axis_distance(
+                    coord.to_vec3() + block_collider.offset - position,
+                    block_collider.shape,
+                );
+                let t = Vec3::new(
+                    if v.x == 0.0 { f32::INFINITY } else { d.x / v.x },
+                    if v.y == 0.0 { f32::INFINITY } else { d.y / v.y },
+                    if v.z == 0.0 { f32::INFINITY } else { d.z / v.z },
+                );
+                let min = f32::min(t.x, f32::min(t.y, t.z));
+                if min == f32::INFINITY {
                     continue;
                 }
-                BlockPhysics::Solid => Collider {
-                    shape: Aabb::new(Vec3::splat(0.5)),
-                    offset: Vec3::splat(0.5),
-                },
-                BlockPhysics::Aabb(collider) => *collider,
-            };
-            let d = self.shape.distance(
-                coord.to_vec3() + block_collider.offset - position,
-                block_collider.shape,
-            );
-            let t = Vec3::new(
-                if v.x == 0.0 { f32::INFINITY } else { d.x / v.x },
-                if v.y == 0.0 { f32::INFINITY } else { d.y / v.y },
-                if v.z == 0.0 { f32::INFINITY } else { d.z / v.z },
-            );
-            let min = f32::min(t.x, f32::min(t.y, t.z));
-            if min == f32::INFINITY {
-                continue;
-            }
-            match min_collision {
-                Some((_, _, min_t)) => {
-                    if min < min_t {
+                match min_collision {
+                    Some((_, _, min_t)) => {
+                        if min < min_t {
+                            min_collision = Some((coord, t, min));
+                        }
+                    }
+                    None => {
                         min_collision = Some((coord, t, min));
                     }
-                }
-                None => {
-                    min_collision = Some((coord, t, min));
                 }
             }
         }
@@ -234,12 +237,13 @@ impl Aabb {
     }
     //self.position + delta = other.position
     pub fn intersects(self, delta: Vec3, other: Aabb) -> bool {
-        self.distance(delta, other).axes_iter().any(|d| d <= 0.0)
+        self.axis_distance(delta, other).axis_iter().all(|d| d <= 0.0)
     }
 
     //self.position + delta = other.position
     //returns distance from outside of this box to other box (negative distance if inside)
-    pub fn distance(self, delta: Vec3, other: Aabb) -> Vec3 {
+    //todo: this should return the distance that we have to move in each axis to hit the box (so infinity if no collision)
+    pub fn axis_distance(self, delta: Vec3, other: Aabb) -> Vec3 {
         delta - self.extents - other.extents
     }
 }
@@ -309,11 +313,10 @@ fn resolve_terrain_collisions(
         }
         let overlaps_iter = overlaps.iter().flat_map(|v| {
             v.iter().filter_map(|(coord, block)| {
-                    block
-                        .and_then(|b| b.entity())
-                        .and_then(|e| block_physics.get(e).ok())
-                        .and_then(|p| Some((coord, p)))
-                
+                block
+                    .and_then(|b| b.entity())
+                    .and_then(|e| block_physics.get(e).ok())
+                    .and_then(|p| Some((coord, p)))
             })
         });
         let min_time_to_collision = col.min_time_to_collision(overlaps_iter, tf.translation, v.0);
@@ -350,6 +353,6 @@ fn resolve_terrain_collisions(
             }
         }
 
-       tf.translation = desired_pos.0;
+        tf.translation = desired_pos.0;
     }
 }
