@@ -69,9 +69,9 @@ impl Collider {
                     block_collider.shape,
                 );
                 let t = Vec3::new(
-                    if v.x == 0.0 { f32::INFINITY } else { d.x / v.x },
-                    if v.y == 0.0 { f32::INFINITY } else { d.y / v.y },
-                    if v.z == 0.0 { f32::INFINITY } else { d.z / v.z },
+                    if v.x == 0.0 { f32::INFINITY } else { d.x / v.x.abs() },
+                    if v.y == 0.0 { f32::INFINITY } else { d.y / v.y.abs() },
+                    if v.z == 0.0 { f32::INFINITY } else { d.z / v.z.abs() },
                 );
                 let min = f32::min(t.x, f32::min(t.y, t.z));
                 if min == f32::INFINITY {
@@ -235,16 +235,60 @@ impl Aabb {
     pub fn new(extents: Vec3) -> Self {
         Self { extents }
     }
-    //self.position + delta = other.position
-    pub fn intersects(self, delta: Vec3, other: Aabb) -> bool {
-        self.axis_distance(delta, other).axis_iter().all(|d| d <= 0.0)
+    pub fn intersects(self, other_center: Vec3, other: Aabb) -> bool {
+        let self_min = -self.extents;
+        let self_max = self.extents;
+        let other_min = other_center - other.extents;
+        let other_max = other_center + other.extents;
+
+        (self_min.x <= other_max.x && self_max.x >= other_min.x)
+            && (self_min.y <= other_max.y && self_max.y >= other_min.y)
+            && (self_min.z <= other_max.z && self_max.z >= other_min.z)
     }
 
     //self.position + delta = other.position
-    //returns distance from outside of this box to other box (negative distance if inside)
-    //todo: this should return the distance that we have to move in each axis to hit the box (so infinity if no collision)
-    pub fn axis_distance(self, delta: Vec3, other: Aabb) -> Vec3 {
-        delta - self.extents - other.extents
+    //return sthe distance that we have to move in each axis to hit the box (negative if inside)
+    //returns infinity if there is no possible collision on that axis
+    pub fn axis_distance(self, other_center: Vec3, other: Aabb) -> Vec3 {
+        let self_min = -self.extents;
+        let self_max = self.extents;
+        let other_min = other_center - other.extents;
+        let other_max = other_center + other.extents;
+        let mut dist = Vec3::splat(f32::INFINITY);
+        //x-axis, check if possible boxes are lined up enough on y/z plane for collision
+        if (self_min.y <= other_max.y && self_max.y >= other_min.y)
+            && (self_min.z <= other_max.z && self_max.z >= other_min.z)
+        {
+            let d = ((other_min.x - self_max.x).abs()).min((self_min.x - other_max.x).abs());
+            dist.x = if self_min.x <= other_max.x && self_max.x >= other_min.x {
+                -d //intersects, so return negative distance
+            } else {
+                d
+            }
+        }
+        //y-axis, check if possible boxes are lined up enough on x/z plane for collision
+        if (self_min.x <= other_max.x && self_max.x >= other_min.x)
+            && (self_min.z <= other_max.z && self_max.z >= other_min.z)
+        {
+            let d = ((other_min.y - self_max.y).abs()).min((self_min.y - other_max.y).abs());
+            dist.y = if self_min.y <= other_max.y && self_max.y >= other_min.y {
+                -d //intersects, so return negative distance
+            } else {
+                d
+            }
+        }
+        //z-axis, check if possible boxes are lined up enough on x/y plane for collision
+        if (self_min.y <= other_max.y && self_max.y >= other_min.y)
+            && (self_min.x <= other_max.x && self_max.x >= other_min.x)
+        {
+            let d = ((other_min.z - self_max.z).abs()).min((self_min.z - other_max.z).abs());
+            dist.z = if self_min.z <= other_max.z && self_max.z >= other_min.z {
+                -d //intersects, so return negative distance
+            } else {
+                d
+            }
+        }
+        dist
     }
 }
 
