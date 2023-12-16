@@ -1,16 +1,19 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::{actors::{coin::SpawnCoinEvent, AttackEvent, CombatInfo, Damage, CombatantBundle}, physics::collision::DesiredPosition};
+use crate::actors::{coin::SpawnCoinEvent, AttackEvent, CombatInfo, CombatantBundle, Damage};
 
-use super::{SwingItemEvent, UseItemEvent, ItemSystemSet};
+use super::{ItemSystemSet, SwingItemEvent, UseItemEvent};
 
 pub struct WeaponItemPlugin;
 
 impl Plugin for WeaponItemPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (attack_melee, launch_coin).in_set(ItemSystemSet::UsageProcessing))
-            .register_type::<CoinLauncherItem>();
+        app.add_systems(
+            Update,
+            (attack_melee, launch_coin).in_set(ItemSystemSet::UsageProcessing),
+        )
+        .register_type::<CoinLauncherItem>();
     }
 }
 
@@ -68,7 +71,6 @@ pub fn launch_coin(
     mut attack_item_reader: EventReader<UseItemEvent>,
     mut writer: EventWriter<SpawnCoinEvent>,
     weapon_query: Query<&CoinLauncherItem>,
-    mut user_query: Query<(&mut Transform, &mut DesiredPosition)>,
 ) {
     for UseItemEvent {
         user,
@@ -88,11 +90,6 @@ pub fn launch_coin(
                 owner: *user,
                 damage: weapon.damage,
             });
-            if let Ok((mut tf, mut dp)) = user_query.get_mut(*user) {
-                tf.translation.y += 100.0;
-                dp.0.y += 100.0;
-                info!("aaaaaa");
-            }
         }
     }
 }

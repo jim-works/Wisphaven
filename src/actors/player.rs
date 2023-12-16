@@ -298,9 +298,12 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
         TransformBundle::from_transform(Transform::from_translation(spawn_point)),
         InterpolatedAttribute::from(Transform::from_translation(spawn_point)),
         PhysicsBundle {
-            collider: Collider {
-                shape: collision::Aabb::new(Vec3::new(0.4, 0.8, 0.4)),
-                offset: Vec3::new(0., 0.8, 0.),
+            base: BasePhysicsBundle {
+                collider: Collider {
+                    shape: collision::Aabb::new(Vec3::new(0.4, 0.8, 0.4)),
+                    offset: Vec3::new(0., 0.8, 0.),
+                },
+                ..default()
             },
             ..default()
         },

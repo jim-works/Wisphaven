@@ -3,6 +3,8 @@ use bevy::{prelude::*, transform::TransformSystem};
 use crate::{ui::debug::DebugDrawTransform, world::LevelLoadState};
 use bevy_rapier3d::prelude::*;
 
+use self::collision::ProcessTerrainCollision;
+
 #[cfg(test)]
 mod tests;
 
@@ -23,8 +25,9 @@ pub const TICK_SCALE: f64 = 64.0/TPS;
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum PhysicsSystemSet {
     Main, //all user code should run here
-    UpdatePositionVelocity,
-    CollisionResolution,
+    ResetInterpolation,
+    UpdatePosition,
+    UpdateDerivatives,
 }
 
 pub struct PhysicsPlugin;
@@ -41,12 +44,13 @@ impl Plugin for PhysicsPlugin {
             FixedUpdate,
             (
                 PhysicsSystemSet::Main,
-                PhysicsSystemSet::UpdatePositionVelocity,
-                PhysicsSystemSet::CollisionResolution,
+                PhysicsSystemSet::ResetInterpolation,
+                PhysicsSystemSet::UpdatePosition,
+                PhysicsSystemSet::UpdateDerivatives,
             )
                 .chain().run_if(in_state(LevelLoadState::Loaded)),
         )
-        .configure_sets(FixedUpdate, TransformSystem::TransformPropagate.after(PhysicsSystemSet::CollisionResolution))
+        .configure_sets(FixedUpdate, TransformSystem::TransformPropagate.after(PhysicsSystemSet::UpdatePosition))
         .add_systems(Startup, configure_physics);
     }
 }
@@ -68,14 +72,19 @@ pub struct PhysicsObjectBundle {
 }
 
 #[derive(Bundle, Default)]
-pub struct PhysicsBundle {
+pub struct BasePhysicsBundle {
     pub velocity: movement::Velocity,
     pub acceleration: movement::Acceleration,
     pub gravity: movement::GravityMult,
     pub collider: collision::Collider,
     pub colliding_directions: collision::CollidingDirections,
-    pub desired_position: collision::DesiredPosition,
     pub friction: collision::Friction,
+}
+
+#[derive(Bundle, Default)]
+pub struct PhysicsBundle {
+    pub base: BasePhysicsBundle,
+    pub terrain_collision: ProcessTerrainCollision
 }
 
 impl Default for PhysicsObjectBundle {

@@ -2,7 +2,7 @@ use bevy::{prelude::*, transform::TransformSystem};
 
 use crate::physics::TPS;
 
-use super::{collision::DesiredPosition, PhysicsSystemSet, TICK_SCALE};
+use super::{collision::ProcessTerrainCollision, PhysicsSystemSet, TICK_SCALE};
 
 //local space, without local rotation
 #[derive(Component, Default, Deref, DerefMut, PartialEq, Clone, Copy, Debug)]
@@ -48,36 +48,47 @@ pub struct MovementPlugin;
 impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Gravity(Vec3::new(0.0, -0.005, 0.0)))
+            // .add_systems(
+            //     FixedUpdate,
+            //     snap_tf_interpolation.in_set(PhysicsSystemSet::ResetInterpolation),
+            // )
+            // .add_systems(
+            //     FixedUpdate,
+            //     (translate_no_acceleration, translate_acceleration)
+            //         .in_set(PhysicsSystemSet::UpdatePosition),
+            // )
             .add_systems(
                 FixedUpdate,
-                (
-                    snap_tf_interpolation,
-                    (
-                        update_kinematics_no_acceleration,
-                        update_kinematics_acceleration,
-                        update_desired_pos_no_acceleration,
-                        update_desired_pos_acceleration
-                    ),
-                )
-                    .chain()
-                    .in_set(PhysicsSystemSet::UpdatePositionVelocity),
+                update_derivatives.in_set(PhysicsSystemSet::UpdateDerivatives),
             )
-            .add_systems(
-                FixedUpdate,
-                set_tf_interpolation_target.after(PhysicsSystemSet::CollisionResolution),
-            )
-            .add_systems(
-                PostUpdate,
-                interpolate_tf_translation.before(TransformSystem::TransformPropagate),
-            );
+            // .add_systems(
+            //     FixedUpdate,
+            //     set_tf_interpolation_target.after(PhysicsSystemSet::UpdateDerivatives),
+            // )
+            // .add_systems(
+            //     PostUpdate,
+            //     interpolate_tf_translation.before(TransformSystem::TransformPropagate),
+            // );
+            ;
+    }
+}
+
+fn update_derivatives(
+    mut query: Query<(&mut Velocity, &mut Acceleration, Option<&GravityMult>)>,
+    gravity: Res<Gravity>,
+) {
+    for (mut v, mut a, opt_g) in query.iter_mut() {
+        v.0 += a.0 * TICK_SCALE as f32;
+        //reset acceleration
+        a.0 = opt_g.map(|g| g.0).unwrap_or(0.0) * gravity.0;
     }
 }
 
 //simpler (and faster) to extract this out
-fn update_kinematics_no_acceleration(
+fn translate_no_acceleration(
     mut query: Query<
         (&mut Transform, &Velocity),
-        (Without<Acceleration>, Without<DesiredPosition>),
+        (Without<Acceleration>, Without<ProcessTerrainCollision>),
     >,
 ) {
     for (mut tf, v) in query.iter_mut() {
@@ -85,57 +96,12 @@ fn update_kinematics_no_acceleration(
     }
 }
 
-fn update_kinematics_acceleration(
-    mut query: Query<
-        (
-            &mut Transform,
-            &mut Velocity,
-            &mut Acceleration,
-            Option<&GravityMult>,
-        ),
-        Without<DesiredPosition>,
-    >,
-    gravity: Res<Gravity>,
+fn translate_acceleration(
+    mut query: Query<(&mut Transform, &Velocity, &Acceleration), Without<ProcessTerrainCollision>>,
 ) {
-    for (mut tf, mut v, mut a, opt_g) in query.iter_mut() {
+    for (mut tf, v, a) in query.iter_mut() {
         //adding half acceleration for proper integration
         tf.translation += v.0 * TICK_SCALE as f32 + 0.5 * a.0 * (TICK_SCALE * TICK_SCALE) as f32;
-        v.0 += a.0 * TICK_SCALE as f32;
-        //reset acceleration
-        a.0 = opt_g.map(|g| g.0).unwrap_or(0.0) * gravity.0;
-    }
-}
-
-
-fn update_desired_pos_no_acceleration(
-    mut query: Query<
-        (&mut DesiredPosition, &Transform, &Velocity),
-        Without<Acceleration>,
-    >,
-) {
-    for (mut desired, tf, v) in query.iter_mut() {
-        desired.0 = tf.translation + v.0 * TICK_SCALE as f32;
-    }
-}
-
-fn update_desired_pos_acceleration(
-    mut query: Query<
-        (
-            &mut DesiredPosition,
-            &Transform,
-            &mut Velocity,
-            &mut Acceleration,
-            Option<&GravityMult>,
-        ),
-    >,
-    gravity: Res<Gravity>,
-) {
-    for (mut desired, tf, mut v, mut a, opt_g) in query.iter_mut() {
-        //adding half acceleration for proper integration
-        desired.0 = tf.translation + v.0 * TICK_SCALE as f32 + 0.5 * a.0 * (TICK_SCALE * TICK_SCALE) as f32;
-        v.0 += a.0 * TICK_SCALE as f32;
-        //reset acceleration
-        a.0 = opt_g.map(|g| g.0).unwrap_or(0.0) * gravity.0;
     }
 }
 

@@ -3,7 +3,7 @@ use bitflags::bitflags;
 
 use crate::world::{BlockCoord, chunk::{ChunkCoord, ChunkIdx, CHUNK_SIZE_U8, FatChunkIdx, CHUNK_SIZE_I8}};
 
-use super::max_component_norm;
+use super::{max_component_norm, min_component_norm};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Direction{
@@ -81,6 +81,31 @@ impl Direction {
         }
     }
 
+    pub fn get_axis(self, v: Vec3) -> f32 {
+        match self {
+            Direction::PosX | Direction::NegX => v.x,
+            Direction::PosY | Direction::NegY => v.y,
+            Direction::PosZ | Direction::NegZ => v.z,
+        }
+    }
+
+    pub fn min_magnitude_axis(v: Vec3) -> Self {
+        let min = min_component_norm(v);
+        if min.x > 0.0 {
+            Direction::PosX
+        } else if min.x < 0.0 {
+            Direction::NegX
+        } else if min.y > 0.0 {
+            Direction::PosY
+        } else if min.y < 0.0 {
+            Direction::NegY
+        } else if min.z > 0.0 {
+            Direction::PosZ
+        } else {
+            Direction::NegZ
+        }
+    }
+
     pub fn iter() -> DirectionIterator {
         DirectionIterator { curr: None }
     }
@@ -121,7 +146,7 @@ impl From<Vec3> for Direction {
 }
 
 bitflags! {
-    #[derive(Default)]
+    #[derive(Default, Debug)]
     pub struct DirectionFlags : u8 {
         const PosX = 0b000001;
         const PosY = 0b000010;

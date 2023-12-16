@@ -2,13 +2,13 @@ use bevy::prelude::*;
 
 use crate::{
     util::{
-        iterators::{AxisIter, BlockVolume, VolumeContainer},
+        iterators::{BlockVolume, VolumeContainer},
         DirectionFlags,
     },
     world::{BlockCoord, BlockPhysics, Level},
 };
 
-use super::{movement::*, PhysicsSystemSet};
+use super::{movement::*, PhysicsSystemSet, TICK_SCALE};
 
 pub struct CollisionPlugin;
 
@@ -16,7 +16,7 @@ impl Plugin for CollisionPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             FixedUpdate,
-            resolve_terrain_collisions.in_set(PhysicsSystemSet::CollisionResolution),
+            move_and_slide.in_set(PhysicsSystemSet::UpdatePosition),
         )
         .register_type::<Collider>()
         .register_type::<Aabb>();
@@ -54,37 +54,32 @@ impl Collider {
         }
     }
 
+    //returns the block coordinate we collided with, corrected velocity, time, normal if exists
     pub fn min_time_to_collision<'a>(
         &self,
         potential_overlap: impl Iterator<Item = (BlockCoord, &'a BlockPhysics)>,
         p: Vec3,
         v: Vec3,
-    ) -> Option<(BlockCoord, Vec3, f32)> {
+    ) -> Option<(BlockCoord, Vec3, f32, Option<crate::util::Direction>)> {
         let position = p + self.offset;
-        let mut min_collision = None;
+        let mut min_collision: Option<(BlockCoord, Vec3, f32, Option<crate::util::Direction>)> =
+            None;
         for (coord, block) in potential_overlap {
             if let Some(block_collider) = Collider::from_block(block) {
-                let d = self.shape.axis_distance(
+                if let Some((time, corrected_v, opt_normal)) = self.shape.sweep(
                     coord.to_vec3() + block_collider.offset - position,
                     block_collider.shape,
-                );
-                let t = Vec3::new(
-                    if v.x == 0.0 { f32::INFINITY } else { d.x / v.x.abs() },
-                    if v.y == 0.0 { f32::INFINITY } else { d.y / v.y.abs() },
-                    if v.z == 0.0 { f32::INFINITY } else { d.z / v.z.abs() },
-                );
-                let min = f32::min(t.x, f32::min(t.y, t.z));
-                if min == f32::INFINITY {
-                    continue;
-                }
-                match min_collision {
-                    Some((_, _, min_t)) => {
-                        if min < min_t {
-                            min_collision = Some((coord, t, min));
+                    v,
+                ) {
+                    match min_collision {
+                        Some((_, _, min_collision_time, _)) => {
+                            if time < min_collision_time {
+                                min_collision = Some((coord, corrected_v, time, opt_normal));
+                            }
                         }
-                    }
-                    None => {
-                        min_collision = Some((coord, t, min));
+                        None => {
+                            min_collision = Some((coord, corrected_v, time, opt_normal));
+                        }
                     }
                 }
             }
@@ -113,75 +108,22 @@ impl Collider {
         // }
     }
 
-    const FACE_SHRINK_MULT: f32 = 0.99; //shrinks each face on the box collider by this proportion to avoid conflicting collisions against walls
-
-    // fn resolve(
-    //     &self,
-    //     p: &mut Vec3,
-    //     v: &mut Vec3,
-    //     level: &Level,
-    //     block_physics: &Query<&BlockPhysics>,
-    //     potential_overlap: BlockVolume,
-    //     mut resolver: impl FnMut(
-    //         &ColliderShape,
-    //         BlockCoord,
-    //         Option<&BlockPhysics>,
-    //         &mut Vec3,
-    //         &mut Vec3,
-    //     ) -> bool,
-    // ) -> bool {
-    //     let mut collision = false;
-    //     for coord in potential_overlap.iter() {
-    //         collision |= resolver(
-    //             self,
-    //             coord,
-    //             level
-    //                 .get_block_entity(coord)
-    //                 .and_then(|b| block_physics.get(b).ok()),
-    //             p,
-    //             v,
-    //         );
-    //     }
-    //     collision
-    // }
+    const FACE_SIZE_MULT: f32 = 0.99; //shrinks each face on the box collider by this proportion to avoid conflicting collisions against walls
 
     pub fn potential_overlapping_blocks_neg_y(&self, delta: Vec3) -> BlockVolume {
         BlockVolume::from_aabb(
             Aabb {
                 extents: Vec3::new(self.shape.extents.x, 0.0, self.shape.extents.z)
-                    * Self::FACE_SHRINK_MULT,
+                    * Self::FACE_SIZE_MULT,
             },
             self.offset + delta - Vec3::new(0., self.shape.extents.y, 0.),
         )
     }
 
-    // //assumes block is in the set returned by potential overlapping blocks
-    // fn resolve_terrain_collision_neg_y(
-    //     &self,
-    //     coord: BlockCoord,
-    //     block_physics: Option<&BlockPhysics>,
-    //     position: &mut Vec3,
-    //     velocity: &mut Vec3,
-    // ) -> bool {
-    //     match self {
-    //         ColliderShape::Box(aabb) => match block_physics {
-    //             Some(BlockPhysics::Solid) => {
-    //                 velocity.y = 0.0;
-    //                 position.y = (coord.y + 1) as f32 + aabb.extents.y;
-    //                 true
-    //             }
-    //             Some(BlockPhysics::BottomSlab(_height)) => {
-    //                 todo!()
-    //             }
-    //             Some(BlockPhysics::Empty) | None => false,
-    //         },
-    //     }
-    // }
-
     pub fn potential_overlapping_blocks_pos_y(&self, delta: Vec3) -> BlockVolume {
         BlockVolume::from_aabb(
             Aabb::new(
-                Vec3::new(self.shape.extents.x, 0.0, self.shape.extents.z) * Self::FACE_SHRINK_MULT,
+                Vec3::new(self.shape.extents.x, 0.0, self.shape.extents.z) * Self::FACE_SIZE_MULT,
             ),
             self.offset + delta + Vec3::new(0., self.shape.extents.y, 0.),
         )
@@ -190,7 +132,7 @@ impl Collider {
     pub fn potential_overlapping_blocks_pos_x(&self, delta: Vec3) -> BlockVolume {
         BlockVolume::from_aabb(
             Aabb::new(
-                Vec3::new(0.0, self.shape.extents.y, self.shape.extents.z) * Self::FACE_SHRINK_MULT,
+                Vec3::new(0.0, self.shape.extents.y, self.shape.extents.z) * Self::FACE_SIZE_MULT,
             ),
             self.offset + delta + Vec3::new(self.shape.extents.x, 0., 0.),
         )
@@ -199,7 +141,7 @@ impl Collider {
     pub fn potential_overlapping_blocks_neg_x(&self, delta: Vec3) -> BlockVolume {
         BlockVolume::from_aabb(
             Aabb::new(
-                Vec3::new(0.0, self.shape.extents.y, self.shape.extents.z) * Self::FACE_SHRINK_MULT,
+                Vec3::new(0.0, self.shape.extents.y, self.shape.extents.z) * Self::FACE_SIZE_MULT,
             ),
             self.offset + delta - Vec3::new(self.shape.extents.x, 0., 0.),
         )
@@ -208,7 +150,7 @@ impl Collider {
     pub fn potential_overlapping_blocks_pos_z(&self, delta: Vec3) -> BlockVolume {
         BlockVolume::from_aabb(
             Aabb::new(
-                Vec3::new(self.shape.extents.x, self.shape.extents.y, 0.0) * Self::FACE_SHRINK_MULT,
+                Vec3::new(self.shape.extents.x, self.shape.extents.y, 0.0) * Self::FACE_SIZE_MULT,
             ),
             self.offset + delta + Vec3::new(0., 0., self.shape.extents.z),
         )
@@ -217,7 +159,7 @@ impl Collider {
     pub fn potential_overlapping_blocks_neg_z(&self, delta: Vec3) -> BlockVolume {
         BlockVolume::from_aabb(
             Aabb::new(
-                Vec3::new(self.shape.extents.x, self.shape.extents.y, 0.0) * Self::FACE_SHRINK_MULT,
+                Vec3::new(self.shape.extents.x, self.shape.extents.y, 0.0) * Self::FACE_SIZE_MULT,
             ),
             self.offset + delta - Vec3::new(0., 0., self.shape.extents.z),
         )
@@ -247,9 +189,9 @@ impl Aabb {
     }
 
     //self.position + delta = other.position
-    //return sthe distance that we have to move in each axis to hit the box (negative if inside)
+    //returns the dispacement that we have to move self on each axis to hit other box (0 if inside)
     //returns infinity if there is no possible collision on that axis
-    pub fn axis_distance(self, other_center: Vec3, other: Aabb) -> Vec3 {
+    pub fn axis_displacement(self, other_center: Vec3, other: Aabb) -> Vec3 {
         let self_min = -self.extents;
         let self_max = self.extents;
         let other_min = other_center - other.extents;
@@ -261,9 +203,9 @@ impl Aabb {
         {
             let d = ((other_min.x - self_max.x).abs()).min((self_min.x - other_max.x).abs());
             dist.x = if self_min.x <= other_max.x && self_max.x >= other_min.x {
-                -d //intersects, so return negative distance
+                0.0 //intersects
             } else {
-                d
+                d * other_center.x.signum()
             }
         }
         //y-axis, check if possible boxes are lined up enough on x/z plane for collision
@@ -272,9 +214,9 @@ impl Aabb {
         {
             let d = ((other_min.y - self_max.y).abs()).min((self_min.y - other_max.y).abs());
             dist.y = if self_min.y <= other_max.y && self_max.y >= other_min.y {
-                -d //intersects, so return negative distance
+                0.0 //intersects
             } else {
-                d
+                d * other_center.y.signum()
             }
         }
         //z-axis, check if possible boxes are lined up enough on x/y plane for collision
@@ -283,12 +225,133 @@ impl Aabb {
         {
             let d = ((other_min.z - self_max.z).abs()).min((self_min.z - other_max.z).abs());
             dist.z = if self_min.z <= other_max.z && self_max.z >= other_min.z {
-                -d //intersects, so return negative distance
+                0.0
             } else {
-                d
+                d * other_center.z.signum()
             }
         }
         dist
+    }
+
+    //returns time to hit, updated velocity and normal if there was a hit
+    //returns None if no hit
+    pub fn sweep(
+        self,
+        other_center: Vec3,
+        other: Aabb,
+        self_v: Vec3,
+    ) -> Option<(f32, Vec3, Option<crate::util::Direction>)> {
+        if self.intersects(other_center, other) {
+            return Some((0.0, Vec3::ZERO, None));
+        }
+        if self_v == Vec3::ZERO {
+            return None;
+        }
+
+        let self_min = -self.extents;
+        let self_max = self.extents;
+        let other_min = other_center - other.extents;
+        let other_max = other_center + other.extents;
+
+        let v = -self_v; //velocity relative to other
+        let mut hit_time: f32 = 0.0;
+        let mut out_time: f32 = 1.0;
+        let mut overlap_time = Vec3::INFINITY;
+
+        if v.x < 0.0 {
+            if other_max.x < self_min.x {
+                return None;
+            }
+            if other_max.x > self_min.x {
+                out_time = out_time.min((self_min.x - other_max.x) / v.x);
+            }
+            if self_max.x < other_min.x {
+                overlap_time.x = (self_max.x - other_min.x) / v.x;
+                hit_time = hit_time.max(overlap_time.x);
+            }
+        } else if v.x > 0.0 {
+            if other_min.x > self_max.x {
+                return None;
+            }
+            if self_max.x > other_min.x {
+                out_time = out_time.min((self_max.x - other_min.x) / v.x);
+            }
+            if other_max.x < self_min.x {
+                overlap_time.x = (self_min.x - other_max.x) / v.x;
+                hit_time = hit_time.max(overlap_time.x);
+            }
+        }
+        if hit_time > out_time {
+            return None;
+        }
+
+        if v.y < 0.0 {
+            if other_max.y < self_min.y {
+                return None;
+            }
+            if other_max.y > self_min.y {
+                out_time = out_time.min((self_min.y - other_max.y) / v.y);
+            }
+            if self_max.y < other_min.y {
+                overlap_time.y = (self_max.y - other_min.y) / v.y;
+                hit_time = hit_time.max(overlap_time.y);
+            }
+        } else if v.y > 0.0 {
+            if other_min.y > self_max.y {
+                return None;
+            }
+            if self_max.y > other_min.y {
+                out_time = out_time.min((self_max.y - other_min.y) / v.y);
+            }
+            if other_max.y < self_min.y {
+                overlap_time.y = (self_min.y - other_max.y) / v.y;
+                hit_time = hit_time.max(overlap_time.y);
+            }
+        }
+        if hit_time > out_time {
+            return None;
+        }
+
+        if v.z < 0.0 {
+            if other_max.z < self_min.z {
+                return None;
+            }
+            if other_max.z > self_min.z {
+                out_time = out_time.min((self_min.z - other_max.z) / v.z);
+            }
+            if self_max.z < other_min.z {
+                overlap_time.z = (self_max.z - other_min.z) / v.z;
+                hit_time = hit_time.max(overlap_time.z);
+            }
+        } else if v.z > 0.0 {
+            if other_min.z > self_max.z {
+                return None;
+            }
+            if self_max.z > other_min.z {
+                out_time = out_time.min((self_max.z - other_min.z) / v.z);
+            }
+            if other_max.z < self_min.z {
+                overlap_time.z = (self_min.z - other_max.z) / v.z;
+                hit_time = hit_time.max(overlap_time.z);
+            }
+        }
+        if hit_time > out_time {
+            return None;
+        }
+        //no collision
+        if overlap_time == Vec3::INFINITY {
+            return None;
+        }
+
+        //want axis with minimal collosion time
+        let normal_axis = crate::util::Direction::min_magnitude_axis(overlap_time);
+        let v_in_normal = normal_axis.get_axis(v);
+        let normal = if v_in_normal > 0.0 {
+            Some(normal_axis)
+        } else {
+            Some(normal_axis.opposite())
+        };
+        return Some((hit_time, self_v * hit_time, normal));
     }
 }
 
@@ -300,13 +363,10 @@ impl Default for Aabb {
     }
 }
 
-#[derive(Component, Copy, Clone)]
-pub struct IgnoreTerrainCollision;
+#[derive(Component, Copy, Clone, Default)]
+pub struct ProcessTerrainCollision;
 
-#[derive(Component, Copy, Clone, Default, Debug)]
-pub struct DesiredPosition(pub Vec3);
-
-fn resolve_terrain_collisions(
+fn move_and_slide(
     mut objects: Query<
         (
             &mut Transform,
@@ -314,46 +374,45 @@ fn resolve_terrain_collisions(
             &mut Acceleration,
             &mut CollidingDirections,
             &Collider,
-            &mut DesiredPosition,
             Option<&Friction>,
         ),
-        Without<IgnoreTerrainCollision>,
+        With<ProcessTerrainCollision>,
     >,
     block_physics: Query<&BlockPhysics>,
     level: Res<Level>,
 ) {
     let mut overlaps: Vec<VolumeContainer<crate::world::BlockType>> = Vec::with_capacity(3);
-    for (mut tf, mut v, mut a, mut directions, col, mut desired_pos, fric) in objects.iter_mut() {
+    for (mut tf, mut v, mut a, mut directions, col, fric) in objects.iter_mut() {
         directions.0 = DirectionFlags::default();
-        // info!("tf: {:?}, v: {:?}, desired: {:?}", tf, v, desired_pos);
-        if v.x > 0.0 {
-            overlaps.push(
-                level.get_blocks_in_volume(col.potential_overlapping_blocks_pos_x(desired_pos.0)),
-            );
-        } else if v.x < 0.0 {
-            overlaps.push(
-                level.get_blocks_in_volume(col.potential_overlapping_blocks_neg_x(desired_pos.0)),
-            );
+        let effective_velocity = TICK_SCALE as f32 * (v.0 + TICK_SCALE as f32 * 0.5 * a.0);
+        if effective_velocity.x > 0.0 {
+            overlaps.push(level.get_blocks_in_volume(
+                col.potential_overlapping_blocks_pos_x(tf.translation + effective_velocity),
+            ));
+        } else if effective_velocity.x < 0.0 {
+            overlaps.push(level.get_blocks_in_volume(
+                col.potential_overlapping_blocks_neg_x(tf.translation + effective_velocity),
+            ));
         }
 
-        if v.y > 0.0 {
-            overlaps.push(
-                level.get_blocks_in_volume(col.potential_overlapping_blocks_pos_y(desired_pos.0)),
-            );
-        } else if v.y < 0.0 {
-            overlaps.push(
-                level.get_blocks_in_volume(col.potential_overlapping_blocks_neg_y(desired_pos.0)),
-            );
+        if effective_velocity.y > 0.0 {
+            overlaps.push(level.get_blocks_in_volume(
+                col.potential_overlapping_blocks_pos_y(tf.translation + effective_velocity),
+            ));
+        } else if effective_velocity.y < 0.0 {
+            overlaps.push(level.get_blocks_in_volume(
+                col.potential_overlapping_blocks_neg_y(tf.translation + effective_velocity),
+            ));
         }
 
-        if v.z > 0.0 {
-            overlaps.push(
-                level.get_blocks_in_volume(col.potential_overlapping_blocks_pos_z(desired_pos.0)),
-            );
-        } else if v.z < 0.0 {
-            overlaps.push(
-                level.get_blocks_in_volume(col.potential_overlapping_blocks_neg_z(desired_pos.0)),
-            );
+        if effective_velocity.z > 0.0 {
+            overlaps.push(level.get_blocks_in_volume(
+                col.potential_overlapping_blocks_pos_z(tf.translation + effective_velocity),
+            ));
+        } else if effective_velocity.z < 0.0 {
+            overlaps.push(level.get_blocks_in_volume(
+                col.potential_overlapping_blocks_neg_z(tf.translation + effective_velocity),
+            ));
         }
         let overlaps_iter = overlaps.iter().flat_map(|v| {
             v.iter().filter_map(|(coord, block)| {
@@ -363,40 +422,66 @@ fn resolve_terrain_collisions(
                     .and_then(|p| Some((coord, p)))
             })
         });
-        let min_time_to_collision = col.min_time_to_collision(overlaps_iter, tf.translation, v.0);
-        if let Some((_block_pos, times, min_time)) = min_time_to_collision {
-            info!("min_time: {:?}", min_time);
-            desired_pos.0 = tf.translation + min_time * v.0;
-            //do velocity resolution and set collision direction flag
-            if times.x == min_time {
-                if v.0.x > 0.0 {
-                    directions.0.set(DirectionFlags::PosX, true);
+        let mut v_remaining = effective_velocity;
+        //collide on one axis at a time, repeat 3 times in case we are colliding on all 3 axes
+        //corrected_v is always a scaled down version of v_remaining, so subtracting will make us move slower in the same direction.
+        //  therefore, no need to recalculate possible overlaps.
+        //  actually, since we reset components on a collision, not sure
+        for _ in 0..3 {
+            info!("tf: {:?}, v_remaining: {:?}, overlaps: {:?}", tf.translation, v_remaining, overlaps_iter.clone().collect::<Vec<_>>());
+            if let Some((_block_pos, corrected_v, _time, opt_normal)) =
+                col.min_time_to_collision(overlaps_iter.clone(), tf.translation, v_remaining)
+            {
+                tf.translation += corrected_v;
+                v_remaining -= corrected_v;
+                //do velocity resolution and set collision direction flag
+                //direction flag is opposite direction because the direction is the normal of the collision, and directionflag is
+                //  the direction relative to the entity.
+                info!("hit normal: {:?}", opt_normal);
+                match opt_normal {
+                    Some(crate::util::Direction::PosX) => {
+                        v.0.x = 0.0;
+                        v_remaining.x = 0.0;
+                        directions.0.set(DirectionFlags::NegX, true);
+                    }
+                    Some(crate::util::Direction::NegX) => {
+                        v.0.x = 0.0;
+                        v_remaining.x = 0.0;
+                        directions.0.set(DirectionFlags::PosX, true);
+                    }
+                    Some(crate::util::Direction::PosY) => {
+                        v.0.y = 0.0;
+                        v_remaining.y = 0.0;
+                        directions.0.set(DirectionFlags::NegY, true);
+                    }
+                    Some(crate::util::Direction::NegY) => {
+                        v.0.y = 0.0;
+                        v_remaining.y = 0.0;
+                        directions.0.set(DirectionFlags::PosY, true);
+                    }
+                    Some(crate::util::Direction::PosZ) => {
+                        v.0.z = 0.0;
+                        v_remaining.z = 0.0;
+                        directions.0.set(DirectionFlags::NegZ, true);
+                    }
+                    Some(crate::util::Direction::NegZ) => {
+                        v.0.z = 0.0;
+                        v_remaining.z = 0.0;
+                        directions.0.set(DirectionFlags::PosZ, true);
+                    }
+                    None => {
+                        //we are inside a block already
+                        warn!("inside block!");
+                        v.0 = Vec3::ZERO;
+                        directions.0.set(DirectionFlags::all(), true);
+                    }
                 }
-                if v.0.x < 0.0 {
-                    directions.0.set(DirectionFlags::NegX, true);
-                }
-                v.0.x = 0.0;
-            }
-            if times.y == min_time {
-                if v.0.y > 0.0 {
-                    directions.0.set(DirectionFlags::PosY, true);
-                }
-                if v.0.y < 0.0 {
-                    directions.0.set(DirectionFlags::NegY, true);
-                }
-                v.0.y = 0.0;
-            }
-            if times.z == min_time {
-                if v.0.z > 0.0 {
-                    directions.0.set(DirectionFlags::PosZ, true);
-                }
-                if v.0.z < 0.0 {
-                    directions.0.set(DirectionFlags::NegZ, true);
-                }
-                v.0.z = 0.0;
+            } else {
+                //no collision, so no need to do other iterations
+                tf.translation += v_remaining;
+                break;
             }
         }
-
-        tf.translation = desired_pos.0;
+        info!("directions: {:?}", directions.0);
     }
 }

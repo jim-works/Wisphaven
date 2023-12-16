@@ -94,6 +94,18 @@ pub fn max_component_norm(v: Vec3) -> Vec3 {
     }
 }
 
+//if v has min element m, returns the vector with m set to sign(m) and all other elements 0.
+pub fn min_component_norm(v: Vec3) -> Vec3 {
+    let abs = v.abs();
+    if abs.x < abs.y && abs.x < abs.z {
+        Vec3::new(v.x.signum(), 0.0, 0.0)
+    } else if abs.y < abs.z {
+        Vec3::new(0.0, v.y.signum(), 0.0)
+    } else {
+        Vec3::new(0.0, 0.0, v.z.signum())
+    }
+}
+
 //last method on https://mathworld.wolfram.com/SpherePointPicking.html (Muller 1959, Marsaglia 1972).
 pub fn sample_sphere_surface(rng: &mut impl Rng) -> Vec3 {
     Vec3::new(
