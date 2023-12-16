@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     util::{
-        iterators::{BlockVolume, VolumeContainer},
+        iterators::{AxisIter, BlockVolume, VolumeContainer},
         DirectionFlags,
     },
     world::{BlockCoord, BlockPhysics, Level},
@@ -108,7 +108,20 @@ impl Collider {
         // }
     }
 
-    const FACE_SIZE_MULT: f32 = 0.99; //shrinks each face on the box collider by this proportion to avoid conflicting collisions against walls
+    pub fn intersects_point(&self, delta: Vec3) -> bool {
+        self.shape.intersects_point(delta-self.offset)
+    }
+
+    const FACE_SIZE_MULT: f32 = 31. / 32.; //shrinks each face on the box collider by this proportion to avoid conflicting collisions against walls
+
+    pub fn potential_overlapping_blocks_pos_y(&self, delta: Vec3) -> BlockVolume {
+        BlockVolume::from_aabb(
+            Aabb::new(
+                Vec3::new(self.shape.extents.x, 0.0, self.shape.extents.z) * Self::FACE_SIZE_MULT,
+            ),
+            self.offset + delta + Vec3::new(0., self.shape.extents.y, 0.),
+        )
+    }
 
     pub fn potential_overlapping_blocks_neg_y(&self, delta: Vec3) -> BlockVolume {
         BlockVolume::from_aabb(
@@ -117,15 +130,6 @@ impl Collider {
                     * Self::FACE_SIZE_MULT,
             },
             self.offset + delta - Vec3::new(0., self.shape.extents.y, 0.),
-        )
-    }
-
-    pub fn potential_overlapping_blocks_pos_y(&self, delta: Vec3) -> BlockVolume {
-        BlockVolume::from_aabb(
-            Aabb::new(
-                Vec3::new(self.shape.extents.x, 0.0, self.shape.extents.z) * Self::FACE_SIZE_MULT,
-            ),
-            self.offset + delta + Vec3::new(0., self.shape.extents.y, 0.),
         )
     }
 
@@ -186,6 +190,13 @@ impl Aabb {
         (self_min.x <= other_max.x && self_max.x >= other_min.x)
             && (self_min.y <= other_max.y && self_max.y >= other_min.y)
             && (self_min.z <= other_max.z && self_max.z >= other_min.z)
+    }
+
+    pub fn intersects_point(self, other: Vec3) -> bool {
+        other
+            .axis_iter()
+            .zip(self.extents.axis_iter())
+            .all(|(other, extent)| other <= extent)
     }
 
     //self.position + delta = other.position
@@ -345,13 +356,7 @@ impl Aabb {
 
         //want axis with minimal collosion time
         let normal_axis = crate::util::Direction::min_magnitude_axis(overlap_time);
-        let v_in_normal = normal_axis.get_axis(v);
-        let normal = if v_in_normal > 0.0 {
-            Some(normal_axis)
-        } else {
-            Some(normal_axis.opposite())
-        };
-        return Some((hit_time, self_v * hit_time, normal));
+        return Some((hit_time, self_v * hit_time, Some(normal_axis)));
     }
 }
 
@@ -371,64 +376,76 @@ fn move_and_slide(
         (
             &mut Transform,
             &mut Velocity,
-            &mut Acceleration,
+            &Acceleration,
             &mut CollidingDirections,
             &Collider,
-            Option<&Friction>,
         ),
         With<ProcessTerrainCollision>,
     >,
     block_physics: Query<&BlockPhysics>,
     level: Res<Level>,
 ) {
-    let mut overlaps: Vec<VolumeContainer<crate::world::BlockType>> = Vec::with_capacity(3);
-    for (mut tf, mut v, mut a, mut directions, col, fric) in objects.iter_mut() {
+    // let mut overlaps: Vec<VolumeContainer<crate::world::BlockType>> = Vec::with_capacity(3);
+    for (mut tf, mut v, a, mut directions, col) in objects.iter_mut() {
+        // overlaps.clear();
         directions.0 = DirectionFlags::default();
-        let effective_velocity = TICK_SCALE as f32 * (v.0 + TICK_SCALE as f32 * 0.5 * a.0);
-        if effective_velocity.x > 0.0 {
-            overlaps.push(level.get_blocks_in_volume(
-                col.potential_overlapping_blocks_pos_x(tf.translation + effective_velocity),
-            ));
-        } else if effective_velocity.x < 0.0 {
-            overlaps.push(level.get_blocks_in_volume(
-                col.potential_overlapping_blocks_neg_x(tf.translation + effective_velocity),
-            ));
-        }
+        // let effective_velocity = TICK_SCALE as f32 * (v.0 + TICK_SCALE as f32 * 0.5 * a.0);
+        let effective_velocity = v.0;
+        let mut v_remaining = effective_velocity;
 
-        if effective_velocity.y > 0.0 {
-            overlaps.push(level.get_blocks_in_volume(
-                col.potential_overlapping_blocks_pos_y(tf.translation + effective_velocity),
-            ));
-        } else if effective_velocity.y < 0.0 {
-            overlaps.push(level.get_blocks_in_volume(
-                col.potential_overlapping_blocks_neg_y(tf.translation + effective_velocity),
-            ));
-        }
+        //collide on one axis at a time, repeat 3 times in case we are colliding on all 3 axes
+        for _ in 0..3 {
+            //todo - optimize updates
+            // overlaps.clear();
+            // if v_remaining.x > 0.0 {
+            //     overlaps.push(level.get_blocks_in_volume(
+            //         col.potential_overlapping_blocks_pos_x(tf.translation + v_remaining),
+            //     ));
+            // } else if v_remaining.x < 0.0 {
+            //     overlaps.push(level.get_blocks_in_volume(
+            //         col.potential_overlapping_blocks_neg_x(tf.translation + v_remaining),
+            //     ));
+            // }
 
-        if effective_velocity.z > 0.0 {
-            overlaps.push(level.get_blocks_in_volume(
-                col.potential_overlapping_blocks_pos_z(tf.translation + effective_velocity),
+            // if v_remaining.y > 0.0 {
+            //     overlaps.push(level.get_blocks_in_volume(
+            //         col.potential_overlapping_blocks_pos_y(tf.translation + v_remaining),
+            //     ));
+            // } else if v_remaining.y < 0.0 {
+            //     overlaps.push(level.get_blocks_in_volume(
+            //         col.potential_overlapping_blocks_neg_y(tf.translation + v_remaining),
+            //     ));
+            // }
+
+            // if v_remaining.z > 0.0 {
+            //     overlaps.push(level.get_blocks_in_volume(
+            //         col.potential_overlapping_blocks_pos_z(tf.translation + v_remaining),
+            //     ));
+            // } else if v_remaining.z < 0.0 {
+            //     overlaps.push(level.get_blocks_in_volume(
+            //         col.potential_overlapping_blocks_neg_z(tf.translation + v_remaining),
+            //     ));
+            // }
+            // let overlaps_iter = overlaps.iter().flat_map(|v| {
+            //     v.iter().filter_map(|(coord, block)| {
+            //         block
+            //             .and_then(|b| b.entity())
+            //             .and_then(|e| block_physics.get(e).ok())
+            //             .and_then(|p| Some((coord, p)))
+            //     })
+            // });
+            let overlaps = level.get_blocks_in_volume(BlockVolume::new_inclusive(
+                BlockCoord::from(tf.translation - col.shape.extents * 10.0),
+                BlockCoord::from(tf.translation + col.shape.extents * 10.0),
             ));
-        } else if effective_velocity.z < 0.0 {
-            overlaps.push(level.get_blocks_in_volume(
-                col.potential_overlapping_blocks_neg_z(tf.translation + effective_velocity),
-            ));
-        }
-        let overlaps_iter = overlaps.iter().flat_map(|v| {
-            v.iter().filter_map(|(coord, block)| {
+            let overlaps_iter = overlaps.iter().filter_map(|(coord, block)| {
                 block
                     .and_then(|b| b.entity())
                     .and_then(|e| block_physics.get(e).ok())
                     .and_then(|p| Some((coord, p)))
-            })
-        });
-        let mut v_remaining = effective_velocity;
-        //collide on one axis at a time, repeat 3 times in case we are colliding on all 3 axes
-        //corrected_v is always a scaled down version of v_remaining, so subtracting will make us move slower in the same direction.
-        //  therefore, no need to recalculate possible overlaps.
-        //  actually, since we reset components on a collision, not sure
-        for _ in 0..3 {
-            info!("tf: {:?}, v_remaining: {:?}, overlaps: {:?}", tf.translation, v_remaining, overlaps_iter.clone().collect::<Vec<_>>());
+            });
+            // info!("\neffective_velocity: {:?}", effective_velocity);
+            // info!("tf: {:?}, v_remaining: {:?}\n", tf.translation, v_remaining);
             if let Some((_block_pos, corrected_v, _time, opt_normal)) =
                 col.min_time_to_collision(overlaps_iter.clone(), tf.translation, v_remaining)
             {
@@ -437,7 +454,7 @@ fn move_and_slide(
                 //do velocity resolution and set collision direction flag
                 //direction flag is opposite direction because the direction is the normal of the collision, and directionflag is
                 //  the direction relative to the entity.
-                info!("hit normal: {:?}", opt_normal);
+                // info!("hit normal: {:?}", opt_normal);
                 match opt_normal {
                     Some(crate::util::Direction::PosX) => {
                         v.0.x = 0.0;
@@ -482,6 +499,6 @@ fn move_and_slide(
                 break;
             }
         }
-        info!("directions: {:?}", directions.0);
+        // info!("directions: {:?}", directions.0);
     }
 }

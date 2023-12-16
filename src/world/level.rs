@@ -688,47 +688,4 @@ impl LevelData {
             Some(map) => map.contains_key(&position),
         }
     }
-    //todo improve this (bresenham's?)
-    pub fn blockcast(&self, origin: Vec3, line: Vec3) -> Option<BlockcastHit> {
-        let _my_span = info_span!("blockcast", name = "blockcast").entered();
-        const STEP_SIZE: f32 = 0.05;
-        let line_len = line.length();
-        let line_norm = line / line_len;
-        let mut old_coords = BlockCoord::from(origin);
-        match self.get_block(old_coords) {
-            Some(BlockType::Empty) | None => {}
-            Some(t) => {
-                return Some(BlockcastHit {
-                    hit_pos: origin,
-                    block_pos: old_coords,
-                    block: t,
-                    normal: BlockCoord::new(0, 0, 0),
-                })
-            }
-        };
-        let mut t = 0.0;
-        while t < line_len {
-            t += STEP_SIZE;
-            let test_point = origin + t * line_norm;
-            let test_block = BlockCoord::from(test_point);
-            if test_block == old_coords {
-                continue;
-            }
-
-            old_coords = test_block;
-            let b = self.get_block(test_block);
-            match b {
-                Some(BlockType::Empty) | None => {}
-                Some(t) => {
-                    return Some(BlockcastHit {
-                        hit_pos: test_point,
-                        block_pos: test_block,
-                        block: t,
-                        normal: max_component_norm(test_point - old_coords.center()).into(),
-                    })
-                }
-            }
-        }
-        None
-    }
 }

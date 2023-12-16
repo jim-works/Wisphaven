@@ -14,7 +14,6 @@ impl Plugin for BehaviorsPlugin {
         app
             .add_systems(PreUpdate, float_scorer_system.in_set(BigBrainSet::Scorers))
             .add_systems(PreUpdate, (float_wander_action_system, float_action_system).in_set(BigBrainSet::Actions))
-            .add_systems(PreUpdate, eval_height)
         ;
     }
 }
@@ -90,34 +89,6 @@ pub fn float_wander_action_system(
                 _ => {}
             }
         }
-    }
-}
-
-pub fn eval_height(
-    collision: Res<RapierContext>,
-    mut query: Query<(&mut FloatHeight, &GlobalTransform)>,
-) {
-    let groups = QueryFilter {
-        groups: Some(CollisionGroups::new(
-            Group::ALL,
-            Group::from_bits_truncate(crate::physics::TERRAIN_GROUP),
-        )),
-        ..default()
-    };
-    for (mut height, tf) in query.iter_mut() {
-        height.curr_height = if let Some((_, dist)) = collision.cast_ray(
-            tf.translation(),
-            Vec3::NEG_Y,
-            2.0*height.preferred_height,
-            true,
-            groups,
-        ) {
-            dist
-        } else {
-            2.0*height.preferred_height
-        };
-        //height.task.outcomes.status = (height.preferred_height-height.curr_height)/height.preferred_height;
-        //height.task.risks.physical_danger = (height.curr_height/height.preferred_height).powi(2);
     }
 }
 

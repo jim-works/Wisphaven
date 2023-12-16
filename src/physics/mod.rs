@@ -10,6 +10,7 @@ mod tests;
 
 pub mod collision;
 pub mod movement;
+pub mod raycast;
 
 const SPAWN_CHUNK_TIME_BUDGET_COUNT: u32 = 1000;
 pub const GRAVITY: Vec3 = Vec3::new(0., -10.0, 0.);
@@ -26,6 +27,7 @@ pub const TICK_SCALE: f64 = 64.0/TPS;
 pub enum PhysicsSystemSet {
     Main, //all user code should run here
     ResetInterpolation,
+    ProcessRaycasts,
     UpdatePosition,
     UpdateDerivatives,
 }
@@ -45,6 +47,7 @@ impl Plugin for PhysicsPlugin {
             (
                 PhysicsSystemSet::Main,
                 PhysicsSystemSet::ResetInterpolation,
+                PhysicsSystemSet::ProcessRaycasts,
                 PhysicsSystemSet::UpdatePosition,
                 PhysicsSystemSet::UpdateDerivatives,
             )

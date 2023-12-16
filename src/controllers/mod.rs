@@ -95,12 +95,12 @@ fn do_planar_movement(
         } else {
             fm.0 * ms.max_speed
         };
-        v_desired.y = 0.0;
+        // v_desired.y = 0.0;
 
         //create impulse that pushes us in the desired direction
         //this impulse will be pushing back into the circle of radius ms.max, so no need to normalize
         let mut dv = v_desired - v.0;
-        dv.y = 0.0;
+        // dv.y = 0.0;
         let dv_len = dv.length();
         //don't overcorrect
         if dv_len > EPSILON {

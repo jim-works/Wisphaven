@@ -1,7 +1,12 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
+use itertools::Either::Left;
 
-use crate::actors::{coin::SpawnCoinEvent, AttackEvent, CombatInfo, CombatantBundle, Damage};
+use crate::{
+    actors::{coin::SpawnCoinEvent, AttackEvent, CombatInfo, CombatantBundle, Damage},
+    physics::raycast::{self, RaycastHit},
+    world::{BlockPhysics, Level},
+};
 
 use super::{ItemSystemSet, SwingItemEvent, UseItemEvent};
 
@@ -34,7 +39,8 @@ pub struct CoinLauncherItem {
 pub fn attack_melee(
     mut attack_item_reader: EventReader<SwingItemEvent>,
     mut attack_writer: EventWriter<AttackEvent>,
-    collision: Res<RapierContext>,
+    level: Res<Level>,
+    physics_query: Query<&BlockPhysics>,
     weapon_query: Query<&MeleeWeaponItem>,
 ) {
     for SwingItemEvent {
@@ -53,9 +59,11 @@ pub fn attack_melee(
                 ..default()
             }
             .exclude_collider(*user);
-            if let Some((hit, _)) =
-                collision.cast_ray(tf.translation(), tf.forward(), 10.0, true, groups)
-            {
+            if let Some(RaycastHit::Object(_, hit)) = raycast::raycast(
+                raycast::Ray::new(tf.translation(), tf.forward(), 10.0),
+                &level,
+                &physics_query,
+            ) {
                 attack_writer.send(AttackEvent {
                     attacker: *user,
                     target: hit,

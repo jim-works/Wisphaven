@@ -7,6 +7,8 @@ pub enum Action {
     MoveBack,
     MoveLeft,
     MoveRight,
+    MoveUp,
+    MoveDown,
     Jump,
     Punch,
     Use,
@@ -24,7 +26,9 @@ pub fn get_input_map() -> InputMap<Action> {
     map.insert(KeyCode::A, Action::MoveLeft);
     map.insert(KeyCode::S, Action::MoveBack);
     map.insert(KeyCode::D, Action::MoveRight);
-    map.insert(KeyCode::Space, Action::Jump);
+    map.insert(KeyCode::Space, Action::MoveUp);
+    map.insert(KeyCode::ShiftLeft, Action::MoveDown);
+    // map.insert(KeyCode::Space, Action::Jump);
 
     map.insert(MouseButton::Left, Action::Punch);
     map.insert(MouseButton::Right, Action::Use);

@@ -6,8 +6,8 @@ use crate::{
     actors::Player,
     world::{
         events::{BlockDamageSetEvent, BlockHitEvent, ChunkUpdatedEvent},
-        BlockCoord, BlockId, Level,
-    },
+        BlockCoord, BlockId, Level, BlockPhysics,
+    }, physics::raycast,
 };
 
 use super::{
@@ -61,7 +61,8 @@ pub struct Tool {
 pub fn on_swing(
     mut reader: EventReader<SwingItemEvent>,
     mut writer: EventWriter<BlockHitEvent>,
-    collision: Res<RapierContext>,
+    level: Res<Level>,
+    block_physics_query: Query<&BlockPhysics>
 ) {
     for SwingItemEvent {
         user,
@@ -70,18 +71,15 @@ pub fn on_swing(
         tf,
     } in reader.read()
     {
-        if let Some((_, t)) = collision.cast_ray(
-            tf.translation(),
-            tf.forward(),
-            10.0,
-            true,
-            QueryFilter::new().exclude_collider(*user),
-        ) {
-            let hit_pos = BlockCoord::from(tf.translation() + tf.forward() * (t + 0.05)); //move into the block just a bit
+        if let Some(raycast::RaycastHit::Block(block_position, hit_point, _)) = raycast::raycast(
+            raycast::Ray::new(tf.translation(), tf.forward(), 10.0),
+            &level,
+            &block_physics_query,
+        ) { //move into the block just a bit
             writer.send(BlockHitEvent {
                 item: Some(stack.id),
                 user: Some(*user),
-                block_position: hit_pos,
+                block_position,
                 hit_forward: tf.forward(),
             })
         }
