@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
+    ui::{debug::DebugBlockHitboxes, state::DebugUIState},
     util::{
         iterators::{AxisIter, BlockVolume, VolumeContainer},
         DirectionFlags,
@@ -57,7 +58,7 @@ impl Collider {
     pub fn with_extents(self, extents: Vec3) -> Self {
         Collider {
             shape: Aabb::new(extents),
-            offset: self.offset
+            offset: self.offset,
         }
     }
 
@@ -116,7 +117,7 @@ impl Collider {
     }
 
     pub fn intersects_point(&self, delta: Vec3) -> bool {
-        self.shape.intersects_point(delta-self.offset)
+        self.shape.intersects_point(delta - self.offset)
     }
 
     const FACE_SIZE_MULT: f32 = 31. / 32.; //shrinks each face on the box collider by this proportion to avoid conflicting collisions against walls
@@ -390,8 +391,12 @@ fn move_and_slide(
         With<ProcessTerrainCollision>,
     >,
     block_physics: Query<&BlockPhysics>,
+    mut block_gizmos: ResMut<DebugBlockHitboxes>,
     level: Res<Level>,
+    debug_state: Res<State<DebugUIState>>,
 ) {
+    block_gizmos.blocks.clear();
+    block_gizmos.hit_blocks.clear();
     // let mut overlaps: Vec<VolumeContainer<crate::world::BlockType>> = Vec::with_capacity(3);
     for (mut tf, mut v, a, mut directions, col) in objects.iter_mut() {
         // overlaps.clear();
@@ -450,11 +455,26 @@ fn move_and_slide(
                     .and_then(|e| block_physics.get(e).ok())
                     .and_then(|p| Some((coord, p)))
             });
+            if *debug_state == DebugUIState::Shown {
+                let gizmos_iter = overlaps.iter().map(|(coord, block)| {
+                    (
+                        coord,
+                        block
+                            .and_then(|b| b.entity())
+                            .and_then(|e| block_physics.get(e).ok())
+                            .and_then(|p| Some(p.clone())),
+                    )
+                });
+                block_gizmos.blocks.extend(gizmos_iter);
+            }
             // info!("\neffective_velocity: {:?}", effective_velocity);
             // info!("tf: {:?}, v_remaining: {:?}\n", tf.translation, v_remaining);
-            if let Some((_block_pos, corrected_v, _time, opt_normal)) =
+            if let Some((block_pos, corrected_v, _time, opt_normal)) =
                 col.min_time_to_collision(overlaps_iter.clone(), tf.translation, v_remaining)
             {
+                if *debug_state == DebugUIState::Shown {
+                    block_gizmos.hit_blocks.insert(block_pos);
+                }
                 tf.translation += corrected_v;
                 v_remaining -= corrected_v;
                 //do velocity resolution and set collision direction flag
@@ -494,7 +514,7 @@ fn move_and_slide(
                     }
                     None => {
                         //we are inside a block already
-                        warn!("inside block!");
+                        // warn!("inside block!");
                         v.0 = Vec3::ZERO;
                         directions.0.set(DirectionFlags::all(), true);
                     }

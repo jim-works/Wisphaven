@@ -17,6 +17,8 @@ pub enum Action {
     ToggleInventory,
     ToggleUIHidden,
     ToggleDebugUIHidden,
+    ToggleGizmoOverlap,
+    ToggleDebugUIDetail,
     ToggleFlight,
 }
 
@@ -41,6 +43,8 @@ pub fn get_input_map() -> InputMap<Action> {
     map.insert(KeyCode::Escape, Action::ToggleInventory);
     map.insert(KeyCode::F1, Action::ToggleUIHidden);
     map.insert(KeyCode::F3, Action::ToggleDebugUIHidden);
+    map.insert(KeyCode::F4, Action::ToggleGizmoOverlap);
+    map.insert(KeyCode::F5, Action::ToggleDebugUIDetail);
 
     map
 }

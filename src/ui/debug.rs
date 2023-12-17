@@ -1,14 +1,27 @@
-use bevy::prelude::*;
+use ahash::HashMap;
+use bevy::{prelude::*, utils::HashSet};
+use leafwing_input_manager::action_state::ActionState;
 
-use crate::{actors::LocalPlayer, world::chunk::ChunkCoord, worldgen::UsedShaperResources, physics::collision::Collider};
+use crate::{
+    actors::LocalPlayer,
+    controllers::Action,
+    physics::collision::Collider,
+    world::{chunk::ChunkCoord, BlockCoord, BlockPhysics},
+    worldgen::UsedShaperResources,
+};
 
-use super::{state::DebugUIState, styles::get_text_style};
+use super::{
+    state::{DebugUIDetailState, DebugUIState},
+    styles::get_text_style,
+};
 
 pub struct DebugUIPlugin;
 
 impl Plugin for DebugUIPlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<DebugUIState>()
+            .add_state::<DebugUIDetailState>()
+            .insert_resource(DebugBlockHitboxes::default())
             .add_systems(Startup, init)
             .add_systems(OnEnter(DebugUIState::Shown), spawn_debug)
             .add_systems(OnEnter(DebugUIState::Hidden), despawn_debug)
@@ -18,7 +31,7 @@ impl Plugin for DebugUIPlugin {
                     update_coords,
                     update_chunk_coords,
                     update_noises,
-                    draw_gizmos,
+                    update_gizmos,
                 )
                     .run_if(in_state(DebugUIState::Shown)),
             );
@@ -41,10 +54,14 @@ struct DebugTerrainNoises;
 #[derive(Component)]
 pub struct DebugDrawTransform;
 
-fn init(mut gizmo_config: ResMut<GizmoConfig>, mut commands: Commands, assets: Res<AssetServer>) {
-    gizmo_config.depth_bias = -1.0;
-    commands.insert_resource(DebugResources(get_text_style(&assets)));
+#[derive(Resource, Default)]
+pub struct DebugBlockHitboxes {
+    pub blocks: HashMap<BlockCoord, Option<BlockPhysics>>,
+    pub hit_blocks: HashSet<BlockCoord>,
+}
 
+fn init(mut commands: Commands, assets: Res<AssetServer>) {
+    commands.insert_resource(DebugResources(get_text_style(&assets)));
 }
 
 fn spawn_debug(mut commands: Commands, query: Query<&DebugUI>, resources: Res<DebugResources>) {
@@ -191,14 +208,55 @@ fn update_noises(
     }
 }
 
+fn update_gizmos(
+    mut gizmo: Gizmos,
+    mut gizmo_config: ResMut<GizmoConfig>,
+    input_query: Query<&ActionState<Action>, With<LocalPlayer>>,
+    tf_query: Query<&GlobalTransform, With<DebugDrawTransform>>,
+    collider_query: Query<(&Transform, &Collider)>,
+    blocks: Res<DebugBlockHitboxes>,
+    detail: Res<State<DebugUIDetailState>>,
+) {
+    if let Ok(input) = input_query.get_single() {
+        if input.just_pressed(Action::ToggleGizmoOverlap) {
+            gizmo_config.depth_bias = if gizmo_config.depth_bias == 0.0 {
+                -1.0
+            } else {
+                0.0
+            };
+        }
+    }
 
-
-fn draw_gizmos(mut gizmo: Gizmos, tf_query: Query<&GlobalTransform, With<DebugDrawTransform>>, collider_query: Query<(&Transform, &Collider)>) {
     for tf in tf_query.iter() {
         gizmo.ray(tf.translation(), tf.forward(), Color::RED);
     }
     for (tf, collider) in collider_query.iter() {
-        let cuboid_tf = Transform::from_translation(tf.translation + collider.offset).with_scale(collider.shape.extents*2.0);
+        let cuboid_tf = Transform::from_translation(tf.translation + collider.offset)
+            .with_scale(collider.shape.extents * 2.0);
         gizmo.cuboid(cuboid_tf, Color::BLUE)
+    }
+    for (coord, physics) in blocks.blocks.iter() {
+        let collider_opt = physics
+            .clone()
+            .and_then(|p| Collider::from_block(&p))
+            .or_else(|| {
+                if *detail.get() == DebugUIDetailState::Most {
+                    Collider::from_block(&BlockPhysics::Solid)
+                } else {
+                    None
+                }
+            });
+        if let Some(collider) = collider_opt {
+            let cuboid_tf = Transform::from_translation(coord.to_vec3() + collider.offset)
+                .with_scale(collider.shape.extents * 2.0);
+            gizmo.cuboid(
+                cuboid_tf,
+                if blocks.hit_blocks.contains(coord) {
+                    Color::ORANGE_RED
+                } else {
+                    Color::GREEN
+                },
+            )
+        }
     }
 }

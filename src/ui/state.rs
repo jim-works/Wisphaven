@@ -18,6 +18,13 @@ pub enum DebugUIState {
     Shown,
 } 
 
+#[derive(States, Default, Debug, Hash,PartialEq, Eq, Clone)]
+pub enum DebugUIDetailState {
+    #[default]
+    Minimal,
+    Most,
+} 
+
 pub fn toggle_hidden (
     mut next_state: ResMut<NextState<UIState>>,
     curr_state: Res<State<UIState>>,
@@ -37,6 +44,8 @@ pub fn toggle_hidden (
 pub fn toggle_debug (
     mut next_state: ResMut<NextState<DebugUIState>>,
     curr_state: Res<State<DebugUIState>>,
+    mut detail_next_state: ResMut<NextState<DebugUIDetailState>>,
+    detail_curr_state: Res<State<DebugUIDetailState>>,
     query: Query<&ActionState<Action>, With<LocalPlayer>>,
 ) {
     if let Ok(action) = query.get_single() {
@@ -46,6 +55,11 @@ pub fn toggle_debug (
                 _ => next_state.set(DebugUIState::Hidden)
             }
         }
+        if action.just_pressed(Action::ToggleDebugUIDetail) {
+            match detail_curr_state.get() {
+                DebugUIDetailState::Minimal => detail_next_state.set(DebugUIDetailState::Most),
+                _ => detail_next_state.set(DebugUIDetailState::Minimal)
+            }
+        }
     }
-    
 }
