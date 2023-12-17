@@ -54,6 +54,13 @@ impl Collider {
         }
     }
 
+    pub fn with_extents(self, extents: Vec3) -> Self {
+        Collider {
+            shape: Aabb::new(extents),
+            offset: self.offset
+        }
+    }
+
     //returns the block coordinate we collided with, corrected velocity, time, normal if exists
     pub fn min_time_to_collision<'a>(
         &self,
@@ -389,8 +396,7 @@ fn move_and_slide(
     for (mut tf, mut v, a, mut directions, col) in objects.iter_mut() {
         // overlaps.clear();
         directions.0 = DirectionFlags::default();
-        // let effective_velocity = TICK_SCALE as f32 * (v.0 + TICK_SCALE as f32 * 0.5 * a.0);
-        let effective_velocity = v.0;
+        let effective_velocity = TICK_SCALE as f32 * (v.0 + TICK_SCALE as f32 * 0.5 * a.0);
         let mut v_remaining = effective_velocity;
 
         //collide on one axis at a time, repeat 3 times in case we are colliding on all 3 axes

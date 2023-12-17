@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 
 use crate::{
-    actors::block_actors::{SpawnFallingBlockEvent, LandedFallingBlockEvent},
+    actors::block_actors::{SpawnFallingBlockEvent, LandedFallingBlockEvent, FallingBlock},
     world::{
         events::{BlockUsedEvent, ExplosionEvent, ChunkUpdatedEvent},
         BlockId, BlockType, Level, LevelSystemSet,
-    },
+    }, util::DirectionFlags,
 };
 
 pub struct TNTPlugin;
@@ -44,8 +44,11 @@ pub fn process_tnt(
             explosions.send(SpawnFallingBlockEvent {
                 position: used.block_position.center(),
                 initial_velocity: Vec3::ZERO,
-                block: used.block_used,
-                place_on_landing: false,
+                falling_block: FallingBlock {
+                    block: used.block_used,
+                    place_on_landing: false,
+                    impact_direcitons: DirectionFlags::all(),
+                }
             })
         }
     }
@@ -57,7 +60,7 @@ pub fn tnt_landed(
     mut reader: EventReader<LandedFallingBlockEvent>
 ) {
     for event in reader.read() {
-        if let Ok(tnt) = tnt_query.get(event.block) {
+        if let Ok(tnt) = tnt_query.get(event.falling_block.block) {
             explosions.send(ExplosionEvent { radius: tnt.explosion_strength, origin: event.position });
         }
     }

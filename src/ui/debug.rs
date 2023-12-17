@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{actors::LocalPlayer, world::chunk::ChunkCoord, worldgen::UsedShaperResources};
+use crate::{actors::LocalPlayer, world::chunk::ChunkCoord, worldgen::UsedShaperResources, physics::collision::Collider};
 
 use super::{state::DebugUIState, styles::get_text_style};
 
@@ -41,8 +41,10 @@ struct DebugTerrainNoises;
 #[derive(Component)]
 pub struct DebugDrawTransform;
 
-fn init(mut commands: Commands, assets: Res<AssetServer>) {
+fn init(mut gizmo_config: ResMut<GizmoConfig>, mut commands: Commands, assets: Res<AssetServer>) {
+    gizmo_config.depth_bias = -1.0;
     commands.insert_resource(DebugResources(get_text_style(&assets)));
+
 }
 
 fn spawn_debug(mut commands: Commands, query: Query<&DebugUI>, resources: Res<DebugResources>) {
@@ -191,8 +193,12 @@ fn update_noises(
 
 
 
-fn draw_gizmos(mut gizmo: Gizmos, tf_query: Query<&GlobalTransform, With<DebugDrawTransform>>) {
+fn draw_gizmos(mut gizmo: Gizmos, tf_query: Query<&GlobalTransform, With<DebugDrawTransform>>, collider_query: Query<(&Transform, &Collider)>) {
     for tf in tf_query.iter() {
         gizmo.ray(tf.translation(), tf.forward(), Color::RED);
+    }
+    for (tf, collider) in collider_query.iter() {
+        let cuboid_tf = Transform::from_translation(tf.translation + collider.offset).with_scale(collider.shape.extents*2.0);
+        gizmo.cuboid(cuboid_tf, Color::BLUE)
     }
 }

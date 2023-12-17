@@ -75,18 +75,13 @@ pub struct PhysicsObjectBundle {
 }
 
 #[derive(Bundle, Default)]
-pub struct BasePhysicsBundle {
+pub struct PhysicsBundle {
     pub velocity: movement::Velocity,
     pub acceleration: movement::Acceleration,
     pub gravity: movement::GravityMult,
     pub collider: collision::Collider,
     pub colliding_directions: collision::CollidingDirections,
     pub friction: collision::Friction,
-}
-
-#[derive(Bundle, Default)]
-pub struct PhysicsBundle {
-    pub base: BasePhysicsBundle,
     pub terrain_collision: ProcessTerrainCollision
 }
 

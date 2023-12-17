@@ -80,8 +80,7 @@ fn update_derivatives(
     for (mut v, mut a, opt_g) in query.iter_mut() {
         v.0 += a.0 * TICK_SCALE as f32;
         //reset acceleration
-        // a.0 = opt_g.map(|g| g.0).unwrap_or(0.0) * gravity.0;
-        a.0 = Vec3::ZERO;
+        a.0 = opt_g.map(|g| g.0).unwrap_or(0.0) * gravity.0;
     }
 }
 

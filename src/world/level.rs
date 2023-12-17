@@ -250,9 +250,7 @@ impl LevelData {
                 .entity(chunk_entity)
                 .insert((NeedsMesh, NeedsSaving));
         } else {
-            commands
-                .entity(chunk_entity)
-                .insert(NeedsMesh);
+            commands.entity(chunk_entity).insert(NeedsMesh);
         }
         update_writer.send(ChunkUpdatedEvent { coord });
     }
@@ -265,9 +263,7 @@ impl LevelData {
         for dir in Direction::iter() {
             if let Some(neighbor_ref) = self.get_chunk(coord.offset(dir)) {
                 if let ChunkType::Full(c) = neighbor_ref.value() {
-                    commands
-                        .entity(c.entity)
-                        .insert(NeedsMesh {});
+                    commands.entity(c.entity).insert(NeedsMesh {});
                     update_writer.send(ChunkUpdatedEvent { coord: c.position });
                 }
             }
@@ -687,5 +683,49 @@ impl LevelData {
             None => false,
             Some(map) => map.contains_key(&position),
         }
+    }
+
+    //todo improve this (bresenham's?)
+    pub fn blockcast(
+        &self,
+        origin: Vec3,
+        line: Vec3,
+        mut checker: impl FnMut(Option<BlockType>) -> bool,
+    ) -> Option<BlockcastHit> {
+        let _my_span = info_span!("blockcast", name = "blockcast").entered();
+        const STEP_SIZE: f32 = 0.05;
+        let line_len = line.length();
+        let line_norm = line / line_len;
+        let mut old_coords = BlockCoord::from(origin);
+        let block = self.get_block(old_coords);
+        if checker(block) {
+            return Some(BlockcastHit {
+                hit_pos: origin,
+                block_pos: old_coords,
+                block,
+                normal: BlockCoord::new(0, 0, 0),
+            });
+        }
+        let mut t = 0.0;
+        while t < line_len {
+            t += STEP_SIZE;
+            let test_point = origin + t * line_norm;
+            let test_block = BlockCoord::from(test_point);
+            if test_block == old_coords {
+                continue;
+            }
+
+            old_coords = test_block;
+            let b = self.get_block(test_block);
+            if checker(b) {
+                return Some(BlockcastHit {
+                    hit_pos: test_point,
+                    block_pos: test_block,
+                    block: b,
+                    normal: max_component_norm(test_point - old_coords.center()).into(),
+                });
+            }
+        }
+        None
     }
 }

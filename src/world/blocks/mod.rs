@@ -7,11 +7,12 @@ use super::{LevelSystemSet, Level, events::BlockDamageSetEvent};
 pub struct BlocksPlugin;
 
 pub mod tnt;
+pub mod fall;
 
 impl Plugin for BlocksPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_plugins(tnt::TNTPlugin)
+            .add_plugins((tnt::TNTPlugin, fall::FallPlugin))
             .add_systems(Update, heal_block_damages.in_set(LevelSystemSet::Main))
         ;
     }

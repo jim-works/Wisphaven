@@ -17,6 +17,7 @@ pub enum Action {
     ToggleInventory,
     ToggleUIHidden,
     ToggleDebugUIHidden,
+    ToggleFlight,
 }
 
 pub fn get_input_map() -> InputMap<Action> {
@@ -27,8 +28,9 @@ pub fn get_input_map() -> InputMap<Action> {
     map.insert(KeyCode::S, Action::MoveBack);
     map.insert(KeyCode::D, Action::MoveRight);
     map.insert(KeyCode::Space, Action::MoveUp);
-    map.insert(KeyCode::ShiftLeft, Action::MoveDown);
-    // map.insert(KeyCode::Space, Action::Jump);
+    map.insert(KeyCode::ControlLeft, Action::MoveDown);
+    map.insert(KeyCode::Space, Action::Jump);
+    map.insert(KeyCode::F, Action::ToggleFlight);
 
     map.insert(MouseButton::Left, Action::Punch);
     map.insert(MouseButton::Right, Action::Use);

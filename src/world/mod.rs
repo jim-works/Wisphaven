@@ -111,7 +111,7 @@ impl Plugin for LevelPlugin {
 pub struct BlockcastHit {
     pub hit_pos: Vec3,
     pub block_pos: BlockCoord,
-    pub block: BlockType,
+    pub block: Option<BlockType>,
     pub normal: BlockCoord,
 }
 

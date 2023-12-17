@@ -146,7 +146,7 @@ impl From<Vec3> for Direction {
 }
 
 bitflags! {
-    #[derive(Default, Debug)]
+    #[derive(Default, Debug, Clone, Copy)]
     pub struct DirectionFlags : u8 {
         const PosX = 0b000001;
         const PosY = 0b000010;

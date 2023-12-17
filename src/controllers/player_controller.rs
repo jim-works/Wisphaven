@@ -5,7 +5,10 @@ use leafwing_input_manager::prelude::ActionState;
 use crate::{
     actors::*,
     items::{inventory::Inventory, EquipItemEvent, UnequipItemEvent},
-    physics::raycast::{self, Ray, RaycastHit},
+    physics::{
+        movement::GravityMult,
+        raycast::{self, Ray, RaycastHit},
+    },
     ui::{state::UIState, world_mouse_active},
     world::{
         events::{BlockHitEvent, BlockUsedEvent},
@@ -13,7 +16,7 @@ use crate::{
     },
 };
 
-use super::{Action, FrameJump, FrameMovement};
+use super::{Action, FrameJump, FrameMovement, MovementMode};
 
 #[derive(Component, Default)]
 pub struct RotateWithMouse {
@@ -31,10 +34,37 @@ pub struct FollowPlayer {}
 #[derive(Component)]
 pub struct PlayerActionOrigin {}
 
-pub fn move_player(
-    mut query: Query<(&ActionState<Action>, &Transform, &mut FrameMovement), With<Player>>,
+pub fn toggle_player_flight(
+    mut query: Query<(&ActionState<Action>, &mut MovementMode, &mut GravityMult), With<Player>>,
 ) {
-    for (act, tf, mut fm) in query.iter_mut() {
+    for (act, mut mode, mut gravity) in query.iter_mut() {
+        if act.just_pressed(Action::ToggleFlight) {
+            match *mode {
+                MovementMode::Flying => {
+                    *mode = MovementMode::Normal;
+                    gravity.0 = 1.0;
+                },
+                _ => {
+                    *mode = MovementMode::Flying;
+                    gravity.0 = 0.0;
+                }
+            };
+        }
+    }
+}
+
+pub fn move_player(
+    mut query: Query<
+        (
+            &ActionState<Action>,
+            &Transform,
+            &mut FrameMovement,
+            &MovementMode,
+        ),
+        With<Player>,
+    >,
+) {
+    for (act, tf, mut fm, mode) in query.iter_mut() {
         let mut dv = Vec3::ZERO;
         dv.z -= if act.pressed(Action::MoveForward) {
             1.0
@@ -58,23 +88,26 @@ pub fn move_player(
         };
 
         fm.0 = tf.rotation * dv;
-        fm.0.y += if act.pressed(Action::MoveUp) {
-            1.0
-        } else {
-            0.0
-        };
-        fm.0.y -= if act.pressed(Action::MoveDown) {
-            1.0
-        } else {
-            0.0
-        };
+        if *mode == MovementMode::Flying {
+            fm.0.y += if act.pressed(Action::MoveUp) {
+                1.0
+            } else {
+                0.0
+            };
+            fm.0.y -= if act.pressed(Action::MoveDown) {
+                1.0
+            } else {
+                0.0
+            };
+        }
     }
 }
 
-//TODO: extract most of this into another system to look like move_player and do_planar_movement
-pub fn jump_player(mut query: Query<(&mut FrameJump, &ActionState<Action>), With<Player>>) {
-    for (mut fj, act) in query.iter_mut() {
-        if act.just_pressed(Action::Jump) {
+pub fn jump_player(
+    mut query: Query<(&mut FrameJump, &ActionState<Action>, &MovementMode), With<Player>>,
+) {
+    for (mut fj, act, mode) in query.iter_mut() {
+        if *mode != MovementMode::Flying && act.just_pressed(Action::Jump) {
             fj.0 = true;
         }
     }
