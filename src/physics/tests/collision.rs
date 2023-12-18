@@ -24,8 +24,6 @@ fn time_to_collision_single_axis() {
         assert_eq!(corrected_v, Vec3::new(0.0, -1.0, 0.0));
         assert_eq!(min_time, exp_time);
         assert_eq!(normal, crate::util::Direction::PosY);
-    } else {
-        assert!(false);
     }
 
     //upward test
@@ -35,7 +33,7 @@ fn time_to_collision_single_axis() {
         Vec3::new(0.0, 2.5, 0.0),
         Vec3::new(0.0, 5.0, 0.0),
     );
-    //bottom of collider is 1 unit above top of block collider
+    //bottom of collider is 1 unit below top of block collider
     //so d=1, t=d/v
     assert!(time.is_some());
     if let Some((block, corrected_v, min_time, Some(normal))) = time {
@@ -44,8 +42,6 @@ fn time_to_collision_single_axis() {
         assert_eq!(corrected_v, Vec3::new(0.0, 1.0, 0.0));
         assert_eq!(min_time, exp_time);
         assert_eq!(normal, crate::util::Direction::NegY);
-    } else {
-        assert!(false);
     }
 }
 
@@ -255,5 +251,19 @@ fn sweep_hit_miss() {
     let origin = Aabb::new(Vec3::new(1.0, 2.0, 3.0));
     let other = Aabb::new(Vec3::new(6.0, 4.0, 2.0));
     let res = origin.sweep(Vec3::splat(20.0), other, Vec3::new(1.0, 2.0, 3.0));
+    assert!(res.is_none());
+}
+
+#[test]
+fn far_collision_false_positive_patch() {
+    let col = Collider {
+        shape: Aabb::new(Vec3::new(0.4, 0.8, 0.4)),
+        offset: Vec3::new(0., 0.8, 0.),
+    };
+    let offset = Vec3::new(0.0,12.0,10.0);
+    let v = Vec3::new(0.0,-0.0075,0.0);
+    let block_coord = BlockCoord::new(-4,11,12);
+    let res = col.min_time_to_collision(std::iter::once((block_coord, &BlockPhysics::Solid)), offset, v);
+    println!("{:?}", res);
     assert!(res.is_none());
 }

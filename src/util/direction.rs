@@ -126,6 +126,21 @@ impl From<u64> for Direction {
     }
 }
 
+impl From<usize> for Direction {
+    fn from(value: usize) -> Self {
+        match value % 6 {
+            0 => Direction::PosX,
+            1 => Direction::PosY,
+            2 => Direction::PosZ,
+            3 => Direction::NegX,
+            4 => Direction::NegY,
+            5 => Direction::NegZ,
+            //shouldn't happen
+            _ => unreachable!()
+        }
+    }
+}
+
 impl From<Vec3> for Direction {
     fn from(value: Vec3) -> Self {
         let max = max_component_norm(value);

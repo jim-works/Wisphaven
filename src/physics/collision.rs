@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     ui::{debug::DebugBlockHitboxes, state::DebugUIState},
     util::{
-        iterators::{AxisIter, BlockVolume, VolumeContainer},
+        iterators::{AxisIter, BlockVolume},
         DirectionFlags,
     },
     world::{BlockCoord, BlockPhysics, Level},
@@ -362,9 +362,19 @@ impl Aabb {
             return None;
         }
 
-        //want axis with minimal collosion time
-        let normal_axis = crate::util::Direction::min_magnitude_axis(overlap_time);
-        return Some((hit_time, self_v * hit_time, Some(normal_axis)));
+        //want axis with minimal collision time
+        //pos/neg direction on axis is determined by relative velocity
+        let normal_axis_idx = crate::util::min_index(overlap_time);
+        let normal_axis = crate::util::Direction::from(normal_axis_idx);
+        return Some((
+            hit_time,
+            self_v * hit_time,
+            Some(if v[normal_axis_idx] < 0.0 {
+                normal_axis.opposite()
+            } else {
+                normal_axis
+            }),
+        ));
     }
 }
 
@@ -474,6 +484,7 @@ fn move_and_slide(
             {
                 if *debug_state == DebugUIState::Shown {
                     block_gizmos.hit_blocks.insert(block_pos);
+                    info!("tf: {:?}, v_remaining: {:?}\n", tf.translation, v_remaining);
                 }
                 tf.translation += corrected_v;
                 v_remaining -= corrected_v;

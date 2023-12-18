@@ -106,6 +106,17 @@ pub fn min_component_norm(v: Vec3) -> Vec3 {
     }
 }
 
+//returns index of minimum element
+pub fn min_index(v: Vec3) -> usize {
+    if v.x < v.y && v.x < v.z {
+        0
+    } else if v.y < v.z {
+        1
+    } else {
+        2
+    }
+}
+
 //last method on https://mathworld.wolfram.com/SpherePointPicking.html (Muller 1959, Marsaglia 1972).
 pub fn sample_sphere_surface(rng: &mut impl Rng) -> Vec3 {
     Vec3::new(
