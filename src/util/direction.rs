@@ -48,6 +48,17 @@ impl Direction {
         }
     }
 
+    pub fn to_vec3(self) -> Vec3 {
+        match self {
+            Direction::PosX => Vec3::new(1.0,0.0,0.0),
+            Direction::PosY => Vec3::new(0.0,1.0,0.0),
+            Direction::PosZ => Vec3::new(0.0,0.0,1.0),
+            Direction::NegX => Vec3::new(-1.0,0.0,0.0),
+            Direction::NegY => Vec3::new(0.0,-1.0,0.0),
+            Direction::NegZ => Vec3::new(0.0,0.0,-1.0),
+        }
+    }
+
     pub fn opposite(self) -> Direction {
         match self {
             Direction::PosX => Direction::NegX,
@@ -169,6 +180,19 @@ bitflags! {
         const NegX = 0b001000;
         const NegY = 0b010000;
         const NegZ = 0b100000;
+    }
+}
+
+impl From<Direction> for DirectionFlags {
+    fn from(value: Direction) -> Self {
+        match value {
+            Direction::PosX => DirectionFlags::PosX,
+            Direction::PosY => DirectionFlags::PosY,
+            Direction::PosZ => DirectionFlags::PosZ,
+            Direction::NegX => DirectionFlags::NegX,
+            Direction::NegY => DirectionFlags::NegY,
+            Direction::NegZ => DirectionFlags::NegZ,
+        }
     }
 }
 

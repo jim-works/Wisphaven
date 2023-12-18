@@ -106,6 +106,17 @@ pub fn min_component_norm(v: Vec3) -> Vec3 {
     }
 }
 
+//returns index of maximum element
+pub fn max_index(v: Vec3) -> usize {
+    if v.x > v.y && v.x > v.z {
+        0
+    } else if v.y > v.z {
+        1
+    } else {
+        2
+    }
+}
+
 //returns index of minimum element
 pub fn min_index(v: Vec3) -> usize {
     if v.x < v.y && v.x < v.z {
@@ -221,4 +232,10 @@ pub const fn f64_powi(b: f64, power: u32) -> f64 {
         idx += 1;
     }
     res
+}
+
+//assumes plane goes through (0,0,0)
+pub fn project_onto_plane(vector: Vec3, plane_normal: Vec3) -> Vec3 {
+    let dist = vector.dot(plane_normal);
+    vector - dist*plane_normal
 }

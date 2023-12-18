@@ -227,7 +227,7 @@ fn sweep_hit_normal() {
         Vec3::new(400.5, 1200.0, 800.0),
     );
     if let Some((_, _, Some(normal))) = res {
-        assert_eq!(normal, crate::util::Direction::NegX); //penetrate deepest on x axis
+        assert_eq!(normal, crate::util::Direction::NegZ); //penetrate shallowest on z axis
     } else {
         assert!(false);
     }

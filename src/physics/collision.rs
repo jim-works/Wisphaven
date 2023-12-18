@@ -3,8 +3,8 @@ use bevy::prelude::*;
 use crate::{
     ui::{debug::DebugBlockHitboxes, state::DebugUIState},
     util::{
-        iterators::{AxisIter, BlockVolume},
-        DirectionFlags,
+        iterators::{AxisIter, BlockVolume, AxisMap},
+        DirectionFlags, project_onto_plane,
     },
     world::{BlockCoord, BlockPhysics, Level},
 };
@@ -252,18 +252,18 @@ impl Aabb {
         dist
     }
 
-    //returns time to hit, updated velocity and normal if there was a hit
+    //returns time to hit, displacement until hit, and normal if there was a hit
     //returns None if no hit
     pub fn sweep(
         self,
         other_center: Vec3,
         other: Aabb,
-        self_v: Vec3,
+        v: Vec3,
     ) -> Option<(f32, Vec3, Option<crate::util::Direction>)> {
         if self.intersects(other_center, other) {
             return Some((0.0, Vec3::ZERO, None));
         }
-        if self_v == Vec3::ZERO {
+        if v == Vec3::ZERO {
             return None;
         }
 
@@ -272,107 +272,93 @@ impl Aabb {
         let other_min = other_center - other.extents;
         let other_max = other_center + other.extents;
 
-        let v = -self_v; //velocity relative to other
-        let mut hit_time: f32 = 0.0;
-        let mut out_time: f32 = 1.0;
-        let mut overlap_time = Vec3::INFINITY;
+        let mut entry_dist = Vec3::ZERO;
+        let mut exit_dist = Vec3::ZERO;
+        let mut entry_time = Vec3::ZERO;
+        let mut exit_time = Vec3::ZERO;
 
-        if v.x < 0.0 {
-            if other_max.x < self_min.x {
-                return None;
-            }
-            if other_max.x > self_min.x {
-                out_time = out_time.min((self_min.x - other_max.x) / v.x);
-            }
-            if self_max.x < other_min.x {
-                overlap_time.x = (self_max.x - other_min.x) / v.x;
-                hit_time = hit_time.max(overlap_time.x);
-            }
-        } else if v.x > 0.0 {
-            if other_min.x > self_max.x {
-                return None;
-            }
-            if self_max.x > other_min.x {
-                out_time = out_time.min((self_max.x - other_min.x) / v.x);
-            }
-            if other_max.x < self_min.x {
-                overlap_time.x = (self_min.x - other_max.x) / v.x;
-                hit_time = hit_time.max(overlap_time.x);
-            }
-        }
-        if hit_time > out_time {
-            return None;
+        //find the distances between the near and far side of the other box for each axis
+        if v.x > 0.0 {
+            entry_dist.x = other_min.x - self_max.x;
+            exit_dist.x = other_max.x - self_min.x;
+        } else {
+            entry_dist.x = other_max.x - self_min.x;
+            exit_dist.x = other_min.x - self_max.x;
         }
 
-        if v.y < 0.0 {
-            if other_max.y < self_min.y {
-                return None;
-            }
-            if other_max.y > self_min.y {
-                out_time = out_time.min((self_min.y - other_max.y) / v.y);
-            }
-            if self_max.y < other_min.y {
-                overlap_time.y = (self_max.y - other_min.y) / v.y;
-                hit_time = hit_time.max(overlap_time.y);
-            }
-        } else if v.y > 0.0 {
-            if other_min.y > self_max.y {
-                return None;
-            }
-            if self_max.y > other_min.y {
-                out_time = out_time.min((self_max.y - other_min.y) / v.y);
-            }
-            if other_max.y < self_min.y {
-                overlap_time.y = (self_min.y - other_max.y) / v.y;
-                hit_time = hit_time.max(overlap_time.y);
-            }
-        }
-        if hit_time > out_time {
-            return None;
+        if v.y > 0.0 {
+            entry_dist.y = other_min.y - self_max.y;
+            exit_dist.y = other_max.y - self_min.y;
+        } else {
+            entry_dist.y = other_max.y - self_min.y;
+            exit_dist.y = other_min.y - self_max.y;
         }
 
-        if v.z < 0.0 {
-            if other_max.z < self_min.z {
-                return None;
-            }
-            if other_max.z > self_min.z {
-                out_time = out_time.min((self_min.z - other_max.z) / v.z);
-            }
-            if self_max.z < other_min.z {
-                overlap_time.z = (self_max.z - other_min.z) / v.z;
-                hit_time = hit_time.max(overlap_time.z);
-            }
-        } else if v.z > 0.0 {
-            if other_min.z > self_max.z {
-                return None;
-            }
-            if self_max.z > other_min.z {
-                out_time = out_time.min((self_max.z - other_min.z) / v.z);
-            }
-            if other_max.z < self_min.z {
-                overlap_time.z = (self_min.z - other_max.z) / v.z;
-                hit_time = hit_time.max(overlap_time.z);
-            }
+        if v.z > 0.0 {
+            entry_dist.z = other_min.z - self_max.z;
+            exit_dist.z = other_max.z - self_min.z;
+        } else {
+            entry_dist.z = other_max.z - self_min.z;
+            exit_dist.z = other_min.z - self_max.z;
         }
-        if hit_time > out_time {
+
+        //find the time of entry and time of exit for each axis
+        if v.x == 0.0 {
+            entry_time.x = f32::NEG_INFINITY;
+            exit_time.x = f32::INFINITY;
+        } else {
+            entry_time.x = entry_dist.x / v.x;
+            exit_time.x = exit_dist.x / v.x;
+        }
+
+        if v.y == 0.0 {
+            entry_time.y = f32::NEG_INFINITY;
+            exit_time.y = f32::INFINITY;
+        } else {
+            entry_time.y = entry_dist.y / v.y;
+            exit_time.y = exit_dist.y / v.y;
+        }
+
+        if v.z == 0.0 {
+            entry_time.z = f32::NEG_INFINITY;
+            exit_time.z = f32::INFINITY;
+        } else {
+            entry_time.z = entry_dist.z / v.z;
+            exit_time.z = exit_dist.z / v.z;
+        }
+
+        entry_time = entry_time.axis_map(|x| if x > 1.0 { f32::NEG_INFINITY } else { x });
+        let max_entry_index = crate::util::max_index(entry_time);
+        let max_entry_time = entry_time[max_entry_index];
+        let min_exit_time = exit_time.min_element();
+
+        if max_entry_time > min_exit_time {
+            //we already left the collision before we intersected on one axis
             return None;
         }
-        //no collision
-        if overlap_time == Vec3::INFINITY {
+        if entry_time.x < 0.0 && entry_time.y < 0.0 && entry_time.z < 0.0 {
+            return None;
+        } 
+        if entry_time.x < 0.0 && (self_max.x < other_min.x || other_max.x < self_min.x) {
+            return None;
+        }
+        if entry_time.y < 0.0 && (self_max.y < other_min.y || other_max.y < self_min.y) {
+            return None;
+        }
+        if entry_time.z < 0.0 && (self_max.z < other_min.z || other_max.z < self_min.z) {
             return None;
         }
 
         //want axis with minimal collision time
         //pos/neg direction on axis is determined by relative velocity
-        let normal_axis_idx = crate::util::min_index(overlap_time);
-        let normal_axis = crate::util::Direction::from(normal_axis_idx);
+        let normal_axis = crate::util::Direction::from(max_entry_index);
         return Some((
-            hit_time,
-            self_v * hit_time,
-            Some(if v[normal_axis_idx] < 0.0 {
-                normal_axis.opposite()
-            } else {
+            max_entry_time,
+            v * max_entry_time,
+            Some(if v[max_entry_index] < 0.0 {
                 normal_axis
+            } else {
+                normal_axis.opposite()
             }),
         ));
     }
@@ -411,8 +397,8 @@ fn move_and_slide(
     for (mut tf, mut v, a, mut directions, col) in objects.iter_mut() {
         // overlaps.clear();
         directions.0 = DirectionFlags::default();
-        let effective_velocity = TICK_SCALE as f32 * (v.0 + TICK_SCALE as f32 * 0.5 * a.0);
-        let mut v_remaining = effective_velocity;
+        let mut effective_velocity = TICK_SCALE as f32 * (v.0 + TICK_SCALE as f32 * 0.5 * a.0);
+        let mut time_remaining = 1.0;
 
         //collide on one axis at a time, repeat 3 times in case we are colliding on all 3 axes
         for _ in 0..3 {
@@ -479,60 +465,42 @@ fn move_and_slide(
             }
             // info!("\neffective_velocity: {:?}", effective_velocity);
             // info!("tf: {:?}, v_remaining: {:?}\n", tf.translation, v_remaining);
-            if let Some((block_pos, corrected_v, _time, opt_normal)) =
-                col.min_time_to_collision(overlaps_iter.clone(), tf.translation, v_remaining)
+            if let Some((block_pos, corrected_v, time, opt_normal)) =
+                col.min_time_to_collision(overlaps_iter.clone(), tf.translation, effective_velocity)
             {
                 if *debug_state == DebugUIState::Shown {
                     block_gizmos.hit_blocks.insert(block_pos);
-                    info!("tf: {:?}, v_remaining: {:?}\n", tf.translation, v_remaining);
+                    info!("tf: {:?}, time_remainig: {:?}\n", tf.translation, time);
                 }
                 tf.translation += corrected_v;
-                v_remaining -= corrected_v;
+                time_remaining -= time;
+                
                 //do velocity resolution and set collision direction flag
                 //direction flag is opposite direction because the direction is the normal of the collision, and directionflag is
                 //  the direction relative to the entity.
                 // info!("hit normal: {:?}", opt_normal);
                 match opt_normal {
-                    Some(crate::util::Direction::PosX) => {
-                        v.0.x = 0.0;
-                        v_remaining.x = 0.0;
-                        directions.0.set(DirectionFlags::NegX, true);
-                    }
-                    Some(crate::util::Direction::NegX) => {
-                        v.0.x = 0.0;
-                        v_remaining.x = 0.0;
-                        directions.0.set(DirectionFlags::PosX, true);
-                    }
-                    Some(crate::util::Direction::PosY) => {
-                        v.0.y = 0.0;
-                        v_remaining.y = 0.0;
-                        directions.0.set(DirectionFlags::NegY, true);
-                    }
-                    Some(crate::util::Direction::NegY) => {
-                        v.0.y = 0.0;
-                        v_remaining.y = 0.0;
-                        directions.0.set(DirectionFlags::PosY, true);
-                    }
-                    Some(crate::util::Direction::PosZ) => {
-                        v.0.z = 0.0;
-                        v_remaining.z = 0.0;
-                        directions.0.set(DirectionFlags::NegZ, true);
-                    }
-                    Some(crate::util::Direction::NegZ) => {
-                        v.0.z = 0.0;
-                        v_remaining.z = 0.0;
-                        directions.0.set(DirectionFlags::PosZ, true);
-                    }
+                    Some(dir) => {
+                        directions.0.set(dir.opposite().into(), true);
+                        //slide perpendicular to the collision normal
+                        // let normal = dir.to_vec3();
+                        // let speed = effective_velocity.dot(normal) * time_remaining;
+                        // effective_velocity = project_onto_plane(effective_velocity, normal)*speed;
+                        // v.0 = effective_velocity;
+                        let idx = dir.to_idx() % 3;
+                        effective_velocity[idx] = 0.0;
+                        v.0 = effective_velocity;
+                    },
                     None => {
                         //we are inside a block already
-                        // warn!("inside block!");
+                        warn!("inside block!");
                         v.0 = Vec3::ZERO;
                         directions.0.set(DirectionFlags::all(), true);
                     }
                 }
             } else {
                 //no collision, so no need to do other iterations
-                tf.translation += v_remaining;
+                tf.translation += effective_velocity;
                 break;
             }
         }
