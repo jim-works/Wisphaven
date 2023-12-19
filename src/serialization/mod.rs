@@ -26,14 +26,7 @@ pub mod state;
 
 impl Plugin for SerializationPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(state::SerializationStatePlugin)
-            .add_systems(
-                Update,
-                setup::on_level_created.run_if(
-                    in_state(state::GameLoadState::Done)
-                        .and_then(in_state(LevelLoadState::NotLoaded)),
-                ),
-            )
+        app.add_plugins((state::SerializationStatePlugin, setup::SetupPlugin))
             //load/save loop
             //do not do if a client, it will recieve its information from the server
             .add_systems(
@@ -49,44 +42,6 @@ impl Plugin for SerializationPlugin {
                     .run_if(not(in_state(NetworkType::Client))),
             )
             .add_systems(PostUpdate, db::finish_up.in_set(LevelSystemSet::PostUpdate))
-            .insert_resource(setup::load_settings())
-            .add_systems(PreStartup, setup::load_folders)
-            .add_systems(
-                Update,
-                (
-                    setup::load_block_textures
-                        .run_if(resource_exists::<setup::LoadingBlockTextures>()),
-                    setup::load_item_textures
-                        .run_if(resource_exists::<setup::LoadingItemTextures>()),
-                    (|| (LoadingBlocks, "blocks"))
-                        .pipe(setup::start_loading_scene::<setup::LoadingBlockScenes>)
-                        .run_if(resource_exists::<setup::LoadingBlockScenes>()),
-                    (|| (LoadingRecipes, "recipes"))
-                        .pipe(setup::start_loading_scene::<setup::LoadingRecipeScenes>)
-                        .run_if(resource_exists::<setup::LoadingRecipeScenes>()),
-                    (|| (LoadingItems, "items"))
-                        .pipe(setup::start_loading_scene::<setup::LoadingItemScenes>)
-                        .run_if(resource_exists::<setup::LoadingItemScenes>()),
-                    (|mut n: ResMut<NextState<state::GameLoadState>>| {
-                        n.set(state::GameLoadState::LoadingAssets)
-                    })
-                    .run_if(not(resource_exists::<setup::LoadingBlockTextures>()))
-                    .run_if(not(resource_exists::<setup::LoadingItemTextures>()))
-                    .run_if(not(resource_exists::<setup::LoadingBlockScenes>()))
-                    .run_if(not(resource_exists::<setup::LoadingRecipeScenes>()))
-                    .run_if(not(resource_exists::<setup::LoadingItemScenes>())),
-                )
-                    .run_if(in_state(state::GameLoadState::Preloading)),
-            )
-            .add_systems(
-                Update,
-                (
-                    setup::load_block_registry,
-                    setup::load_item_registry,
-                    setup::load_recipe_list.run_if(resource_exists::<BlockResources>()),
-                )
-                    .run_if(in_state(state::GameLoadState::LoadingAssets)),
-            )
             .add_systems(
                 Update,
                 create_level.run_if(in_state(state::GameLoadState::CreatingLevel)),

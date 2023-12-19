@@ -261,6 +261,9 @@ impl Aabb {
         v: Vec3,
     ) -> Option<(f32, Vec3, Option<crate::util::Direction>)> {
         if self.intersects(other_center, other) {
+            // println!("balls {:?}", other_center);
+            //already intersecting, return shortest vector to correct intersection
+            
             return Some((0.0, Vec3::ZERO, None));
         }
         if v == Vec3::ZERO {
@@ -401,7 +404,7 @@ fn move_and_slide(
         let mut time_remaining = 1.0;
 
         //collide on one axis at a time, repeat 3 times in case we are colliding on all 3 axes
-        for _ in 0..3 {
+        for i in 0..3 {
             //todo - optimize updates
             // overlaps.clear();
             // if v_remaining.x > 0.0 {
@@ -470,7 +473,7 @@ fn move_and_slide(
             {
                 if *debug_state == DebugUIState::Shown {
                     block_gizmos.hit_blocks.insert(block_pos);
-                    info!("tf: {:?}, time_remainig: {:?}\n", tf.translation, time);
+                    // info!("tf: {:?}, time_remainig: {:?}\n", tf.translation, time);
                 }
                 tf.translation += corrected_v;
                 time_remaining -= time;
@@ -489,13 +492,19 @@ fn move_and_slide(
                         // v.0 = effective_velocity;
                         let idx = dir.to_idx() % 3;
                         effective_velocity[idx] = 0.0;
+                        effective_velocity *= time_remaining;
                         v.0 = effective_velocity;
                     },
                     None => {
                         //we are inside a block already
-                        warn!("inside block!");
+                        if i != 0 {
+                            warn!("inside block! {}, eff_v: {:?}", i, effective_velocity);
+                        info!("{:?}\ntf: {:?}\n{:?}\nv: {:?}", col, tf.translation, block_pos, effective_velocity);
+                        }
+                        
                         v.0 = Vec3::ZERO;
                         directions.0.set(DirectionFlags::all(), true);
+                        break;
                     }
                 }
             } else {

@@ -267,3 +267,33 @@ fn far_collision_false_positive_patch() {
     println!("{:?}", res);
     assert!(res.is_none());
 }
+
+/*
+2023-12-19T00:10:11.858386Z  INFO wisphaven::physics::collision: tf: Vec3(-11.594771, 13.0, 5.1022277), time_remainig: 0.13549556
+
+2023-12-19T00:10:11.858501Z  INFO wisphaven::physics::collision: tf: Vec3(-11.6, 13.0, 5.103908), time_remainig: 0.0
+
+2023-12-19T00:10:11.858506Z  WARN wisphaven::physics::collision: inside block!
+2023-12-19T00:10:11.858509Z  INFO wisphaven::physics::collision: Collider { shape: Aabb { extents: Vec3(0.4, 0.8, 0.4) }, offset: Vec3(0.0, 0.8, 0.0) }
+tf: Vec3(-11.6, 13.0, 5.103908)
+BlockCoord { x: -13, y: 13, z: 5 }
+v: Vec3(0.0, 0.0, 0.012402501)
+*/
+
+#[test]
+fn clip_inside_block_false_positive_patch() {
+    let col = Collider {
+        shape: Aabb::new(Vec3::new(0.4, 0.8, 0.4)),
+        offset: Vec3::new(0., 0.8, 0.),
+    };
+    let p = Vec3::new(0.45,0.0,0.6);
+    let v = Vec3::ZERO; //Vec3::new(-1.0,0.0,1.0);
+    let blocks = [(BlockCoord::new(-1,0,0), &BlockPhysics::Solid), (BlockCoord::new(0,0,1), &BlockPhysics::Solid)].into_iter();
+    let res = col.min_time_to_collision(blocks, p, v);
+    println!("{:?}", res);
+    assert!(res.is_some());
+    if let Some((_coord, v, _time, opt_norm)) = res {
+        assert!(opt_norm.is_some());
+        assert_eq!(v, Vec3::ZERO);
+    }
+}

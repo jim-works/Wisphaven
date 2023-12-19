@@ -24,7 +24,61 @@ use crate::world::{
     LevelLoadState, NamedBlockMesh,
 };
 
-use super::{BlockTextureMap, ItemTextureMap, LoadedToSavedIdMap, SavedToLoadedIdMap};
+use super::{state, BlockTextureMap, ItemTextureMap, LoadedToSavedIdMap, SavedToLoadedIdMap};
+
+pub struct SetupPlugin;
+
+impl Plugin for SetupPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(load_settings())
+            //instantiate entities that we need to load
+            .add_systems(PreStartup, load_folders)
+            //initiate loading of each type of scene
+            .add_systems(
+                Update,
+                (
+                    load_block_textures.run_if(resource_exists::<LoadingBlockTextures>()),
+                    load_item_textures.run_if(resource_exists::<LoadingItemTextures>()),
+                    (|| (LoadingBlocks, "blocks"))
+                        .pipe(start_loading_scene::<LoadingBlockScenes>)
+                        .run_if(resource_exists::<LoadingBlockScenes>()),
+                    (|| (LoadingRecipes, "recipes"))
+                        .pipe(start_loading_scene::<LoadingRecipeScenes>)
+                        .run_if(resource_exists::<LoadingRecipeScenes>()),
+                    (|| (LoadingItems, "items"))
+                        .pipe(start_loading_scene::<LoadingItemScenes>)
+                        .run_if(resource_exists::<LoadingItemScenes>()),
+                    (|mut n: ResMut<NextState<state::GameLoadState>>| {
+                        n.set(state::GameLoadState::LoadingAssets)
+                    })
+                    .run_if(not(resource_exists::<LoadingBlockTextures>()))
+                    .run_if(not(resource_exists::<LoadingItemTextures>()))
+                    .run_if(not(resource_exists::<LoadingBlockScenes>()))
+                    .run_if(not(resource_exists::<LoadingRecipeScenes>()))
+                    .run_if(not(resource_exists::<LoadingItemScenes>())),
+                )
+                    .run_if(in_state(state::GameLoadState::Preloading)),
+            )
+            //create registries/recipe lists
+            .add_systems(
+                Update,
+                (
+                    load_block_registry,
+                    load_item_registry,
+                    load_recipe_list.run_if(resource_exists::<BlockResources>()),
+                )
+                    .run_if(in_state(state::GameLoadState::LoadingAssets)),
+            )
+            //create level
+            .add_systems(
+                Update,
+                on_level_created.run_if(
+                    in_state(state::GameLoadState::Done)
+                        .and_then(in_state(LevelLoadState::NotLoaded)),
+                ),
+            );
+    }
+}
 
 #[derive(Resource, Deref, Clone)]
 pub struct LoadingBlockTextures(Handle<LoadedFolder>);
@@ -188,10 +242,7 @@ pub fn start_loading_scene<Scene: Resource + std::ops::Deref<Target = Handle<Loa
                 info!("Spawning {} {} scenes", scenes.len(), name);
                 for scene in scenes {
                     commands.spawn((
-                        DynamicSceneBundle {
-                            scene,
-                            ..default()
-                        },
+                        DynamicSceneBundle { scene, ..default() },
                         Name::new(name),
                         bundle.clone(),
                     ));
@@ -418,10 +469,16 @@ fn check_level_version(db: &mut LevelDB) -> Result<(), LevelDBErr> {
             Ok(version) => {
                 let my_version = Version::game_version();
                 let saved_version = Version::from(version);
-                info!("saved version of level is {:?}, my version is {:?}", saved_version, my_version);
+                info!(
+                    "saved version of level is {:?}, my version is {:?}",
+                    saved_version, my_version
+                );
                 if saved_version > my_version && !my_version.game_compatible(&saved_version) {
-                    error!("Opening a newer world version than I can handle: {:?}", version);
-                    return Err(LevelDBErr::NewWorldVersion)
+                    error!(
+                        "Opening a newer world version than I can handle: {:?}",
+                        version
+                    );
+                    return Err(LevelDBErr::NewWorldVersion);
                 }
             }
             Err(e) => {
