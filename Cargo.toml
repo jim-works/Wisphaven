@@ -23,7 +23,7 @@ debug = true
 ahash = "0.8.3"
 #TODO: remove dynamic_linking/trace_tracy for releases (automate this)
 #TODO: maybe enable wayland feature?
-bevy = { version = "0.12.0", features = ["dynamic_linking"] }                                       #0.12 update highlights - scene loading callback, one shot systems
+bevy = { version = "0.12.0", features = ["dynamic_linking", "serialize"] }                                       #0.12 update highlights - scene loading callback, one shot systems
 bracket-noise = "0.8.7"
 dashmap = "5.4.0"
 futures-lite = "1.13.0"

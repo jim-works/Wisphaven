@@ -12,7 +12,7 @@
                 ]
            ],
            products: [
-                (BlockCoord (x: 0, y: 0, z: 0), BlockName(namespace: "core", name: "tnt"))
+                (BlockCoord (x: 0, y: 0, z: 0), BlockName(namespace: "core", name: "log_slab"))
            ]
         ),
       },

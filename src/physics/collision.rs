@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use serde::{Serialize, Deserialize};
 
 use crate::{
     ui::{debug::DebugBlockHitboxes, state::DebugUIState},
@@ -33,7 +34,7 @@ impl Default for Friction {
     }
 }
 
-#[derive(Component, Copy, Clone, PartialEq, Default, Reflect, Debug)]
+#[derive(Component, Clone, Copy, PartialEq, Default, Reflect, Debug, Serialize, Deserialize)]
 #[reflect(Component)]
 pub struct Collider {
     pub shape: Aabb,
@@ -180,7 +181,8 @@ impl Collider {
 
 //axis-aligned bounding box
 //not a collider atm
-#[derive(Clone, Copy, Debug, Reflect, PartialEq)]
+#[derive(Component, Copy, Clone, PartialEq, Reflect, Debug, Serialize, Deserialize)]
+#[reflect(Component)]
 pub struct Aabb {
     pub extents: Vec3,
 }

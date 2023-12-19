@@ -11,7 +11,7 @@ use crate::{
     world::{
         chunk::{ArrayChunk, ChunkCoord, ChunkTrait, BLOCKS_PER_CHUNK},
         events::CreateLevelEvent,
-        BlockId, BlockRegistry, BlockResources, BlockType, Id, LevelLoadState, LevelSystemSet,
+        BlockId, BlockRegistry, BlockType, Id, LevelSystemSet,
     },
 };
 

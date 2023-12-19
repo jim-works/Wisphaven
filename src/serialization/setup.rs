@@ -49,6 +49,7 @@ impl Plugin for SetupPlugin {
                         .pipe(start_loading_scene::<LoadingItemScenes>)
                         .run_if(resource_exists::<LoadingItemScenes>()),
                     (|mut n: ResMut<NextState<state::GameLoadState>>| {
+                        info!("finished preloading, loading assets now!");
                         n.set(state::GameLoadState::LoadingAssets)
                     })
                     .run_if(not(resource_exists::<LoadingBlockTextures>()))

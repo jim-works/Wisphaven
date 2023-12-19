@@ -199,7 +199,7 @@ impl BlockMeshShape {
     }
 }
 
-#[derive(Component, Clone, PartialEq, Default, Reflect, Debug)]
+#[derive(Component, Clone, PartialEq, Default, Reflect, Debug, Serialize, Deserialize)]
 #[reflect(Component)]
 //controls collider
 pub enum BlockPhysics {
