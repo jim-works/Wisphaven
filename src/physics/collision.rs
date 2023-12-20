@@ -1,11 +1,11 @@
 use bevy::prelude::*;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     ui::{debug::DebugBlockHitboxes, state::DebugUIState},
     util::{
-        iterators::{AxisIter, BlockVolume, AxisMap},
-        DirectionFlags, project_onto_plane,
+        iterators::{AxisIter, AxisMap, BlockVolume},
+        project_onto_plane, DirectionFlags,
     },
     world::{BlockCoord, BlockPhysics, Level},
 };
@@ -69,13 +69,12 @@ impl Collider {
         potential_overlap: impl Iterator<Item = (BlockCoord, &'a BlockPhysics)>,
         p: Vec3,
         v: Vec3,
-    ) -> Option<(BlockCoord, Vec3, f32, Option<crate::util::Direction>)> {
+    ) -> Option<(BlockCoord, Vec3, f32, crate::util::Direction)> {
         let position = p + self.offset;
-        let mut min_collision: Option<(BlockCoord, Vec3, f32, Option<crate::util::Direction>)> =
-            None;
+        let mut min_collision: Option<(BlockCoord, Vec3, f32, crate::util::Direction)> = None;
         for (coord, block) in potential_overlap {
             if let Some(block_collider) = Collider::from_block(block) {
-                if let Some((time, corrected_v, opt_normal)) = self.shape.sweep(
+                if let Some((time, corrected_v, normal)) = self.shape.sweep(
                     coord.to_vec3() + block_collider.offset - position,
                     block_collider.shape,
                     v,
@@ -83,11 +82,11 @@ impl Collider {
                     match min_collision {
                         Some((_, _, min_collision_time, _)) => {
                             if time < min_collision_time {
-                                min_collision = Some((coord, corrected_v, time, opt_normal));
+                                min_collision = Some((coord, corrected_v, time, normal));
                             }
                         }
                         None => {
-                            min_collision = Some((coord, corrected_v, time, opt_normal));
+                            min_collision = Some((coord, corrected_v, time, normal));
                         }
                     }
                 }
@@ -210,48 +209,22 @@ impl Aabb {
     }
 
     //self.position + delta = other.position
-    //returns the dispacement that we have to move self on each axis to hit other box (0 if inside)
-    //returns infinity if there is no possible collision on that axis
-    pub fn axis_displacement(self, other_center: Vec3, other: Aabb) -> Vec3 {
+    //returns the dispacement that we have to move self on each axis to move outside of other box
+    //I have no idea what this returns if the boxes aren't overlapping
+    pub fn overlapping_displacement(self, other_center: Vec3, other: Aabb) -> Vec3 {
         let self_min = -self.extents;
         let self_max = self.extents;
         let other_min = other_center - other.extents;
         let other_max = other_center + other.extents;
-        let mut dist = Vec3::splat(f32::INFINITY);
-        //x-axis, check if possible boxes are lined up enough on y/z plane for collision
-        if (self_min.y <= other_max.y && self_max.y >= other_min.y)
-            && (self_min.z <= other_max.z && self_max.z >= other_min.z)
-        {
-            let d = ((other_min.x - self_max.x).abs()).min((self_min.x - other_max.x).abs());
-            dist.x = if self_min.x <= other_max.x && self_max.x >= other_min.x {
-                0.0 //intersects
-            } else {
-                d * other_center.x.signum()
-            }
-        }
-        //y-axis, check if possible boxes are lined up enough on x/z plane for collision
-        if (self_min.x <= other_max.x && self_max.x >= other_min.x)
-            && (self_min.z <= other_max.z && self_max.z >= other_min.z)
-        {
-            let d = ((other_min.y - self_max.y).abs()).min((self_min.y - other_max.y).abs());
-            dist.y = if self_min.y <= other_max.y && self_max.y >= other_min.y {
-                0.0 //intersects
-            } else {
-                d * other_center.y.signum()
-            }
-        }
-        //z-axis, check if possible boxes are lined up enough on x/y plane for collision
-        if (self_min.y <= other_max.y && self_max.y >= other_min.y)
-            && (self_min.x <= other_max.x && self_max.x >= other_min.x)
-        {
-            let d = ((other_min.z - self_max.z).abs()).min((self_min.z - other_max.z).abs());
-            dist.z = if self_min.z <= other_max.z && self_max.z >= other_min.z {
-                0.0
-            } else {
-                d * other_center.z.signum()
-            }
-        }
-        dist
+
+        //if there is a positive displacement here, the shortest way to reslove the collision is to add
+        let positive_displacement = (other_max - self_min).abs();
+        //if there is a positive displacement here, the shortest way to resolve the collision is to subtract
+        let negative_displacement = (other_min - self_max).abs();
+        //since these are aabbs, if they overlap, the smallest magntiude would be the shortest way out.
+
+        (positive_displacement, negative_displacement)
+            .axis_map(|(p, n)| if p <= n { p } else { -n })
     }
 
     //returns time to hit, displacement until hit, and normal if there was a hit
@@ -261,12 +234,22 @@ impl Aabb {
         other_center: Vec3,
         other: Aabb,
         v: Vec3,
-    ) -> Option<(f32, Vec3, Option<crate::util::Direction>)> {
+    ) -> Option<(f32, Vec3, crate::util::Direction)> {
         if self.intersects(other_center, other) {
             // println!("balls {:?}", other_center);
             //already intersecting, return shortest vector to correct intersection
-            
-            return Some((0.0, Vec3::ZERO, None));
+            let correction_candidates = self.overlapping_displacement(other_center, other);
+            let min_correction = crate::util::min_index(correction_candidates);
+            let picked_correction = crate::util::pick_axis(correction_candidates, min_correction);
+            return Some((
+                0.0,
+                picked_correction,
+                if picked_correction[min_correction] <= 0. {
+                    crate::util::Direction::from(min_correction).opposite()
+                } else {
+                    crate::util::Direction::from(min_correction)
+                },
+            ));
         }
         if v == Vec3::ZERO {
             return None;
@@ -343,7 +326,7 @@ impl Aabb {
         }
         if entry_time.x < 0.0 && entry_time.y < 0.0 && entry_time.z < 0.0 {
             return None;
-        } 
+        }
         if entry_time.x < 0.0 && (self_max.x < other_min.x || other_max.x < self_min.x) {
             return None;
         }
@@ -360,11 +343,11 @@ impl Aabb {
         return Some((
             max_entry_time,
             v * max_entry_time,
-            Some(if v[max_entry_index] < 0.0 {
+            if v[max_entry_index] < 0.0 {
                 normal_axis
             } else {
                 normal_axis.opposite()
-            }),
+            },
         ));
     }
 }
@@ -406,7 +389,7 @@ fn move_and_slide(
         let mut time_remaining = 1.0;
 
         //collide on one axis at a time, repeat 3 times in case we are colliding on all 3 axes
-        for i in 0..3 {
+        for _ in 0..3 {
             //todo - optimize updates
             // overlaps.clear();
             // if v_remaining.x > 0.0 {
@@ -470,7 +453,32 @@ fn move_and_slide(
             }
             // info!("\neffective_velocity: {:?}", effective_velocity);
             // info!("tf: {:?}, v_remaining: {:?}\n", tf.translation, v_remaining);
-            if let Some((block_pos, corrected_v, time, opt_normal)) =
+            // for (coord, block) in overlaps_iter {
+            //     if let Some(block_collider) = Collider::from_block(block) {
+            //         let block_offset = coord.to_vec3() + block_collider.offset - tf.translation;
+            //         if col.shape.intersects(block_offset, block_collider.shape) {
+            //             block_gizmos.hit_blocks.insert(coord);
+            //             let correction_candidates = col
+            //                 .shape
+            //                 .overlapping_displacement(block_offset, block_collider.shape);
+            //             let min_correction = crate::util::min_index(correction_candidates);
+            //             let picked_correction =
+            //                 crate::util::pick_axis(correction_candidates, min_correction);
+            //             effective_velocity[min_correction] = 0.0;
+            //             tf.translation += picked_correction;
+            //             directions.0.set(
+            //                 if picked_correction[min_correction] <= 0. {
+            //                     crate::util::Direction::from(min_correction)
+            //                 } else {
+            //                     crate::util::Direction::from(min_correction).opposite()
+            //                 }
+            //                 .into(),
+            //                 true,
+            //             );
+            //         }
+            //     }
+            // }
+            if let Some((block_pos, corrected_v, time, normal)) =
                 col.min_time_to_collision(overlaps_iter.clone(), tf.translation, effective_velocity)
             {
                 if *debug_state == DebugUIState::Shown {
@@ -479,42 +487,27 @@ fn move_and_slide(
                 }
                 tf.translation += corrected_v;
                 time_remaining -= time;
-                
+
                 //do velocity resolution and set collision direction flag
                 //direction flag is opposite direction because the direction is the normal of the collision, and directionflag is
                 //  the direction relative to the entity.
                 // info!("hit normal: {:?}", opt_normal);
-                match opt_normal {
-                    Some(dir) => {
-                        directions.0.set(dir.opposite().into(), true);
-                        //slide perpendicular to the collision normal
-                        // let normal = dir.to_vec3();
-                        // let speed = effective_velocity.dot(normal) * time_remaining;
-                        // effective_velocity = project_onto_plane(effective_velocity, normal)*speed;
-                        // v.0 = effective_velocity;
-                        let idx = dir.to_idx() % 3;
-                        effective_velocity[idx] = 0.0;
-                        effective_velocity *= time_remaining;
-                        v.0 = effective_velocity;
-                    },
-                    None => {
-                        //we are inside a block already
-                        if i != 0 {
-                            warn!("inside block! {}, eff_v: {:?}", i, effective_velocity);
-                        info!("{:?}\ntf: {:?}\n{:?}\nv: {:?}", col, tf.translation, block_pos, effective_velocity);
-                        }
-                        
-                        v.0 = Vec3::ZERO;
-                        directions.0.set(DirectionFlags::all(), true);
-                        break;
-                    }
-                }
+                directions.0.set(normal.opposite().into(), true);
+                //slide perpendicular to the collision normal
+                // let normal = dir.to_vec3();
+                // let speed = effective_velocity.dot(normal) * time_remaining;
+                // effective_velocity = project_onto_plane(effective_velocity, normal)*speed;
+                // v.0 = effective_velocity;
+                let idx = normal.to_idx() % 3;
+                effective_velocity = corrected_v*time_remaining;
+                v.0 = effective_velocity;
             } else {
                 //no collision, so no need to do other iterations
                 tf.translation += effective_velocity;
                 break;
             }
         }
-        // info!("directions: {:?}", directions.0);
+        tf.translation += effective_velocity;
+        info!("directions: {:?}", directions.0);
     }
 }

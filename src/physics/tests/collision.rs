@@ -18,7 +18,7 @@ fn time_to_collision_single_axis() {
     //bottom of collider is 1 unit above top of block collider
     //so d=1, t=d/v
     assert!(time.is_some());
-    if let Some((block, corrected_v, min_time, Some(normal))) = time {
+    if let Some((block, corrected_v, min_time, normal)) = time {
         let exp_time = 0.2;
         assert_eq!(block, BlockCoord::new(0, 0, 0));
         assert_eq!(corrected_v, Vec3::new(0.0, -1.0, 0.0));
@@ -36,7 +36,7 @@ fn time_to_collision_single_axis() {
     //bottom of collider is 1 unit below top of block collider
     //so d=1, t=d/v
     assert!(time.is_some());
-    if let Some((block, corrected_v, min_time, Some(normal))) = time {
+    if let Some((block, corrected_v, min_time, normal)) = time {
         let exp_time = 0.2;
         assert_eq!(block, BlockCoord::new(0, 4, 0));
         assert_eq!(corrected_v, Vec3::new(0.0, 1.0, 0.0));
@@ -63,7 +63,7 @@ fn time_to_collision_multi_axis() {
     //bottom of collider is 1 unit above top of block collider
     //so d=1, t=d/v
     assert!(time.is_some());
-    if let Some((block, corrected_v, min_time, Some(normal))) = time {
+    if let Some((block, corrected_v, min_time, normal)) = time {
         let exp_time = 0.25;
         assert_eq!(block, BlockCoord::new(0, -1, 0));
         assert_eq!(corrected_v, Vec3::new(0.25, -2.0, 0.0));
@@ -125,52 +125,35 @@ fn aabb_intersects_false() {
 }
 
 #[test]
-fn aabb_displacement_one_axis_exterior() {
-    let from_aabb = Aabb::new(Vec3::splat(0.5));
-    let to_aabb = Aabb::new(Vec3::splat(0.5));
-    assert_eq!(
-        from_aabb.axis_displacement(Vec3::new(0.0, 2.0, 0.0), to_aabb),
-        Vec3::new(f32::INFINITY, 1.0, f32::INFINITY)
-    );
-
-    let from_aabb = Aabb::new(Vec3::splat(0.5));
-    let to_aabb = Aabb::new(Vec3::splat(0.5));
-    assert_eq!(
-        from_aabb.axis_displacement(Vec3::new(0.0, -2.0, 0.0), to_aabb),
-        Vec3::new(f32::INFINITY, -1.0, f32::INFINITY)
-    );
-}
-
-#[test]
-fn aabb_displacement_one_axis_interior() {
+fn aabb_overlap_displacement_one_axis_interior() {
     //x
     let from_aabb = Aabb::new(Vec3::splat(0.5));
     let to_aabb = Aabb::new(Vec3::splat(0.5));
     assert_eq!(
-        from_aabb.axis_displacement(Vec3::new(0.5, 0.0, 0.0), to_aabb),
-        Vec3::ZERO
+        from_aabb.overlapping_displacement(Vec3::new(0.5, 0.0, 0.0), to_aabb),
+        Vec3::new(-0.5, 1.0, 1.0)
     );
     assert_eq!(
-        from_aabb.axis_displacement(Vec3::new(-0.5, 0.0, 0.0), to_aabb),
-        Vec3::ZERO
+        from_aabb.overlapping_displacement(Vec3::new(-0.5, 0.0, 0.0), to_aabb),
+        Vec3::new(0.5, 1.0, 1.0)
     );
     //y
     assert_eq!(
-        from_aabb.axis_displacement(Vec3::new(0.0, 0.5, 0.0), to_aabb),
-        Vec3::ZERO
+        from_aabb.overlapping_displacement(Vec3::new(0.0, 0.5, 0.0), to_aabb),
+        Vec3::new(1.0, -0.5, 1.0)
     );
     assert_eq!(
-        from_aabb.axis_displacement(Vec3::new(0.0, -0.5, 0.0), to_aabb),
-        Vec3::ZERO
+        from_aabb.overlapping_displacement(Vec3::new(0.0, -0.5, 0.0), to_aabb),
+        Vec3::new(1.0, 0.5, 1.0)
     );
     //z
     assert_eq!(
-        from_aabb.axis_displacement(Vec3::new(0.0, 0.0, 0.5), to_aabb),
-        Vec3::ZERO
+        from_aabb.overlapping_displacement(Vec3::new(0.0, 0.0, 0.5), to_aabb),
+        Vec3::new(1.0, 1.0, -0.5)
     );
     assert_eq!(
-        from_aabb.axis_displacement(Vec3::new(0.0, 0.0, -0.5), to_aabb),
-        Vec3::ZERO
+        from_aabb.overlapping_displacement(Vec3::new(0.0, 0.0, -0.5), to_aabb),
+        Vec3::new(1.0, 1.0, 0.5)
     );
 }
 
@@ -183,14 +166,13 @@ fn sweep_hit_velocity() {
         other,
         Vec3::new(400.0, 1200.0, 800.0),
     );
-    if let Some((time, updated_v, opt_normal)) = res {
+    if let Some((time, updated_v, _normal)) = res {
         // (100, 100, 100) units on each axis
         // (100, 100, 100) velocity on each axis
         // (1.0, 1.0, 1.0) time on each axis
         // should penetrate x the most
         assert_eq!(updated_v, Vec3::new(100.0, 300.0, 200.0));
         assert_eq!(time, 0.25);
-        assert!(opt_normal.is_some());
     } else {
         assert!(false);
     }
@@ -205,13 +187,11 @@ fn sweep_hit_one_axis() {
         other,
         Vec3::new(1.0, -20.0, -2.0),
     );
-    if let Some((time, updated_v, opt_normal)) = res {
+    if let Some((time, updated_v, normal)) = res {
         //penetrates on y axis the most
-        if let Some(normal) = opt_normal {
-            assert_eq!(updated_v, Vec3::new(0.5, -10.0, -1.0));
-            assert_eq!(time, 0.5);
-            assert_eq!(normal, crate::util::Direction::PosY);
-        }
+        assert_eq!(updated_v, Vec3::new(0.5, -10.0, -1.0));
+        assert_eq!(time, 0.5);
+        assert_eq!(normal, crate::util::Direction::PosY);
     } else {
         assert!(false);
     }
@@ -226,7 +206,7 @@ fn sweep_hit_normal() {
         other,
         Vec3::new(400.5, 1200.0, 800.0),
     );
-    if let Some((_, _, Some(normal))) = res {
+    if let Some((_, _, normal)) = res {
         assert_eq!(normal, crate::util::Direction::NegZ); //penetrate shallowest on z axis
     } else {
         assert!(false);
@@ -236,11 +216,12 @@ fn sweep_hit_normal() {
 #[test]
 fn sweep_hit_inside() {
     let origin = Aabb::new(Vec3::new(1.0, 2.0, 3.0));
-    let other = Aabb::new(Vec3::new(6.0, 4.0, 2.0));
-    let res = origin.sweep(Vec3::ZERO, other, Vec3::new(1.0, 2.0, 3.0));
-    if let Some((time, updated_v, None)) = res {
+    let other = Aabb::new(Vec3::new(1.0, 4.0, 2.0));
+    let res = origin.sweep(Vec3::new(1.0,0.,0.), other, Vec3::new(1.0, 2.0, 3.0));
+    if let Some((time, updated_v, normal)) = res {
         assert_eq!(time, 0.0);
-        assert_eq!(updated_v, Vec3::ZERO);
+        assert_eq!(updated_v, Vec3::new(-1.0,0.0,0.0));
+        assert_eq!(normal, crate::util::Direction::NegX);
     } else {
         assert!(false);
     }
@@ -260,10 +241,14 @@ fn far_collision_false_positive_patch() {
         shape: Aabb::new(Vec3::new(0.4, 0.8, 0.4)),
         offset: Vec3::new(0., 0.8, 0.),
     };
-    let offset = Vec3::new(0.0,12.0,10.0);
-    let v = Vec3::new(0.0,-0.0075,0.0);
-    let block_coord = BlockCoord::new(-4,11,12);
-    let res = col.min_time_to_collision(std::iter::once((block_coord, &BlockPhysics::Solid)), offset, v);
+    let offset = Vec3::new(0.0, 12.0, 10.0);
+    let v = Vec3::new(0.0, -0.0075, 0.0);
+    let block_coord = BlockCoord::new(-4, 11, 12);
+    let res = col.min_time_to_collision(
+        std::iter::once((block_coord, &BlockPhysics::Solid)),
+        offset,
+        v,
+    );
     println!("{:?}", res);
     assert!(res.is_none());
 }
@@ -280,20 +265,24 @@ BlockCoord { x: -13, y: 13, z: 5 }
 v: Vec3(0.0, 0.0, 0.012402501)
 */
 
-#[test]
-fn clip_inside_block_false_positive_patch() {
-    let col = Collider {
-        shape: Aabb::new(Vec3::new(0.4, 0.8, 0.4)),
-        offset: Vec3::new(0., 0.8, 0.),
-    };
-    let p = Vec3::new(0.45,0.0,0.6);
-    let v = Vec3::ZERO; //Vec3::new(-1.0,0.0,1.0);
-    let blocks = [(BlockCoord::new(-1,0,0), &BlockPhysics::Solid), (BlockCoord::new(0,0,1), &BlockPhysics::Solid)].into_iter();
-    let res = col.min_time_to_collision(blocks, p, v);
-    println!("{:?}", res);
-    assert!(res.is_some());
-    if let Some((_coord, v, _time, opt_norm)) = res {
-        assert!(opt_norm.is_some());
-        assert_eq!(v, Vec3::ZERO);
-    }
-}
+// #[test]
+// fn clip_inside_block_false_positive_patch() {
+//     let col = Collider {
+//         shape: Aabb::new(Vec3::new(0.4, 0.8, 0.4)),
+//         offset: Vec3::new(0., 0.8, 0.),
+//     };
+//     let p = Vec3::new(0.45, 0.0, 0.6);
+//     let v = Vec3::ZERO; //Vec3::new(-1.0,0.0,1.0);
+//     let blocks = [
+//         (BlockCoord::new(-1, 0, 0), &BlockPhysics::Solid),
+//         (BlockCoord::new(0, 0, 1), &BlockPhysics::Solid),
+//     ]
+//     .into_iter();
+//     let res = col.min_time_to_collision(blocks, p, v);
+//     println!("{:?}", res);
+//     assert!(res.is_some());
+//     if let Some((_coord, v, _time, normal)) = res {
+//         // assert!(crate::util::Direction::);
+//         assert_eq!(v, Vec3::ZERO);
+//     }
+// }

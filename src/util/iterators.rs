@@ -214,23 +214,29 @@ impl AxisIter<i32> for ChunkCoord {
     }
 }
 
-pub trait AxisMap<Elem> {
-    fn axis_map(self, f: impl FnMut(Elem) -> Elem) -> Self;
+pub trait AxisMap<Elem, ResultElem, Result=Self> {
+    fn axis_map(self, f: impl FnMut(Elem) -> ResultElem) -> Result;
 }
 
-impl AxisMap<f32> for Vec3 {
+impl AxisMap<f32, f32> for Vec3 {
     fn axis_map(self, mut f: impl FnMut(f32) -> f32) -> Self {
         Vec3::new((f)(self.x), (f)(self.y), (f)(self.z))
     }
 }
 
-impl AxisMap<i32> for BlockCoord {
+impl AxisMap<(f32, f32), f32, Vec3> for (Vec3, Vec3) {
+    fn axis_map(self, mut f: impl FnMut((f32, f32)) -> f32) -> Vec3 {
+        Vec3::new((f)((self.0.x, self.1.x)), (f)((self.0.y, self.1.y)), (f)((self.0.z, self.1.z)))
+    }
+}
+
+impl AxisMap<i32, i32> for BlockCoord {
     fn axis_map(self, mut f: impl FnMut(i32) -> i32) -> Self {
         BlockCoord::new((f)(self.x), (f)(self.y), (f)(self.z))
     }
 }
 
-impl AxisMap<i32> for ChunkCoord {
+impl AxisMap<i32, i32> for ChunkCoord {
     fn axis_map(self, mut f: impl FnMut(i32) -> i32) -> Self {
         ChunkCoord::new((f)(self.x), (f)(self.y), (f)(self.z))
     }

@@ -128,6 +128,16 @@ pub fn min_index(v: Vec3) -> usize {
     }
 }
 
+//0s all other axes
+pub fn pick_axis(v: Vec3, idx: usize) -> Vec3 {
+    match idx {
+        0 => Vec3::new(v.x,0.,0.),
+        1 => Vec3::new(0.,v.y,0.),
+        2 => Vec3::new(0.,0.,v.z),
+        _ => panic!("index out of bounds"),
+    }
+}
+
 //last method on https://mathworld.wolfram.com/SpherePointPicking.html (Muller 1959, Marsaglia 1972).
 pub fn sample_sphere_surface(rng: &mut impl Rng) -> Vec3 {
     Vec3::new(
