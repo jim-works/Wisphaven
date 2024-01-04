@@ -2,7 +2,7 @@ use bevy::{prelude::*, transform::TransformSystem};
 
 use crate::physics::TPS;
 
-use super::{collision::ProcessTerrainCollision, PhysicsSystemSet, TICK_SCALE};
+use super::{collision::ProcessTerrainCollision, PhysicsSystemSet};
 
 //local space, without local rotation
 #[derive(Component, Default, Deref, DerefMut, PartialEq, Clone, Copy, Debug)]
@@ -78,7 +78,7 @@ fn update_derivatives(
     gravity: Res<Gravity>,
 ) {
     for (mut v, mut a, opt_g) in query.iter_mut() {
-        v.0 += a.0 * TICK_SCALE as f32;
+        v.0 += a.0;
         //reset acceleration
         a.0 = opt_g.map(|g| g.0).unwrap_or(0.0) * gravity.0;
     }
@@ -92,7 +92,7 @@ fn translate_no_acceleration(
     >,
 ) {
     for (mut tf, v) in query.iter_mut() {
-        tf.translation += v.0 * TICK_SCALE as f32;
+        tf.translation += v.0;
     }
 }
 
@@ -101,7 +101,7 @@ fn translate_acceleration(
 ) {
     for (mut tf, v, a) in query.iter_mut() {
         //adding half acceleration for proper integration
-        tf.translation += v.0 * TICK_SCALE as f32 + 0.5 * a.0 * (TICK_SCALE * TICK_SCALE) as f32;
+        tf.translation += v.0 + 0.5 * a.0;
     }
 }
 

@@ -230,6 +230,12 @@ impl AxisMap<(f32, f32), f32, Vec3> for (Vec3, Vec3) {
     }
 }
 
+impl AxisMap<(f32, f32, f32), f32, Vec3> for (Vec3, Vec3, Vec3) {
+    fn axis_map(self, mut f: impl FnMut((f32, f32, f32)) -> f32) -> Vec3 {
+        Vec3::new((f)((self.0.x, self.1.x, self.2.x)), (f)((self.0.y, self.1.y, self.2.y)), (f)((self.0.z, self.1.z, self.2.z)))
+    }
+}
+
 impl AxisMap<i32, i32> for BlockCoord {
     fn axis_map(self, mut f: impl FnMut(i32) -> i32) -> Self {
         BlockCoord::new((f)(self.x), (f)(self.y), (f)(self.z))

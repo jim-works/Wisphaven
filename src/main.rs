@@ -69,7 +69,7 @@ fn main() {
             .set(ImagePlugin::default_nearest())
             .set(WindowPlugin {
                 primary_window: Some(Window {
-                    title: "Echoes of the Outsider".to_string(),
+                    title: "Wisphaven".to_string(),
                     ..default()
                 }),
                 ..default()

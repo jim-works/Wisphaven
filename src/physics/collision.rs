@@ -10,7 +10,7 @@ use crate::{
     world::{BlockCoord, BlockPhysics, Level},
 };
 
-use super::{movement::*, PhysicsSystemSet, TICK_SCALE};
+use super::{movement::*, PhysicsSystemSet};
 
 pub struct CollisionPlugin;
 
@@ -65,7 +65,7 @@ impl Collider {
 
     //returns the block coordinate we collided with, corrected velocity, time, normal if exists
     pub fn min_time_to_collision<'a>(
-        &self,
+        self,
         potential_overlap: impl Iterator<Item = (BlockCoord, &'a BlockPhysics)>,
         p: Vec3,
         v: Vec3,
@@ -92,6 +92,7 @@ impl Collider {
                 }
             }
         }
+        info!("min collision {:?}", min_collision);
         min_collision
     }
 
@@ -116,13 +117,13 @@ impl Collider {
         // }
     }
 
-    pub fn intersects_point(&self, delta: Vec3) -> bool {
+    pub fn intersects_point(self, delta: Vec3) -> bool {
         self.shape.intersects_point(delta - self.offset)
     }
 
     const FACE_SIZE_MULT: f32 = 31. / 32.; //shrinks each face on the box collider by this proportion to avoid conflicting collisions against walls
 
-    pub fn potential_overlapping_blocks_pos_y(&self, delta: Vec3) -> BlockVolume {
+    pub fn potential_overlapping_blocks_pos_y(self, delta: Vec3) -> BlockVolume {
         BlockVolume::from_aabb(
             Aabb::new(
                 Vec3::new(self.shape.extents.x, 0.0, self.shape.extents.z) * Self::FACE_SIZE_MULT,
@@ -131,7 +132,7 @@ impl Collider {
         )
     }
 
-    pub fn potential_overlapping_blocks_neg_y(&self, delta: Vec3) -> BlockVolume {
+    pub fn potential_overlapping_blocks_neg_y(self, delta: Vec3) -> BlockVolume {
         BlockVolume::from_aabb(
             Aabb {
                 extents: Vec3::new(self.shape.extents.x, 0.0, self.shape.extents.z)
@@ -141,7 +142,7 @@ impl Collider {
         )
     }
 
-    pub fn potential_overlapping_blocks_pos_x(&self, delta: Vec3) -> BlockVolume {
+    pub fn potential_overlapping_blocks_pos_x(self, delta: Vec3) -> BlockVolume {
         BlockVolume::from_aabb(
             Aabb::new(
                 Vec3::new(0.0, self.shape.extents.y, self.shape.extents.z) * Self::FACE_SIZE_MULT,
@@ -150,7 +151,7 @@ impl Collider {
         )
     }
 
-    pub fn potential_overlapping_blocks_neg_x(&self, delta: Vec3) -> BlockVolume {
+    pub fn potential_overlapping_blocks_neg_x(self, delta: Vec3) -> BlockVolume {
         BlockVolume::from_aabb(
             Aabb::new(
                 Vec3::new(0.0, self.shape.extents.y, self.shape.extents.z) * Self::FACE_SIZE_MULT,
@@ -159,7 +160,7 @@ impl Collider {
         )
     }
 
-    pub fn potential_overlapping_blocks_pos_z(&self, delta: Vec3) -> BlockVolume {
+    pub fn potential_overlapping_blocks_pos_z(self, delta: Vec3) -> BlockVolume {
         BlockVolume::from_aabb(
             Aabb::new(
                 Vec3::new(self.shape.extents.x, self.shape.extents.y, 0.0) * Self::FACE_SIZE_MULT,
@@ -168,7 +169,7 @@ impl Collider {
         )
     }
 
-    pub fn potential_overlapping_blocks_neg_z(&self, delta: Vec3) -> BlockVolume {
+    pub fn potential_overlapping_blocks_neg_z(self, delta: Vec3) -> BlockVolume {
         BlockVolume::from_aabb(
             Aabb::new(
                 Vec3::new(self.shape.extents.x, self.shape.extents.y, 0.0) * Self::FACE_SIZE_MULT,
@@ -196,9 +197,25 @@ impl Aabb {
         let other_min = other_center - other.extents;
         let other_max = other_center + other.extents;
 
-        (self_min.x <= other_max.x && self_max.x >= other_min.x)
-            && (self_min.y <= other_max.y && self_max.y >= other_min.y)
-            && (self_min.z <= other_max.z && self_max.z >= other_min.z)
+        (self_min.x < other_max.x && self_max.x > other_min.x)
+            && (self_min.y < other_max.y && self_max.y > other_min.y)
+            && (self_min.z < other_max.z && self_max.z > other_min.z)
+    }
+
+    //how much does self penetrate other?
+    //self.pos + other_center = other.pos
+    pub fn penetration_vector(self, delta: Vec3, other: Aabb) -> Vec3 {
+        (self.extents, delta, other.extents).axis_map(
+            |(self_extent, other_center, other_extent)| {
+                if other_center > 0. {
+                    //self_max - other-min
+                    self_extent - (other_center - other_extent)
+                } else {
+                    //self_min - other_max
+                    -self_extent - (other_center + other_extent)
+                }
+            },
+        )
     }
 
     pub fn intersects_point(self, other: Vec3) -> bool {
@@ -236,14 +253,17 @@ impl Aabb {
         v: Vec3,
     ) -> Option<(f32, Vec3, crate::util::Direction)> {
         if self.intersects(other_center, other) {
-            // println!("balls {:?}", other_center);
             //already intersecting, return shortest vector to correct intersection
             let correction_candidates = self.overlapping_displacement(other_center, other);
             let min_correction = crate::util::min_index(correction_candidates);
             let picked_correction = crate::util::pick_axis(correction_candidates, min_correction);
+            println!(
+                "balls {:?} ex {:?}, self ex {:?} correction {:?}",
+                other_center, other, self, picked_correction
+            );
             return Some((
                 0.0,
-                picked_correction,
+                -picked_correction,
                 if picked_correction[min_correction] <= 0. {
                     crate::util::Direction::from(min_correction).opposite()
                 } else {
@@ -269,7 +289,7 @@ impl Aabb {
         if v.x > 0.0 {
             entry_dist.x = other_min.x - self_max.x;
             exit_dist.x = other_max.x - self_min.x;
-        } else {
+        } else if v.x < 0.0 {
             entry_dist.x = other_max.x - self_min.x;
             exit_dist.x = other_min.x - self_max.x;
         }
@@ -277,7 +297,7 @@ impl Aabb {
         if v.y > 0.0 {
             entry_dist.y = other_min.y - self_max.y;
             exit_dist.y = other_max.y - self_min.y;
-        } else {
+        } else if v.y < 0.0 {
             entry_dist.y = other_max.y - self_min.y;
             exit_dist.y = other_min.y - self_max.y;
         }
@@ -285,7 +305,7 @@ impl Aabb {
         if v.z > 0.0 {
             entry_dist.z = other_min.z - self_max.z;
             exit_dist.z = other_max.z - self_min.z;
-        } else {
+        } else if v.z < 0.0 {
             entry_dist.z = other_max.z - self_min.z;
             exit_dist.z = other_min.z - self_max.z;
         }
@@ -385,7 +405,8 @@ fn move_and_slide(
     for (mut tf, mut v, a, mut directions, col) in objects.iter_mut() {
         // overlaps.clear();
         directions.0 = DirectionFlags::default();
-        let mut effective_velocity = TICK_SCALE as f32 * (v.0 + TICK_SCALE as f32 * 0.5 * a.0);
+        let mut effective_velocity = v.0;
+        v.0 += a.0;
         let mut time_remaining = 1.0;
 
         //collide on one axis at a time, repeat 3 times in case we are colliding on all 3 axes
@@ -478,33 +499,59 @@ fn move_and_slide(
             //         }
             //     }
             // }
-            if let Some((block_pos, corrected_v, time, normal)) =
-                col.min_time_to_collision(overlaps_iter.clone(), tf.translation, effective_velocity)
-            {
-                if *debug_state == DebugUIState::Shown {
-                    block_gizmos.hit_blocks.insert(block_pos);
-                    // info!("tf: {:?}, time_remainig: {:?}\n", tf.translation, time);
-                }
-                tf.translation += corrected_v;
-                time_remaining -= time;
 
-                //do velocity resolution and set collision direction flag
-                //direction flag is opposite direction because the direction is the normal of the collision, and directionflag is
-                //  the direction relative to the entity.
-                // info!("hit normal: {:?}", opt_normal);
-                directions.0.set(normal.opposite().into(), true);
-                //slide perpendicular to the collision normal
-                // let normal = dir.to_vec3();
-                // let speed = effective_velocity.dot(normal) * time_remaining;
-                // effective_velocity = project_onto_plane(effective_velocity, normal)*speed;
-                // v.0 = effective_velocity;
-                let idx = normal.to_idx() % 3;
-                effective_velocity = corrected_v*time_remaining;
-                v.0 = effective_velocity;
-            } else {
-                //no collision, so no need to do other iterations
-                tf.translation += effective_velocity;
-                break;
+            // if let Some((block_pos, corrected_v, time, normal)) =
+            //     col.min_time_to_collision(overlaps_iter.clone(), tf.translation, effective_velocity)
+            // {
+            //     if *debug_state == DebugUIState::Shown {
+            //         block_gizmos.hit_blocks.insert(block_pos);
+            //         info!(
+            //             "tf: {:?}, time_remainig: {:?}, v: {:?}, v_corrected: {:?}\n",
+            //             tf.translation, time, effective_velocity, corrected_v
+            //         );
+            //     }
+            //     tf.translation += corrected_v;
+            //     time_remaining -= time;
+
+            //     //do velocity resolution and set collision direction flag
+            //     //direction flag is opposite direction because the direction is the normal of the collision, and directionflag is
+            //     //  the direction relative to the entity.
+            //     // info!("hit normal: {:?}", opt_normal);
+            //     directions.0.set(normal.opposite().into(), true);
+            //     //slide perpendicular to the collision normal
+            //     // let normal = dir.to_vec3();
+            //     // let speed = effective_velocity.dot(normal) * time_remaining;
+            //     // effective_velocity = project_onto_plane(effective_velocity, normal)*speed;
+            //     // v.0 = effective_velocity;
+            //     effective_velocity = corrected_v;
+            //     v.0 = effective_velocity;
+            // } else {
+            //     //no collision, so no need to do other iterations
+            //     tf.translation += effective_velocity;
+            //     break;
+            // }
+
+            for (coord, block) in overlaps_iter.clone() {
+                if let Some(block_collider) = Collider::from_block(block) {
+                    let block_offset = coord.to_vec3() + block_collider.offset - tf.translation;
+                    if !col.shape.intersects(block_offset, block_collider.shape) {
+                        continue;
+                    }
+                    if *debug_state == DebugUIState::Shown {
+                        block_gizmos.hit_blocks.insert(coord);
+                    }
+                    let penetration = col.shape.penetration_vector(block_offset, block_collider.shape);
+                    let min_penetration_idx = crate::util::min_index(penetration);
+                    let correction = -crate::util::pick_axis(penetration, min_penetration_idx);
+                    //unsure if this if is necessary, can we just set the velocity in this axis to 0?
+                    if v.0[min_penetration_idx].signum() * correction[min_penetration_idx] < 0.0 {
+                        v.0[min_penetration_idx] = 0.0;
+                        effective_velocity[min_penetration_idx] = 0.0;
+                    }
+                    //move out of the block
+                    tf.translation += correction;
+                    directions.0.set(DirectionFlags::all(), true);
+                }
             }
         }
         tf.translation += effective_velocity;

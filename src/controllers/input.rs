@@ -1,7 +1,7 @@
-use bevy::{prelude::*, reflect::TypePath};
+use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
 
-#[derive(TypePath, Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug)]
+#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
 pub enum Action {
     MoveForward,
     MoveBack,
@@ -20,6 +20,7 @@ pub enum Action {
     ToggleGizmoOverlap,
     ToggleDebugUIDetail,
     ToggleFlight,
+    ToggleFullscreen,
 }
 
 pub fn get_input_map() -> InputMap<Action> {

@@ -20,7 +20,6 @@ pub const TERRAIN_GROUP: u32 = 1 << 1;
 pub const ACTOR_GROUP: u32 = 1 << 3;
 
 pub const TPS: f64 = 64.0;
-pub const TICK_SCALE: f64 = 64.0/TPS;
 
 //run in fixed update
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
