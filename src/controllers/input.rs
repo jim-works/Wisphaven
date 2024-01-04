@@ -46,6 +46,7 @@ pub fn get_input_map() -> InputMap<Action> {
     map.insert(KeyCode::F3, Action::ToggleDebugUIHidden);
     map.insert(KeyCode::F4, Action::ToggleGizmoOverlap);
     map.insert(KeyCode::F5, Action::ToggleDebugUIDetail);
+    map.insert(KeyCode::F11, Action::ToggleFullscreen);
 
     map
 }
