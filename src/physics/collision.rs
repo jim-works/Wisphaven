@@ -63,6 +63,56 @@ impl Collider {
         }
     }
 
+    pub fn resolve_terrain_collision<'a>(
+        self,
+        overlaps_iter: impl Iterator<Item = (BlockCoord, &'a BlockPhysics)>,
+        p: Vec3,
+        v: Vec3,
+    ) -> Option<(Vec3, Vec3, crate::util::Direction, BlockCoord)> {
+        let mut min_penetration = f32::INFINITY;
+        let mut min_correction = None;
+        for (coord, block) in overlaps_iter {
+            if let Some(block_collider) = Collider::from_block(block) {
+                let block_offset = coord.to_vec3() + block_collider.offset - p;
+                if !self.shape.intersects(block_offset, block_collider.shape) {
+                    continue;
+                }
+                let penetration = self
+                    .shape
+                    .penetration_vector(block_offset, block_collider.shape);
+                // let filtered_penetration = (penetration, v).axis_map(|(p, v)| {
+                //     //make sure each axis is collidable
+                //     if v.signum() * -p >= 0.0 {
+                //         f32::INFINITY
+                //     } else {
+                //         p
+                //     }
+                // });
+                let min_penetration_idx = crate::util::min_index(penetration.abs());
+                let correction = -crate::util::pick_axis(penetration, min_penetration_idx);
+                //if we are not moving toward the block, ignore the collision
+                //q: should we do this to all axes before picking the min? and set it to f32::inifinty if not in the right direction
+                if v[min_penetration_idx].signum() * correction[min_penetration_idx] >= 0.0 {
+                    continue;
+                }
+                //move out of the block
+                if correction.length_squared() < min_penetration {
+                    min_penetration = correction.length_squared();
+                    let mut updated_v = v;
+                    updated_v[min_penetration_idx] = 0.0;
+                    //the relative direction of the block we collided with
+                    let collision_direction = if correction[min_penetration_idx] <= 0. {
+                        crate::util::Direction::from(min_penetration_idx)
+                    } else {
+                        crate::util::Direction::from(min_penetration_idx).opposite()
+                    };
+                    min_correction = Some((updated_v, correction, collision_direction, coord));
+                }
+            }
+        }
+        min_correction
+    }
+
     //returns the block coordinate we collided with, corrected velocity, time, normal if exists
     pub fn min_time_to_collision<'a>(
         self,
@@ -405,9 +455,9 @@ fn move_and_slide(
     for (mut tf, mut v, a, mut directions, col) in objects.iter_mut() {
         // overlaps.clear();
         directions.0 = DirectionFlags::default();
-        let mut effective_velocity = v.0;
+        //integrate
         v.0 += a.0;
-        let mut time_remaining = 1.0;
+        tf.translation += v.0 + 0.5 * a.0;
 
         //collide on one axis at a time, repeat 3 times in case we are colliding on all 3 axes
         for _ in 0..3 {
@@ -472,89 +522,16 @@ fn move_and_slide(
                 });
                 block_gizmos.blocks.extend(gizmos_iter);
             }
-            // info!("\neffective_velocity: {:?}", effective_velocity);
-            // info!("tf: {:?}, v_remaining: {:?}\n", tf.translation, v_remaining);
-            // for (coord, block) in overlaps_iter {
-            //     if let Some(block_collider) = Collider::from_block(block) {
-            //         let block_offset = coord.to_vec3() + block_collider.offset - tf.translation;
-            //         if col.shape.intersects(block_offset, block_collider.shape) {
-            //             block_gizmos.hit_blocks.insert(coord);
-            //             let correction_candidates = col
-            //                 .shape
-            //                 .overlapping_displacement(block_offset, block_collider.shape);
-            //             let min_correction = crate::util::min_index(correction_candidates);
-            //             let picked_correction =
-            //                 crate::util::pick_axis(correction_candidates, min_correction);
-            //             effective_velocity[min_correction] = 0.0;
-            //             tf.translation += picked_correction;
-            //             directions.0.set(
-            //                 if picked_correction[min_correction] <= 0. {
-            //                     crate::util::Direction::from(min_correction)
-            //                 } else {
-            //                     crate::util::Direction::from(min_correction).opposite()
-            //                 }
-            //                 .into(),
-            //                 true,
-            //             );
-            //         }
-            //     }
-            // }
-
-            // if let Some((block_pos, corrected_v, time, normal)) =
-            //     col.min_time_to_collision(overlaps_iter.clone(), tf.translation, effective_velocity)
-            // {
-            //     if *debug_state == DebugUIState::Shown {
-            //         block_gizmos.hit_blocks.insert(block_pos);
-            //         info!(
-            //             "tf: {:?}, time_remainig: {:?}, v: {:?}, v_corrected: {:?}\n",
-            //             tf.translation, time, effective_velocity, corrected_v
-            //         );
-            //     }
-            //     tf.translation += corrected_v;
-            //     time_remaining -= time;
-
-            //     //do velocity resolution and set collision direction flag
-            //     //direction flag is opposite direction because the direction is the normal of the collision, and directionflag is
-            //     //  the direction relative to the entity.
-            //     // info!("hit normal: {:?}", opt_normal);
-            //     directions.0.set(normal.opposite().into(), true);
-            //     //slide perpendicular to the collision normal
-            //     // let normal = dir.to_vec3();
-            //     // let speed = effective_velocity.dot(normal) * time_remaining;
-            //     // effective_velocity = project_onto_plane(effective_velocity, normal)*speed;
-            //     // v.0 = effective_velocity;
-            //     effective_velocity = corrected_v;
-            //     v.0 = effective_velocity;
-            // } else {
-            //     //no collision, so no need to do other iterations
-            //     tf.translation += effective_velocity;
-            //     break;
-            // }
-
-            for (coord, block) in overlaps_iter.clone() {
-                if let Some(block_collider) = Collider::from_block(block) {
-                    let block_offset = coord.to_vec3() + block_collider.offset - tf.translation;
-                    if !col.shape.intersects(block_offset, block_collider.shape) {
-                        continue;
-                    }
-                    if *debug_state == DebugUIState::Shown {
-                        block_gizmos.hit_blocks.insert(coord);
-                    }
-                    let penetration = col.shape.penetration_vector(block_offset, block_collider.shape);
-                    let min_penetration_idx = crate::util::min_index(penetration);
-                    let correction = -crate::util::pick_axis(penetration, min_penetration_idx);
-                    //unsure if this if is necessary, can we just set the velocity in this axis to 0?
-                    if v.0[min_penetration_idx].signum() * correction[min_penetration_idx] < 0.0 {
-                        v.0[min_penetration_idx] = 0.0;
-                        effective_velocity[min_penetration_idx] = 0.0;
-                    }
-                    //move out of the block
-                    tf.translation += correction;
-                    directions.0.set(DirectionFlags::all(), true);
+            if let Some((updated_v, correction, collision_direction, block_coord)) = col.resolve_terrain_collision(overlaps_iter, tf.translation, v.0) {
+                v.0 = updated_v;
+                tf.translation += correction;
+                directions.0.set(collision_direction.into(), true);
+                if *debug_state == DebugUIState::Shown {
+                    block_gizmos.hit_blocks.insert(block_coord);
+                    info!("{:?}", block_coord);
                 }
             }
         }
-        tf.translation += effective_velocity;
         info!("directions: {:?}", directions.0);
     }
 }

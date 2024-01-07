@@ -236,27 +236,22 @@ fn update_gizmos(
         gizmo.cuboid(cuboid_tf, Color::BLUE)
     }
     for (coord, physics) in blocks.blocks.iter() {
-        let collider_opt = physics
-            .clone()
-            .and_then(|p| Collider::from_block(&p))
-            .or_else(|| {
-                if *detail.get() == DebugUIDetailState::Most {
-                    Collider::from_block(&BlockPhysics::Solid)
-                } else {
-                    None
-                }
-            });
+        let collider_opt = physics.clone().and_then(|p| Collider::from_block(&p));
         if let Some(collider) = collider_opt {
             let cuboid_tf = Transform::from_translation(coord.to_vec3() + collider.offset)
                 .with_scale(collider.shape.extents * 2.0);
-            gizmo.cuboid(
-                cuboid_tf,
-                if blocks.hit_blocks.contains(coord) {
-                    Color::ORANGE_RED
-                } else {
-                    Color::GREEN
-                },
-            )
+            if *detail.get() == DebugUIDetailState::Most {
+                gizmo.cuboid(
+                    cuboid_tf,
+                    if blocks.hit_blocks.contains(coord) {
+                        Color::ORANGE_RED
+                    } else {
+                        Color::GREEN
+                    },
+                )
+            } else if blocks.hit_blocks.contains(coord) {
+                gizmo.cuboid(cuboid_tf, Color::ORANGE_RED);
+            }
         }
     }
 }

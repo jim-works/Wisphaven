@@ -273,6 +273,22 @@ fn resolve_collision_inside_block() {
     let corrected_sweep = aabb.sweep(corrected_offset, block_aabb, Vec3::ZERO);
     assert!(corrected_sweep.is_none());
 }
+
+#[test]
+fn resolve_collision_inside_block_penetration() {
+    let aabb = Aabb::new(Vec3::new(0.4, 0.8, 0.4));
+    let block_aabb = Aabb::new(Vec3::splat(0.5));
+    let offset = Vec3::new(-0.5, -0.5, -0.8999996);
+    let correction_opt = aabb.sweep(offset, block_aabb, Vec3::ZERO);
+    assert!(correction_opt.is_some());
+    let (_time, correction, dir) = correction_opt.unwrap();
+    //test collision normal
+    assert_eq!(dir, crate::util::Direction::PosZ);
+    let corrected_offset = offset + correction;
+    println!("d: {:?}", corrected_offset.z+aabb.extents.z+block_aabb.extents.z);
+    let corrected_sweep = aabb.sweep(corrected_offset, block_aabb, Vec3::ZERO);
+    assert!(corrected_sweep.is_none());
+}
 /*
 2023-12-19T00:10:11.858386Z  INFO wisphaven::physics::collision: tf: Vec3(-11.594771, 13.0, 5.1022277), time_remainig: 0.13549556
 
