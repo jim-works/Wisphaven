@@ -1,8 +1,11 @@
 use bevy::{prelude::*, transform::TransformSystem};
 
-use crate::physics::TPS;
+use crate::{physics::TPS, util::project_onto_plane};
 
-use super::{collision::IgnoreTerrainCollision, PhysicsSystemSet};
+use super::{
+    collision::{CollidingBlocks, Friction, IgnoreTerrainCollision},
+    PhysicsSystemSet,
+};
 
 //local space, without local rotation
 #[derive(Component, Default, Deref, DerefMut, PartialEq, Clone, Copy, Debug)]
@@ -48,28 +51,28 @@ pub struct MovementPlugin;
 impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Gravity(Vec3::new(0.0, -0.005, 0.0)))
-            // .add_systems(
-            //     FixedUpdate,
-            //     snap_tf_interpolation.in_set(PhysicsSystemSet::ResetInterpolation),
-            // )
-            // .add_systems(
-            //     FixedUpdate,
-            //     (translate_no_acceleration, translate_acceleration)
-            //         .in_set(PhysicsSystemSet::UpdatePosition),
-            // )
             .add_systems(
                 FixedUpdate,
-                update_derivatives.in_set(PhysicsSystemSet::UpdateDerivatives),
+                snap_tf_interpolation.in_set(PhysicsSystemSet::ResetInterpolation),
             )
-            // .add_systems(
-            //     FixedUpdate,
-            //     set_tf_interpolation_target.after(PhysicsSystemSet::UpdateDerivatives),
-            // )
-            // .add_systems(
-            //     PostUpdate,
-            //     interpolate_tf_translation.before(TransformSystem::TransformPropagate),
-            // );
-            ;
+            .add_systems(
+                FixedUpdate,
+                translate.in_set(PhysicsSystemSet::UpdatePosition),
+            )
+            .add_systems(
+                FixedUpdate,
+                (update_friction, update_derivatives)
+                    .chain()
+                    .in_set(PhysicsSystemSet::UpdateDerivatives),
+            )
+            .add_systems(
+                FixedUpdate,
+                set_tf_interpolation_target.after(PhysicsSystemSet::UpdateDerivatives),
+            )
+            .add_systems(
+                PostUpdate,
+                interpolate_tf_translation.before(TransformSystem::TransformPropagate),
+            );
     }
 }
 
@@ -84,24 +87,41 @@ fn update_derivatives(
     }
 }
 
-//simpler (and faster) to extract this out
-fn translate_no_acceleration(
-    mut query: Query<
-        (&mut Transform, &Velocity),
-        (Without<Acceleration>, With<IgnoreTerrainCollision>),
-    >,
-) {
-    for (mut tf, v) in query.iter_mut() {
-        tf.translation += v.0;
+fn update_friction(mut query: Query<(&mut Velocity, &Acceleration, &CollidingBlocks, &Friction)>, block_query: Query<&Friction>) {
+    const EPSILON: f32 = 0.0001;
+    for (mut v, a, blocks, f) in query.iter_mut() {
+        blocks.for_each_dir(|dir, blocks| {
+            if blocks.is_empty() {
+                return; //nothing to friction with
+            }
+            //get avg friction of all collided blocks
+            let mut sum_fric_coeff = 0.0;
+            for (_, e, _) in blocks.iter() {
+                sum_fric_coeff += block_query.get(*e).ok().and_then(|f| Some(f.0)).unwrap_or_default();
+            }
+            //total friction is block avg friction combined with entity's friction
+            let f = ((sum_fric_coeff / blocks.len() as f32) + f.0) / 2.0;
+            //calculate friction vector in the plane of the block
+            let normal = dir.opposite().to_vec3();
+            let planar_v = project_onto_plane(v.0, normal).normalize_or_zero();
+            let fric_mag = -a.0.dot(normal)*f;
+            if fric_mag <= 0.0 {
+                //make sure friction slows us down
+                if v.0.length_squared() < EPSILON {
+                    //prevent sliding forever super slow due to imprecision
+                    v.0 = Vec3::ZERO;
+                } else {
+                    v.0 += planar_v*fric_mag;
+                }
+            }
+        })
     }
 }
 
-fn translate_acceleration(
-    mut query: Query<(&mut Transform, &Velocity, &Acceleration), With<IgnoreTerrainCollision>>,
-) {
-    for (mut tf, v, a) in query.iter_mut() {
-        //adding half acceleration for proper integration
-        tf.translation += v.0 + 0.5 * a.0;
+//simpler (and faster) to extract this out
+fn translate(mut query: Query<(&mut Transform, &Velocity), With<IgnoreTerrainCollision>>) {
+    for (mut tf, v) in query.iter_mut() {
+        tf.translation += v.0;
     }
 }
 
@@ -111,13 +131,13 @@ fn set_tf_interpolation_target(
     for (mut tf, mut interpolator) in query.iter_mut() {
         interpolator.old = interpolator.target;
         interpolator.target = *tf;
-        *tf = interpolator.old;
+        tf.translation = interpolator.old.translation;
     }
 }
 
 fn snap_tf_interpolation(mut query: Query<(&mut Transform, &InterpolatedAttribute<Transform>)>) {
     for (mut tf, interpolator) in query.iter_mut() {
-        *tf = interpolator.target;
+        tf.translation = interpolator.target.translation;
     }
 }
 
@@ -126,7 +146,8 @@ fn interpolate_tf_translation(
     time: Res<Time>,
 ) {
     //lerp speed needs to be slower if tick rate is slower
-    //passes eye test, which is all we care about fr fr
+    //passes eye test if TPS > 20 ish, which is all we care about fr fr
+    //probably should improve for lower TPS
     let lerp_time = (time.delta_seconds() * TPS as f32).min(1.0);
     for (mut tf, interpolator) in query.iter_mut() {
         tf.translation = tf

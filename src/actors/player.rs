@@ -21,7 +21,7 @@ use crate::{
         server::{SyncPosition, SyncVelocity},
         ClientMessage, NetworkType, PlayerList, RemoteClient,
     },
-    physics::{collision::Aabb, movement::*, *},
+    physics::{movement::*, *},
     world::{settings::Settings, *},
 };
 
@@ -299,9 +299,9 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
         InterpolatedAttribute::from(Transform::from_translation(spawn_point)),
         PhysicsBundle {
             collider: collision::Aabb::new(Vec3::new(0.8, 1.6, 0.8), Vec3::new(-0.4,0.0,-0.4)),
-            gravity: GravityMult(0.0),
             ..default()
         },
+        FrictionBundle::default(),
         ItemUseSpeed {
             windup: Duration::ZERO,
             backswing: Duration::from_millis(100),

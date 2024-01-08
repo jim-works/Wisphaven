@@ -51,7 +51,7 @@ struct DebugCoordinates;
 #[derive(Component)]
 struct DebugTerrainNoises;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct DebugDrawTransform;
 
 #[derive(Resource, Default)]

@@ -3,10 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ui::{debug::DebugBlockHitboxes, state::DebugUIState},
-    util::{
-        iterators::{AxisIter, AxisMap, BlockVolume},
-        project_onto_plane, DirectionFlags,
-    },
+    util::{iterators::BlockVolume, DirectionFlags},
     world::{BlockCoord, BlockPhysics, Level},
 };
 
@@ -26,11 +23,63 @@ impl Plugin for CollisionPlugin {
 }
 
 #[derive(Component)]
-pub struct Friction(f32);
+pub struct Friction(pub f32);
 
 impl Default for Friction {
     fn default() -> Self {
-        Self(0.005)
+        Self(0.825)
+    }
+}
+
+#[derive(Component, Default)]
+pub struct CollidingBlocks {
+    pub pos_x: Vec<(BlockCoord, Entity, BlockPhysics)>,
+    pub pos_y: Vec<(BlockCoord, Entity, BlockPhysics)>,
+    pub pos_z: Vec<(BlockCoord, Entity, BlockPhysics)>,
+    pub neg_x: Vec<(BlockCoord, Entity, BlockPhysics)>,
+    pub neg_y: Vec<(BlockCoord, Entity, BlockPhysics)>,
+    pub neg_z: Vec<(BlockCoord, Entity, BlockPhysics)>,
+}
+
+impl CollidingBlocks {
+    pub fn get(&self, direction: crate::util::Direction) -> &Vec<(BlockCoord, Entity, BlockPhysics)> {
+        match direction {
+            crate::util::Direction::PosX => &self.pos_x,
+            crate::util::Direction::PosY => &self.pos_y,
+            crate::util::Direction::PosZ => &self.pos_z,
+            crate::util::Direction::NegX => &self.neg_x,
+            crate::util::Direction::NegY => &self.neg_y,
+            crate::util::Direction::NegZ => &self.neg_z,
+        }
+    }
+    pub fn get_mut(&mut self, direction: crate::util::Direction) -> &mut Vec<(BlockCoord, Entity, BlockPhysics)> {
+        match direction {
+            crate::util::Direction::PosX => &mut self.pos_x,
+            crate::util::Direction::PosY => &mut self.pos_y,
+            crate::util::Direction::PosZ => &mut self.pos_z,
+            crate::util::Direction::NegX => &mut self.neg_x,
+            crate::util::Direction::NegY => &mut self.neg_y,
+            crate::util::Direction::NegZ => &mut self.neg_z,
+        }
+    }
+    pub fn clear(&mut self) {
+        self.pos_x.clear();
+        self.pos_y.clear();
+        self.pos_z.clear();
+        self.neg_x.clear();
+        self.neg_y.clear();
+        self.neg_z.clear();
+    }
+    pub fn for_each_dir(&self, mut f: impl FnMut(crate::util::Direction, &Vec<(BlockCoord, Entity, BlockPhysics)>)) {
+        f(crate::util::Direction::PosX, &self.pos_x);
+        f(crate::util::Direction::PosY, &self.pos_y);
+        f(crate::util::Direction::PosZ, &self.pos_z);
+        f(crate::util::Direction::NegX, &self.neg_x);
+        f(crate::util::Direction::NegY, &self.neg_y);
+        f(crate::util::Direction::NegZ, &self.neg_z);
+    }
+    pub fn push(&mut self, direction: crate::util::Direction, elem: (BlockCoord, Entity, BlockPhysics)) {
+        self.get_mut(direction).push(elem);
     }
 }
 
@@ -221,9 +270,9 @@ fn move_and_slide(
         (
             &mut Transform,
             &mut Velocity,
-            &Acceleration,
             &mut CollidingDirections,
             &Aabb,
+            Option<&mut CollidingBlocks>,
         ),
         Without<IgnoreTerrainCollision>,
     >,
@@ -235,23 +284,25 @@ fn move_and_slide(
     block_gizmos.blocks.clear();
     block_gizmos.hit_blocks.clear();
     let mut resolution_buffer: Vec<(f32, BlockCoord, Aabb)> = Vec::with_capacity(32);
-    for (mut tf, mut v, a, mut directions, col) in objects.iter_mut() {
+    for (mut tf, mut v, mut directions, col, mut opt_col_blocks) in objects.iter_mut() {
+        if let Some(ref mut col_blocks) = opt_col_blocks {
+            col_blocks.clear();
+        }
         resolution_buffer.clear();
         directions.0 = DirectionFlags::default();
-        let target_pos = tf.translation+v.0;
+        let target_pos = tf.translation + v.0;
         let bounding_min = tf.translation.min(target_pos);
         let bounding_max = tf.translation.max(target_pos);
         //all the blocks we can overlap with are in the bounding rectangle of current position and target position
         //add 1 in each direction to avoid issues with "precision"
         let overlaps = level.get_blocks_in_volume(BlockVolume::new_inclusive(
-            BlockCoord::from(col.world_min(bounding_min))-BlockCoord::new(1,1,1),
-            BlockCoord::from(col.world_max(bounding_max))+BlockCoord::new(1,1,1),
+            BlockCoord::from(col.world_min(bounding_min)) - BlockCoord::new(1, 1, 1),
+            BlockCoord::from(col.world_max(bounding_max)) + BlockCoord::new(1, 1, 1),
         ));
         let overlaps_iter = overlaps.iter().filter_map(|(coord, block)| {
             block
                 .and_then(|b| b.entity())
-                .and_then(|e| block_physics.get(e).ok())
-                .and_then(|p| Some((coord, p)))
+                .and_then(|e| block_physics.get(e).ok().and_then(|p| Some((coord, p, e))))
         });
         if *debug_state == DebugUIState::Shown {
             let gizmos_iter = overlaps.iter().map(|(coord, block)| {
@@ -267,33 +318,36 @@ fn move_and_slide(
         }
 
         //get all collision we need to resolve, sort in order of time, resolve all
-        for (c, p) in overlaps_iter {
+        for (c, p, e) in overlaps_iter {
             if let Some(block_aabb) = Aabb::from_block(p) {
-                if let Some((t, _, _)) =
+                if let Some((t, _, normal)) =
                     col.sweep_rect(tf.translation, v.0, block_aabb, c.to_vec3())
                 {
+                    //do on collision events here, we won't actually resolve all these collisions
+                    //  (resolving some will make the object not collide with others)
+                    if *debug_state == DebugUIState::Shown {
+                        block_gizmos.hit_blocks.insert(c);
+                    }
+                    if let Some(ref mut col_blocks) = opt_col_blocks {
+                        col_blocks.push(normal, (c, e, p.clone()));
+                    }
                     resolution_buffer.push((t, c, block_aabb));
+                    directions.0.set(normal.opposite().into(), true);
                 }
             }
         }
 
         //we count NaN time as no collision, so this is ok (all other floats are comparable)
         resolution_buffer.sort_unstable_by(|(t1, _, _), (t2, _, _)| {
+            debug_assert!(!t1.is_nan() && !t2.is_nan());
             t1.partial_cmp(t2).unwrap_or(std::cmp::Ordering::Equal)
         });
 
         //resolve collisions
         for (_, block_pos, block_aabb) in resolution_buffer.drain(..) {
-            if let Some((t, contact_point, contact_normal)) =
+            if let Some((t, _, contact_normal)) =
                 col.sweep_rect(tf.translation, v.0, block_aabb, block_pos.to_vec3())
             {
-                if *debug_state == DebugUIState::Shown {
-                    block_gizmos.hit_blocks.insert(block_pos);
-                    info!(
-                        "block collision: ({:?},{:?},{:?})",
-                        t, contact_point, contact_normal
-                    );
-                }
                 //prevent clipping into blocks due to floating point imprecision
                 let t_adj = if t < 0.0001 { 0.0 } else { t };
                 let normal = contact_normal.to_vec3();
@@ -302,7 +356,7 @@ fn move_and_slide(
                 v.0 += normal * v_abs * (1.0 - t_adj);
             }
         }
-
+        info!("{:?}", directions.0);
         tf.translation += v.0;
     }
 }
