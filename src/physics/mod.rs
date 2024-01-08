@@ -3,7 +3,7 @@ use bevy::{prelude::*, transform::TransformSystem};
 use crate::{ui::debug::DebugDrawTransform, world::LevelLoadState};
 use bevy_rapier3d::prelude::*;
 
-use self::collision::ProcessTerrainCollision;
+use self::collision::IgnoreTerrainCollision;
 
 #[cfg(test)]
 mod tests;
@@ -78,10 +78,9 @@ pub struct PhysicsBundle {
     pub velocity: movement::Velocity,
     pub acceleration: movement::Acceleration,
     pub gravity: movement::GravityMult,
-    pub collider: collision::Collider,
+    pub collider: collision::Aabb,
     pub colliding_directions: collision::CollidingDirections,
     pub friction: collision::Friction,
-    pub terrain_collision: ProcessTerrainCollision
 }
 
 impl Default for PhysicsObjectBundle {

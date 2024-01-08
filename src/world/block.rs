@@ -8,7 +8,7 @@ use crate::{
         CreatorItem, ItemBundle, ItemName, MaxStackSize,
     },
     serialization::BlockTextureMap,
-    util::Direction, physics::collision::Collider,
+    util::Direction, physics::collision::Aabb,
 };
 use bevy::{prelude::*, utils::HashMap};
 use serde::{Deserialize, Serialize};
@@ -208,7 +208,7 @@ pub enum BlockPhysics {
     Empty,
     //standard block shape, solid block
     Solid,
-    Aabb(Collider),
+    Aabb(Aabb),
 }
 
 //0 = healthy, 1 = broken

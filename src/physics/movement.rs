@@ -2,7 +2,7 @@ use bevy::{prelude::*, transform::TransformSystem};
 
 use crate::physics::TPS;
 
-use super::{collision::ProcessTerrainCollision, PhysicsSystemSet};
+use super::{collision::IgnoreTerrainCollision, PhysicsSystemSet};
 
 //local space, without local rotation
 #[derive(Component, Default, Deref, DerefMut, PartialEq, Clone, Copy, Debug)]
@@ -88,7 +88,7 @@ fn update_derivatives(
 fn translate_no_acceleration(
     mut query: Query<
         (&mut Transform, &Velocity),
-        (Without<Acceleration>, Without<ProcessTerrainCollision>),
+        (Without<Acceleration>, With<IgnoreTerrainCollision>),
     >,
 ) {
     for (mut tf, v) in query.iter_mut() {
@@ -97,7 +97,7 @@ fn translate_no_acceleration(
 }
 
 fn translate_acceleration(
-    mut query: Query<(&mut Transform, &Velocity, &Acceleration), Without<ProcessTerrainCollision>>,
+    mut query: Query<(&mut Transform, &Velocity, &Acceleration), With<IgnoreTerrainCollision>>,
 ) {
     for (mut tf, v, a) in query.iter_mut() {
         //adding half acceleration for proper integration

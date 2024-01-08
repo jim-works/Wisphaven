@@ -75,7 +75,7 @@ impl Default for ControllableBundle {
             move_speed: MoveSpeed::default(),
             jump: Jump::default(),
             frame_jump: FrameJump(false),
-            mode: MovementMode::default(),
+            mode: MovementMode::Flying,
         }
     }
 }

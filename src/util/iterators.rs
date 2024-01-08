@@ -120,9 +120,9 @@ impl BlockVolume {
     }
 
     pub fn from_aabb(value: Aabb, offset: Vec3) -> Self {
-        let max_corner = value.extents+offset;
+        let max_corner = value.world_max(offset);
         Self::new_inclusive(
-            BlockCoord::from(-value.extents+offset),
+            BlockCoord::from(value.world_min(offset)),
             BlockCoord::new(
                 max_corner.x.floor() as i32,
                 max_corner.y.floor() as i32,

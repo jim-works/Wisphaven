@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    physics::collision::Collider,
+    physics::collision::Aabb,
     world::{BlockCoord, BlockPhysics, Level},
 };
 
@@ -38,10 +38,12 @@ pub fn raycast(
         let test_point = ray.origin + ray.direction * dist;
         let test_block_coord = BlockCoord::from(test_point);
         if let Some(block_entity) = level.get_block_entity(test_block_coord) {
-            if let Some(collider) = physics_query.get(block_entity).ok()
-                .and_then(|physics| Collider::from_block(physics))
+            if let Some(collider) = physics_query
+                .get(block_entity)
+                .ok()
+                .and_then(|physics| Aabb::from_block(physics))
             {
-                if collider.intersects_point(test_point.fract()) {
+                if collider.intersects_point(test_block_coord.to_vec3(), test_point) {
                     //our point intersects the block
                     return Some(RaycastHit::Block(
                         test_block_coord,

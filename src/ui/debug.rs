@@ -5,7 +5,7 @@ use leafwing_input_manager::action_state::ActionState;
 use crate::{
     actors::LocalPlayer,
     controllers::Action,
-    physics::collision::Collider,
+    physics::collision::Aabb,
     world::{chunk::ChunkCoord, BlockCoord, BlockPhysics},
     worldgen::UsedShaperResources,
 };
@@ -213,7 +213,7 @@ fn update_gizmos(
     mut gizmo_config: ResMut<GizmoConfig>,
     input_query: Query<&ActionState<Action>, With<LocalPlayer>>,
     tf_query: Query<&GlobalTransform, With<DebugDrawTransform>>,
-    collider_query: Query<(&Transform, &Collider)>,
+    collider_query: Query<(&Transform, &Aabb)>,
     blocks: Res<DebugBlockHitboxes>,
     detail: Res<State<DebugUIDetailState>>,
 ) {
@@ -231,15 +231,15 @@ fn update_gizmos(
         gizmo.ray(tf.translation(), tf.forward(), Color::RED);
     }
     for (tf, collider) in collider_query.iter() {
-        let cuboid_tf = Transform::from_translation(tf.translation + collider.offset)
-            .with_scale(collider.shape.extents * 2.0);
+        let cuboid_tf = Transform::from_translation(collider.world_center(tf.translation))
+            .with_scale(collider.size);
         gizmo.cuboid(cuboid_tf, Color::BLUE)
     }
     for (coord, physics) in blocks.blocks.iter() {
-        let collider_opt = physics.clone().and_then(|p| Collider::from_block(&p));
+        let collider_opt = physics.clone().and_then(|p| Aabb::from_block(&p));
         if let Some(collider) = collider_opt {
-            let cuboid_tf = Transform::from_translation(coord.to_vec3() + collider.offset)
-                .with_scale(collider.shape.extents * 2.0);
+            let cuboid_tf = Transform::from_translation(collider.world_center(coord.to_vec3()))
+                .with_scale(collider.size);
             if *detail.get() == DebugUIDetailState::Most {
                 gizmo.cuboid(
                     cuboid_tf,

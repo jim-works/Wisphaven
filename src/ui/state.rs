@@ -56,10 +56,12 @@ pub fn toggle_debug (
             }
         }
         if action.just_pressed(Action::ToggleDebugUIDetail) {
-            match detail_curr_state.get() {
-                DebugUIDetailState::Minimal => detail_next_state.set(DebugUIDetailState::Most),
-                _ => detail_next_state.set(DebugUIDetailState::Minimal)
-            }
+            let next = match detail_curr_state.get() {
+                DebugUIDetailState::Minimal => DebugUIDetailState::Most,
+                _ => DebugUIDetailState::Minimal
+            };
+            info!("Debug detail set to {:?}", next);
+            detail_next_state.set(next);
         }
     }
 }

@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     mesher::{ArrayTextureMaterial, ChunkMaterial},
     physics::{
-        collision::{Collider, CollidingDirections},
+        collision::{Aabb, CollidingDirections},
         movement::Velocity,
         PhysicsBundle,
     },
@@ -62,14 +62,14 @@ fn falling_block_spawner(
     for event in reader.read() {
         if let Ok((block_mesh, opt_physics)) = mesh_query.get(event.falling_block.block) {
             if let Some(collider) =
-                Collider::from_block(opt_physics.unwrap_or(&BlockPhysics::Solid))
+                Aabb::from_block(opt_physics.unwrap_or(&BlockPhysics::Solid))
             {
                 if let Some(mesh) = block_mesh.single_mesh.clone() {
                     commands.spawn((
                         PhysicsBundle {
                             velocity: Velocity(event.initial_velocity),
                             collider: collider
-                                .with_extents(collider.shape.extents * COLLIDER_SQUISH_FACTOR),
+                                .scale(Vec3::ONE*COLLIDER_SQUISH_FACTOR),
                             ..default()
                         },
                         MaterialMeshBundle::<ArrayTextureMaterial> {

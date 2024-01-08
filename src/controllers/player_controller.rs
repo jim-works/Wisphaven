@@ -43,10 +43,12 @@ pub fn toggle_player_flight(
                 MovementMode::Flying => {
                     *mode = MovementMode::Normal;
                     gravity.0 = 1.0;
+                    info!("Not Flying");
                 },
                 _ => {
                     *mode = MovementMode::Flying;
                     gravity.0 = 0.0;
+                    info!("Flying");
                 }
             };
         }

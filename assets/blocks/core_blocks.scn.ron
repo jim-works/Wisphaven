@@ -71,18 +71,16 @@
           namespace: "core",
           name: "log_slab",
         ),
-        "wisphaven::world::block::BlockPhysics": Aabb(Collider (
-          shape: (
-            extents: (
-              x: 0.5,
-              y: 0.25,
-              z: 0.5,
-            ),
+        "wisphaven::world::block::BlockPhysics": Aabb(Aabb (
+          size: (
+            x: 1.0,
+            y: 0.5,
+            z: 1.0,
           ),
           offset: (
-            x: 0.5,
-            y: 0.25,
-            z: 0.5,
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
           ),
         )),
         "wisphaven::world::block::NamedBlockMesh": (
@@ -128,18 +126,16 @@
         "wisphaven::world::block::NamedBlockMesh": (
             shape: BottomSlab(0.25, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
         ),
-        "wisphaven::world::block::BlockPhysics": Aabb(Collider (
-          shape: (
-            extents: (
-              x: 0.5,
-              y: 0.125,
-              z: 0.5,
-            ),
+        "wisphaven::world::block::BlockPhysics": Aabb(Aabb (
+          size: (
+            x: 1.0,
+            y: 0.25,
+            z: 1.0,
           ),
           offset: (
-            x: 0.5,
-            y: 0.125,
-            z: 0.5,
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
           ),
         )),
         "wisphaven::items::tools::abilities::ShovelAbilityTarget": (),

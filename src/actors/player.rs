@@ -21,7 +21,7 @@ use crate::{
         server::{SyncPosition, SyncVelocity},
         ClientMessage, NetworkType, PlayerList, RemoteClient,
     },
-    physics::{collision::Collider, movement::*, *},
+    physics::{collision::Aabb, movement::*, *},
     world::{settings::Settings, *},
 };
 
@@ -104,7 +104,7 @@ pub fn spawn_local_player(
         match level.get_block(spawn_point.into()) {
             Some(BlockType::Empty) => {
                 if let Some(BlockType::Empty) =
-                    level.get_block(BlockCoord::from(spawn_point) + BlockCoord::new(0, 1, 0))
+                    level.get_block(BlockCoord::from(spawn_point) + BlockCoord::new(0, -1, 0))
                 {
                     break;
                 }
@@ -298,10 +298,8 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
         TransformBundle::from_transform(Transform::from_translation(spawn_point)),
         InterpolatedAttribute::from(Transform::from_translation(spawn_point)),
         PhysicsBundle {
-            collider: Collider {
-                shape: collision::Aabb::new(Vec3::new(0.4, 0.8, 0.4)),
-                offset: Vec3::new(0., 0.8, 0.),
-            },
+            collider: collision::Aabb::new(Vec3::new(0.8, 1.6, 0.8), Vec3::new(-0.4,0.0,-0.4)),
+            gravity: GravityMult(0.0),
             ..default()
         },
         ItemUseSpeed {
