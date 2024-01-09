@@ -1,4 +1,5 @@
 use bevy::{prelude::*, transform::TransformSystem};
+use serde::{Serialize, Deserialize};
 
 use crate::{physics::TPS, util::project_onto_plane};
 
@@ -8,26 +9,44 @@ use super::{
 };
 
 //local space, without local rotation
-#[derive(Component, Default, Deref, DerefMut, PartialEq, Clone, Copy, Debug)]
+#[derive(Component, Default, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Velocity(pub Vec3);
 
 //local space, without local rotation
 //optional - acceleration not due to gravity
-#[derive(Component, Default, Deref, DerefMut, PartialEq, Clone, Copy, Debug)]
+#[derive(Component, Default, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Acceleration(pub Vec3);
 
 //local space, without local rotation
-#[derive(Resource, Deref, DerefMut, PartialEq, Clone, Copy, Debug)]
+#[derive(Resource, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Gravity(pub Vec3);
 
 //children of a parent should not typically have separate GravityMults unless the parent will not rotate
 //gravity is taken in local space without local rotation, so parent's rotation will affect the gravity direction
-#[derive(Component, Deref, DerefMut, PartialEq, Clone, Copy, Debug)]
+#[derive(Component, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct GravityMult(pub f32);
 
 impl Default for GravityMult {
     fn default() -> Self {
         Self(1.0)
+    }
+}
+
+#[derive(Component, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct Mass(pub f32);
+
+impl Default for Mass {
+    fn default() -> Self {
+        Self(1.0)
+    }
+}
+
+impl Mass {
+    pub fn add_force(self, f: Vec3, accel: &mut Acceleration) {
+        accel.0 += f / self.0
+    }
+    pub fn add_impulse(self, i: Vec3, vel: &mut Velocity) {
+        vel.0 += i / self.0
     }
 }
 
