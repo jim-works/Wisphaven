@@ -10,7 +10,6 @@ use bevy_quinnet::{
     },
     shared::{channel::ChannelId, ClientId},
 };
-use bevy_rapier3d::prelude::Velocity;
 
 use crate::{
     actors::LocalPlayer,
@@ -20,7 +19,7 @@ use crate::{
     world::{
         chunk::{ChunkType, ChunkCoord}, events::ChunkUpdatedEvent, settings::Settings, BlockId, BlockRegistry,
         BlockResources, ChunkBoundaryCrossedEvent, Level, LevelLoadState,
-    }, serialization::ChunkSaveFormat,
+    }, serialization::ChunkSaveFormat, physics::movement::Velocity,
 };
 
 use super::{ClientMessage, ServerMessage, UpdateEntityTransform, UpdateEntityVelocity};
@@ -336,7 +335,7 @@ fn sync_entity_updates(
         .iter()
         .map(|(e, v)| UpdateEntityVelocity {
             entity: e,
-            velocity: v.linvel,
+            velocity: v.0,
         })
         .collect();
     if let Err(e) = server.endpoint().send_group_message_on(

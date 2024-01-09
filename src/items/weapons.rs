@@ -1,10 +1,8 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
-use itertools::Either::Left;
 
 use crate::{
     actors::{coin::SpawnCoinEvent, AttackEvent, CombatInfo, CombatantBundle, Damage},
-    physics::raycast::{self, RaycastHit},
+    physics::{query::{self, RaycastHit}, collision::Aabb, movement::Velocity},
     world::{BlockPhysics, Level},
 };
 
@@ -42,6 +40,7 @@ pub fn attack_melee(
     level: Res<Level>,
     physics_query: Query<&BlockPhysics>,
     weapon_query: Query<&MeleeWeaponItem>,
+    object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
 ) {
     for SwingItemEvent {
         user,
@@ -51,22 +50,16 @@ pub fn attack_melee(
     } in attack_item_reader.read()
     {
         if let Ok(weapon) = weapon_query.get(stack.id) {
-            let groups = QueryFilter {
-                groups: Some(CollisionGroups::new(
-                    Group::ALL,
-                    Group::from_bits_truncate(crate::physics::ACTOR_GROUP),
-                )),
-                ..default()
-            }
-            .exclude_collider(*user);
-            if let Some(RaycastHit::Object(_, hit)) = raycast::raycast(
-                raycast::Ray::new(tf.translation(), tf.forward(), 10.0),
+            if let Some(RaycastHit::Object(hit)) = query::raycast(
+                query::Ray::new(tf.translation(), tf.forward(), 10.0),
                 &level,
                 &physics_query,
+                &object_query,
+                vec![*user]
             ) {
                 attack_writer.send(AttackEvent {
                     attacker: *user,
-                    target: hit,
+                    target: hit.entity,
                     damage: weapon.damage,
                     knockback: tf.forward() * weapon.knockback,
                 })
@@ -90,7 +83,7 @@ pub fn launch_coin(
         if let Ok(weapon) = weapon_query.get(stack.id) {
             writer.send(SpawnCoinEvent {
                 location: Transform::from_translation(tf.translation()),
-                velocity: tf.forward() * weapon.speed,
+                velocity: Velocity(tf.forward() * weapon.speed),
                 combat: CombatantBundle {
                     combat_info: CombatInfo::new(1.0, 0.0),
                     ..default()

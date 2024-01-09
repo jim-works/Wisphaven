@@ -341,7 +341,7 @@ fn handle_disconnect(mut commands: Commands, mut removed: RemovedComponents<Remo
             SyncVelocity,
             Name,
             PbrBundle,
-            PhysicsObjectBundle,
+            PhysicsBundle,
             Player,
         )>();
         info!("Cleaned up disconnected player");

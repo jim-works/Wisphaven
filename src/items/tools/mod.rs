@@ -1,13 +1,12 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::{QueryFilter, RapierContext};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     actors::Player,
     world::{
         events::{BlockDamageSetEvent, BlockHitEvent, ChunkUpdatedEvent},
-        BlockCoord, BlockId, Level, BlockPhysics,
-    }, physics::raycast,
+        BlockId, Level, BlockPhysics,
+    }, physics::{query, collision::Aabb},
 };
 
 use super::{
@@ -62,7 +61,8 @@ pub fn on_swing(
     mut reader: EventReader<SwingItemEvent>,
     mut writer: EventWriter<BlockHitEvent>,
     level: Res<Level>,
-    block_physics_query: Query<&BlockPhysics>
+    block_physics_query: Query<&BlockPhysics>,
+    object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
 ) {
     for SwingItemEvent {
         user,
@@ -71,10 +71,12 @@ pub fn on_swing(
         tf,
     } in reader.read()
     {
-        if let Some(raycast::RaycastHit::Block(block_position, hit_point, _)) = raycast::raycast(
-            raycast::Ray::new(tf.translation(), tf.forward(), 10.0),
+        if let Some(query::RaycastHit::Block(block_position, hit)) = query::raycast(
+            query::Ray::new(tf.translation(), tf.forward(), 10.0),
             &level,
             &block_physics_query,
+            &object_query,
+            vec![*user]
         ) { //move into the block just a bit
             writer.send(BlockHitEvent {
                 item: Some(stack.id),

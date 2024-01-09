@@ -1,10 +1,9 @@
 use bevy::{prelude::*, utils::HashMap};
 
 use bevy_quinnet::shared::ClientId;
-use bevy_rapier3d::prelude::Velocity;
 use serde::{Deserialize, Serialize};
 
-use crate::{items::ItemNameIdMap, world::BlockNameIdMap, actors::LocalPlayer, serialization::ChunkSaveFormat};
+use crate::{items::ItemNameIdMap, world::BlockNameIdMap, actors::LocalPlayer, serialization::ChunkSaveFormat, physics::movement::Velocity};
 
 use self::{client::ClientState, server::ServerState};
 
@@ -170,10 +169,10 @@ fn process_velocity_updates(
                                                     //stuttery or frozen movement
     for UpdateEntityVelocity { entity, velocity } in reader.read() {
         if let Ok(mut v) = query.get_mut(*entity) {
-            if local_player_query.contains(*entity) && v.linvel.distance_squared(*velocity) < LOCAL_PLAYER_UPDATE_SQR_DIST {
+            if local_player_query.contains(*entity) && v.0.distance_squared(*velocity) < LOCAL_PLAYER_UPDATE_SQR_DIST {
                 continue;
             }
-            v.linvel = *velocity
+            v.0 = *velocity
         } else {
             warn!("Recv UpdateEntityVelocity for entity that doesn't have a velocity!");
         }

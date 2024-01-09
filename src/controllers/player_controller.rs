@@ -1,13 +1,13 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
     actors::*,
     items::{inventory::Inventory, EquipItemEvent, UnequipItemEvent},
     physics::{
+        collision::Aabb,
         movement::GravityMult,
-        raycast::{self, Ray, RaycastHit},
+        query::{self, Ray, RaycastHit},
     },
     ui::{state::UIState, world_mouse_active},
     world::{
@@ -44,7 +44,7 @@ pub fn toggle_player_flight(
                     *mode = MovementMode::Normal;
                     gravity.0 = 1.0;
                     info!("Not Flying");
-                },
+                }
                 _ => {
                     *mode = MovementMode::Flying;
                     gravity.0 = 0.0;
@@ -172,6 +172,7 @@ pub fn player_punch(
     mut player_query: Query<(Entity, &Player, &mut Inventory), With<LocalPlayer>>,
     combat_query: Query<&CombatInfo>,
     block_physics_query: Query<&BlockPhysics>,
+    object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
     mut attack_punch_writer: EventWriter<AttackEvent>,
     mut block_hit_writer: EventWriter<BlockHitEvent>,
     ui_state: Res<State<UIState>>,
@@ -184,25 +185,19 @@ pub fn player_punch(
         if act.pressed(Action::Punch) {
             let (player_entity, player, mut inv) = player_query.get_single_mut().unwrap();
             //first test if we punched a combatant
-            let groups = QueryFilter {
-                groups: Some(CollisionGroups::new(
-                    Group::ALL,
-                    Group::from_bits_truncate(crate::physics::ACTOR_GROUP),
-                )),
-                ..default()
-            }
-            .exclude_collider(player_entity);
             let slot = inv.selected_slot();
             match inv.get(slot) {
                 Some(_) => inv.swing_item(slot, *tf),
                 None => {
                     //todo convert to ability
-                    match raycast::raycast(
+                    match query::raycast(
                         Ray::new(tf.translation(), tf.forward(), 10.0),
                         &level,
                         &block_physics_query,
+                        &object_query,
+                        vec![player_entity]
                     ) {
-                        Some(RaycastHit::Block(hit_pos, _, _)) => {
+                        Some(RaycastHit::Block(hit_pos, _)) => {
                             block_hit_writer.send(BlockHitEvent {
                                 item: None,
                                 user: Some(player_entity),
@@ -210,25 +205,18 @@ pub fn player_punch(
                                 hit_forward: tf.forward(),
                             });
                         }
+                        Some(RaycastHit::Object(hit)) => {
+                            if combat_query.contains(hit.entity) {
+                                attack_punch_writer.send(AttackEvent {
+                                    attacker: player_entity,
+                                    target: hit.entity,
+                                    damage: player.hit_damage,
+                                    knockback: tf.forward(),
+                                });
+                            }
+                        }
                         _ => {}
                     }
-                    // if let Some((hit, t)) =
-                    //     collision.cast_ray(tf.translation(), tf.forward(), 10.0, true, groups)
-                    // {
-                    //     //add 0.05 to move a bit into the block
-                    //     let hit_pos = tf.translation() + tf.forward() * (t + 0.05);
-                    //     //TODO: convert to ability
-                    //     if combat_query.contains(hit) {
-                    //         attack_punch_writer.send(AttackEvent {
-                    //             attacker: player_entity,
-                    //             target: hit,
-                    //             damage: player.hit_damage,
-                    //             knockback: tf.forward(),
-                    //         })
-                    //     } else {
-
-                    //     }
-                    // }
                 }
             }
         }
@@ -248,6 +236,7 @@ pub fn player_use(
     ui_state: Res<State<UIState>>,
     level: Res<Level>,
     block_physics_query: Query<&BlockPhysics>,
+    object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
     usable_block_query: Query<&UsableBlock>,
     mut block_use_writer: EventWriter<BlockUsedEvent>,
 ) {
@@ -258,10 +247,12 @@ pub fn player_use(
         if let Ok((tf, act)) = camera_query.get_single() {
             if act.just_pressed(Action::Use) {
                 //first test if we used a block
-                if let Some(RaycastHit::Block(coord, _, _)) = raycast::raycast(
+                if let Some(RaycastHit::Block(coord, _)) = query::raycast(
                     Ray::new(tf.translation(), tf.forward(), 10.0),
                     &level,
                     &block_physics_query,
+                    &object_query,
+                    vec![entity]
                 ) {
                     if level.use_block(
                         coord,

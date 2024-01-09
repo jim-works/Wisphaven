@@ -685,7 +685,8 @@ impl LevelData {
         }
     }
 
-    //todo improve this (bresenham's?)
+    //todo improve this (bresehams -> sweep_ray)
+    //only hits blocks
     pub fn blockcast(
         &self,
         origin: Vec3,

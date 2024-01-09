@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_hanabi::prelude::*;
 
-use crate::{actors::{ActorName, ActorResources}, physics::raycast::{RaycastHit, Ray, self}, world::{BlockPhysics, Level}};
+use crate::{actors::{ActorName, ActorResources}, physics::{query::{RaycastHit, Ray, self}, collision::Aabb}, world::{BlockPhysics, Level}};
 
 use super::{UseItemEvent, ItemSystemSet};
 
@@ -109,18 +109,21 @@ fn do_spawn_actors(
     resources: Res<ActorResources>,
     effects: Res<SpawnItemResources>,
     level: Res<Level>,
-    block_physics_query: Query<&BlockPhysics>
+    block_physics_query: Query<&BlockPhysics>,
+    object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
 ) {
     const REACH: f32 = 10.0;
     const BACKWARD_DIST: f32 = 0.5;
-    for UseItemEvent { user: _, inventory_slot: _, stack, tf } in reader.read() {
+    for UseItemEvent { user, inventory_slot: _, stack, tf } in reader.read() {
         if let Ok(item) = item_query.get(stack.id) {
-            if let Some(RaycastHit::Block(_, hit_point, _)) = raycast::raycast(
+            if let Some(RaycastHit::Block(_, hit)) = query::raycast(
                 Ray::new(tf.translation(), tf.forward(), REACH),
                 &level,
                 &block_physics_query,
+                &object_query,
+                vec![*user]
             ) {
-                let impact_dist = (hit_point - tf.translation()).normalize_or_zero();
+                let impact_dist = (hit.hit_pos - tf.translation()).normalize_or_zero();
                 let spawn_pos = tf.translation() + tf.forward() * (impact_dist - BACKWARD_DIST);
                 resources.registry.spawn(
                     &item.0,

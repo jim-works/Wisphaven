@@ -1,16 +1,21 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::{QueryFilter, RapierContext};
 
-use crate::actors::personality::components::*;
+use crate::{
+    actors::personality::components::*,
+    physics::{query::{raycast, Ray, RaycastHit}, collision::Aabb}, world::{BlockPhysics, Level},
+};
 
-use super::{UseItemEvent, ItemSystemSet};
+use super::{ItemSystemSet, UseItemEvent};
 
 pub struct DebugItems;
 
 impl Plugin for DebugItems {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, use_personality_item.in_set(ItemSystemSet::UsageProcessing))
-            .register_type::<PersonalityTester>();
+        app.add_systems(
+            Update,
+            use_personality_item.in_set(ItemSystemSet::UsageProcessing),
+        )
+        .register_type::<PersonalityTester>();
     }
 }
 
@@ -25,7 +30,9 @@ pub fn use_personality_item(
     values: Query<&PersonalityValues>,
     tasks: Query<&TaskSet>,
     personality_item: Query<&PersonalityTester>,
-    physics: Res<RapierContext>,
+    level: Res<Level>,
+    physics_query: Query<&BlockPhysics>,
+    object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
 ) {
     for UseItemEvent {
         user,
@@ -35,20 +42,23 @@ pub fn use_personality_item(
     } in reader.read()
     {
         if personality_item.contains(stack.id) {
-            let groups = QueryFilter::default().exclude_collider(*user);
-            if let Some((hit, _)) =
-                physics.cast_ray(tf.translation(), tf.forward(), 10.0, true, groups)
-            {
-                if let Ok(x) = physical_attributes.get(hit) {
+            if let Some(RaycastHit::Object(hit)) = raycast(
+                Ray::new(tf.translation(), tf.forward(), 10.0),
+                &level,
+                &physics_query,
+                &object_query,
+                vec![*user],
+            ) {
+                if let Ok(x) = physical_attributes.get(hit.entity) {
                     info!("{:?}", x);
                 }
-                if let Ok(x) = mental_attributes.get(hit) {
+                if let Ok(x) = mental_attributes.get(hit.entity) {
                     info!("{:?}", x);
                 }
-                if let Ok(x) = values.get(hit) {
+                if let Ok(x) = values.get(hit.entity) {
                     info!("{:?}", x);
                 }
-                if let Ok(x) = tasks.get(hit) {
+                if let Ok(x) = tasks.get(hit.entity) {
                     info!("{:?}", x);
                 }
             } else {

@@ -42,7 +42,10 @@ pub struct CollidingBlocks {
 }
 
 impl CollidingBlocks {
-    pub fn get(&self, direction: crate::util::Direction) -> &Vec<(BlockCoord, Entity, BlockPhysics)> {
+    pub fn get(
+        &self,
+        direction: crate::util::Direction,
+    ) -> &Vec<(BlockCoord, Entity, BlockPhysics)> {
         match direction {
             crate::util::Direction::PosX => &self.pos_x,
             crate::util::Direction::PosY => &self.pos_y,
@@ -52,7 +55,10 @@ impl CollidingBlocks {
             crate::util::Direction::NegZ => &self.neg_z,
         }
     }
-    pub fn get_mut(&mut self, direction: crate::util::Direction) -> &mut Vec<(BlockCoord, Entity, BlockPhysics)> {
+    pub fn get_mut(
+        &mut self,
+        direction: crate::util::Direction,
+    ) -> &mut Vec<(BlockCoord, Entity, BlockPhysics)> {
         match direction {
             crate::util::Direction::PosX => &mut self.pos_x,
             crate::util::Direction::PosY => &mut self.pos_y,
@@ -70,7 +76,10 @@ impl CollidingBlocks {
         self.neg_y.clear();
         self.neg_z.clear();
     }
-    pub fn for_each_dir(&self, mut f: impl FnMut(crate::util::Direction, &Vec<(BlockCoord, Entity, BlockPhysics)>)) {
+    pub fn for_each_dir(
+        &self,
+        mut f: impl FnMut(crate::util::Direction, &Vec<(BlockCoord, Entity, BlockPhysics)>),
+    ) {
         f(crate::util::Direction::PosX, &self.pos_x);
         f(crate::util::Direction::PosY, &self.pos_y);
         f(crate::util::Direction::PosZ, &self.pos_z);
@@ -78,7 +87,11 @@ impl CollidingBlocks {
         f(crate::util::Direction::NegY, &self.neg_y);
         f(crate::util::Direction::NegZ, &self.neg_z);
     }
-    pub fn push(&mut self, direction: crate::util::Direction, elem: (BlockCoord, Entity, BlockPhysics)) {
+    pub fn push(
+        &mut self,
+        direction: crate::util::Direction,
+        elem: (BlockCoord, Entity, BlockPhysics),
+    ) {
         self.get_mut(direction).push(elem);
     }
 }
@@ -96,6 +109,12 @@ pub struct CollidingDirections(pub DirectionFlags);
 impl Aabb {
     pub fn new(size: Vec3, offset: Vec3) -> Self {
         Self { size, offset }
+    }
+    pub fn centered(size: Vec3) -> Self {
+        Self {
+            size,
+            offset: -size / 2.0,
+        }
     }
     //maintains center of mass, scale by factor
     pub fn scale(self, scale: Vec3) -> Self {
@@ -356,7 +375,6 @@ fn move_and_slide(
                 v.0 += normal * v_abs * (1.0 - t_adj);
             }
         }
-        info!("{:?}", directions.0);
         tf.translation += v.0;
     }
 }
