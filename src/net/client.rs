@@ -1,6 +1,6 @@
 use std::{hash::Hash, net::IpAddr, thread::sleep, time::Duration};
 
-use bevy::{app::AppExit, ecs::entity::EntityMap, prelude::*, utils::HashMap};
+use bevy::{app::AppExit, prelude::*, utils::HashMap};
 use bevy_quinnet::{
     client::{
         certificate::CertificateVerificationMode,
@@ -81,8 +81,8 @@ pub struct LocalClient {
 
 #[derive(Resource, Default)]
 pub struct LocalEntityMap {
-    local_to_remote: EntityMap,
-    remote_to_local: EntityMap,
+    local_to_remote: HashMap<Entity, Entity>,
+    remote_to_local: HashMap<Entity, Entity>,
 }
 
 impl LocalEntityMap {
@@ -92,16 +92,16 @@ impl LocalEntityMap {
     }
     //returns the local entity corresponding to `remote_entity` if it exists
     pub fn remove_remote(&mut self, remote_entity: Entity) -> Option<Entity> {
-        let local = self.remote_to_local.remove(remote_entity);
+        let local = self.remote_to_local.remove(&remote_entity);
         if let Some(l) = local {
-            self.local_to_remote.remove(l);
+            self.local_to_remote.remove(&l);
         }
         local
     }
-    pub fn local_to_remote(&self) -> &EntityMap {
+    pub fn local_to_remote(&self) -> &HashMap<Entity, Entity> {
         &self.local_to_remote
     }
-    pub fn remote_to_local(&self) -> &EntityMap {
+    pub fn remote_to_local(&self) -> &HashMap<Entity, Entity> {
         &self.remote_to_local
     }
 }
@@ -253,9 +253,9 @@ fn handle_server_messages(
                 velocities,
             } => {
                 for UpdateEntityTransform { entity, transform } in transforms {
-                    if let Some(local) = entity_map.remote_to_local().get(entity) {
+                    if let Some(local) = entity_map.remote_to_local().get(&entity) {
                         update_tf_writer.send(UpdateEntityTransform {
-                            entity: local,
+                            entity: *local,
                             transform,
                         });
                     } else {
@@ -263,9 +263,9 @@ fn handle_server_messages(
                     }
                 }
                 for UpdateEntityVelocity { entity, velocity } in velocities {
-                    if let Some(local) = entity_map.remote_to_local().get(entity) {
+                    if let Some(local) = entity_map.remote_to_local().get(&entity) {
                         update_v_writer.send(UpdateEntityVelocity {
-                            entity: local,
+                            entity: *local,
                             velocity,
                         });
                     } else {
@@ -331,7 +331,7 @@ fn setup_local_player(
     local_client: Res<LocalClient>,
     mut entity_map: ResMut<LocalEntityMap>,
 ) {
-    for LocalPlayerSpawnedEvent(local_entity) in reader.iter() {
+    for LocalPlayerSpawnedEvent(local_entity) in reader.read() {
         //we recv our entity from the server before spawning in the local player
         entity_map.insert(*local_entity, local_client.server_entity.unwrap());
     }

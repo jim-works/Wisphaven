@@ -1,8 +1,7 @@
 use bevy::prelude::*;
 use bevy_hanabi::prelude::*;
-use bevy_rapier3d::prelude::{CollisionGroups, Group, QueryFilter, RapierContext};
 
-use crate::actors::{ActorName, ActorResources};
+use crate::{actors::{ActorName, ActorResources}, physics::{query::{RaycastHit, Ray, self}, collision::Aabb}, world::{BlockPhysics, Level}};
 
 use super::{UseItemEvent, ItemSystemSet};
 
@@ -108,24 +107,24 @@ fn do_spawn_actors(
     item_query: Query<&SpawnActorItem>,
     mut particles: Query<(&mut Transform, &mut EffectSpawner), With<SpawnParticles>>,
     resources: Res<ActorResources>,
-    collision: Res<RapierContext>,
     effects: Res<SpawnItemResources>,
+    level: Res<Level>,
+    block_physics_query: Query<&BlockPhysics>,
+    object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
 ) {
     const REACH: f32 = 10.0;
     const BACKWARD_DIST: f32 = 0.5;
-    for UseItemEvent { user: _, inventory_slot: _, stack, tf } in reader.iter() {
+    for UseItemEvent { user, inventory_slot: _, stack, tf } in reader.read() {
         if let Ok(item) = item_query.get(stack.id) {
-            let groups = QueryFilter {
-                groups: Some(CollisionGroups::new(
-                    Group::ALL,
-                    Group::from_bits_truncate(crate::physics::TERRAIN_GROUP),
-                )),
-                ..default()
-            };
-            if let Some((_, toi)) =
-                collision.cast_ray(tf.translation(), tf.forward(), REACH, true, groups)
-            {
-                let spawn_pos = tf.translation() + tf.forward() * (toi - BACKWARD_DIST);
+            if let Some(RaycastHit::Block(_, hit)) = query::raycast(
+                Ray::new(tf.translation(), tf.forward(), REACH),
+                &level,
+                &block_physics_query,
+                &object_query,
+                vec![*user]
+            ) {
+                let impact_dist = (hit.hit_pos - tf.translation()).normalize_or_zero();
+                let spawn_pos = tf.translation() + tf.forward() * (impact_dist - BACKWARD_DIST);
                 resources.registry.spawn(
                     &item.0,
                     &mut commands,

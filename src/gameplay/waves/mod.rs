@@ -7,7 +7,7 @@ use crate::{
     actors::world_anchor::WorldAnchor,
     util::{
         get_wrapping,
-        iterators::{BlockVolume, BlockVolumeContainer},
+        iterators::{BlockVolume, VolumeContainer},
     },
     world::{
         atmosphere::{Calendar, NightStartedEvent},
@@ -139,7 +139,7 @@ fn trigger_assault(
                             (i as f32 * DELTA_ANGLE).sin(),
                         ),
             );
-            let mut container = BlockVolumeContainer::new(BlockVolume::new(
+            let mut container = VolumeContainer::new(BlockVolume::new(
                 BlockCoord::new(0, 0, 0),
                 BlockCoord::new(0, 0, 0),
             ));
@@ -202,7 +202,7 @@ fn trigger_assault(
 }
 
 fn search_for_spawn_volume(
-    container: &mut BlockVolumeContainer,
+    container: &mut VolumeContainer<BlockType>,
     search_origin: BlockCoord,
     search_direction: BlockCoord,
     desired_volume_validity: bool,
@@ -229,7 +229,7 @@ fn search_for_spawn_volume(
     }
 }
 
-fn valid_spawn_volume(volume: &BlockVolumeContainer) -> bool {
+fn valid_spawn_volume(volume: &VolumeContainer<BlockType>) -> bool {
     //all blocks in volume are empty
     volume.iter().all(|(_, b)| {
         b.map(|btype| matches!(btype, BlockType::Empty))

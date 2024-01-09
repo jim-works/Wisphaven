@@ -61,7 +61,7 @@ fn recipe_picker(
     mut crafted_writer: EventWriter<RecipeCraftedEvent>,
     mut candidates: Local<Vec<RecipeCraftedEvent>>,
 ) {
-    for RecipeCandidateEvent(event) in candidate_events.iter() {
+    for RecipeCandidateEvent(event) in candidate_events.read() {
         let mut discarded = false;
         //to remove ambiguities, if two bounding boxes of recipes overlap, only keep the larger volume of the two
         //O(n^2) alogrithm, but shouldn't be very many recipes per update

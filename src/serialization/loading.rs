@@ -47,7 +47,7 @@ pub fn load_chunk_terrain(
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
 ) {
     let mut loaded = 0;
-    for DataFromDBEvent(coord, data_vec) in events.iter().filter(|DataFromDBEvent(_, data)| {
+    for DataFromDBEvent(coord, data_vec) in events.read().filter(|DataFromDBEvent(_, data)| {
         //even if there is no terrain/buffer, we will still have entries (just with an empty data vec)
         data.len() == 2 && data[0].0 == ChunkTable::Terrain && data[1].0 == ChunkTable::Buffers
     }) {

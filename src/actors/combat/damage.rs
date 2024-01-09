@@ -1,19 +1,20 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::ExternalImpulse;
+
+use crate::physics::movement::{Velocity, Mass};
 
 use super::*;
 
 pub fn process_attacks (
     mut attack_reader: EventReader<AttackEvent>,
     mut death_writer: EventWriter<DeathEvent>,
-    mut combat_query: Query<(&mut CombatInfo, Option<&mut ExternalImpulse>)>,
+    mut combat_query: Query<(&mut CombatInfo, Option<(&Mass, &mut Velocity)>)>,
     name_query: Query<&Name>,
 ) {
-    for attack in attack_reader.iter() {
+    for attack in attack_reader.read() {
         if let Ok((mut target_info, impulse)) = combat_query.get_mut(attack.target) {
             let damage_taken = calc_damage(attack, &target_info);
-            if let Some(mut impulse) = impulse {
-                impulse.impulse += attack.knockback*target_info.knockback_multiplier;
+            if let Some((mass, mut v)) = impulse {
+                mass.add_impulse(attack.knockback*target_info.knockback_multiplier, &mut v);
             }
             target_info.curr_health = (target_info.curr_health-damage_taken).max(0.0);
             info!("{:?} ({:?}) attacked {:?} ({:?}) for {} damage (inital damage {:?}). health: {}", attack.attacker, name_query.get(attack.attacker).ok(), attack.target, name_query.get(attack.target).ok(), damage_taken, attack.damage, target_info.curr_health);
@@ -38,7 +39,7 @@ pub fn do_death(
     death_type: Query<&DeathInfo>,
     mut commands: Commands,
 ) {
-    for event in death_reader.iter() {
+    for event in death_reader.read() {
         let dying_entity = event.final_blow.target; 
         if let Ok(death) = death_type.get(dying_entity) {
             match death.death_type {

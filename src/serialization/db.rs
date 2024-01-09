@@ -5,6 +5,7 @@ use bevy::{
     prelude::*,
     tasks::{AsyncComputeTaskPool, Task},
 };
+use bincode::ErrorKind;
 use futures_lite::future;
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
@@ -47,6 +48,9 @@ pub enum ChunkTable {
 pub enum LevelDBErr {
     R2D2(r2d2::Error),
     Sqlite(rusqlite::Error),
+    Bincode(Box<ErrorKind>),
+    NewWorldVersion,
+    InvalidWorldVersion,
 }
 
 impl LevelDB {
@@ -65,7 +69,7 @@ impl LevelDB {
             load_queue: VecDeque::new(),
         })
     }
-    pub fn immediate_execute_command(
+    pub fn execute_command_sync(
         &mut self,
         f: impl FnOnce(PooledConnection<SqliteConnectionManager>) -> Result<usize, rusqlite::Error>
             + Send,

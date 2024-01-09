@@ -20,6 +20,7 @@ pub mod plugin;
 pub mod bevy_utils;
 pub mod physics;
 pub mod iterators;
+pub mod string;
 
 use bevy::{prelude::{Vec3, DerefMut, Deref}, time::Timer};
 
@@ -90,6 +91,50 @@ pub fn max_component_norm(v: Vec3) -> Vec3 {
         Vec3::new(0.0, v.y.signum(), 0.0)
     } else {
         Vec3::new(0.0, 0.0, v.z.signum())
+    }
+}
+
+//if v has min element m, returns the vector with m set to sign(m) and all other elements 0.
+pub fn min_component_norm(v: Vec3) -> Vec3 {
+    let abs = v.abs();
+    if abs.x < abs.y && abs.x < abs.z {
+        Vec3::new(v.x.signum(), 0.0, 0.0)
+    } else if abs.y < abs.z {
+        Vec3::new(0.0, v.y.signum(), 0.0)
+    } else {
+        Vec3::new(0.0, 0.0, v.z.signum())
+    }
+}
+
+//returns index of maximum element
+pub fn max_index(v: Vec3) -> usize {
+    if v.x > v.y && v.x > v.z {
+        0
+    } else if v.y > v.z {
+        1
+    } else {
+        2
+    }
+}
+
+//returns index of minimum element
+pub fn min_index(v: Vec3) -> usize {
+    if v.x < v.y && v.x < v.z {
+        0
+    } else if v.y < v.z {
+        1
+    } else {
+        2
+    }
+}
+
+//0s all other axes
+pub fn pick_axis(v: Vec3, idx: usize) -> Vec3 {
+    match idx {
+        0 => Vec3::new(v.x,0.,0.),
+        1 => Vec3::new(0.,v.y,0.),
+        2 => Vec3::new(0.,0.,v.z),
+        _ => panic!("index out of bounds"),
     }
 }
 
@@ -174,4 +219,33 @@ pub fn get_wrapping<T>(slice: &[T], idx: usize) -> Option<&T> {
         0 => None,
         len => slice.get(idx % len)
     }
+}
+
+//these can't be put in a trait.... great!
+pub const fn f32_powi(b: f32, power: u32) -> f32 {
+    let mut res = b;
+    let mut idx = 0;
+    //why can I not use for loops in const??
+    while idx < power {
+        res *= b;
+        idx += 1;
+    }
+    res
+}
+
+pub const fn f64_powi(b: f64, power: u32) -> f64 {
+    let mut res = b;
+    let mut idx = 0;
+    //why can I not use for loops in const??
+    while idx < power {
+        res *= b;
+        idx += 1;
+    }
+    res
+}
+
+//assumes plane goes through (0,0,0)
+pub fn project_onto_plane(vector: Vec3, plane_normal: Vec3) -> Vec3 {
+    let dist = vector.dot(plane_normal);
+    vector - dist*plane_normal
 }

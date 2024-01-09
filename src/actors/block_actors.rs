@@ -1,9 +1,13 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 
 use crate::{
     mesher::{ArrayTextureMaterial, ChunkMaterial},
-    physics::PhysicsObjectBundle,
+    physics::{
+        collision::{Aabb, CollidingDirections},
+        movement::Velocity,
+        PhysicsBundle,
+    },
+    util::DirectionFlags,
     world::{
         events::ChunkUpdatedEvent, BlockCoord, BlockId, BlockMesh, BlockPhysics, BlockType, Level,
         LevelSystemSet,
@@ -19,7 +23,6 @@ impl Plugin for BlockActorPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<SpawnFallingBlockEvent>()
             .add_event::<LandedFallingBlockEvent>()
-            .add_systems(Startup, setup)
             .add_systems(
                 Update,
                 (falling_block_spawner, falling_block_placer, on_block_landed)
@@ -32,118 +35,86 @@ impl Plugin for BlockActorPlugin {
 pub struct SpawnFallingBlockEvent {
     pub position: Vec3,
     pub initial_velocity: Vec3,
-    pub block: Entity,
-    pub place_on_landing: bool,
+    pub falling_block: FallingBlock,
 }
 
 #[derive(Event)]
 pub struct LandedFallingBlockEvent {
     pub position: BlockCoord,
     pub faller: Entity,
+    pub falling_block: FallingBlock,
+}
+
+#[derive(Component, Clone, Copy)]
+pub struct FallingBlock {
     pub block: Entity,
     pub place_on_landing: bool,
-}
-
-#[derive(Component)]
-pub struct FallingBlock(Entity, bool);
-
-#[derive(Resource)]
-struct FallingBlockResources {
-    default_mesh: Handle<Mesh>,
-    default_material: Handle<StandardMaterial>,
-}
-
-fn setup(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    let mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
-    let material = materials.add(StandardMaterial {
-        base_color: Color::WHITE,
-        ..default()
-    });
-    commands.insert_resource(FallingBlockResources {
-        default_mesh: mesh,
-        default_material: material,
-    });
+    pub impact_direcitons: DirectionFlags,
 }
 
 fn falling_block_spawner(
     mut reader: EventReader<SpawnFallingBlockEvent>,
     mut commands: Commands,
-    mesh_query: Query<&BlockMesh>,
+    mesh_query: Query<(&BlockMesh, Option<&BlockPhysics>)>,
     materials: Res<ChunkMaterial>,
-    resources: Res<FallingBlockResources>,
 ) {
-    for event in reader.iter() {
-        let block_mesh = mesh_query.get(event.block).ok();
-        match block_mesh.and_then(|component| component.single_mesh.clone()) {
-            Some(mesh) => {
-                commands.spawn((
-                    PhysicsObjectBundle {
-                        velocity: Velocity::linear(event.initial_velocity),
-                        collider: Collider::cuboid(HALF_SIDE, HALF_SIDE, HALF_SIDE),
-                        ..default()
-                    },
-                    MaterialMeshBundle::<ArrayTextureMaterial> {
-                        transform: Transform::from_translation(event.position),
-                        mesh,
-                        material: if block_mesh.unwrap().use_transparent_shader {
-                            materials.transparent_material.clone().unwrap()
-                        } else {
-                            materials.opaque_material.clone().unwrap()
+    const COLLIDER_SQUISH_FACTOR: f32 = 0.9; //squish the collider a bit so the collider can fall down 1x1 tunnels
+    for event in reader.read() {
+        if let Ok((block_mesh, opt_physics)) = mesh_query.get(event.falling_block.block) {
+            if let Some(collider) =
+                Aabb::from_block(opt_physics.unwrap_or(&BlockPhysics::Solid))
+            {
+                if let Some(mesh) = block_mesh.single_mesh.clone() {
+                    commands.spawn((
+                        PhysicsBundle {
+                            velocity: Velocity(event.initial_velocity),
+                            collider: collider
+                                .scale(Vec3::ONE*COLLIDER_SQUISH_FACTOR),
+                            ..default()
                         },
-                        ..default()
-                    },
-                    FallingBlock(event.block, event.place_on_landing),
-                ));
+                        MaterialMeshBundle::<ArrayTextureMaterial> {
+                            transform: Transform::from_translation(event.position),
+                            mesh,
+                            material: if block_mesh.use_transparent_shader {
+                                materials.transparent_material.clone().unwrap()
+                            } else {
+                                materials.opaque_material.clone().unwrap()
+                            },
+                            ..default()
+                        },
+                        event.falling_block,
+                    ));
+                }
             }
-            None => {
-                commands.spawn((
-                    PhysicsObjectBundle {
-                        velocity: Velocity::linear(event.initial_velocity),
-                        collider: Collider::cuboid(HALF_SIDE, HALF_SIDE, HALF_SIDE),
-                        ..default()
-                    },
-                    PbrBundle {
-                        transform: Transform::from_translation(event.position),
-                        mesh: resources.default_mesh.clone(),
-                        material: resources.default_material.clone(),
-                        ..default()
-                    },
-                    FallingBlock(event.block, event.place_on_landing),
-                ));
-            }
-        };
+        }
     }
 }
 
 fn falling_block_placer(
     level: Res<Level>,
     mut writer: EventWriter<LandedFallingBlockEvent>,
-    block_query: Query<(Entity, &GlobalTransform, &FallingBlock)>,
-    physics_query: Query<&BlockPhysics>,
+    block_query: Query<(
+        Entity,
+        &CollidingDirections,
+        &FallingBlock,
+        &Velocity,
+        &Transform,
+    )>,
 ) {
-    for (entity, tf, falling_block) in block_query.iter() {
-        let bottom_pos = tf.translation() - Vec3::new(0.0, 0.5, 0.0);
-        if let Some(hit_entity) = level.get_block_entity(bottom_pos.into()) {
-            if let Ok(physics) = physics_query.get(hit_entity) {
-                match physics {
-                    BlockPhysics::Empty => {}
-                    BlockPhysics::Solid => writer.send(LandedFallingBlockEvent {
-                        position: tf.translation().into(),
-                        block: falling_block.0,
-                        place_on_landing: falling_block.1,
-                        faller: entity,
-                    }),
-                    BlockPhysics::BottomSlab(height) => writer.send(LandedFallingBlockEvent {
-                        position: (tf.translation() + Vec3::new(0.0, 1.0 - height, 0.0)).into(),
-                        block: falling_block.0,
-                        place_on_landing: falling_block.1,
-                        faller: entity,
-                    }),
-                }
+    const BACKTRACK_DIST: f32 = 1.0; //amount to look backward to find a suitable place for the block
+    for (entity, hit, falling_block, v, tf) in block_query.iter() {
+        if hit.0.intersects(falling_block.impact_direcitons) {
+            //we had a collision on one of the allowed axes
+            if let Some(placing_coord) = level.blockcast(
+                tf.translation,
+                -v.0.normalize_or_zero() * BACKTRACK_DIST,
+                |opt_b| opt_b.map(|b| matches!(b, BlockType::Empty)).unwrap_or(true),
+            ) {
+                writer.send(LandedFallingBlockEvent {
+                    position: placing_coord.block_pos,
+                    faller: entity,
+                    falling_block: *falling_block,
+                });
             }
         }
     }
@@ -156,16 +127,16 @@ fn on_block_landed(
     mut commands: Commands,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
 ) {
-    for event in reader.iter() {
+    for event in reader.read() {
         let mut exists = false;
         if let Some(mut ec) = commands.get_entity(event.faller) {
             exists = true;
             ec.despawn();
         }
-        if exists && event.place_on_landing {
+        if exists && event.falling_block.place_on_landing {
             level.set_block_entity(
                 event.position,
-                BlockType::Filled(event.block),
+                BlockType::Filled(event.falling_block.block),
                 &id_query,
                 &mut update_writer,
                 &mut commands,

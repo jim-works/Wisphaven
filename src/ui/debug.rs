@@ -1,14 +1,27 @@
-use bevy::prelude::*;
+use ahash::HashMap;
+use bevy::{prelude::*, utils::HashSet};
+use leafwing_input_manager::action_state::ActionState;
 
-use crate::{actors::LocalPlayer, world::chunk::ChunkCoord, worldgen::UsedShaperResources};
+use crate::{
+    actors::LocalPlayer,
+    controllers::Action,
+    physics::collision::Aabb,
+    world::{chunk::ChunkCoord, BlockCoord, BlockPhysics},
+    worldgen::UsedShaperResources,
+};
 
-use super::{state::DebugUIState, styles::get_text_style};
+use super::{
+    state::{DebugUIDetailState, DebugUIState},
+    styles::get_text_style,
+};
 
 pub struct DebugUIPlugin;
 
 impl Plugin for DebugUIPlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<DebugUIState>()
+            .add_state::<DebugUIDetailState>()
+            .insert_resource(DebugBlockHitboxes::default())
             .add_systems(Startup, init)
             .add_systems(OnEnter(DebugUIState::Shown), spawn_debug)
             .add_systems(OnEnter(DebugUIState::Hidden), despawn_debug)
@@ -18,7 +31,7 @@ impl Plugin for DebugUIPlugin {
                     update_coords,
                     update_chunk_coords,
                     update_noises,
-                    draw_gizmos,
+                    update_gizmos,
                 )
                     .run_if(in_state(DebugUIState::Shown)),
             );
@@ -38,8 +51,14 @@ struct DebugCoordinates;
 #[derive(Component)]
 struct DebugTerrainNoises;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct DebugDrawTransform;
+
+#[derive(Resource, Default)]
+pub struct DebugBlockHitboxes {
+    pub blocks: HashMap<BlockCoord, Option<BlockPhysics>>,
+    pub hit_blocks: HashSet<BlockCoord>,
+}
 
 fn init(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(DebugResources(get_text_style(&assets)));
@@ -189,10 +208,50 @@ fn update_noises(
     }
 }
 
+fn update_gizmos(
+    mut gizmo: Gizmos,
+    mut gizmo_config: ResMut<GizmoConfig>,
+    input_query: Query<&ActionState<Action>, With<LocalPlayer>>,
+    tf_query: Query<&GlobalTransform, With<DebugDrawTransform>>,
+    collider_query: Query<(&Transform, &Aabb)>,
+    blocks: Res<DebugBlockHitboxes>,
+    detail: Res<State<DebugUIDetailState>>,
+) {
+    if let Ok(input) = input_query.get_single() {
+        if input.just_pressed(Action::ToggleGizmoOverlap) {
+            gizmo_config.depth_bias = if gizmo_config.depth_bias == 0.0 {
+                -1.0
+            } else {
+                0.0
+            };
+        }
+    }
 
-
-fn draw_gizmos(mut gizmo: Gizmos, tf_query: Query<&GlobalTransform, With<DebugDrawTransform>>) {
     for tf in tf_query.iter() {
         gizmo.ray(tf.translation(), tf.forward(), Color::RED);
+    }
+    for (tf, collider) in collider_query.iter() {
+        let cuboid_tf = Transform::from_translation(collider.world_center(tf.translation))
+            .with_scale(collider.size);
+        gizmo.cuboid(cuboid_tf, Color::BLUE)
+    }
+    for (coord, physics) in blocks.blocks.iter() {
+        let collider_opt = physics.clone().and_then(|p| Aabb::from_block(&p));
+        if let Some(collider) = collider_opt {
+            let cuboid_tf = Transform::from_translation(collider.world_center(coord.to_vec3()))
+                .with_scale(collider.size);
+            if *detail.get() == DebugUIDetailState::Most {
+                gizmo.cuboid(
+                    cuboid_tf,
+                    if blocks.hit_blocks.contains(coord) {
+                        Color::ORANGE_RED
+                    } else {
+                        Color::GREEN
+                    },
+                )
+            } else if blocks.hit_blocks.contains(coord) {
+                gizmo.cuboid(cuboid_tf, Color::ORANGE_RED);
+            }
+        }
     }
 }

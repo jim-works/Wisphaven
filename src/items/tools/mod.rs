@@ -1,13 +1,12 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::{QueryFilter, RapierContext};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     actors::Player,
     world::{
         events::{BlockDamageSetEvent, BlockHitEvent, ChunkUpdatedEvent},
-        BlockCoord, BlockId, Level,
-    },
+        BlockId, Level, BlockPhysics,
+    }, physics::{query, collision::Aabb},
 };
 
 use super::{
@@ -61,27 +60,28 @@ pub struct Tool {
 pub fn on_swing(
     mut reader: EventReader<SwingItemEvent>,
     mut writer: EventWriter<BlockHitEvent>,
-    collision: Res<RapierContext>,
+    level: Res<Level>,
+    block_physics_query: Query<&BlockPhysics>,
+    object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
 ) {
     for SwingItemEvent {
         user,
         inventory_slot: _,
         stack,
         tf,
-    } in reader.iter()
+    } in reader.read()
     {
-        if let Some((_, t)) = collision.cast_ray(
-            tf.translation(),
-            tf.forward(),
-            10.0,
-            true,
-            QueryFilter::new().exclude_collider(*user),
-        ) {
-            let hit_pos = BlockCoord::from(tf.translation() + tf.forward() * (t + 0.05)); //move into the block just a bit
+        if let Some(query::RaycastHit::Block(block_position, hit)) = query::raycast(
+            query::Ray::new(tf.translation(), tf.forward(), 10.0),
+            &level,
+            &block_physics_query,
+            &object_query,
+            vec![*user]
+        ) { //move into the block just a bit
             writer.send(BlockHitEvent {
                 item: Some(stack.id),
                 user: Some(*user),
-                block_position: hit_pos,
+                block_position,
                 hit_forward: tf.forward(),
             })
         }
@@ -108,7 +108,7 @@ fn deal_block_damage(
         user,
         block_position,
         hit_forward: _,
-    } in reader.iter()
+    } in reader.read()
     {
         if let Some(block_hit) = level.get_block_entity(*block_position) {
             let resistance = resistance_query.get(block_hit).copied().unwrap_or_default();

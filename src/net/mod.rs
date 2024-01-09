@@ -1,10 +1,9 @@
 use bevy::{prelude::*, utils::HashMap};
 
 use bevy_quinnet::shared::ClientId;
-use bevy_rapier3d::prelude::Velocity;
 use serde::{Deserialize, Serialize};
 
-use crate::{items::ItemNameIdMap, world::BlockNameIdMap, actors::LocalPlayer, serialization::ChunkSaveFormat};
+use crate::{items::ItemNameIdMap, world::BlockNameIdMap, actors::LocalPlayer, serialization::ChunkSaveFormat, physics::movement::Velocity};
 
 use self::{client::ClientState, server::ServerState};
 
@@ -148,7 +147,7 @@ fn process_transform_updates(
 ) {
     const LOCAL_PLAYER_UPDATE_SQR_DIST: f32 = 1.0; //only update our local position if there's a desync with the server to avoid
                                                     //stuttery or frozen movement
-    for UpdateEntityTransform { entity, transform } in reader.iter() {
+    for UpdateEntityTransform { entity, transform } in reader.read() {
         if let Ok(mut tf) = query.get_mut(*entity) {
             if local_player_query.contains(*entity) && tf.translation.distance_squared(transform.translation) < LOCAL_PLAYER_UPDATE_SQR_DIST {
                 continue;
@@ -168,12 +167,12 @@ fn process_velocity_updates(
 ) {
     const LOCAL_PLAYER_UPDATE_SQR_DIST: f32 = 100.0; //only update our local position if there's a desync with the server to avoid
                                                     //stuttery or frozen movement
-    for UpdateEntityVelocity { entity, velocity } in reader.iter() {
+    for UpdateEntityVelocity { entity, velocity } in reader.read() {
         if let Ok(mut v) = query.get_mut(*entity) {
-            if local_player_query.contains(*entity) && v.linvel.distance_squared(*velocity) < LOCAL_PLAYER_UPDATE_SQR_DIST {
+            if local_player_query.contains(*entity) && v.0.distance_squared(*velocity) < LOCAL_PLAYER_UPDATE_SQR_DIST {
                 continue;
             }
-            v.linvel = *velocity
+            v.0 = *velocity
         } else {
             warn!("Recv UpdateEntityVelocity for entity that doesn't have a velocity!");
         }

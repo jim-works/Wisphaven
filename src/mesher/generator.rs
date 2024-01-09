@@ -219,7 +219,7 @@ pub fn poll_mesh_queue(
             }
             //add new meshes
             if !data.opaque.is_empty() {
-                spawn_mesh::<NotShadowCaster>(
+                spawn_mesh::<()>(
                     data.opaque,
                     chunk_material.opaque_material.clone().unwrap(),
                     &mut commands,

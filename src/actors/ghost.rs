@@ -1,8 +1,7 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 
 use crate::{
-    physics::PhysicsObjectBundle,
+    physics::{PhysicsBundle, collision::Aabb, movement::GravityMult},
     util::{plugin::SmoothLookTo, SendEventCommand},
     world::LevelLoadState,
 };
@@ -61,7 +60,7 @@ fn spawn_ghost(
     res: Res<GhostResources>,
     mut spawn_requests: EventReader<SpawnGhostEvent>,
 ) {
-    for spawn in spawn_requests.iter() {
+    for spawn in spawn_requests.read() {
         commands.spawn((
             SceneBundle {
                 scene: res.scene.clone_weak(),
@@ -76,14 +75,9 @@ fn spawn_ghost(
                 },
                 ..default()
             },
-            PhysicsObjectBundle {
-                rigidbody: RigidBody::Dynamic,
-                collider: Collider::cuboid(0.5, 0.5, 0.5),
-                ..default()
-            },
-            GravityScale(0.1),
-            Damping {
-                linear_damping: 2.0,
+            PhysicsBundle {
+                collider: Aabb::centered(Vec3::splat(0.5)),
+                gravity: GravityMult(0.1),
                 ..default()
             },
             Ghost,

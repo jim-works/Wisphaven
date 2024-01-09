@@ -7,6 +7,9 @@
 #![allow(clippy::too_many_arguments)]
 //TODO: remove this before release. annoying as balls during development
 #![allow(dead_code)]
+//don't care too much about precision here, so I'll allow this
+#![feature(const_fn_floating_point_arithmetic)]
+#![feature(assert_matches)]
 
 use std::{env, net::Ipv4Addr};
 
@@ -43,6 +46,7 @@ mod worldgen;
 
 fn main() {
     //todo - this should be in GUI
+    println!("block: {}, entity: {}", std::mem::size_of::<BlockType>(), std::mem::size_of::<Entity>());
     let args: Vec<String> = env::args().collect();
     let mut server_port = None;
     let mut client_connection_ip = None;
@@ -65,7 +69,7 @@ fn main() {
             .set(ImagePlugin::default_nearest())
             .set(WindowPlugin {
                 primary_window: Some(Window {
-                    title: "Echoes of the Outsider".to_string(),
+                    title: "Wisphaven".to_string(),
                     ..default()
                 }),
                 ..default()

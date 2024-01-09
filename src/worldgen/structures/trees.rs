@@ -39,6 +39,7 @@ impl<
     fn generate(
         &self,
         buffer: &mut BlockBuffer<BlockId>,
+        world_seed: u64,
         pos: BlockCoord,
         local_pos: ChunkIdx,
         chunk: &GeneratingChunk,
@@ -58,7 +59,7 @@ impl<
         }
         let _my_span = info_span!("tree_generate", name = "tree_generate").entered();
         //generate tree
-        let seed = pos.to_seed();
+        let seed = world_seed^pos.to_seed();
         let tree = self
             .l_system
             .iterate(&(self.initial_sentence)(pos), self.iterations, seed);

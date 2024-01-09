@@ -1,8 +1,9 @@
 use bevy::prelude::{Vec3, IVec3};
+use bitflags::bitflags;
 
 use crate::world::{BlockCoord, chunk::{ChunkCoord, ChunkIdx, CHUNK_SIZE_U8, FatChunkIdx, CHUNK_SIZE_I8}};
 
-use super::max_component_norm;
+use super::{max_component_norm, min_component_norm};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Direction{
@@ -47,6 +48,17 @@ impl Direction {
         }
     }
 
+    pub fn to_vec3(self) -> Vec3 {
+        match self {
+            Direction::PosX => Vec3::new(1.0,0.0,0.0),
+            Direction::PosY => Vec3::new(0.0,1.0,0.0),
+            Direction::PosZ => Vec3::new(0.0,0.0,1.0),
+            Direction::NegX => Vec3::new(-1.0,0.0,0.0),
+            Direction::NegY => Vec3::new(0.0,-1.0,0.0),
+            Direction::NegZ => Vec3::new(0.0,0.0,-1.0),
+        }
+    }
+
     pub fn opposite(self) -> Direction {
         match self {
             Direction::PosX => Direction::NegX,
@@ -80,6 +92,31 @@ impl Direction {
         }
     }
 
+    pub fn get_axis(self, v: Vec3) -> f32 {
+        match self {
+            Direction::PosX | Direction::NegX => v.x,
+            Direction::PosY | Direction::NegY => v.y,
+            Direction::PosZ | Direction::NegZ => v.z,
+        }
+    }
+
+    pub fn min_magnitude_axis(v: Vec3) -> Self {
+        let min = min_component_norm(v);
+        if min.x > 0.0 {
+            Direction::PosX
+        } else if min.x < 0.0 {
+            Direction::NegX
+        } else if min.y > 0.0 {
+            Direction::PosY
+        } else if min.y < 0.0 {
+            Direction::NegY
+        } else if min.z > 0.0 {
+            Direction::PosZ
+        } else {
+            Direction::NegZ
+        }
+    }
+
     pub fn iter() -> DirectionIterator {
         DirectionIterator { curr: None }
     }
@@ -87,6 +124,21 @@ impl Direction {
 
 impl From<u64> for Direction {
     fn from(value: u64) -> Self {
+        match value % 6 {
+            0 => Direction::PosX,
+            1 => Direction::PosY,
+            2 => Direction::PosZ,
+            3 => Direction::NegX,
+            4 => Direction::NegY,
+            5 => Direction::NegZ,
+            //shouldn't happen
+            _ => unreachable!()
+        }
+    }
+}
+
+impl From<usize> for Direction {
+    fn from(value: usize) -> Self {
         match value % 6 {
             0 => Direction::PosX,
             1 => Direction::PosY,
@@ -115,6 +167,31 @@ impl From<Vec3> for Direction {
             Direction::PosZ
         } else {
             Direction::NegZ
+        }
+    }
+}
+
+bitflags! {
+    #[derive(Default, Debug, Clone, Copy)]
+    pub struct DirectionFlags : u8 {
+        const PosX = 0b000001;
+        const PosY = 0b000010;
+        const PosZ = 0b000100;
+        const NegX = 0b001000;
+        const NegY = 0b010000;
+        const NegZ = 0b100000;
+    }
+}
+
+impl From<Direction> for DirectionFlags {
+    fn from(value: Direction) -> Self {
+        match value {
+            Direction::PosX => DirectionFlags::PosX,
+            Direction::PosY => DirectionFlags::PosY,
+            Direction::PosZ => DirectionFlags::PosZ,
+            Direction::NegX => DirectionFlags::NegX,
+            Direction::NegY => DirectionFlags::NegY,
+            Direction::NegZ => DirectionFlags::NegZ,
         }
     }
 }

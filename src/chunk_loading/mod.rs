@@ -7,9 +7,8 @@ use bevy::prelude::*;
 use crate::{
     actors::spawn_local_player,
     net::{client::ClientState, NetworkType},
-    physics::ChunkColliderGenerated,
     util::LocalRepeatingTimer,
-    world::{settings::Settings, Level, LevelLoadState, LevelSystemSet},
+    world::{settings::Settings, Level, LevelLoadState, LevelSystemSet}, worldgen::GeneratedChunk,
 };
 
 use self::entity_loader::{ChunkLoadingTimer, DespawnChunkEvent};
@@ -75,7 +74,6 @@ pub fn finish_loading_trigger(
     mut timer: Local<LocalRepeatingTimer<100>>,
     time: Res<Time>,
     init_loader: Query<(Entity, &ChunkLoader, &GlobalTransform), With<InitialLoader>>,
-    loaded_chunk_query: Query<&ChunkColliderGenerated>,
 ) {
     timer.tick(time.delta());
     if !timer.just_finished() {
@@ -87,10 +85,8 @@ pub fn finish_loading_trigger(
         loader.for_each_center_chunk(|coord| {
             target += 1;
             if let Some(chunk_ref) = level.get_chunk(coord + tf.translation().into()) {
-                if let crate::world::chunk::ChunkType::Full(chunk) = chunk_ref.value() {
-                    if loaded_chunk_query.contains(chunk.entity) {
-                        loaded += 1;
-                    }
+                if let crate::world::chunk::ChunkType::Full(_) = chunk_ref.value() {
+                    loaded += 1;
                 }
             }
         });

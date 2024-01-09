@@ -1,17 +1,18 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 use big_brain::prelude::*;
 
 use crate::{
-    physics::{shape_intersects_with_actors, PhysicsObjectBundle},
+    physics::{collision::Aabb, movement::GravityMult, PhysicsBundle},
     ui::healthbar::spawn_billboard_healthbar,
-    world::LevelLoadState, util::{SendEventCommand, plugin::SmoothLookTo},
+    util::{plugin::SmoothLookTo, SendEventCommand},
+    world::LevelLoadState,
 };
 
 use super::{
     behaviors::{FloatAction, FloatHeight, FloatScorer, FloatWander, FloatWanderAction},
     personality::components::*,
-    CombatInfo, CombatantBundle, DefaultAnimation, Idler, UninitializedActor, ActorResources, ActorName,
+    ActorName, ActorResources, CombatInfo, CombatantBundle, DefaultAnimation, Idler,
+    UninitializedActor,
 };
 
 #[derive(Resource)]
@@ -80,7 +81,7 @@ pub fn spawn_glowjelly(
     mut spawn_requests: EventReader<SpawnGlowjellyEvent>,
     _children_query: Query<&Children>,
 ) {
-    for spawn in spawn_requests.iter() {
+    for spawn in spawn_requests.read() {
         let id = commands
             .spawn((
                 SceneBundle {
@@ -96,9 +97,9 @@ pub fn spawn_glowjelly(
                     },
                     ..default()
                 },
-                PhysicsObjectBundle {
-                    rigidbody: RigidBody::Dynamic,
-                    collider: Collider::cuboid(0.5, 0.5, 0.5),
+                PhysicsBundle {
+                    collider: Aabb::new(Vec3::ONE, -0.5 * Vec3::ONE),
+                    gravity: GravityMult(0.1),
                     ..default()
                 },
                 PersonalityBundle {
@@ -106,11 +107,6 @@ pub fn spawn_glowjelly(
                         status: FacetValue::new(100.0, 1.0).unwrap(),
                         ..default()
                     },
-                    ..default()
-                },
-                GravityScale(0.1),
-                Damping {
-                    linear_damping: 1.0,
                     ..default()
                 },
                 Glowjelly {
@@ -143,11 +139,7 @@ pub fn spawn_glowjelly(
             ))
             .id();
         //add healthbar
-        spawn_billboard_healthbar(
-            &mut commands,
-            id,
-            Vec3::new(0.0, 2.0, 0.0),
-        );
+        spawn_billboard_healthbar(&mut commands, id, Vec3::new(0.0, 2.0, 0.0));
     }
 }
 
@@ -218,27 +210,24 @@ pub fn setup_glowjelly(
 pub struct SocialScorer;
 
 fn social_score(
-    collision: Res<RapierContext>,
     mut query: Query<(Entity, &mut FloatHeight, &GlobalTransform)>,
     friend_query: Query<&GlobalTransform, With<Glowjelly>>,
 ) {
+    const SQUARE_RADIUS: f32 = 25.0*25.0;
     for (entity, mut height, tf) in query.iter_mut() {
         let mut sum_height_diff = 0.0;
         let mut count = 0.0;
-        shape_intersects_with_actors(
-            &collision,
-            tf.translation(),
-            Quat::IDENTITY,
-            &Collider::ball(height.preferred_height),
-            Some(entity),
-            |e| {
-                if let Ok(friend) = friend_query.get(e) {
-                    sum_height_diff += tf.translation().y-friend.translation().y;
-                    count += 1.0;
-                }
-                true
-            },
-        );
-        height.task.outcomes.status = if count == 0.0 {0.0} else {-sum_height_diff/count}
+        //todo: optimize
+        for friend_tf in friend_query.iter() {
+            if friend_tf.translation().distance_squared(tf.translation()) < SQUARE_RADIUS {
+                sum_height_diff += tf.translation().y - friend_tf.translation().y;
+                count += 1.0;
+            }
+        }
+        height.task.outcomes.status = if count == 0.0 {
+            0.0
+        } else {
+            -sum_height_diff / count
+        }
     }
 }

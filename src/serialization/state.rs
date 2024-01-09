@@ -7,6 +7,7 @@ use super::ItemTextureMap;
 #[derive(States, Default, Debug, Hash, Eq, PartialEq, Clone)]
 pub enum GameLoadState {
     #[default]
+    Preloading,
     LoadingAssets,
     CreatingLevel,
     Done
@@ -33,8 +34,8 @@ pub fn check_textures(
     assets: Res<AssetServer>
 ) {
     if !progress.0 
-        && block_textures.0.iter().all(|x| assets.get_load_state(x) == LoadState::Loaded)
-        &&  item_textures.0.values().all(|x| assets.get_load_state(x) == LoadState::Loaded) {
+        && block_textures.0.iter().all(|x| assets.get_load_state(x) == Some(LoadState::Loaded))
+        &&  item_textures.0.values().all(|x| assets.get_load_state(x) == Some(LoadState::Loaded)) {
         progress.0 = true;
         info!("Finished loading textures")
     }

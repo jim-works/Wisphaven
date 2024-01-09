@@ -2,10 +2,9 @@ use std::{ops::Deref, sync::Arc};
 
 use crate::{
     mesher::NeedsMesh,
-    physics::NeedsPhysics,
     serialization::{ChunkSaveFormat, NeedsLoading, NeedsSaving},
     util::{
-        iterators::{BlockVolume, BlockVolumeContainer},
+        iterators::{BlockVolume, VolumeContainer},
         max_component_norm, Direction,
     },
     world::BlockcastHit,
@@ -60,7 +59,7 @@ impl LevelData {
             buffers: DashMap::with_hasher(ahash::RandomState::new()),
             block_damages: DashMap::with_hasher(ahash::RandomState::new()),
             lod_chunks: DashMap::with_hasher(ahash::RandomState::new()),
-            spawn_point: Vec3::new(0.0, 50.0, 0.0),
+            spawn_point: Vec3::new(0.0, 0.0, 10.0),
         }
     }
     pub fn get_block(&self, key: BlockCoord) -> Option<BlockType> {
@@ -80,12 +79,12 @@ impl LevelData {
             None => None,
         }
     }
-    pub fn get_blocks_in_volume(&self, volume: BlockVolume) -> BlockVolumeContainer {
-        let mut container = BlockVolumeContainer::new(volume);
+    pub fn get_blocks_in_volume(&self, volume: BlockVolume) -> VolumeContainer<BlockType> {
+        let mut container = VolumeContainer::new(volume);
         self.fill_volume_container(&mut container);
         container
     }
-    pub fn fill_volume_container(&self, container: &mut BlockVolumeContainer) {
+    pub fn fill_volume_container(&self, container: &mut VolumeContainer<BlockType>) {
         //todo - optimize to get needed chunks all at once
         for pos in container.volume().iter() {
             container[pos] = self.get_block(pos);
@@ -249,11 +248,9 @@ impl LevelData {
         if SAVE {
             commands
                 .entity(chunk_entity)
-                .insert((NeedsMesh, NeedsPhysics, NeedsSaving));
+                .insert((NeedsMesh, NeedsSaving));
         } else {
-            commands
-                .entity(chunk_entity)
-                .insert((NeedsMesh, NeedsPhysics));
+            commands.entity(chunk_entity).insert(NeedsMesh);
         }
         update_writer.send(ChunkUpdatedEvent { coord });
     }
@@ -266,9 +263,7 @@ impl LevelData {
         for dir in Direction::iter() {
             if let Some(neighbor_ref) = self.get_chunk(coord.offset(dir)) {
                 if let ChunkType::Full(c) = neighbor_ref.value() {
-                    commands
-                        .entity(c.entity)
-                        .insert((NeedsMesh {}, NeedsPhysics {}));
+                    commands.entity(c.entity).insert(NeedsMesh {});
                     update_writer.send(ChunkUpdatedEvent { coord: c.position });
                 }
             }
@@ -689,24 +684,29 @@ impl LevelData {
             Some(map) => map.contains_key(&position),
         }
     }
-    //todo improve this (bresenham's?)
-    pub fn blockcast(&self, origin: Vec3, line: Vec3) -> Option<BlockcastHit> {
+
+    //todo improve this (bresehams -> sweep_ray)
+    //only hits blocks
+    pub fn blockcast(
+        &self,
+        origin: Vec3,
+        line: Vec3,
+        mut checker: impl FnMut(Option<BlockType>) -> bool,
+    ) -> Option<BlockcastHit> {
         let _my_span = info_span!("blockcast", name = "blockcast").entered();
         const STEP_SIZE: f32 = 0.05;
         let line_len = line.length();
         let line_norm = line / line_len;
         let mut old_coords = BlockCoord::from(origin);
-        match self.get_block(old_coords) {
-            Some(BlockType::Empty) | None => {}
-            Some(t) => {
-                return Some(BlockcastHit {
-                    hit_pos: origin,
-                    block_pos: old_coords,
-                    block: t,
-                    normal: BlockCoord::new(0, 0, 0),
-                })
-            }
-        };
+        let block = self.get_block(old_coords);
+        if checker(block) {
+            return Some(BlockcastHit {
+                hit_pos: origin,
+                block_pos: old_coords,
+                block,
+                normal: BlockCoord::new(0, 0, 0),
+            });
+        }
         let mut t = 0.0;
         while t < line_len {
             t += STEP_SIZE;
@@ -718,16 +718,13 @@ impl LevelData {
 
             old_coords = test_block;
             let b = self.get_block(test_block);
-            match b {
-                Some(BlockType::Empty) | None => {}
-                Some(t) => {
-                    return Some(BlockcastHit {
-                        hit_pos: test_point,
-                        block_pos: test_block,
-                        block: t,
-                        normal: max_component_norm(test_point - old_coords.center()).into(),
-                    })
-                }
+            if checker(b) {
+                return Some(BlockcastHit {
+                    hit_pos: test_point,
+                    block_pos: test_block,
+                    block: b,
+                    normal: max_component_norm(test_point - old_coords.center()).into(),
+                });
             }
         }
         None

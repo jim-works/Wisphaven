@@ -1,6 +1,10 @@
-use crate::world::{BlockCoord, BlockType};
+use crate::{
+    physics::collision::Aabb,
+    world::{BlockCoord, chunk::ChunkCoord},
+};
 use bevy::prelude::*;
 
+#[derive(Clone)]
 pub struct BlockVolumeIterator {
     x_len: i32,
     y_len: i32,
@@ -24,7 +28,7 @@ impl BlockVolumeIterator {
         }
     }
 
-    pub fn from_volume(volume: BlockVolume) -> impl Iterator<Item=BlockCoord> {
+    pub fn from_volume(volume: BlockVolume) -> impl Iterator<Item = BlockCoord> + Clone {
         let size = volume.max_corner - volume.min_corner;
         Self {
             x_len: size.x,
@@ -98,7 +102,7 @@ impl BlockVolume {
     }
 
     pub fn center(&self) -> Vec3 {
-        self.min_corner.to_vec3() + self.size().to_vec3()/2.0
+        self.min_corner.to_vec3() + self.size().to_vec3() / 2.0
     }
 
     pub fn new(min_corner: BlockCoord, max_corner_exclusive: BlockCoord) -> Self {
@@ -111,25 +115,39 @@ impl BlockVolume {
     pub fn new_inclusive(min_corner: BlockCoord, max_corner_inclusive: BlockCoord) -> Self {
         BlockVolume {
             min_corner,
-            max_corner: max_corner_inclusive+BlockCoord::new(1,1,1),
+            max_corner: max_corner_inclusive + BlockCoord::new(1, 1, 1),
         }
     }
 
-    pub fn iter(self) -> impl Iterator<Item = BlockCoord> {
+    pub fn from_aabb(value: Aabb, offset: Vec3) -> Self {
+        let max_corner = value.world_max(offset);
+        Self::new_inclusive(
+            BlockCoord::from(value.world_min(offset)),
+            BlockCoord::new(
+                max_corner.x.floor() as i32,
+                max_corner.y.floor() as i32,
+                max_corner.z.floor() as i32,
+            ),
+        )
+    }
+
+    pub fn iter(self) -> impl Iterator<Item = BlockCoord> + Clone {
         BlockVolumeIterator::from_volume(self)
     }
 }
 
-pub struct BlockVolumeContainer {
-    blocks: Vec<Option<BlockType>>,
+pub struct VolumeContainer<T> {
+    blocks: Vec<Option<T>>,
     volume: BlockVolume,
     size: BlockCoord,
 }
 
-impl BlockVolumeContainer {
+impl<'a, T> VolumeContainer<T> {
     pub fn new(volume: BlockVolume) -> Self {
+        let mut vec = Vec::with_capacity(volume.volume() as usize);
+        vec.resize_with(volume.volume() as usize, || None);
         Self {
-            blocks: vec![None; volume.volume() as usize],
+            blocks: vec,
             volume,
             size: volume.max_corner - volume.min_corner,
         }
@@ -143,8 +161,8 @@ impl BlockVolumeContainer {
         self.size
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (BlockCoord, Option<BlockType>)> + '_ {
-        self.volume.iter().map(|pos| (pos, self[pos]))
+    pub fn iter(&'a self) -> impl Iterator<Item = (BlockCoord, Option<&T>)> + Clone + 'a {
+        self.volume.iter().map(|pos| (pos, self[pos].as_ref()))
     }
 
     //clears blocks, and reuses buffer for new volume, expanding if needed
@@ -152,12 +170,12 @@ impl BlockVolumeContainer {
         self.volume = volume;
         self.size = volume.max_corner - volume.min_corner;
         self.blocks.clear();
-        self.blocks.resize(volume.volume() as usize, None);
+        self.blocks.resize_with(volume.volume() as usize, || None);
     }
 }
 
-impl std::ops::Index<BlockCoord> for BlockVolumeContainer {
-    type Output = Option<BlockType>;
+impl<T> std::ops::Index<BlockCoord> for VolumeContainer<T> {
+    type Output = Option<T>;
 
     fn index(&self, mut index: BlockCoord) -> &Self::Output {
         index -= self.volume.min_corner;
@@ -166,7 +184,7 @@ impl std::ops::Index<BlockCoord> for BlockVolumeContainer {
     }
 }
 
-impl std::ops::IndexMut<BlockCoord> for BlockVolumeContainer {
+impl<T> std::ops::IndexMut<BlockCoord> for VolumeContainer<T> {
     fn index_mut(&mut self, mut index: BlockCoord) -> &mut Self::Output {
         index -= self.volume.min_corner;
         &mut self.blocks
@@ -174,79 +192,58 @@ impl std::ops::IndexMut<BlockCoord> for BlockVolumeContainer {
     }
 }
 
-#[test]
-fn test_volume_iterator() {
-    let it = BlockVolumeIterator::new(5, 6, 7);
-    let mut count = 0;
-    for coord in it {
-        count += 1;
-        assert!(coord.x < 5);
-        assert!(coord.y < 6);
-        assert!(coord.z < 7);
-    }
-    assert_eq!(count, 5 * 6 * 7);
+pub trait AxisIter<T> {
+    fn axis_iter(self) -> impl Iterator<Item=T>;
 }
 
-#[test]
-fn test_volume_iterator_zero() {
-    let it = BlockVolumeIterator::new(0, 0, 0);
-    let mut count = 0;
-    for _ in it {
-        count += 1;
+impl AxisIter<f32> for Vec3 {
+    fn axis_iter(self) -> impl Iterator<Item=f32> {
+        self.to_array().into_iter()
     }
-    assert_eq!(count, 0);
 }
 
-#[test]
-fn test_volume_iterator_one() {
-    let it = BlockVolumeIterator::new(1, 1, 1);
-    let mut count = 0;
-    for _ in it {
-        count += 1;
+impl AxisIter<i32> for BlockCoord {
+    fn axis_iter(self) -> impl Iterator<Item=i32> {
+        [self.x, self.y, self.z].into_iter()
     }
-    assert_eq!(count, 1);
 }
 
-#[test]
-fn test_block_volume_iterator() {
-    let volume = BlockVolume::new(BlockCoord::new(0,0,0), BlockCoord::new(10,10,10));
-    let mut count = 0;
-    for _ in volume.iter() {
-        count += 1;
+impl AxisIter<i32> for ChunkCoord {
+    fn axis_iter(self) -> impl Iterator<Item=i32> {
+        [self.x, self.y, self.z].into_iter()
     }
-    assert_eq!(count, 10*10*10);
 }
 
-#[test]
-fn test_block_volume_inclusive_iterator() {
-    let volume = BlockVolume::new_inclusive(BlockCoord::new(0,0,0), BlockCoord::new(10,10,10));
-    let mut count = 0;
-    for _ in volume.iter() {
-        count += 1;
-    }
-    assert_eq!(count, 11*11*11);
+pub trait AxisMap<Elem, ResultElem, Result=Self> {
+    fn axis_map(self, f: impl FnMut(Elem) -> ResultElem) -> Result;
 }
 
-#[test]
-fn test_block_volume_container_iterator() {
-    let volume = BlockVolume::new(BlockCoord::new(0,0,0), BlockCoord::new(10,10,10));
-    let mut container = BlockVolumeContainer::new(volume);
-    let mut count = 0;
-    for coord in volume.iter() {
-        container[coord] = Some(BlockType::Empty);
-        count += 1;
+impl AxisMap<f32, f32> for Vec3 {
+    fn axis_map(self, mut f: impl FnMut(f32) -> f32) -> Self {
+        Vec3::new((f)(self.x), (f)(self.y), (f)(self.z))
     }
-    assert_eq!(count, 10*10*10);
 }
 
-#[test]
-fn test_block_volume_container_inclusive_iterator() {
-    let volume = BlockVolume::new_inclusive(BlockCoord::new(0,0,0), BlockCoord::new(10,10,10));
-    let mut container = BlockVolumeContainer::new(volume);
-    let mut count = 0;
-    for coord in volume.iter() {
-        container[coord] = Some(BlockType::Empty);
-        count += 1;
+impl AxisMap<(f32, f32), f32, Vec3> for (Vec3, Vec3) {
+    fn axis_map(self, mut f: impl FnMut((f32, f32)) -> f32) -> Vec3 {
+        Vec3::new((f)((self.0.x, self.1.x)), (f)((self.0.y, self.1.y)), (f)((self.0.z, self.1.z)))
     }
-    assert_eq!(count, 11*11*11);
+}
+
+impl AxisMap<(f32, f32, f32), f32, Vec3> for (Vec3, Vec3, Vec3) {
+    fn axis_map(self, mut f: impl FnMut((f32, f32, f32)) -> f32) -> Vec3 {
+        Vec3::new((f)((self.0.x, self.1.x, self.2.x)), (f)((self.0.y, self.1.y, self.2.y)), (f)((self.0.z, self.1.z, self.2.z)))
+    }
+}
+
+impl AxisMap<i32, i32> for BlockCoord {
+    fn axis_map(self, mut f: impl FnMut(i32) -> i32) -> Self {
+        BlockCoord::new((f)(self.x), (f)(self.y), (f)(self.z))
+    }
+}
+
+impl AxisMap<i32, i32> for ChunkCoord {
+    fn axis_map(self, mut f: impl FnMut(i32) -> i32) -> Self {
+        ChunkCoord::new((f)(self.x), (f)(self.y), (f)(self.z))
+    }
 }

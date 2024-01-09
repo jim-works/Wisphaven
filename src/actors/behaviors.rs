@@ -1,9 +1,8 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 use big_brain::prelude::*;
 use rand::thread_rng;
 
-use crate::{util::{sample_sphere_surface, plugin::SmoothLookTo}, actors::personality::scoring};
+use crate::{util::{sample_sphere_surface, plugin::SmoothLookTo}, actors::personality::scoring, physics::movement::Velocity};
 
 use super::{personality::components::*, DefaultAnimation, setup_animation, setup_animation_with_speed};
 
@@ -14,7 +13,6 @@ impl Plugin for BehaviorsPlugin {
         app
             .add_systems(PreUpdate, float_scorer_system.in_set(BigBrainSet::Scorers))
             .add_systems(PreUpdate, (float_wander_action_system, float_action_system).in_set(BigBrainSet::Actions))
-            .add_systems(PreUpdate, eval_height)
         ;
     }
 }
@@ -50,14 +48,14 @@ pub fn float_wander_action_system(
     mut info: Query<(
         Option<&mut DefaultAnimation>,
         &mut FloatWander,
-        &mut ExternalImpulse,
+        &mut Velocity,
         &mut SmoothLookTo,
     )>,
     mut query: Query<(&Actor, &mut ActionState, &FloatWanderAction)>,
     mut animation_player: Query<&mut AnimationPlayer>
 ) {
     for (Actor(actor), mut state, wander) in query.iter_mut() {
-        if let Ok((anim_opt, mut floater, mut impulse, mut look)) = info.get_mut(*actor) {
+        if let Ok((anim_opt, mut floater, mut v, mut look)) = info.get_mut(*actor) {
             match *state {
                 ActionState::Requested => {
                     *state = ActionState::Executing;
@@ -74,7 +72,7 @@ pub fn float_wander_action_system(
                             //time according to animation
                             anim.tick(time.delta_seconds());
                             if anim.just_acted() {
-                                impulse.impulse += floater.target_direction;
+                                v.0 += floater.target_direction;
                             }
                             if anim.finished() {
                                 *state = ActionState::Success;
@@ -82,7 +80,7 @@ pub fn float_wander_action_system(
                         }
                         None => {
                             //no animation, so execute immediately
-                            impulse.impulse += floater.target_direction;
+                            v.0 += floater.target_direction;
                             *state = ActionState::Success;
                         }
                     }
@@ -90,34 +88,6 @@ pub fn float_wander_action_system(
                 _ => {}
             }
         }
-    }
-}
-
-pub fn eval_height(
-    collision: Res<RapierContext>,
-    mut query: Query<(&mut FloatHeight, &GlobalTransform)>,
-) {
-    let groups = QueryFilter {
-        groups: Some(CollisionGroups::new(
-            Group::ALL,
-            Group::from_bits_truncate(crate::physics::TERRAIN_GROUP),
-        )),
-        ..default()
-    };
-    for (mut height, tf) in query.iter_mut() {
-        height.curr_height = if let Some((_, dist)) = collision.cast_ray(
-            tf.translation(),
-            Vec3::NEG_Y,
-            2.0*height.preferred_height,
-            true,
-            groups,
-        ) {
-            dist
-        } else {
-            2.0*height.preferred_height
-        };
-        //height.task.outcomes.status = (height.preferred_height-height.curr_height)/height.preferred_height;
-        //height.task.risks.physical_danger = (height.curr_height/height.preferred_height).powi(2);
     }
 }
 
@@ -155,14 +125,14 @@ pub fn float_action_system(
     time: Res<Time>,
     mut info: Query<(
         Option<&mut DefaultAnimation>,
-        &mut ExternalImpulse,
+        &mut Velocity,
         &mut SmoothLookTo,
     ), With<FloatHeight>>,
     mut query: Query<(&Actor, &mut ActionState, &FloatAction)>,
     mut animation_player: Query<&mut AnimationPlayer>
 ) {
     for (Actor(actor), mut state, float) in query.iter_mut() {
-        if let Ok((anim_opt, mut impulse, mut look)) = info.get_mut(*actor) {
+        if let Ok((anim_opt, mut v, mut look)) = info.get_mut(*actor) {
             match *state {
                 ActionState::Requested => {
                     *state = ActionState::Executing;
@@ -178,7 +148,7 @@ pub fn float_action_system(
                             //time according to animation
                             if anim.just_acted()
                             {
-                                impulse.impulse += Vec3::Y * float.impulse;
+                                v.0 += Vec3::Y * float.impulse;
                             }
                             if anim.finished() {
                                 *state = ActionState::Success;
@@ -186,7 +156,7 @@ pub fn float_action_system(
                         }
                         None => {
                             //no animation, so execute immediately
-                            impulse.impulse += Vec3::Y * float.impulse;
+                            v.0 += Vec3::Y * float.impulse;
                             *state = ActionState::Success;
                         }
                     }

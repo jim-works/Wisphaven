@@ -8,7 +8,7 @@ use crate::{
         CreatorItem, ItemBundle, ItemName, MaxStackSize,
     },
     serialization::BlockTextureMap,
-    util::Direction,
+    util::Direction, physics::collision::Aabb,
 };
 use bevy::{prelude::*, utils::HashMap};
 use serde::{Deserialize, Serialize};
@@ -30,6 +30,15 @@ impl From<Option<Entity>> for BlockType {
         match value {
             Some(e) => BlockType::Filled(e),
             None => BlockType::Empty,
+        }
+    }
+}
+
+impl BlockType {
+    pub fn entity(self) -> Option<Entity> {
+        match self {
+            BlockType::Empty => None,
+            BlockType::Filled(e) => Some(e),
         }
     }
 }
@@ -190,7 +199,7 @@ impl BlockMeshShape {
     }
 }
 
-#[derive(Component, Clone, PartialEq, Default, Reflect)]
+#[derive(Component, Clone, PartialEq, Default, Reflect, Debug, Serialize, Deserialize)]
 #[reflect(Component)]
 //controls collider
 pub enum BlockPhysics {
@@ -199,18 +208,7 @@ pub enum BlockPhysics {
     Empty,
     //standard block shape, solid block
     Solid,
-    //Slab with height from bottom (1.0) is the same as uniform, (0.0) is empty
-    BottomSlab(f32),
-}
-
-impl BlockPhysics {
-    pub fn has_hole(&self, face: Direction) -> bool {
-        match self {
-            BlockPhysics::Empty => true,
-            BlockPhysics::Solid => false,
-            BlockPhysics::BottomSlab(_) => face != Direction::NegY,
-        }
-    }
+    Aabb(Aabb),
 }
 
 //0 = healthy, 1 = broken

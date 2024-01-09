@@ -23,7 +23,7 @@ fn use_skip_to_night_item(
     query: Query<With<SkipToNightItem>>,
     cal: Res<Calendar>
 ) {
-    for e in reader.iter() {
+    for e in reader.read() {
         if query.contains(e.stack.id) {
             info!("Skipping to night...");
             writer.send(SpeedupCalendarEvent(cal.next_night()));

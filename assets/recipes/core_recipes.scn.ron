@@ -3,7 +3,7 @@
   entities: {
     1: (
       components: {
-        "recursia::items::crafting::recipes::NamedBasicBlockRecipe": (
+        "wisphaven::items::crafting::recipes::NamedBasicBlockRecipe": (
            recipe: [
                 [
                     [
@@ -12,14 +12,14 @@
                 ]
            ],
            products: [
-                (BlockCoord (x: 0, y: 0, z: 0), BlockName(namespace: "core", name: "tnt"))
+                (BlockCoord (x: 0, y: 0, z: 0), BlockName(namespace: "core", name: "log_slab"))
            ]
         ),
       },
     ),
     2: (
       components: {
-        "recursia::items::crafting::recipes::NamedBasicBlockRecipe": (
+        "wisphaven::items::crafting::recipes::NamedBasicBlockRecipe": (
            recipe: [
                 [
                     [

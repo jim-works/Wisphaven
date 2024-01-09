@@ -1,9 +1,7 @@
 use crate::{
-    physics::PhysicsObjectBundle,
-    ui::healthbar::spawn_billboard_healthbar, util::SendEventCommand
+    ui::healthbar::spawn_billboard_healthbar, util::SendEventCommand, physics::{PhysicsBundle, collision::Aabb}
 };
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 
 use super::{CombatInfo, CombatantBundle, ActorResources, ActorName};
 
@@ -63,7 +61,7 @@ pub fn spawn_world_anchor(
     mut spawn_requests: EventReader<SpawnWorldAnchorEvent>,
     _children_query: Query<&Children>,
 ) {
-    for spawn in spawn_requests.iter() {
+    for spawn in spawn_requests.read() {
         let id = commands
             .spawn((
                 SceneBundle {
@@ -79,10 +77,9 @@ pub fn spawn_world_anchor(
                     },
                     ..default()
                 },
-                PhysicsObjectBundle {
-                    rigidbody: RigidBody::Fixed,
+                PhysicsBundle {
                     //center of anchor is at bottom of model, so spawn the collision box offset
-                    collider: Collider::compound(vec![(Vec3::new(0.0,0.0,0.0), Quat::IDENTITY, Collider::cuboid(0.5, 0.5, 0.5))]),
+                    collider: Aabb::new(Vec3::new(2.0,2.0,2.0), Vec3::new(-1.0,0.0,-1.0)),
                     ..default()
                 },
                 WorldAnchor,

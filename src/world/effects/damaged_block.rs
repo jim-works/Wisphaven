@@ -60,7 +60,7 @@ fn update_damaged_block_effect(
     mut commands: Commands,
     mut damage_query: Query<&mut Handle<StandardMaterial>, With<DamagedBlockEffect>>
 ) {
-    for BlockDamageSetEvent { block_position, damage, damager: _ } in reader.iter() {
+    for BlockDamageSetEvent { block_position, damage, damager: _ } in reader.read() {
         if damage.damage <= 0.0 || damage.damage >= 1.0 {
             //block is either healed or broken, remove any damages that may be present
             if let Some(entity) = resources.damages.remove(block_position) {

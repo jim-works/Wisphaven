@@ -1,6 +1,6 @@
 [package]
-name = "recursia"
-version = "0.1.0"
+name = "wisphaven"
+version = "0.1.1" #not exactly using semver. will have game saves be compatible if major/minor versions are equal
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -8,8 +8,6 @@ edition = "2021"
 # Enable a small amount of optimization in debug mode
 [profile.dev]
 opt-level = 1
-#speed up compilation by removing debugger symbols (stack traces still work)
-debug = 0
 
 # Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
@@ -25,18 +23,16 @@ debug = true
 ahash = "0.8.3"
 #TODO: remove dynamic_linking/trace_tracy for releases (automate this)
 #TODO: maybe enable wayland feature?
-bevy = { version = "0.11.2", features = ["dynamic_linking"] }                                       #0.12 update highlights - scene loading callback, one shot systems
+bevy = { version = "0.12.0", features = ["dynamic_linking", "serialize"] }                                       #0.12 update highlights - scene loading callback, one shot systems
 bracket-noise = "0.8.7"
 dashmap = "5.4.0"
 futures-lite = "1.13.0"
 serde = { version = "1.0.162", features = ["derive"] }
-leafwing-input-manager = "0.10.0"                                                                   #updated for 0.12 (0.11.0)
-bevy-inspector-egui = "0.19.0"                                                                      #not updated
+leafwing-input-manager = "0.11.0"
+bevy-inspector-egui = "0.21.0"
 
-#TODO: check if parallel makes things faster once I have many physics objects
-bevy_rapier3d = { version="0.22.0", features = [ "simd-stable", "debug-render-3d", "parallel" ] }   #not updated
 #changes merged, can go back to the crates.io version when it gets updated next
-big-brain = {git = "https://github.com/jim-works/big-brain_set_unchecked.git" }                     #not updated
+big-brain = {git = "https://github.com/zkat/big-brain.git" }
 #big-brain = "0.18.0"
 bincode = "1.3.3"
 rusqlite = { version = "0.29.0", features = ["bundled"] }
@@ -46,8 +42,9 @@ rand = "0.8.5"
 rand_distr = "0.4.3"
 itertools = "0.11.0"
 futures-timer = "3.0.2"
-bevy_atmosphere = "0.7.0"                                                                           #not updated
-bevy_quinnet = "0.5.0"                                                                              #updated 0.6.0
+bevy_atmosphere = "0.8.0"
+bevy_quinnet = "0.6.0"
 serde_with = "3.2.0"
-bevy_hanabi = "0.7"                                                                                 #not updated
+bevy_hanabi = "0.8"
+bitflags = "2.4.1"
 

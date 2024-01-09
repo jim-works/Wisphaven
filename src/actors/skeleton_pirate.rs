@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 use big_brain::prelude::*;
 
 use crate::{
@@ -8,7 +7,7 @@ use crate::{
         AggroTargets, AggroPlayer,
     },
     controllers::ControllableBundle,
-    physics::{PhysicsObjectBundle, GRAVITY},
+    physics::{PhysicsBundle, GRAVITY, collision::Aabb, FrictionBundle, movement::Velocity},
     util::{physics::aim_projectile_straight_fallback, plugin::SmoothLookTo, SendEventCommand},
 };
 
@@ -72,7 +71,7 @@ pub fn spawn_skeleton_pirate(
     let anchor_entity = anchor.get_single().ok().unwrap_or(Entity::PLACEHOLDER);
     const ATTACK_RANGE: f32 = 10.0;
     const AGGRO_RANGE: f32 = ATTACK_RANGE*2.0 + 5.0;
-    for spawn in spawn_requests.iter() {
+    for spawn in spawn_requests.read() {
         commands.spawn((
             SceneBundle {
                 scene: skele_res.scene.clone_weak(),
@@ -84,15 +83,11 @@ pub fn spawn_skeleton_pirate(
                 combat_info: CombatInfo::new(10.0, 0.0),
                 ..default()
             },
-            PhysicsObjectBundle {
-                rigidbody: RigidBody::Dynamic,
-                collider: Collider::capsule(Vec3::new(0., 0.5, 0.), Vec3::new(0., 2.4, 0.), 0.5),
+            PhysicsBundle {
+                collider: Aabb::new(Vec3::new(0.8,1.6,0.8), Vec3::ZERO),
                 ..default()
             },
-            Friction {
-                coefficient: 0.2,
-                combine_rule: CoefficientCombineRule::Min,
-            },
+            FrictionBundle::default(),
             ControllableBundle {
                 jump: Jump::new(12.0, 0),
                 move_speed: MoveSpeed::new(50.0, 10.0, 5.0),
@@ -217,13 +212,13 @@ fn attack(
                                 if anim.just_acted() {
                                     spawn_coin.send(SpawnCoinEvent {
                                         location: Transform::from_translation(spawn_point),
-                                        velocity: aim_projectile_straight_fallback(
+                                        velocity: Velocity(aim_projectile_straight_fallback(
                                             target.translation() - spawn_point,
-                                            target_v_opt.unwrap_or(&Velocity::default()).linvel
-                                                - v.linvel,
+                                            target_v_opt.unwrap_or(&Velocity::default()).0
+                                                - v.0,
                                             THROW_IMPULSE,
                                             GRAVITY,
-                                        ),
+                                        )),
                                         combat: combat.clone(),
                                         owner: actor,
                                         damage,
@@ -238,13 +233,13 @@ fn attack(
                                 //no anim so gogogogogogogogogogogogo
                                 spawn_coin.send(SpawnCoinEvent {
                                     location: Transform::from_translation(spawn_point),
-                                    velocity: aim_projectile_straight_fallback(
+                                    velocity: Velocity(aim_projectile_straight_fallback(
                                         target.translation() - spawn_point,
-                                        target_v_opt.unwrap_or(&Velocity::default()).linvel
-                                            - v.linvel,
+                                        target_v_opt.unwrap_or(&Velocity::default()).0
+                                            - v.0,
                                         THROW_IMPULSE,
                                         GRAVITY,
-                                    ),
+                                    )),
                                     combat: combat.clone(),
                                     owner: actor,
                                     damage,

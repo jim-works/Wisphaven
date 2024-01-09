@@ -1,8 +1,7 @@
 use std::time::Duration;
 
-use crate::physics::PhysicsObjectBundle;
+use crate::physics::{PhysicsBundle, collision::Aabb, movement::Velocity};
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 
 use super::{CombatantBundle, Damage, projectile::{ProjectileBundle, Projectile}};
 
@@ -17,7 +16,7 @@ pub struct CoinScene;
 #[derive(Event)]
 pub struct SpawnCoinEvent {
     pub location: Transform,
-    pub velocity: Vec3,
+    pub velocity: Velocity,
     pub combat: CombatantBundle,
     pub owner: Entity,
     pub damage: Damage,
@@ -48,7 +47,7 @@ pub fn spawn_coin(
 ) {
     const LIFETIME: Duration = Duration::from_secs(10);
     let curr_time = time.elapsed();
-    for spawn in spawn_requests.iter() {
+    for spawn in spawn_requests.read() {
         commands.spawn((
             SceneBundle {
                 scene: res.scene.clone_weak(),
@@ -59,15 +58,11 @@ pub fn spawn_coin(
             },
             Name::new("coin"),
             spawn.combat.clone(),
-            PhysicsObjectBundle {
-                rigidbody: RigidBody::Dynamic,
-                collider: Collider::cylinder(0.0625, 0.175),
-                locked_axes: LockedAxes::empty(),
-                velocity: Velocity::linear(spawn.velocity),
+            PhysicsBundle {
+                collider: Aabb::centered(Vec3::new(0.125,0.0625,0.125)),
+                velocity: spawn.velocity,
                 ..default()
             },
-            Damping::default(),
-            SolverGroups::new(Group::empty(), Group::empty()),
             ProjectileBundle::new(Projectile {
                 owner: spawn.owner,
                 knockback_mult: 1.0,

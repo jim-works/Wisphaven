@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 
 use crate::{
-    actors::block_actors::{SpawnFallingBlockEvent, LandedFallingBlockEvent},
+    actors::block_actors::{SpawnFallingBlockEvent, LandedFallingBlockEvent, FallingBlock},
     world::{
         events::{BlockUsedEvent, ExplosionEvent, ChunkUpdatedEvent},
         BlockId, BlockType, Level, LevelSystemSet,
-    },
+    }, util::DirectionFlags,
 };
 
 pub struct TNTPlugin;
@@ -32,7 +32,7 @@ pub fn process_tnt(
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
     mut commands: Commands,
 ) {
-    for used in uses.iter() {
+    for used in uses.read() {
         if tnt_query.get(used.block_used).is_ok() {
             level.set_block_entity(
                 used.block_position,
@@ -44,8 +44,11 @@ pub fn process_tnt(
             explosions.send(SpawnFallingBlockEvent {
                 position: used.block_position.center(),
                 initial_velocity: Vec3::ZERO,
-                block: used.block_used,
-                place_on_landing: false,
+                falling_block: FallingBlock {
+                    block: used.block_used,
+                    place_on_landing: false,
+                    impact_direcitons: DirectionFlags::all(),
+                }
             })
         }
     }
@@ -56,8 +59,8 @@ pub fn tnt_landed(
     tnt_query: Query<&TNTBlock>,
     mut reader: EventReader<LandedFallingBlockEvent>
 ) {
-    for event in reader.iter() {
-        if let Ok(tnt) = tnt_query.get(event.block) {
+    for event in reader.read() {
+        if let Ok(tnt) = tnt_query.get(event.falling_block.block) {
             explosions.send(ExplosionEvent { radius: tnt.explosion_strength, origin: event.position });
         }
     }

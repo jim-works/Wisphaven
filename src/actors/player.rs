@@ -6,23 +6,26 @@ use bevy::{
 };
 use bevy_atmosphere::prelude::AtmosphereCamera;
 use bevy_quinnet::client::Client;
-use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::InputManagerBundle;
 
 use crate::{
     chunk_loading::ChunkLoader,
     controllers::{self, *},
-    items::{inventory::Inventory, *, item_attributes::{ItemUseSpeed, ItemSwingSpeed}},
+    items::{
+        inventory::Inventory,
+        item_attributes::{ItemSwingSpeed, ItemUseSpeed},
+        *,
+    },
     net::{
         client::ClientState,
         server::{SyncPosition, SyncVelocity},
         ClientMessage, NetworkType, PlayerList, RemoteClient,
     },
-    physics::*,
+    physics::{movement::*, *},
     world::{settings::Settings, *},
 };
 
-use super::{CombatInfo, CombatantBundle, DeathInfo, Damage};
+use super::{CombatInfo, CombatantBundle, Damage, DeathInfo};
 
 #[derive(Component)]
 pub struct Player {
@@ -101,7 +104,7 @@ pub fn spawn_local_player(
         match level.get_block(spawn_point.into()) {
             Some(BlockType::Empty) => {
                 if let Some(BlockType::Empty) =
-                    level.get_block(BlockCoord::from(spawn_point) + BlockCoord::new(0, 1, 0))
+                    level.get_block(BlockCoord::from(spawn_point) + BlockCoord::new(0, -1, 0))
                 {
                     break;
                 }
@@ -289,15 +292,16 @@ pub fn spawn_local_player(
 
 fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Commands) {
     commands.entity(entity).insert((
-        Player { hit_damage: Damage { amount: 1.0} },
+        Player {
+            hit_damage: Damage { amount: 1.0 },
+        },
         TransformBundle::from_transform(Transform::from_translation(spawn_point)),
-        PhysicsObjectBundle {
-            collision_groups: CollisionGroups::new(
-                Group::from_bits_truncate(PLAYER_GROUP | ACTOR_GROUP),
-                Group::all(),
-            ),
+        InterpolatedAttribute::from(Transform::from_translation(spawn_point)),
+        PhysicsBundle {
+            collider: collision::Aabb::new(Vec3::new(0.8, 1.6, 0.8), Vec3::new(-0.4,0.0,-0.4)),
             ..default()
         },
+        FrictionBundle::default(),
         ItemUseSpeed {
             windup: Duration::ZERO,
             backswing: Duration::from_millis(100),
@@ -322,7 +326,7 @@ fn send_updated_position_client(
                 bevy_quinnet::shared::channel::ChannelId::Unreliable,
                 ClientMessage::UpdatePosition {
                     transform: *tf,
-                    velocity: v.linvel,
+                    velocity: v.0,
                 },
             )
             .unwrap();
@@ -330,14 +334,14 @@ fn send_updated_position_client(
 }
 
 fn handle_disconnect(mut commands: Commands, mut removed: RemovedComponents<RemoteClient>) {
-    for entity in removed.iter() {
+    for entity in removed.read() {
         //TODO: make this better
         commands.entity(entity).remove::<(
             SyncPosition,
             SyncVelocity,
             Name,
             PbrBundle,
-            PhysicsObjectBundle,
+            PhysicsBundle,
             Player,
         )>();
         info!("Cleaned up disconnected player");

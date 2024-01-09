@@ -3,193 +3,215 @@
   entities: {
     1: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "grass",
         ),
-        "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::BlockPhysics": Solid,
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: MultiTexture(("grass_side.png", "grass_top.png", "grass_side.png", "grass_side.png", "dirt.png", "grass_side.png")),
         ),
-        "recursia::items::tools::ToolResistance": Pickaxe(0),
-        "recursia::items::tools::abilities::ShovelAbilityTarget": (),
+        "wisphaven::items::tools::ToolResistance": Pickaxe(0),
+        "wisphaven::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     2: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "dirt",
         ),
-        "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::BlockPhysics": Solid,
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: Uniform("dirt.png"),
         ),
-        "recursia::items::tools::abilities::ShovelAbilityTarget": (),
+        "wisphaven::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     3: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "stone",
         ),
-        "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::BlockPhysics": Solid,
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: Uniform("stone.png"),
         )
       },
     ),
     4: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "log",
         ),
-        "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::BlockPhysics": Solid,
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: MultiTexture(("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
         ),
-        "recursia::items::tools::abilities::AxeAbilityTarget": (),
+        "wisphaven::items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
     5: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "leaves",
         ),
-        "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::BlockPhysics": Solid,
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: Uniform("leaves.png"),
         )
       },
     ),
     6: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "log_slab",
         ),
-        "recursia::world::block::BlockPhysics": BottomSlab(0.5),
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::BlockPhysics": Aabb(Aabb (
+          size: (
+            x: 1.0,
+            y: 0.5,
+            z: 1.0,
+          ),
+          offset: (
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+          ),
+        )),
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: BottomSlab(0.5, ("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
         )
       },
     ),
     7: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "tnt",
         ),
-        "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::blocks::tnt::TNTBlock": (
+        "wisphaven::world::block::BlockPhysics": Solid,
+        "wisphaven::world::blocks::tnt::TNTBlock": (
           explosion_strength: 10.0,
         ),
-        "recursia::world::block::UsableBlock": (),
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::UsableBlock": (),
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: MultiTexture(("tnt_side.png", "tnt_top.png", "tnt_side.png", "tnt_side.png", "tnt_top.png", "tnt_side.png")),
         )
       },
     ),
     8: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "snow",
         ),
-        "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::BlockPhysics": Solid,
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: Uniform("snow.png"),
         ),
-        "recursia::items::tools::abilities::ShovelAbilityTarget": (),
+        "wisphaven::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     9: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "snow_sheet",
         ),
-        "recursia::world::block::BlockPhysics": BottomSlab(0.25),
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: BottomSlab(0.25, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
         ),
-        "recursia::items::tools::abilities::ShovelAbilityTarget": (),
+        "wisphaven::world::block::BlockPhysics": Aabb(Aabb (
+          size: (
+            x: 1.0,
+            y: 0.25,
+            z: 1.0,
+          ),
+          offset: (
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+          ),
+        )),
+        "wisphaven::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     10: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "ruby_ore",
         ),
-        "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::BlockPhysics": Solid,
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: Uniform("ruby_ore.png"),
         )
       },
     ),
     11: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "moldavite_ore",
         ),
-        "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::BlockPhysics": Solid,
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: Uniform("moldavite_ore.png"),
         )
       },
     ),
     12: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "sand",
         ),
-        "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::BlockPhysics": Solid,
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: Uniform("sand.png"),
         ),
-        "recursia::items::tools::abilities::ShovelAbilityTarget": (),
+        "wisphaven::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     13: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "cactus",
         ),
-        "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::BlockPhysics": Solid,
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: Uniform("cactus.png"),
         ),
-        "recursia::items::tools::abilities::AxeAbilityTarget": (),
+        "wisphaven::items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
     14: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "cactus_flower",
         ),
-        "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::BlockPhysics": Solid,
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: Uniform("cactus_flower.png"),
         ),
-        "recursia::items::tools::abilities::AxeAbilityTarget": (),
+        "wisphaven::items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
     15: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "water",
         ),
-        "recursia::world::block::BlockPhysics": Solid,
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::BlockPhysics": Solid,
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: Uniform("water.png"),
             use_transparent_shader: true
         )
@@ -197,16 +219,16 @@
     ),
     16: (
       components: {
-        "recursia::world::block::BlockName": (
+        "wisphaven::world::block::BlockName": (
           namespace: "core",
           name: "lily",
         ),
-        "recursia::world::block::NamedBlockMesh": (
+        "wisphaven::world::block::NamedBlockMesh": (
             shape: Cross(("lily.png","lily.png")),
             use_transparent_shader: true
         ),
-        "recursia::items::tools::ToolResistance": Instant,
-        "recursia::items::tools::abilities::ShovelAbilityTarget": (),
+        "wisphaven::items::tools::ToolResistance": Instant,
+        "wisphaven::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
   },

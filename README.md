@@ -1,8 +1,6 @@
-# Recursia
+# Wisphaven
 
-(name will definitely change)
-
-Recursia is a voxel village defense game that is currently in development.
+Wisphaven is a voxel village defense game that is currently in development.
 
 Build a village around your graveyard, befriend the ghostly inhabitants, and defend them from swarms of invaders in the night.
 
@@ -131,7 +129,7 @@ I am currently not looking for contributions, but I'm open to suggestions! Feel 
 
 GPL3 - See LICENSE.txt
 
-Recursia - a voxel adventure game.
+Wisphaven - a voxel adventure game.
 
 Copyright (C) 2023 James Moore
 

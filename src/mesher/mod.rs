@@ -6,7 +6,7 @@ pub use materials::{ChunkMaterial, ArrayTextureMaterial};
 
 use bevy::{
     pbr::*,
-    prelude::*,
+    prelude::*, asset::load_internal_asset,
 };
 
 use crate::{world::LevelSystemSet, serialization::state::GameLoadState};
@@ -17,8 +17,19 @@ const SPAWN_MESH_TIME_BUDGET_COUNT: u32 = 1000;
 
 impl Plugin for MesherPlugin {
     fn build(&self, app: &mut App) {
-
-        app.add_plugins(MaterialPlugin::<ArrayTextureMaterial>::default())
+        load_internal_asset!(
+            app,
+            Handle::weak_from_u128(21908015359337029744),
+            "../../assets/shaders/array_texture_io.wgsl",
+            Shader::from_wgsl
+        );
+        load_internal_asset!(
+            app,
+            Handle::weak_from_u128(21908015359337029745),
+            "../../assets/shaders/array_texture_input.wgsl",
+            Shader::from_wgsl
+        );
+        app.add_plugins(MaterialPlugin::<ArrayTextureMaterial> {prepass_enabled: false, ..default()})
             .add_systems(
                 Update,
                 (

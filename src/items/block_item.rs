@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::world::{Level, BlockCoord, BlockResources, BlockName, BlockId, events::ChunkUpdatedEvent, BlockType};
+use crate::{world::{Level, BlockCoord, BlockResources, BlockName, BlockId, events::ChunkUpdatedEvent, BlockType, BlockPhysics}, physics::{query::{RaycastHit, Ray, self}, collision::Aabb}};
 
 use super::UseItemEvent;
 
@@ -16,13 +16,22 @@ pub fn use_block_entity_item(
     block_query: Query<&BlockItem>,
     level: Res<Level>,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
+    block_physics_query: Query<&BlockPhysics>,
+    object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
     id_query: Query<&BlockId>,
     mut commands: Commands,
 ) {
-    for UseItemEvent { user: _, inventory_slot: _, stack, tf } in reader.iter() {
+    for UseItemEvent { user, inventory_slot: _, stack, tf } in reader.read() {
         if let Ok(block_item) = block_query.get(stack.id) {
-            if let Some(hit) = level.blockcast(tf.translation(), tf.forward()*10.0) {
-                level.set_block_entity(hit.block_pos+hit.normal, BlockType::Filled(block_item.0), &id_query, &mut update_writer, &mut commands);
+            if let Some(RaycastHit::Block(coord, hit)) = query::raycast(
+                Ray::new(tf.translation(), tf.forward(), 10.0),
+                &level,
+                &block_physics_query,
+                &object_query,
+                vec![*user]
+            ) {
+                let normal = crate::util::max_component_norm(hit.hit_pos - coord.center()).into();
+                level.set_block_entity(coord+normal, BlockType::Filled(block_item.0), &id_query, &mut update_writer, &mut commands);
             }
         }
     }
@@ -34,20 +43,28 @@ pub fn use_mega_block_item(
     level: Res<Level>,
     resources: Res<BlockResources>,
     id_query: Query<&BlockId>,
+    block_physics_query: Query<&BlockPhysics>,
+    object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
     mut commands: Commands,
 ) {
-    for UseItemEvent { user: _, inventory_slot: _, stack, tf } in reader.iter() {
+    for UseItemEvent { user, inventory_slot: _, stack, tf } in reader.read() {
         if let Ok(block_item) = megablock_query.get(stack.id) {
             let id = resources.registry.get_id(&block_item.0);
             let size = block_item.1;
-            if let Some(hit) = level.blockcast(tf.translation(), tf.forward()*100.0) {
+            if let Some(RaycastHit::Block(coord, _)) = query::raycast(
+                Ray::new(tf.translation(), tf.forward(), 10.0),
+                &level,
+                &block_physics_query,
+                &object_query,
+                vec![*user]
+            ) {
                 let mut changes = Vec::with_capacity((size*size*size) as usize);
                 for x in -size..size+1 {
                     for y in -size..size+1 {
                         for z in -size..size+1 {
                             changes.push((
-                                hit.block_pos + BlockCoord::new(x, y, z),
+                                coord + BlockCoord::new(x, y, z),
                                 id,
                             ));
                         }
