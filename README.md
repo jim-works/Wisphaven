@@ -133,7 +133,7 @@ GPL3 - See LICENSE.txt
 
 Wisphaven - a voxel adventure game.
 
-Copyright (C) 2023 James Moore
+Copyright (C) 2024 James Moore
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
