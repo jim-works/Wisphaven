@@ -1,5 +1,7 @@
 # Wisphaven
 
+[Website](https://wisphaven.com/)
+
 Wisphaven is a voxel village defense game that is currently in development.
 
 Build a village around your graveyard, befriend the ghostly inhabitants, and defend them from swarms of invaders in the night.
@@ -145,4 +147,4 @@ GNU General Public License for more details.
 
 Contact:
 
-Email - jim4m80@gmail.com
+Email - jim (at) wisphaven.com
