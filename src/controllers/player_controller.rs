@@ -29,7 +29,9 @@ pub struct RotateWithMouse {
 }
 
 #[derive(Component)]
-pub struct FollowPlayer {}
+pub struct FollowPlayer {
+    pub offset: Vec3
+}
 
 #[derive(Component)]
 pub struct PlayerActionOrigin {}
@@ -146,13 +148,13 @@ pub fn rotate_mouse(
 pub fn follow_local_player(
     player_query: Query<(&Transform, &RotateWithMouse), With<LocalPlayer>>,
     mut follow_query: Query<
-        (&mut Transform, Option<&mut RotateWithMouse>),
-        (With<FollowPlayer>, Without<LocalPlayer>),
+        (&FollowPlayer, &mut Transform, Option<&mut RotateWithMouse>),
+        Without<LocalPlayer>,
     >,
 ) {
     if let Ok((player_tf, player_rot)) = player_query.get_single() {
-        for (mut follow_tf, opt_follow_rot) in follow_query.iter_mut() {
-            follow_tf.translation = player_tf.translation + Vec3::new(0.0, 1.5, 0.0);
+        for (follow, mut follow_tf, opt_follow_rot) in follow_query.iter_mut() {
+            follow_tf.translation = player_tf.translation + follow.offset;
             if let Some(mut follow_rot) = opt_follow_rot {
                 follow_rot.yaw = player_rot.yaw;
             }

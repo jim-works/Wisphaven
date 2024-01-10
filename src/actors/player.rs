@@ -281,7 +281,9 @@ pub fn spawn_local_player(
             lock_yaw: true,
             ..default()
         },
-        FollowPlayer {},
+        FollowPlayer {
+            offset: Vec3::new(0.0,1.5,0.0)
+        },
         PlayerActionOrigin {},
         InputManagerBundle {
             input_map: controllers::get_input_map(),

@@ -156,9 +156,9 @@ impl Plugin for AtmospherePlugin {
                 target: GameTime::default(),
             })
             .insert_resource(Calendar {
-                day_length: Duration::from_secs(100),
-                night_length: Duration::from_secs(100),
-                time: GameTime::default(),
+                day_length: Duration::from_secs(600),
+                night_length: Duration::from_secs(300),
+                time: GameTime::new(0, Duration::from_secs(100)),
             });
     }
 }
