@@ -1,6 +1,7 @@
 use std::{f32::consts::PI, time::Duration};
 
 use bevy::{
+    core_pipeline::Skybox,
     prelude::*,
     render::{camera::CameraProjection, primitives::Frustum},
 };
@@ -21,7 +22,7 @@ use crate::{
         ClientMessage, NetworkType, PlayerList, RemoteClient,
     },
     physics::{movement::*, *},
-    world::{settings::Settings, *},
+    world::{atmosphere::SkyboxCubemap, settings::Settings, *},
 };
 
 use super::{CombatInfo, CombatantBundle, Damage, DeathInfo};
@@ -95,6 +96,7 @@ pub fn spawn_local_player(
     mut spawn_event: EventWriter<LocalPlayerSpawnedEvent>,
     resources: Res<ItemResources>,
     item_query: Query<&MaxStackSize>,
+    skybox: Res<SkyboxCubemap>,
 ) {
     info!("Spawning local player!");
     let mut spawn_point = level.spawn_point;
@@ -266,21 +268,23 @@ pub fn spawn_local_player(
             ..default()
         },
         FogSettings {
-            color: Color::rgba(1.0, 1.0, 1.0, 0.5),
-            falloff: FogFalloff::from_visibility_colors(
-                1000.0, // distance in world units up to which objects retain visibility (>= 5% contrast)
-                Color::rgba(0.35, 0.5, 0.5, 0.5), // atmospheric extinction color (after light is lost due to absorption by atmospheric particles)
-                Color::rgba(0.8, 0.844, 1.0, 0.5), // atmospheric inscattering color (light gained due to scattering from the sun)
-            ),
+            color: Color::rgba(0.56, 0.824, 1.0, 1.0),
+            // directional_light_color: Color::rgba(1.0, 0.95, 0.85, 0.5),
+            // directional_light_exponent: 0.8,
+            falloff: FogFalloff::Linear {
+                start: 64.0,
+                end: 128.0,
+            },
             ..default()
         },
+        Skybox(skybox.0.clone()),
         RotateWithMouse {
             pitch_bound: PI * 0.49,
             lock_yaw: true,
             ..default()
         },
         FollowPlayer {
-            offset: Vec3::new(0.0,1.5,0.0)
+            offset: Vec3::new(0.0, 1.5, 0.0),
         },
         PlayerActionOrigin {},
         InputManagerBundle {
@@ -298,7 +302,7 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
         TransformBundle::from_transform(Transform::from_translation(spawn_point)),
         InterpolatedAttribute::from(Transform::from_translation(spawn_point)),
         PhysicsBundle {
-            collider: collision::Aabb::new(Vec3::new(0.8, 1.6, 0.8), Vec3::new(-0.4,0.0,-0.4)),
+            collider: collision::Aabb::new(Vec3::new(0.8, 1.6, 0.8), Vec3::new(-0.4, 0.0, -0.4)),
             ..default()
         },
         FrictionBundle::default(),

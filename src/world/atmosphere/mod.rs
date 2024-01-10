@@ -1,6 +1,6 @@
 use std::{f32::consts::PI, time::Duration};
 
-use bevy::prelude::*;
+use bevy::{prelude::*, asset::LoadState, render::render_resource::{TextureViewDescriptor, TextureViewDimension}};
 
 #[derive(Component)]
 struct Sun;
@@ -113,6 +113,11 @@ struct CalendarSpeed {
     pub target: GameTime,
 }
 
+#[derive(Resource)]
+pub struct LoadingSkyboxCubemap(Handle<Image>);
+#[derive(Resource)]
+pub struct SkyboxCubemap(pub Handle<Image>);
+
 #[derive(Event)]
 pub struct SkipDays {
     days: u64,
@@ -129,6 +134,7 @@ pub struct SpeedupCalendarEvent(pub GameTime);
 impl Plugin for AtmospherePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_environment)
+            .add_systems(Update, load_skybox.run_if(resource_exists::<LoadingSkyboxCubemap>()))
             .add_systems(
                 PreUpdate,
                 (speedup_time, update_calendar, update_sun_position).chain(),
@@ -149,10 +155,30 @@ impl Plugin for AtmospherePlugin {
     }
 }
 
+fn load_skybox(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut images: ResMut<Assets<Image>>,
+    loading_skybox: Res<LoadingSkyboxCubemap>,
+) {
+    if asset_server.load_state(&loading_skybox.0) == LoadState::Loaded {
+        let image = images.get_mut(&loading_skybox.0).unwrap();
+        //transform png into cubemap
+        if image.texture_descriptor.array_layer_count() == 1 {
+            image.reinterpret_stacked_2d_as_array(image.height() / image.width());
+            image.texture_view_descriptor = Some(TextureViewDescriptor {
+                dimension: Some(TextureViewDimension::Cube),
+                ..default()
+            });
+        }
+        commands.insert_resource(SkyboxCubemap(loading_skybox.0.clone()));
+        commands.remove_resource::<LoadingSkyboxCubemap>();
+    }
+}
+
 fn update_sun_position(
     mut query: Query<(&mut Transform, &mut DirectionalLight), With<Sun>>,
     calendar: Res<Calendar>,
-    time: Res<Time>,
 ) {
     let _my_span = info_span!("daylight_cycle", name = "daylight_cycle").entered();
 
@@ -193,7 +219,7 @@ fn speedup_time(mut reader: EventReader<SpeedupCalendarEvent>, mut speed: ResMut
     }
 }
 
-fn setup_environment(mut commands: Commands) {
+fn setup_environment(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         DirectionalLightBundle {
             directional_light: DirectionalLight {
@@ -205,4 +231,7 @@ fn setup_environment(mut commands: Commands) {
         Sun, // Marks the light as Sun
         Name::new("Sun"),
     ));
+
+    let skybox = asset_server.load("textures/skybox.png");
+    commands.insert_resource(LoadingSkyboxCubemap(skybox));
 }
