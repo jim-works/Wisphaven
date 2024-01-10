@@ -7,7 +7,7 @@ use bevy::{
             Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
         },
         view::RenderLayers,
-    },
+    }, pbr::ExtendedMaterial,
 };
 use leafwing_input_manager::prelude::ActionState;
 
@@ -17,7 +17,7 @@ use crate::{
     items::{
         block_item::BlockItem, inventory::Inventory, DropItemEvent, ItemIcon, PickupItemEvent,
     },
-    world::{BlockMesh, LevelSystemSet}, mesher::{ChunkMaterial, ArrayTextureMaterial},
+    world::{BlockMesh, LevelSystemSet}, mesher::{ChunkMaterial, extended_materials::TextureArrayExtension},
 };
 
 use super::{state::UIState, styles::get_small_text_style};
@@ -386,7 +386,7 @@ fn spawn_block_preview(
     commands: &mut Commands,
     images: &mut ResMut<Assets<Image>>,
     mesh: Handle<Mesh>,
-    material: Handle<ArrayTextureMaterial>,
+    material: Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>,
     position: Vec3,
 ) -> (Entity, Handle<Image>) {
     // This code for rendering to a texture is taken from one of the Bevy examples,
@@ -421,7 +421,7 @@ fn spawn_block_preview(
 
     let entity = commands
         .spawn((
-            MaterialMeshBundle::<ArrayTextureMaterial> {
+            MaterialMeshBundle::<ExtendedMaterial<StandardMaterial, TextureArrayExtension>> {
                 mesh: mesh.clone(),
                 material: material.clone(),
                 transform: Transform::from_translation(position),

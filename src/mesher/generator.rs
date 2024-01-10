@@ -1,4 +1,4 @@
-use bevy::pbr::NotShadowCaster;
+use bevy::pbr::{NotShadowCaster, ExtendedMaterial};
 use futures_lite::future;
 use std::ops::Index;
 use std::time::Instant;
@@ -16,9 +16,10 @@ use bevy::{
     tasks::{AsyncComputeTaskPool, Task},
 };
 
+use super::extended_materials::TextureArrayExtension;
 use super::materials::ATTRIBUTE_AO;
 use super::{
-    materials::ATTRIBUTE_TEXLAYER, ArrayTextureMaterial, ChunkMaterial,
+    materials::ATTRIBUTE_TEXLAYER, ChunkMaterial,
     SPAWN_MESH_TIME_BUDGET_COUNT,
 };
 
@@ -265,7 +266,7 @@ pub fn create_mesh(data: MeshData, meshes: &mut ResMut<Assets<Mesh>>) -> Handle<
 
 pub fn spawn_mesh<T: Bundle>(
     data: MeshData,
-    material: Handle<ArrayTextureMaterial>,
+    material: Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>,
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     components: Option<T>,
@@ -273,7 +274,7 @@ pub fn spawn_mesh<T: Bundle>(
 ) {
     commands.entity(entity).with_children(|children| {
         let mut ec = children.spawn((
-            MaterialMeshBundle::<ArrayTextureMaterial> {
+            MaterialMeshBundle::<ExtendedMaterial<StandardMaterial, TextureArrayExtension>> {
                 mesh: create_mesh(data, meshes),
                 material,
                 transform: Transform::default(),

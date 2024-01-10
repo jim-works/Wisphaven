@@ -2,14 +2,15 @@ mod generator;
 pub use generator::*;
 
 pub mod materials;
-pub use materials::{ChunkMaterial, ArrayTextureMaterial};
+pub mod extended_materials;
+pub use materials::ChunkMaterial;
 
 use bevy::{
     pbr::*,
     prelude::*, asset::load_internal_asset,
 };
 
-use crate::{world::LevelSystemSet, serialization::state::GameLoadState};
+use crate::{world::LevelSystemSet, serialization::state::GameLoadState, mesher::extended_materials::TextureArrayExtension};
 
 pub struct MesherPlugin;
 
@@ -19,17 +20,12 @@ impl Plugin for MesherPlugin {
     fn build(&self, app: &mut App) {
         load_internal_asset!(
             app,
-            Handle::weak_from_u128(21908015359337029744),
-            "../../assets/shaders/array_texture_io.wgsl",
+            Handle::weak_from_u128(21908015359337029746),
+            "../../assets/shaders/texture_array.wgsl",
             Shader::from_wgsl
         );
-        load_internal_asset!(
-            app,
-            Handle::weak_from_u128(21908015359337029745),
-            "../../assets/shaders/array_texture_input.wgsl",
-            Shader::from_wgsl
-        );
-        app.add_plugins(MaterialPlugin::<ArrayTextureMaterial> {prepass_enabled: false, ..default()})
+        app
+            .add_plugins(MaterialPlugin::<ExtendedMaterial<StandardMaterial, TextureArrayExtension>> {prepass_enabled: false, ..default()})
             .add_systems(
                 Update,
                 (

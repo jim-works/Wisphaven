@@ -4,7 +4,6 @@ use bevy::{
     prelude::*,
     render::{camera::CameraProjection, primitives::Frustum},
 };
-use bevy_atmosphere::prelude::AtmosphereCamera;
 use bevy_quinnet::client::Client;
 use leafwing_input_manager::InputManagerBundle;
 
@@ -266,7 +265,6 @@ pub fn spawn_local_player(
             frustum: Frustum::from_view_projection(&projection.get_projection_matrix()),
             ..default()
         },
-        AtmosphereCamera::default(),
         FogSettings {
             color: Color::rgba(1.0, 1.0, 1.0, 0.5),
             falloff: FogFalloff::from_visibility_colors(

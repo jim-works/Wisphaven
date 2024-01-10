@@ -1,14 +1,9 @@
 use std::{f32::consts::PI, time::Duration};
 
 use bevy::prelude::*;
-use bevy_atmosphere::prelude::*;
-//https://github.com/JonahPlusPlus/bevy_atmosphere/blob/2ef39e2511fcb637ef83e507b468c4f5186c6913/examples/cycle.rs
 
 #[derive(Component)]
 struct Sun;
-
-#[derive(Resource)]
-struct CycleTimer(Timer);
 
 pub struct AtmospherePlugin;
 
@@ -94,7 +89,8 @@ impl Calendar {
 
     //scaled time, not affected by CalendarSpeed
     pub fn time_until(&self, time: GameTime) -> Duration {
-        (self.total_day_length() * time.day.saturating_sub(self.time.day) as u32) + time.time.saturating_sub(self.time.time)
+        (self.total_day_length() * time.day.saturating_sub(self.time.day) as u32)
+            + time.time.saturating_sub(self.time.time)
     }
 
     pub fn next_night(&self) -> GameTime {
@@ -132,21 +128,11 @@ pub struct SpeedupCalendarEvent(pub GameTime);
 
 impl Plugin for AtmospherePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(bevy_atmosphere::plugin::AtmospherePlugin)
-            .insert_resource(AtmosphereModel::new(Nishita {
-                rayleigh_scale_height: 12e3,
-                mie_scale_height: 1.8e3,
-                ..default()
-            }))
-            .add_systems(Startup, setup_environment)
+        app.add_systems(Startup, setup_environment)
             .add_systems(
                 PreUpdate,
                 (speedup_time, update_calendar, update_sun_position).chain(),
             )
-            .insert_resource(CycleTimer(Timer::new(
-                bevy::utils::Duration::from_millis(100),
-                TimerMode::Repeating,
-            )))
             .add_event::<SkipDays>()
             .add_event::<DayStartedEvent>()
             .add_event::<NightStartedEvent>()
@@ -164,25 +150,18 @@ impl Plugin for AtmospherePlugin {
 }
 
 fn update_sun_position(
-    mut atmosphere: AtmosphereMut<Nishita>,
     mut query: Query<(&mut Transform, &mut DirectionalLight), With<Sun>>,
-    mut timer: ResMut<CycleTimer>,
     calendar: Res<Calendar>,
     time: Res<Time>,
 ) {
     let _my_span = info_span!("daylight_cycle", name = "daylight_cycle").entered();
-    timer.0.tick(time.delta());
 
-    if timer.0.finished() {
-        let t = calendar.get_sun_progress() * 2.0 * PI;
+    let t = calendar.get_sun_progress() * 2.0 * PI;
 
-        if let Some((mut light_trans, mut directional)) = query.single_mut().into() {
-            let sun_rot = Quat::from_rotation_x(-t);
-            light_trans.rotation = sun_rot;
-            //rotate backward vector (since light points away from the sun)
-            atmosphere.sun_position = sun_rot * Vec3::new(0.0, 0.0, 1.0);
-            directional.illuminance = t.sin().max(0.0).powf(2.0) * 100000.0;
-        }
+    if let Some((mut light_trans, mut directional)) = query.single_mut().into() {
+        let sun_rot = Quat::from_rotation_x(-t);
+        light_trans.rotation = sun_rot;
+        directional.illuminance = t.sin().max(0.0).powf(2.0) * 100000.0;
     }
 }
 
@@ -205,7 +184,11 @@ fn update_calendar(
 
 fn speedup_time(mut reader: EventReader<SpeedupCalendarEvent>, mut speed: ResMut<CalendarSpeed>) {
     for SpeedupCalendarEvent(time) in reader.read() {
-        info!("setting target time to {:?} (submitted {:?}", speed.target.max(*time), time);
+        info!(
+            "setting target time to {:?} (submitted {:?}",
+            speed.target.max(*time),
+            time
+        );
         speed.target = speed.target.max(*time);
     }
 }
@@ -220,6 +203,6 @@ fn setup_environment(mut commands: Commands) {
             ..default()
         },
         Sun, // Marks the light as Sun
-        Name::new("Sun")
+        Name::new("Sun"),
     ));
 }
