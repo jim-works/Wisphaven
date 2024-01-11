@@ -94,7 +94,7 @@ pub fn test_point(
     level: &Level,
     physics_query: &Query<&BlockPhysics>,
     object_query: &Query<(Entity, &GlobalTransform, &Aabb)>,
-    exclude: Vec<Entity>,
+    exclude: &[Entity],
 ) -> Option<Entity> {
     //test block
     let test_block_coord = BlockCoord::from(point);

@@ -7,7 +7,7 @@ use crate::{
         AggroTargets, AggroPlayer,
     },
     controllers::ControllableBundle,
-    physics::{PhysicsBundle, GRAVITY, collision::Aabb, FrictionBundle, movement::Velocity},
+    physics::{PhysicsBundle, GRAVITY, collision::Aabb, movement::Velocity},
     util::{physics::aim_projectile_straight_fallback, plugin::SmoothLookTo, SendEventCommand},
 };
 
@@ -87,7 +87,6 @@ pub fn spawn_skeleton_pirate(
                 collider: Aabb::new(Vec3::new(0.8,1.6,0.8), Vec3::ZERO),
                 ..default()
             },
-            FrictionBundle::default(),
             ControllableBundle {
                 jump: Jump::new(12.0, 0),
                 move_speed: MoveSpeed::new(50.0, 10.0, 5.0),
@@ -188,7 +187,7 @@ fn attack(
     time: Res<Time>,
 ) {
     const COIN_OFFSET: Vec3 = Vec3::new(0.0, 2.0, 0.0);
-    const THROW_IMPULSE: f32 = 25.0;
+    const THROW_IMPULSE: f32 = 0.5;
     let combat = CombatantBundle::default();
     let damage = Damage { amount: 1.0 };
     for (&Actor(actor), mut state) in action_query.iter_mut() {

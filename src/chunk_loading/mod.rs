@@ -8,7 +8,7 @@ use crate::{
     actors::spawn_local_player,
     net::{client::ClientState, NetworkType},
     util::LocalRepeatingTimer,
-    world::{settings::Settings, Level, LevelLoadState, LevelSystemSet}, worldgen::GeneratedChunk,
+    world::{settings::Settings, Level, LevelLoadState, LevelSystemSet},
 };
 
 use self::entity_loader::{ChunkLoadingTimer, DespawnChunkEvent};

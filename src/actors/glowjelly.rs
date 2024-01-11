@@ -210,11 +210,11 @@ pub fn setup_glowjelly(
 pub struct SocialScorer;
 
 fn social_score(
-    mut query: Query<(Entity, &mut FloatHeight, &GlobalTransform)>,
+    mut query: Query<(&mut FloatHeight, &GlobalTransform)>,
     friend_query: Query<&GlobalTransform, With<Glowjelly>>,
 ) {
     const SQUARE_RADIUS: f32 = 25.0*25.0;
-    for (entity, mut height, tf) in query.iter_mut() {
+    for (mut height, tf) in query.iter_mut() {
         let mut sum_height_diff = 0.0;
         let mut count = 0.0;
         //todo: optimize

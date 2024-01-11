@@ -305,7 +305,6 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
             collider: collision::Aabb::new(Vec3::new(0.8, 1.6, 0.8), Vec3::new(-0.4, 0.0, -0.4)),
             ..default()
         },
-        FrictionBundle::default(),
         ItemUseSpeed {
             windup: Duration::ZERO,
             backswing: Duration::from_millis(100),

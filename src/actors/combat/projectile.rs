@@ -1,9 +1,16 @@
 use std::time::Duration;
 
-use crate::{world::{
-    events::{BlockDamageSetEvent, ChunkUpdatedEvent},
-    BlockId, Level, LevelSystemSet, BlockPhysics,
-}, physics::{movement::Velocity, query::test_point, collision::Aabb}};
+use crate::{
+    physics::{
+        collision::{Aabb, CollidingBlocks},
+        movement::Velocity,
+        query::test_point,
+    },
+    world::{
+        events::{BlockDamageSetEvent, ChunkUpdatedEvent},
+        BlockCoord, BlockId, BlockPhysics, Level, LevelSystemSet,
+    },
+};
 use bevy::prelude::*;
 
 use super::{AttackEvent, Damage};
@@ -88,6 +95,7 @@ fn test_projectile_hit(
         &Projectile,
         Option<&Velocity>,
         Option<&ProjectileSpawnedInEntity>,
+        &CollidingBlocks,
     )>,
     mut attack_writer: EventWriter<AttackEvent>,
     mut commands: Commands,
@@ -98,21 +106,37 @@ fn test_projectile_hit(
     mut damage_writer: EventWriter<BlockDamageSetEvent>,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
 ) {
-    for (proj_entity, tf, proj, v, opt_in_entity) in query.iter() {
-        if let Some(hit_entity) = test_point(tf.translation(), &level, &physics_query, &object_query, vec![proj_entity]) {
+    for (proj_entity, tf, proj, v, opt_in_entity, colliding_blocks) in query.iter() {
+        let opt_hit_entity = test_point(
+            tf.translation(),
+            &level,
+            &physics_query,
+            &object_query,
+            &[proj_entity],
+        );
+        if opt_hit_entity.is_some() || !colliding_blocks.is_empty() {
+            let hit_blocks = colliding_blocks.iter().map(|&(coord, _, _)| coord);
             proj_hit(
                 &mut attack_writer,
                 &mut commands,
                 proj_entity,
+                hit_blocks,
                 proj,
                 v,
-                hit_entity,
+                opt_hit_entity,
                 opt_in_entity,
                 &level,
                 &id_query,
                 &mut damage_writer,
                 &mut update_writer,
             );
+        } else if opt_hit_entity.is_none() {
+            //can remove spawned in entity since we are outside of all entities
+            if opt_in_entity.is_some() {
+                commands
+                    .entity(proj_entity)
+                    .remove::<ProjectileSpawnedInEntity>();
+            }
         }
     }
 }
@@ -121,68 +145,51 @@ fn proj_hit(
     writer: &mut EventWriter<AttackEvent>,
     commands: &mut Commands,
     proj_entity: Entity,
+    proj_hit_blocks: impl Iterator<Item = BlockCoord>,
     proj: &Projectile,
     v: Option<&Velocity>,
-    target: Entity,
+    target: Option<Entity>,
     opt_in_entity: Option<&ProjectileSpawnedInEntity>,
     level: &Level,
     id_query: &Query<&BlockId>,
     damage_writer: &mut EventWriter<BlockDamageSetEvent>,
     update_writer: &mut EventWriter<ChunkUpdatedEvent>,
 ) {
-    const PENETRATION_DEPTH: f32 = 0.05; //amount to follow the normal in a collision to move inside the block when calculating damage
-    const EPSILON: f32 = 0.5; //ignore multiple hits that have positions and normals within epsilon units of each other
     if let Some(&ProjectileSpawnedInEntity(ignore)) = opt_in_entity {
         //don't want to hit the entity we spawn in
-        if ignore == target {
-            //we will only start the collision once, so we can remove the component
-            commands
-                .entity(proj_entity)
-                .remove::<ProjectileSpawnedInEntity>();
+        if target.map(|t| ignore == t).unwrap_or(false) {
             return;
         }
     }
-    writer.send(AttackEvent {
-        attacker: proj.owner,
-        target,
-        damage: proj.damage,
-        knockback: v.map_or_else(|| Vec3::ZERO, |v| v.0 * proj.knockback_mult),
-    });
+    if let Some(hit) = target {
+        writer.send(AttackEvent {
+            attacker: proj.owner,
+            target: hit,
+            damage: proj.damage,
+            knockback: v.map_or_else(|| Vec3::ZERO, |v| v.0 * proj.knockback_mult),
+        });
+    }
+    
     if let Some(ref on_hit) = proj.on_hit_or_despawn {
         on_hit(
             ProjectileHit {
-                hit: Some(target),
+                hit: target,
                 projectile: proj_entity,
             },
             commands,
         );
     }
-    // let mut hits = HashSet::new();
-    // for contact_pair in rapier_context.contacts_with(proj_entity) {
-    //     let invert = contact_pair.collider1() != proj_entity;
-    //     for manifold in contact_pair.manifolds() {
-    //         let normal = manifold.normal();
-    //         for solver_contact in manifold.solver_contacts() {
-    //             let block_coord = BlockCoord::from(
-    //                 solver_contact.point()
-    //                     + if invert { -1.0 } else { 1.0 } * PENETRATION_DEPTH * normal,
-    //             );
-    //             if hits.contains(&block_coord) {
-    //                 continue;
-    //             }
-    //             hits.insert(block_coord);
-    //             level.damage_block(
-    //                 block_coord,
-    //                 proj.terrain_damage,
-    //                 Some(proj_entity),
-    //                 id_query,
-    //                 damage_writer,
-    //                 update_writer,
-    //                 commands,
-    //             );
-    //         }
-    //     }
-    // }
+    for block_coord in proj_hit_blocks {
+        level.damage_block(
+            block_coord,
+            proj.terrain_damage,
+            Some(proj_entity),
+            id_query,
+            damage_writer,
+            update_writer,
+            commands,
+        );
+    }
 
     if proj.despawn_on_hit {
         commands.entity(proj_entity).despawn_recursive();

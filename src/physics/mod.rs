@@ -2,6 +2,8 @@ use bevy::{prelude::*, transform::TransformSystem};
 
 use crate::{ui::debug::DebugDrawTransform, world::LevelLoadState};
 
+use self::collision::IgnoreTerrainCollision;
+
 pub mod collision;
 pub mod movement;
 pub mod query;
@@ -53,6 +55,19 @@ pub struct PhysicsBundle {
     pub collider: collision::Aabb,
     pub colliding_directions: collision::CollidingDirections,
     pub debug_draw_transform: DebugDrawTransform,
+    pub friction: FrictionBundle,
+}
+
+#[derive(Bundle, Default)]
+pub struct NoTerrainPhysicsBundle {
+    pub velocity: movement::Velocity,
+    pub acceleration: movement::Acceleration,
+    pub mass: movement::Mass,
+    pub gravity: movement::GravityMult,
+    pub collider: collision::Aabb,
+    pub colliding_directions: collision::CollidingDirections,
+    pub debug_draw_transform: DebugDrawTransform,
+    pub ignore_terrain_collision: IgnoreTerrainCollision
 }
 
 #[derive(Bundle, Default)]

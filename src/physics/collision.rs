@@ -55,6 +55,10 @@ impl CollidingBlocks {
             crate::util::Direction::NegZ => &self.neg_z,
         }
     }
+    pub fn is_empty(&self) -> bool {
+        self.pos_x.is_empty() && self.pos_y.is_empty() && self.pos_z.is_empty()
+            && self.neg_x.is_empty() && self.neg_y.is_empty() && self.neg_z.is_empty()
+    }
     pub fn get_mut(
         &mut self,
         direction: crate::util::Direction,
@@ -86,6 +90,15 @@ impl CollidingBlocks {
         f(crate::util::Direction::NegX, &self.neg_x);
         f(crate::util::Direction::NegY, &self.neg_y);
         f(crate::util::Direction::NegZ, &self.neg_z);
+    }
+    pub fn iter(&self) -> impl Iterator<Item = &(BlockCoord, Entity, BlockPhysics)> {
+        self.pos_x
+            .iter()
+            .chain(self.pos_y.iter())
+            .chain(self.pos_z.iter())
+            .chain(self.neg_x.iter())
+            .chain(self.neg_y.iter())
+            .chain(self.neg_z.iter())
     }
     pub fn push(
         &mut self,

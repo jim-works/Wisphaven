@@ -195,7 +195,7 @@
             path: "coin.png"
         ),
         "wisphaven::items::weapons::CoinLauncherItem": (
-          speed: 25.0,
+          speed: 0.5,
           damage: Damage (amount: 2.0)
         )
       },
