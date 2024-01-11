@@ -1,4 +1,4 @@
-use bevy::pbr::{NotShadowCaster, ExtendedMaterial};
+use bevy::pbr::{ExtendedMaterial, NotShadowCaster};
 use futures_lite::future;
 use std::ops::Index;
 use std::time::Instant;
@@ -17,14 +17,14 @@ use bevy::{
 };
 
 use super::extended_materials::TextureArrayExtension;
+use super::is_chunk_ready_for_meshing;
 use super::materials::ATTRIBUTE_AO;
-use super::{
-    materials::ATTRIBUTE_TEXLAYER, ChunkMaterial,
-    SPAWN_MESH_TIME_BUDGET_COUNT,
-};
+use super::{materials::ATTRIBUTE_TEXLAYER, ChunkMaterial, SPAWN_MESH_TIME_BUDGET_COUNT};
 
-#[derive(Component)]
-pub struct NeedsMesh;
+#[derive(Component, Default)]
+pub struct NeedsMesh {
+    pub order: Option<usize>,
+}
 
 #[derive(Component)]
 pub struct MeshTask {
@@ -78,120 +78,119 @@ pub struct ChunkMeshChild;
 const SQRT_2_4: f32 = 0.35355339; //sqrt(2)/4
 
 pub fn queue_meshing(
-    query: Query<
-        (Entity, &ChunkCoord),
-        (
-            With<GeneratedChunk>,
-            With<NeedsMesh>,
-            Without<DontMeshChunk>,
-        ),
-    >,
+    query: Query<(Entity, &ChunkCoord, &NeedsMesh), (With<GeneratedChunk>, Without<DontMeshChunk>)>,
+    currently_meshing: Query<(), With<MeshTask>>,
     level: Res<Level>,
     mesh_query: Query<&BlockMesh>,
     commands: ParallelCommands,
 ) {
     let _my_span = info_span!("queue_meshing", name = "queue_meshing").entered();
     let pool = AsyncComputeTaskPool::get();
-    query.par_iter().for_each(|(entity, coord)| {
-        if let Some(ctype) = level.get_chunk(*coord) {
-            if let ChunkType::Full(chunk) = ctype.value() {
-                let mut ready_neighbors = 0;
-                //i wish i could extrac this if let Some() shit into a function
-                //but that makes the borrow checker angry
-                //check neighbor count first becuase Chunk::get_components is a very expensive operation
-                for dx in -1..2 {
-                    for dy in -1..2 {
-                        for dz in -1..2 {
-                            let offset = ChunkCoord::new(dx, dy, dz);
-                            if offset.x == 0 && offset.y == 0 && offset.z == 0 {
-                                continue; //don't check ourselves
-                            }
-                            if let Some(ctype) = level.get_chunk(*coord + offset) {
-                                if let ChunkType::Full(_) = ctype.value() {
-                                    ready_neighbors += 1;
-                                }
-                            }
-                        }
-                    }
-                }
-                if ready_neighbors != 26 {
-                    //don't mesh if all neighbors aren't ready yet
-                    return;
-                }
-                //we have to check neighbor counts again because a chunk could be removed since the last loop, and we don't clone anything before
-                ready_neighbors = 0;
-                let mut face_neighbors = [None, None, None, None, None, None];
-                let mut edge_neighbors = [
-                    None, None, None, None, None, None, None, None, None, None, None, None,
-                ];
-                let mut corner_neighbors = [None, None, None, None, None, None, None, None];
-                for dir in Direction::iter() {
-                    if let Some(ctype) = level.get_chunk(coord.offset(dir)) {
-                        if let ChunkType::Full(neighbor) = ctype.value() {
-                            ready_neighbors += 1;
-                            face_neighbors[dir.to_idx()] = Some(neighbor.with_storage(Box::new(
-                                neighbor.blocks.get_components::<BlockMesh>(&mesh_query),
-                            )));
-                        }
-                    }
-                }
-                for dir in Corner::iter() {
-                    if let Some(ctype) = level.get_chunk(*coord + dir.into()) {
-                        if let ChunkType::Full(neighbor) = ctype.value() {
-                            ready_neighbors += 1;
-                            corner_neighbors[dir as usize] =
-                                Some(neighbor.blocks.get_component::<BlockMesh>(
-                                    Into::<ChunkIdx>::into(dir.opposite()).into(),
-                                    &mesh_query,
-                                ));
-                        }
-                    }
-                }
-                for dir in Edge::iter() {
-                    if let Some(ctype) = level.get_chunk(*coord + dir.into()) {
-                        if let ChunkType::Full(neighbor) = ctype.value() {
-                            ready_neighbors += 1;
-                            let origin = dir.opposite().origin();
-                            let direction = dir.opposite().direction();
-                            edge_neighbors[dir as usize] = Some(core::array::from_fn(|i| {
-                                neighbor.blocks.get_component::<BlockMesh>(
-                                    ChunkIdx::new(
-                                        (origin.x as i32 + i as i32 * direction.x) as u8,
-                                        (origin.y as i32 + i as i32 * direction.y) as u8,
-                                        (origin.z as i32 + i as i32 * direction.z) as u8,
-                                    )
-                                    .into(),
-                                    &mesh_query,
-                                )
-                            }));
-                        }
-                    }
-                }
+    //todo - set based on core count
+    let max_mesh_count = 64; //don't launch new mesh tasks if there's more than this
+    if currently_meshing.iter().len() > max_mesh_count {
+        return;
+    }
+    //want to avoid sorting computation, so we only mesh the chunks with order in [max_order-order_tolerance, max_order]
+    //order is lowest first
+    let order_tolerance: usize = 4;
+    let max_order_opt = query
+        .iter()
+        .map(|(_, _, m)| m.order)
+        .min_by_key(|f| f.unwrap_or(usize::MAX - order_tolerance)) //max_order + order_tolerance within bounds
+        .flatten();
 
-                if ready_neighbors != 26 {
-                    //don't mesh if all neighbors aren't ready yet
-                    return;
-                }
-                let meshing = chunk.with_storage(Box::new(chunk.blocks.create_fat_palette(
-                    &mesh_query,
-                    face_neighbors,
-                    edge_neighbors,
-                    corner_neighbors,
-                )));
-                let task = pool.spawn(async move {
-                    let mut data = ChunkMesh::new(1.0);
-                    mesh_chunk(&meshing, &mut data);
-                    data
-                });
-                commands.command_scope(|mut commands| {
-                    commands
-                        .entity(entity)
-                        .remove::<NeedsMesh>()
-                        .insert(MeshTask { task });
-                });
+    if let Some(max_order) = max_order_opt {
+        query.par_iter().for_each(|(entity, coord, needs_mesh)| {
+            if needs_mesh
+                .order
+                .map_or(false, |order| max_order + order_tolerance < order)
+            {
+                //too late in the order, don't mesh yet
+                return;
             }
-        }
-    });
+            if let Some(ctype) = level.get_chunk(*coord) {
+                if let ChunkType::Full(chunk) = ctype.value() {
+                    if !is_chunk_ready_for_meshing(*coord, &level) {
+                        //chunk not ready
+                        return;
+                    }
+                    //we have to check neighbor counts again because a chunk could be removed since the last loop, and we don't clone anything before
+                    let mut ready_neighbors = 0;
+                    let mut face_neighbors = [None, None, None, None, None, None];
+                    let mut edge_neighbors = [
+                        None, None, None, None, None, None, None, None, None, None, None, None,
+                    ];
+                    let mut corner_neighbors = [None, None, None, None, None, None, None, None];
+                    for dir in Direction::iter() {
+                        if let Some(ctype) = level.get_chunk(coord.offset(dir)) {
+                            if let ChunkType::Full(neighbor) = ctype.value() {
+                                ready_neighbors += 1;
+                                face_neighbors[dir.to_idx()] =
+                                    Some(neighbor.with_storage(Box::new(
+                                        neighbor.blocks.get_components::<BlockMesh>(&mesh_query),
+                                    )));
+                            }
+                        }
+                    }
+                    for dir in Corner::iter() {
+                        if let Some(ctype) = level.get_chunk(*coord + dir.into()) {
+                            if let ChunkType::Full(neighbor) = ctype.value() {
+                                ready_neighbors += 1;
+                                corner_neighbors[dir as usize] =
+                                    Some(neighbor.blocks.get_component::<BlockMesh>(
+                                        Into::<ChunkIdx>::into(dir.opposite()).into(),
+                                        &mesh_query,
+                                    ));
+                            }
+                        }
+                    }
+                    for dir in Edge::iter() {
+                        if let Some(ctype) = level.get_chunk(*coord + dir.into()) {
+                            if let ChunkType::Full(neighbor) = ctype.value() {
+                                ready_neighbors += 1;
+                                let origin = dir.opposite().origin();
+                                let direction = dir.opposite().direction();
+                                edge_neighbors[dir as usize] = Some(core::array::from_fn(|i| {
+                                    neighbor.blocks.get_component::<BlockMesh>(
+                                        ChunkIdx::new(
+                                            (origin.x as i32 + i as i32 * direction.x) as u8,
+                                            (origin.y as i32 + i as i32 * direction.y) as u8,
+                                            (origin.z as i32 + i as i32 * direction.z) as u8,
+                                        )
+                                        .into(),
+                                        &mesh_query,
+                                    )
+                                }));
+                            }
+                        }
+                    }
+
+                    if ready_neighbors != 26 {
+                        //don't mesh if all neighbors aren't ready yet
+                        return;
+                    }
+                    let meshing = chunk.with_storage(Box::new(chunk.blocks.create_fat_palette(
+                        &mesh_query,
+                        face_neighbors,
+                        edge_neighbors,
+                        corner_neighbors,
+                    )));
+                    let task = pool.spawn(async move {
+                        let mut data = ChunkMesh::new(1.0);
+                        mesh_chunk(&meshing, &mut data);
+                        data
+                    });
+                    commands.command_scope(|mut commands| {
+                        commands
+                            .entity(entity)
+                            .remove::<NeedsMesh>()
+                            .insert(MeshTask { task });
+                    });
+                }
+            }
+        });
+    }
 }
 pub fn poll_mesh_queue(
     mut commands: Commands,

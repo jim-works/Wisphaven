@@ -248,9 +248,9 @@ impl LevelData {
         if SAVE {
             commands
                 .entity(chunk_entity)
-                .insert((NeedsMesh, NeedsSaving));
+                .insert((NeedsMesh::default(), NeedsSaving));
         } else {
-            commands.entity(chunk_entity).insert(NeedsMesh);
+            commands.entity(chunk_entity).insert(NeedsMesh::default());
         }
         update_writer.send(ChunkUpdatedEvent { coord });
     }
@@ -263,7 +263,7 @@ impl LevelData {
         for dir in Direction::iter() {
             if let Some(neighbor_ref) = self.get_chunk(coord.offset(dir)) {
                 if let ChunkType::Full(c) = neighbor_ref.value() {
-                    commands.entity(c.entity).insert(NeedsMesh {});
+                    commands.entity(c.entity).insert(NeedsMesh::default());
                     update_writer.send(ChunkUpdatedEvent { coord: c.position });
                 }
             }

@@ -405,7 +405,7 @@ pub fn poll_structure_task(
                 .entity(entity)
                 .remove::<StructureTask>()
                 .insert(GeneratedChunk {})
-                .insert(NeedsMesh {});
+                .insert(NeedsMesh::default());
             let duration = Instant::now().duration_since(now).as_millis();
             if duration > ADD_TIME_BUDGET_MS {
                 break;
@@ -427,7 +427,7 @@ pub fn poll_gen_lod_queue(
             tf.translation = data.get_block_pos(ChunkIdx::new(0, 0, 0));
             commands.entity(entity).remove::<LODShapingTask>().insert((
                 GeneratedLODChunk {},
-                NeedsMesh {},
+                NeedsMesh::default(),
                 LODLevel { level: data.level },
             ));
             level.add_lod_chunk(

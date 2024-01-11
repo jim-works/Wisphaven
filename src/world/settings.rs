@@ -21,13 +21,16 @@ impl Default for Settings {
 
     fn default() -> Self {
         let loader = ChunkLoader {
-            radius: ChunkCoord::new(8,6,8),
+            radius: ChunkCoord::new(12,8,12),
             lod_levels: 0,
             mesh: true
         };
         Self {
             init_loader: loader.clone(),
-            player_loader: loader.clone(),
+            player_loader: ChunkLoader {
+                radius: ChunkCoord::new(12, 8,12),
+                ..loader.clone()
+            },
             env_path: "worlds/world",
             //prefixed with "assets/"
             block_tex_path: "textures/blocks",
