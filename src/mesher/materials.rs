@@ -112,11 +112,15 @@ pub fn create_chunk_material(
     ));
     block_textures.0.clear();
 
+    let base = StandardMaterial {
+        alpha_mode: AlphaMode::Opaque,
+        perceptual_roughness: 1.0,
+        reflectance: 0.25,
+        ..default()
+    };
+
     chunk_material.opaque_material = Some(materials.add(ExtendedMaterial {
-        base: StandardMaterial {
-            alpha_mode: AlphaMode::Opaque,
-            ..default()
-        },
+        base: base.clone(),
         extension: TextureArrayExtension {
             base_color_texture: Some(chunk_material.tex_handle.clone().unwrap()),
         }
@@ -124,7 +128,7 @@ pub fn create_chunk_material(
     chunk_material.transparent_material = Some(materials.add(ExtendedMaterial {
         base: StandardMaterial {
             alpha_mode: AlphaMode::Blend,
-            ..default()
+            ..base.clone()
         },
         extension: TextureArrayExtension {
             base_color_texture: Some(chunk_material.tex_handle.clone().unwrap()),

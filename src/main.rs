@@ -94,7 +94,7 @@ fn main() {
         gameplay::GameplayPlugin
     ))
     .insert_resource(AmbientLight {
-        brightness: 0.3,
+        brightness: 0.15,
         ..default()
     });
 
