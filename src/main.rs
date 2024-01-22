@@ -76,7 +76,7 @@ fn main() {
             }),
     )
     .add_plugins(HanabiPlugin)
-    .add_plugins(WorldInspectorPlugin::new())
+    // .add_plugins(WorldInspectorPlugin::new())
     .add_plugins((
         UtilPlugin,
         serialization::SerializationPlugin,

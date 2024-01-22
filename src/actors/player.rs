@@ -270,10 +270,10 @@ pub fn spawn_local_player(
         FogSettings {
             color: Color::rgba(0.56, 0.824, 1.0, 1.0),
             // directional_light_color: Color::rgba(1.0, 0.95, 0.85, 0.5),
-            // directional_light_exponent: 0.8,
+            directional_light_exponent: 0.8,
             falloff: FogFalloff::Linear {
-                start: 64.0,
-                end: 128.0,
+                start: 100.0,
+                end: 200.0,
             },
             ..default()
         },

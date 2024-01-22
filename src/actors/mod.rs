@@ -19,6 +19,7 @@ pub mod personality;
 pub mod skeleton_pirate;
 pub mod world_anchor;
 pub mod ghost;
+pub mod wisp;
 
 #[cfg(test)]
 mod test;
@@ -40,6 +41,7 @@ impl Plugin for ActorPlugin {
             player::PlayerPlugin,
             ai::AIPlugin,
             ghost::GhostPlugin,
+            wisp::WispPlugin,
         ))
         .add_systems(Update, idle_action_system)
         .insert_resource(ActorResources {

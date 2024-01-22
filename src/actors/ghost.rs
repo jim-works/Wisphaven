@@ -43,14 +43,14 @@ pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
 fn trigger_spawning(mut writer: EventWriter<SpawnGhostEvent>) {
     for i in 0..5 {
         writer.send(SpawnGhostEvent {
-            location: GlobalTransform::from_xyz(i as f32 * 5.0, 10.0, 0.0),
+            location: GlobalTransform::from_xyz((i%5) as f32 * -5.0, (i/5) as f32 * 5.0 + 50.0, 0.0),
         });
     }
 }
 
 fn add_to_registry(mut res: ResMut<ActorResources>) {
     res.registry.add_dynamic(
-        ActorName::core("glowjelly"),
+        ActorName::core("ghost"),
         Box::new(|commands, tf| commands.add(SendEventCommand(SpawnGhostEvent { location: tf }))),
     );
 }
@@ -83,14 +83,6 @@ fn spawn_ghost(
             Ghost,
             Idler::default(),
             SmoothLookTo::new(0.5),
-            PointLight {
-                color: Color::WHITE,
-                intensity: 1.0,
-                range: 10.0,
-                radius: 10.0,
-                shadows_enabled: true,
-                ..default()
-            },
             bevy::pbr::CubemapVisibleEntities::default(),
             bevy::render::primitives::CubemapFrusta::default(),
         ));

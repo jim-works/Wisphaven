@@ -84,6 +84,9 @@ fn setup(mut commands: Commands, mut effects: ResMut<Assets<EffectAsset>>) {
         .render(SizeOverLifetimeModifier {
             gradient: size_gradient1,
             screen_space_size: false,
+        })
+        .render(OrientModifier {
+            mode: OrientMode::FaceCameraPosition
         });
     let id = commands
         .spawn((
