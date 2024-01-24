@@ -19,6 +19,7 @@ pub mod blocks;
 pub mod effects;
 pub mod events;
 pub mod settings;
+pub mod world_utils;
 
 #[cfg(test)]
 mod test;
@@ -108,6 +109,7 @@ impl Plugin for LevelPlugin {
     }
 }
 
+#[derive(Debug)]
 pub struct BlockcastHit {
     pub hit_pos: Vec3,
     pub block_pos: BlockCoord,

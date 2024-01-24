@@ -6,6 +6,7 @@ pub struct UtilPlugin;
 
 impl Plugin for UtilPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(super::controls::ControlsPlugin);
         app.add_systems(Update, smooth_look_to);
     }
 }

@@ -211,6 +211,14 @@ pub enum BlockPhysics {
     Aabb(Aabb),
 }
 
+impl BlockPhysics {
+    pub fn is_solid(&self) -> bool { 
+        match self {
+            BlockPhysics::Empty => false,
+            BlockPhysics::Solid | BlockPhysics::Aabb(_) => true,
+        }
+    }
+}
 //0 = healthy, 1 = broken
 #[derive(Clone, Copy)]
 pub struct BlockDamage {

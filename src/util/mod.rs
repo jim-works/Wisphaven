@@ -21,6 +21,7 @@ pub mod bevy_utils;
 pub mod physics;
 pub mod iterators;
 pub mod string;
+pub mod controls;
 
 use bevy::{prelude::{Vec3, DerefMut, Deref}, time::Timer};
 

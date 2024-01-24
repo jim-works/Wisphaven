@@ -4,40 +4,45 @@ pub use player_controller::*;
 
 mod input;
 pub use input::*;
+mod pi_controllers;
 
 use bevy::prelude::*;
 
 use crate::{
     actors::{Jump, MoveSpeed},
     physics::collision::CollidingDirections,
-    world::LevelSystemSet, util::DirectionFlags,
+    util::DirectionFlags,
+    world::LevelSystemSet,
 };
 
 pub struct ControllersPlugin;
 
 impl Plugin for ControllersPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(InputManagerPlugin::<Action>::default())
-            //player
-            .add_systems(
-                Update,
-                (
-                    rotate_mouse,
-                    jump_player,
-                    move_player,
-                    follow_local_player,
-                    player_punch,
-                    player_use,
-                    player_scroll_inventory,
-                    toggle_player_flight
-                )
-                    .in_set(LevelSystemSet::Main),
+        app.add_plugins((
+            InputManagerPlugin::<Action>::default(),
+            pi_controllers::PIControllersPlugin,
+        ))
+        //player
+        .add_systems(
+            Update,
+            (
+                rotate_mouse,
+                jump_player,
+                move_player,
+                follow_local_player,
+                player_punch,
+                player_use,
+                player_scroll_inventory,
+                toggle_player_flight,
             )
-            //common
-            .add_systems(
-                PostUpdate,
-                (do_jump, do_frame_movement).in_set(LevelSystemSet::PostUpdate),
-            );
+                .in_set(LevelSystemSet::Main),
+        )
+        //common
+        .add_systems(
+            PostUpdate,
+            (do_jump, do_frame_movement).in_set(LevelSystemSet::PostUpdate),
+        );
     }
 }
 
@@ -50,6 +55,13 @@ pub struct FrameMovement(pub Vec3);
 //reset every frame in do_jump
 #[derive(Component)]
 pub struct FrameJump(pub bool);
+
+#[derive(Component)]
+pub struct Float {
+    pub target_ground_dist: f32,
+    pub target_ceiling_dist: f32,
+    pub max_force: f32,
+}
 
 #[derive(Component, Default, Eq, PartialEq, Clone, Copy, Debug)]
 pub enum MovementMode {
@@ -65,7 +77,7 @@ pub struct ControllableBundle {
     pub frame_jump: FrameJump,
     pub move_speed: MoveSpeed,
     pub jump: Jump,
-    pub mode: MovementMode
+    pub mode: MovementMode,
 }
 
 impl Default for ControllableBundle {
@@ -94,7 +106,8 @@ fn do_frame_movement(
     const EPSILON: f32 = 1e-3;
     for (mut fm, v, mut a, ms, mode, opt_grounded) in query.iter_mut() {
         let speed = fm.0.length();
-        let acceleration = ms.get_accel(opt_grounded.is_some_and(|x| x.0.contains(DirectionFlags::NegY)));
+        let acceleration =
+            ms.get_accel(opt_grounded.is_some_and(|x| x.0.contains(DirectionFlags::NegY)));
         //don't actively resist sliding if no input is provided (also smooths out jittering)
         if speed < EPSILON {
             fm.0 = Vec3::ZERO;
@@ -131,7 +144,7 @@ fn do_jump(
         &mut crate::physics::movement::Velocity,
         &mut Jump,
         &CollidingDirections,
-    )>
+    )>,
 ) {
     for (mut fj, mut v, mut jump, collisions) in query.iter_mut() {
         let grounded = collisions.0.contains(DirectionFlags::NegY);

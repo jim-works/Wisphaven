@@ -110,6 +110,7 @@ fn falling_block_placer(
                 -v.0.normalize_or_zero() * BACKTRACK_DIST,
                 |opt_b| opt_b.map(|b| matches!(b, BlockType::Empty)).unwrap_or(true),
             ) {
+                info!("hit {:?}", placing_coord);
                 writer.send(LandedFallingBlockEvent {
                     position: placing_coord.block_pos,
                     faller: entity,

@@ -690,13 +690,13 @@ impl LevelData {
     pub fn blockcast(
         &self,
         origin: Vec3,
-        line: Vec3,
+        end_offset: Vec3,
         mut checker: impl FnMut(Option<BlockType>) -> bool,
     ) -> Option<BlockcastHit> {
         let _my_span = info_span!("blockcast", name = "blockcast").entered();
-        const STEP_SIZE: f32 = 0.05;
-        let line_len = line.length();
-        let line_norm = line / line_len;
+        const STEP_SIZE: f32 = 1.0/32.0;
+        let line_len = end_offset.length();
+        let line_norm = end_offset / line_len;
         let mut old_coords = BlockCoord::from(origin);
         let block = self.get_block(old_coords);
         if checker(block) {
