@@ -3,8 +3,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ui::{debug::DebugBlockHitboxes, state::DebugUIState},
-    util::{iterators::BlockVolume, DirectionFlags},
+    util::{
+        iterators::{BlockVolume, VolumeContainer},
+        DirectionFlags,
+    },
     world::{BlockCoord, BlockPhysics, Level},
+    BlockType,
 };
 
 use super::{movement::*, PhysicsSystemSet};
@@ -56,8 +60,12 @@ impl CollidingBlocks {
         }
     }
     pub fn is_empty(&self) -> bool {
-        self.pos_x.is_empty() && self.pos_y.is_empty() && self.pos_z.is_empty()
-            && self.neg_x.is_empty() && self.neg_y.is_empty() && self.neg_z.is_empty()
+        self.pos_x.is_empty()
+            && self.pos_y.is_empty()
+            && self.pos_z.is_empty()
+            && self.neg_x.is_empty()
+            && self.neg_y.is_empty()
+            && self.neg_z.is_empty()
     }
     pub fn get_mut(
         &mut self,
@@ -187,6 +195,18 @@ impl Aabb {
         (my_min.x < other_max.x && my_max.x > other_min.x)
             && (my_min.y < other_max.y && my_max.y > other_min.y)
             && (my_min.z < other_max.z && my_max.z > other_min.z)
+    }
+    pub fn intersects_block(
+        self,
+        my_pos: Vec3,
+        other: &BlockPhysics,
+        other_pos: BlockCoord,
+    ) -> bool {
+        if let Some(other_aabb) = Aabb::from_block(other) {
+            self.intersects_aabb(my_pos, other_aabb, other_pos.to_vec3())
+        } else {
+            false
+        }
     }
 
     //I had a lot of issues getting swept collision working, expect a lot of comments
@@ -390,4 +410,31 @@ fn move_and_slide(
         }
         tf.translation += v.0;
     }
+}
+
+pub fn get_volume_from_collider(
+    position: Vec3,
+    collider: Aabb,
+    level: &Level,
+) -> VolumeContainer<BlockType> {
+    level.get_blocks_in_volume(BlockVolume::new_inclusive(
+        BlockCoord::from(collider.world_min(position)) - BlockCoord::new(1, 1, 1),
+        BlockCoord::from(collider.world_max(position)) + BlockCoord::new(1, 1, 1),
+    ))
+}
+
+pub fn get_overlapping_blocks<'a>(
+    position: Vec3,
+    collider: Aabb,
+    overlaps: &'a VolumeContainer<BlockType>,
+    block_physics: &'a Query<&'a BlockPhysics>,
+) -> impl Iterator<Item = (BlockCoord, &'a BlockPhysics, Entity)> {
+    overlaps
+        .iter()
+        .filter_map(|(coord, block)| {
+            block
+                .and_then(|b| b.entity())
+                .and_then(|e| block_physics.get(e).ok().and_then(|p| Some((coord, p, e))))
+        })
+        .filter(move |(coord, p, _)| collider.intersects_block(position, p, *coord))
 }

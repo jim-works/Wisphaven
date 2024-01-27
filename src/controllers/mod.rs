@@ -56,13 +56,6 @@ pub struct FrameMovement(pub Vec3);
 #[derive(Component)]
 pub struct FrameJump(pub bool);
 
-#[derive(Component)]
-pub struct Float {
-    pub target_ground_dist: f32,
-    pub target_ceiling_dist: f32,
-    pub max_force: f32,
-}
-
 #[derive(Component, Default, Eq, PartialEq, Clone, Copy, Debug)]
 pub enum MovementMode {
     #[default]

@@ -17,10 +17,10 @@ use crate::{
         client::ClientState,
         server::{SyncPosition, SyncVelocity},
         ClientMessage, NetworkType, PlayerList, RemoteClient,
-    }, physics::{movement::*, *}, util::controls::PIController, world::{atmosphere::SkyboxCubemap, settings::Settings, *}
+    }, physics::{movement::*, *}, world::{atmosphere::SkyboxCubemap, settings::Settings, *}
 };
 
-use super::{CombatInfo, CombatantBundle, Damage, DeathInfo};
+use super::{ghost::Float, CombatInfo, CombatantBundle, Damage, DeathInfo};
 
 #[derive(Component)]
 pub struct Player {
@@ -296,12 +296,7 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
         },
         TransformBundle::from_transform(Transform::from_translation(spawn_point)),
         InterpolatedAttribute::from(Transform::from_translation(spawn_point)),
-        Float {
-            target_ground_dist: 2.0,
-            target_ceiling_dist: 4.0,
-            max_force: 0.1,
-        },
-        PIController::<Float>::new(0.0025, 0.0001, 0.0),
+        Float::default(),
         PhysicsBundle {
             collider: collision::Aabb::new(Vec3::new(0.8, 1.6, 0.8), Vec3::new(-0.4, 0.0, -0.4)),
             ..default()
