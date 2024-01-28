@@ -250,3 +250,28 @@ pub fn project_onto_plane(vector: Vec3, plane_normal: Vec3) -> Vec3 {
     let dist = vector.dot(plane_normal);
     vector - dist*plane_normal
 }
+
+pub trait FlattenRef<'a, T> {
+    fn flatten(self) -> Option<&'a T>;
+}
+
+impl<'a, T> FlattenRef<'a, T> for Option<&'a Option<T>> {
+    fn flatten(self) -> Option<&'a T> {
+        match self {
+            Some(opt) => opt.as_ref(),
+            None => None,
+        }
+    }
+}
+pub trait FlattenRefMut<'a, T> {
+    fn flatten(self) -> Option<&'a mut T>;
+}
+
+impl<'a, T> FlattenRefMut<'a, T> for Option<&'a mut Option<T>> {
+    fn flatten(self) -> Option<&'a mut T> {
+        match self {
+            Some(opt) => opt.as_mut(),
+            None => None,
+        }
+    }
+}

@@ -5,7 +5,7 @@ use leafwing_input_manager::action_state::ActionState;
 use crate::{
     actors::LocalPlayer,
     controllers::Action,
-    physics::collision::Aabb,
+    physics::{collision::Aabb, PhysicsSystemSet},
     world::{chunk::ChunkCoord, BlockCoord, BlockPhysics},
     worldgen::UsedShaperResources,
 };
@@ -22,6 +22,7 @@ impl Plugin for DebugUIPlugin {
         app.add_state::<DebugUIState>()
             .add_state::<DebugUIDetailState>()
             .insert_resource(DebugBlockHitboxes::default())
+            .insert_resource(FixedUpdateBlockGizmos::default())
             .add_systems(Startup, init)
             .add_systems(OnEnter(DebugUIState::Shown), spawn_debug)
             .add_systems(OnEnter(DebugUIState::Hidden), despawn_debug)
@@ -34,7 +35,8 @@ impl Plugin for DebugUIPlugin {
                     update_gizmos,
                 )
                     .run_if(in_state(DebugUIState::Shown)),
-            );
+            )
+            .add_systems(FixedUpdate, clear_fixed_update_gizmos.before(PhysicsSystemSet::Main));
     }
 }
 
@@ -58,6 +60,11 @@ pub struct DebugDrawTransform;
 pub struct DebugBlockHitboxes {
     pub blocks: HashMap<BlockCoord, Option<BlockPhysics>>,
     pub hit_blocks: HashSet<BlockCoord>,
+}
+
+#[derive(Resource, Default)]
+pub struct FixedUpdateBlockGizmos {
+    pub blocks: HashSet<BlockCoord>,
 }
 
 fn init(mut commands: Commands, assets: Res<AssetServer>) {
@@ -208,6 +215,12 @@ fn update_noises(
     }
 }
 
+fn clear_fixed_update_gizmos(
+    mut fixed_update_blocks: ResMut<FixedUpdateBlockGizmos>
+) {
+    fixed_update_blocks.blocks.clear();
+}
+
 fn update_gizmos(
     mut gizmo: Gizmos,
     mut gizmo_config: ResMut<GizmoConfig>,
@@ -215,6 +228,7 @@ fn update_gizmos(
     tf_query: Query<&GlobalTransform, With<DebugDrawTransform>>,
     collider_query: Query<(&Transform, &Aabb)>,
     blocks: Res<DebugBlockHitboxes>,
+    fixed_update_blocks: Res<FixedUpdateBlockGizmos>,
     detail: Res<State<DebugUIDetailState>>,
 ) {
     if let Ok(input) = input_query.get_single() {
@@ -235,6 +249,11 @@ fn update_gizmos(
             .with_scale(collider.size);
         gizmo.cuboid(cuboid_tf, Color::BLUE)
     }
+    for coord in fixed_update_blocks.blocks.iter() {
+        let cuboid_tf = Transform::from_translation(coord.center())
+            .with_scale(Vec3::ONE);
+        gizmo.cuboid(cuboid_tf, Color::GOLD)
+    }
     for (coord, physics) in blocks.blocks.iter() {
         let collider_opt = physics.clone().and_then(|p| Aabb::from_block(&p));
         if let Some(collider) = collider_opt {
@@ -254,4 +273,5 @@ fn update_gizmos(
             }
         }
     }
+    
 }

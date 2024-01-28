@@ -117,6 +117,7 @@ impl CollidingBlocks {
     }
 }
 
+//from offset to offset + size
 #[derive(Component, Clone, Copy, PartialEq, Default, Reflect, Debug, Serialize, Deserialize)]
 #[reflect(Component)]
 pub struct Aabb {
@@ -137,6 +138,12 @@ impl Aabb {
             offset: -size / 2.0,
         }
     }
+    pub fn add_offset(self, offset: Vec3) -> Self {
+        Self::new(self.size, self.offset + offset)
+    }
+    pub fn add_size(self, size: Vec3) -> Self {
+        Self::new(self.size+size, self.offset)
+    }
     //maintains center of mass, scale by factor
     pub fn scale(self, scale: Vec3) -> Self {
         //scale size, translate by (size/2)*(1-scale) to keep center in place
@@ -145,12 +152,16 @@ impl Aabb {
             offset: self.offset + self.size * 0.5 * (1.0 - scale),
         }
     }
-    //maintains center of mass, expand by fixed amount
-    pub fn expand(self, expansion: Vec3) -> Self {
+    //grows in all directions, maintaining center of mass
+    pub fn grow(self, expansion: Vec3) -> Self {
         Self {
             size: self.size + expansion,
             offset: self.offset - expansion * 0.5,
         }
+    }
+    //moves the minimum corner of the aabb while keeping the maximum corner in place
+    pub fn move_min(self, delta: Vec3) -> Self {
+        self.add_offset(delta).add_size(-delta)
     }
     pub fn min(self) -> Vec3 {
         self.offset
@@ -169,6 +180,9 @@ impl Aabb {
     }
     pub fn world_center(self, pos: Vec3) -> Vec3 {
         self.world_min(pos) + self.size / 2.0
+    }
+    pub fn to_block_volume(self, pos: Vec3) -> BlockVolume {
+        BlockVolume::new_inclusive(self.world_min(pos).into(), self.world_max(pos).into())
     }
     pub fn from_block(physics: &BlockPhysics) -> Option<Self> {
         match physics {
@@ -299,7 +313,7 @@ impl Aabb {
         }
 
         //expand other rectangle by my size/2 in each direction so that we can just trace the center
-        let other_expanded = other.expand(self.size);
+        let other_expanded = other.grow(self.size);
         if let Some((time, contact_point, normal)) =
             other_expanded.sweep_ray(other_pos, self.world_center(my_pos), my_v)
         {
@@ -421,20 +435,4 @@ pub fn get_volume_from_collider(
         BlockCoord::from(collider.world_min(position)) - BlockCoord::new(1, 1, 1),
         BlockCoord::from(collider.world_max(position)) + BlockCoord::new(1, 1, 1),
     ))
-}
-
-pub fn get_overlapping_blocks<'a>(
-    position: Vec3,
-    collider: Aabb,
-    overlaps: &'a VolumeContainer<BlockType>,
-    block_physics: &'a Query<&'a BlockPhysics>,
-) -> impl Iterator<Item = (BlockCoord, &'a BlockPhysics, Entity)> {
-    overlaps
-        .iter()
-        .filter_map(|(coord, block)| {
-            block
-                .and_then(|b| b.entity())
-                .and_then(|e| block_physics.get(e).ok().and_then(|p| Some((coord, p, e))))
-        })
-        .filter(move |(coord, p, _)| collider.intersects_block(position, p, *coord))
 }

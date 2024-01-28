@@ -7,6 +7,7 @@ use self::collision::IgnoreTerrainCollision;
 pub mod collision;
 pub mod movement;
 pub mod query;
+mod test;
 
 const SPAWN_CHUNK_TIME_BUDGET_COUNT: u32 = 1000;
 pub const GRAVITY: Vec3 = Vec3::new(0., -10.0, 0.);

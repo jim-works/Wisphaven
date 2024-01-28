@@ -61,7 +61,7 @@ fn test_block_volume_container_iterator() {
     let mut container = VolumeContainer::new(volume);
     let mut count = 0;
     for coord in volume.iter() {
-        container[coord] = Some(BlockType::Empty);
+        container.set(coord, Some(BlockType::Empty));
         count += 1;
     }
     assert_eq!(count, 10 * 10 * 10);
@@ -73,7 +73,7 @@ fn test_block_volume_container_inclusive_iterator() {
     let mut container = VolumeContainer::new(volume);
     let mut count = 0;
     for coord in volume.iter() {
-        container[coord] = Some(BlockType::Empty);
+        container.set(coord, Some(BlockType::Empty));
         count += 1;
     }
     assert_eq!(count, 11 * 11 * 11);

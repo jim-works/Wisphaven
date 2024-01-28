@@ -6,10 +6,10 @@ use crate::{
         movement::{GravityMult, Velocity},
         PhysicsBundle, PhysicsSystemSet,
     },
+    ui::debug::FixedUpdateBlockGizmos,
     util::{plugin::SmoothLookTo, SendEventCommand},
     world::LevelLoadState,
-    world_utils::blockcast_checkers,
-    BlockPhysics, Level,
+    BlockCoord, BlockPhysics, Level,
 };
 
 use super::{ActorName, ActorResources, CombatInfo, CombatantBundle, Idler};
@@ -24,21 +24,21 @@ pub struct Ghost;
 
 #[derive(Component)]
 pub struct Float {
+    //relative to top of attached aabb
     pub target_ground_dist: f32,
+    //relative to bottom of attached aabb
     pub target_ceiling_dist: f32,
     pub max_force: f32,
-    pub aabb_scale: Vec3, //scale to consider more blocks (so you start floating before coming into contact)
-    last_velocity_applied: f32,
+    pub ground_aabb_scale: Vec3, //scale to consider more blocks (so you start floating before coming into contact)
 }
 
 impl Default for Float {
     fn default() -> Self {
         Self {
-            target_ground_dist: 2.0,
-            target_ceiling_dist: 4.0,
-            max_force: 0.02,
-            aabb_scale: Vec3::splat(1.5),
-            last_velocity_applied: Default::default(),
+            target_ground_dist: 2.5,
+            target_ceiling_dist: 2.5,
+            max_force: 0.04,
+            ground_aabb_scale: Vec3::splat(1.5),
         }
     }
 }
@@ -130,56 +130,102 @@ fn update_floater(
     mut query: Query<(&mut Velocity, &mut Float, &Transform, &Aabb)>,
     physics_query: Query<&BlockPhysics>,
     level: Res<Level>,
+    mut block_gizmos: ResMut<FixedUpdateBlockGizmos>,
 ) {
-    const CHECK_MULT: f32 = 10.0;
+    const CHECK_MULT: f32 = 2.0;
     for (mut v, mut float, tf, aabb) in query.iter_mut() {
-        let area_to_check = aabb
-            .scale(float.aabb_scale)
-            .expand(Vec3::new(0.0, -float.target_ground_dist * CHECK_MULT, 0.0))
-            .expand(Vec3::new(0.0, float.target_ceiling_dist * CHECK_MULT, 0.0));
-        let target_ground_y = level
-            .blockcast(
-                tf.translation,
-                Vec3::new(0.0, -float.target_ground_dist * CHECK_MULT, 0.0),
-                |opt_block| blockcast_checkers::solid(&physics_query, opt_block),
-            )
-            .map(|hit| hit.hit_pos.y + float.target_ground_dist);
-        let target_ceiling_y = level
-            .blockcast(
-                tf.translation,
-                Vec3::new(0.0, float.target_ceiling_dist * CHECK_MULT, 0.0),
-                |opt_block| blockcast_checkers::solid(&physics_query, opt_block),
-            )
-            .map(|hit| hit.hit_pos.y - float.target_ceiling_dist);
-        let target_y = match (target_ground_y, target_ceiling_y) {
+        //the ground has check area slightly larger than the actual hitbox to climb walls
+        let ground_area = aabb.scale(float.ground_aabb_scale).move_min(Vec3::new(
+            0.0,
+            -float.target_ground_dist * CHECK_MULT,
+            0.0,
+        ));
+        //the ceiling doesn't, because then we couldn't climb walls (would cancel out with the ground)
+        let ceiling_area =
+            aabb.add_size(Vec3::new(0.0, float.target_ceiling_dist * CHECK_MULT, 0.0));
+        //should move this into a function, but difficult to make borrow checker happy
+        let ground_overlaps =
+            level.get_blocks_in_volume(ground_area.to_block_volume(tf.translation));
+        let ground_blocks = ground_overlaps
+            .iter()
+            .filter_map(|(coord, block)| {
+                block
+                    .and_then(|b| b.entity())
+                    .and_then(|e| physics_query.get(e).ok().and_then(|p| Aabb::from_block(p)))
+                    .and_then(|b| Some((coord.to_vec3(), coord, b)))
+            })
+            .filter(move |(pos, _, b)| ground_area.intersects_aabb(tf.translation, *b, *pos));
+        //now for ceiling blocks
+        let ceiling_overlaps =
+            level.get_blocks_in_volume(ceiling_area.to_block_volume(tf.translation));
+        let ceiling_blocks = ceiling_overlaps
+            .iter()
+            .filter_map(|(coord, block)| {
+                block
+                    .and_then(|b| b.entity())
+                    .and_then(|e| physics_query.get(e).ok().and_then(|p| Aabb::from_block(p)))
+                    .and_then(|b| Some((coord.to_vec3(), b)))
+            })
+            .filter(move |(coord, b)| ceiling_area.intersects_aabb(tf.translation, *b, *coord));
+        let collider_top = aabb.world_max(tf.translation).y;
+        let collider_bot = aabb.world_min(tf.translation).y;
+        let mut ground_y = None;
+        let mut ceiling_y = None;
+        //ceiling will be lowest point above the top of the floater's collider
+        for (pos, block_col) in ceiling_blocks {
+            let block_bot = block_col.world_min(pos).y;
+            if collider_top <= block_bot {
+                //possible ceiling
+                ceiling_y = Some(if let Some(y) = ceiling_y {
+                    block_bot.min(y)
+                } else {
+                    block_bot
+                });
+            }
+        }
+        //ground will be the highest point below the bottom of the floater's collider
+        //ground has to have an exposed block above it
+        for (pos, coord, block_col) in ground_blocks {
+            let block_top = block_col.world_max(pos).y;
+            if collider_bot >= block_top
+                && ground_overlaps
+                    .get(coord + BlockCoord::new(0, 1, 0))
+                    .and_then(|t| t.entity())
+                    .and_then(|e| physics_query.get(e).ok().map(|p| !p.is_solid()))
+                    .unwrap_or(true)
+            {
+                //possible ground
+                block_gizmos.blocks.insert(coord);
+                ground_y = Some(if let Some(y) = ground_y {
+                    block_top.max(y)
+                } else {
+                    block_top
+                });
+            }
+        }
+
+        let target_y = match (
+            ground_y.map(|y| y + aabb.min().y + float.target_ground_dist),
+            ceiling_y.map(|y| y - aabb.max().y - float.target_ceiling_dist),
+        ) {
             (None, None) => {
                 //not close enough to ground, cop out
-                float.last_velocity_applied = 0.0;
                 continue;
             }
-            (None, Some(target_y)) => target_y,
-            (Some(target_y), None) => target_y,
-            (Some(target_ground), Some(target_ceiling)) => 0.5 * (target_ground + target_ceiling), //take avg if we are in the middle
+            (None, Some(y)) => y,
+            (Some(y), None) => y,
+            (Some(ground_y), Some(ceiling_y)) => 0.5 * (ground_y + ceiling_y), //take avg if we are in the middle
         };
 
         let delta_v = get_float_delta_velocity(target_y - tf.translation.y, float.max_force);
-        // v.0.y -= float.last_velocity_applied;
-        // if delta_v < 0.0 && target_ceiling_y.is_none() || delta_v > 0.0 && target_ground_y.is_none()
-        // {
-        //     //don't want to get pulled down to the ground or pushed up to the ceiling
-        //     float.last_velocity_applied = 0.0;
-        //     continue;
-        // }
+        if delta_v < 0.0 && ceiling_y.is_none() || delta_v > 0.0 && ground_y.is_none() {
+            //don't want to get pulled down to the ground or pushed up to the ceiling
+            continue;
+        }
         if v.0.y * delta_v.signum() > delta_v.abs() {
             //we are already moving in the right direction faster than the floater would push, so do nothing
-            float.last_velocity_applied = 0.0;
             continue;
         }
         v.0.y += delta_v;
-        float.last_velocity_applied = delta_v;
-        info!(
-            "{:?}, {:?}, target ground {:?}, target ceil {:?}, target_value {:?}",
-            delta_v, float.max_force, target_ground_y, target_ceiling_y, target_y
-        );
     }
 }

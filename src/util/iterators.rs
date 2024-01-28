@@ -4,6 +4,8 @@ use crate::{
 };
 use bevy::prelude::*;
 
+use super::{FlattenRef, FlattenRefMut};
+
 #[derive(Clone)]
 pub struct BlockVolumeIterator {
     x_len: i32,
@@ -162,7 +164,7 @@ impl<'a, T> VolumeContainer<T> {
     }
 
     pub fn iter(&'a self) -> impl Iterator<Item = (BlockCoord, Option<&T>)> + Clone + 'a {
-        self.volume.iter().map(|pos| (pos, self[pos].as_ref()))
+        self.volume.iter().map(|pos| (pos, self.get(pos)))
     }
 
     //clears blocks, and reuses buffer for new volume, expanding if needed
@@ -172,23 +174,20 @@ impl<'a, T> VolumeContainer<T> {
         self.blocks.clear();
         self.blocks.resize_with(volume.volume() as usize, || None);
     }
-}
 
-impl<T> std::ops::Index<BlockCoord> for VolumeContainer<T> {
-    type Output = Option<T>;
-
-    fn index(&self, mut index: BlockCoord) -> &Self::Output {
+    pub fn get(&self, mut index: BlockCoord) -> Option<&T> {
         index -= self.volume.min_corner;
-        &self.blocks
-            [(index.x + index.y * self.size.x + index.z * self.size.x * self.size.y) as usize]
+        self.blocks.get((index.x + index.y * self.size.x + index.z * self.size.x * self.size.y) as usize).flatten()
     }
-}
 
-impl<T> std::ops::IndexMut<BlockCoord> for VolumeContainer<T> {
-    fn index_mut(&mut self, mut index: BlockCoord) -> &mut Self::Output {
+    pub fn get_mut(&mut self, mut index: BlockCoord) -> Option<&mut T> {
         index -= self.volume.min_corner;
-        &mut self.blocks
-            [(index.x + index.y * self.size.x + index.z * self.size.x * self.size.y) as usize]
+        self.blocks.get_mut((index.x + index.y * self.size.x + index.z * self.size.x * self.size.y) as usize).flatten()
+    }
+
+    pub fn set(&mut self, mut index: BlockCoord, value: Option<T>) {
+        index -= self.volume.min_corner;
+        self.blocks[(index.x + index.y * self.size.x + index.z * self.size.x * self.size.y) as usize] = value;
     }
 }
 

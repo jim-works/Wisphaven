@@ -87,7 +87,7 @@ impl LevelData {
     pub fn fill_volume_container(&self, container: &mut VolumeContainer<BlockType>) {
         //todo - optimize to get needed chunks all at once
         for pos in container.volume().iter() {
-            container[pos] = self.get_block(pos);
+            container.set(pos, self.get_block(pos));
         }
     }
     //adds damage to the block at `key`. damage ranges from 0-1, with 1 destroying the block
