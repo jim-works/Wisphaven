@@ -1,7 +1,7 @@
 use bevy::{prelude::*, transform::TransformSystem};
 use serde::{Serialize, Deserialize};
 
-use crate::{physics::TPS, util::project_onto_plane};
+use crate::{physics::TPS, util::{iterators::AxisMap, project_onto_plane}};
 
 use super::{
     collision::{CollidingBlocks, Friction, IgnoreTerrainCollision},
@@ -29,6 +29,15 @@ pub struct GravityMult(pub f32);
 impl Default for GravityMult {
     fn default() -> Self {
         Self(1.0)
+    }
+}
+
+#[derive(Component, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct Drag(pub f32);
+
+impl Default for Drag {
+    fn default() -> Self {
+        Self(0.025)
     }
 }
 
@@ -80,7 +89,7 @@ impl Plugin for MovementPlugin {
             )
             .add_systems(
                 FixedUpdate,
-                (update_friction, update_derivatives)
+                (update_friction, update_drag, update_derivatives)
                     .chain()
                     .in_set(PhysicsSystemSet::UpdateDerivatives),
             )
@@ -99,7 +108,11 @@ fn update_derivatives(
     mut query: Query<(&mut Velocity, &mut Acceleration, Option<&GravityMult>)>,
     gravity: Res<Gravity>,
 ) {
+    const EPSILON: f32 = 0.0001;
     for (mut v, mut a, opt_g) in query.iter_mut() {
+        //min move speed to alleviate imprecision/jittering
+        v.0 = v.0.axis_map(|e| if e.abs() < EPSILON { 0.0 } else { e });
+        
         v.0 += a.0;
         //reset acceleration
         a.0 = opt_g.map(|g| g.0).unwrap_or(0.0) * gravity.0;
@@ -134,6 +147,12 @@ fn update_friction(mut query: Query<(&mut Velocity, &Acceleration, &CollidingBlo
                 }
             }
         })
+    }
+}
+
+fn update_drag(mut query: Query<(&mut Velocity, &Drag)>) {
+    for (mut v, d) in query.iter_mut() {
+        v.0 *= 1.0-d.0;
     }
 }
 

@@ -2,7 +2,7 @@ use bevy::{prelude::*, transform::TransformSystem};
 
 use crate::{ui::debug::DebugDrawTransform, world::LevelLoadState};
 
-use self::collision::IgnoreTerrainCollision;
+use self::{collision::IgnoreTerrainCollision, movement::Drag};
 
 pub mod collision;
 pub mod movement;
@@ -57,6 +57,7 @@ pub struct PhysicsBundle {
     pub colliding_directions: collision::CollidingDirections,
     pub debug_draw_transform: DebugDrawTransform,
     pub friction: FrictionBundle,
+    pub drag: Drag
 }
 
 #[derive(Bundle, Default)]
