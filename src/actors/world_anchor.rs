@@ -19,7 +19,7 @@ pub struct WorldAnchorScene;
 
 #[derive(Event)]
 pub struct SpawnWorldAnchorEvent {
-    pub location: GlobalTransform,
+    pub location: Transform,
 }
 
 pub struct WorldAnchorPlugin;
@@ -51,7 +51,7 @@ pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
 
 fn trigger_spawning(mut writer: EventWriter<SpawnWorldAnchorEvent>) {
     writer.send(SpawnWorldAnchorEvent {
-        location: GlobalTransform::from_xyz(0.0, 0.0, 0.0),
+        location: Transform::from_xyz(0.0, 0.0, 0.0),
     });
 }
 
@@ -66,7 +66,7 @@ pub fn spawn_world_anchor(
             .spawn((
                 SceneBundle {
                     scene: res.scene.clone_weak(),
-                    transform: spawn.location.compute_transform().with_scale(Vec3::new(2.0,2.0,2.0)),
+                    transform: spawn.location.with_scale(Vec3::new(2.0,2.0,2.0)),
                     ..default()
                 },
                 Name::new("world anchor"),

@@ -19,7 +19,7 @@ pub struct Wisp;
 
 #[derive(Event)]
 pub struct SpawnWispEvent {
-    pub location: GlobalTransform,
+    pub location: Transform,
 }
 
 pub struct WispPlugin;
@@ -47,7 +47,7 @@ pub fn load_resources(
 fn trigger_spawning(mut writer: EventWriter<SpawnWispEvent>) {
     for i in 0..0 {
         writer.send(SpawnWispEvent {
-            location: GlobalTransform::from_xyz(
+            location: Transform::from_xyz(
                 (i % 5) as f32 * -5.0,
                 (i / 5) as f32 * 5.0 + 50.0,
                 (i / 5) as f32 * -1.0 + 10.0,
@@ -73,7 +73,7 @@ fn spawn_wisp(
             PbrBundle {
                 mesh: res.mesh.clone(),
                 material: res.material.clone(),
-                transform: spawn.location.compute_transform(),
+                transform: spawn.location,
                 ..default()
             },
             Name::new("wisp"),

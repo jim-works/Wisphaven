@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use crate::{
     physics::collision::Aabb,
     world::{BlockCoord, chunk::ChunkCoord},
@@ -245,4 +247,16 @@ impl AxisMap<i32, i32> for ChunkCoord {
     fn axis_map(self, mut f: impl FnMut(i32) -> i32) -> Self {
         ChunkCoord::new((f)(self.x), (f)(self.y), (f)(self.z))
     }
+}
+
+//usese fibonacci sphere algorithm https://arxiv.org/pdf/0912.4540.pdf
+//generates points evenly spaced on unit sphere
+pub fn even_distribution_on_sphere(samples: u32) -> impl Iterator<Item=Vec3> {
+    let phi = PI * (5.0_f32.sqrt() - 1.); //golden angle in radians
+    (0..samples).map(move |i| {
+        let y = 1.0 - (i as f32 / (samples - 1) as f32 ) * 2.0;
+        let radius = (1.0-y*y).sqrt();
+        let theta = phi*i as f32;
+        Vec3::new(theta.cos()*radius, y, theta.sin()*radius)
+    })
 }

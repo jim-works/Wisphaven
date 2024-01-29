@@ -15,15 +15,18 @@ pub mod l_system;
 mod numerical_traits;
 pub use numerical_traits::*;
 
-pub mod palette;
-pub mod plugin;
 pub mod bevy_utils;
-pub mod physics;
-pub mod iterators;
-pub mod string;
 pub mod controls;
+pub mod iterators;
+pub mod palette;
+pub mod physics;
+pub mod plugin;
+pub mod string;
 
-use bevy::{prelude::{Vec3, DerefMut, Deref}, time::Timer};
+use bevy::{
+    prelude::{Deref, DerefMut, Vec3},
+    time::Timer,
+};
 
 use rand::prelude::*;
 use rand_distr::StandardNormal;
@@ -132,9 +135,9 @@ pub fn min_index(v: Vec3) -> usize {
 //0s all other axes
 pub fn pick_axis(v: Vec3, idx: usize) -> Vec3 {
     match idx {
-        0 => Vec3::new(v.x,0.,0.),
-        1 => Vec3::new(0.,v.y,0.),
-        2 => Vec3::new(0.,0.,v.z),
+        0 => Vec3::new(v.x, 0., 0.),
+        1 => Vec3::new(0., v.y, 0.),
+        2 => Vec3::new(0., 0., v.z),
         _ => panic!("index out of bounds"),
     }
 }
@@ -160,25 +163,42 @@ pub fn lerp_delta_time(speed: f32, dt: f32) -> f32 {
     1.0 - ((1.0 - speed).powf(dt))
 }
 
+//https://easings.net/#easeInBack
+//windup -> hit. good for punches!
+pub fn ease_in_back(t: f32) -> f32 {
+    let c1 = 1.70158;
+    let c3 = c1 + 1.0;
+    return c3 * t * t * t - c1 * t * t;
+}
+
+//https://easings.net/#easeInOutQuad
+//used for the return after
+pub fn ease_in_out_quad(t: f32) -> f32 {
+    return if t < 0.5 {
+        2.0 * t * t
+    } else {
+        1.0 - (-2.0 * t + 2.0).powi(2) / 2.0
+    };
+}
+
 //this is used to make a continuous distribution discrete
 //we find the smallest index of buckets greater than a given value
 //buckets should be sorted in increasing order
 pub struct Buckets<T> {
-    pub buckets: Vec<(f32,T)>,
+    pub buckets: Vec<(f32, T)>,
 }
 
 impl<T> Buckets<T> {
     //returns the first bucket with value greater than x
     //if buckets is non-empty and x is larger than all elements in the array, the last bucket is returned
     pub fn map(&self, x: f32) -> Option<&T> {
-        self
-            .buckets
+        self.buckets
             .iter()
             .find_or_last(|(b, _)| *b > x)
             .map(|(_, v)| v)
     }
-    pub fn new(buckets: Vec<(f32,T)>) -> Self {
-        Self {buckets}
+    pub fn new(buckets: Vec<(f32, T)>) -> Self {
+        Self { buckets }
     }
 }
 
@@ -189,7 +209,10 @@ pub struct LocalRepeatingTimer<const INTERVAL_MS: u64>(pub Timer);
 
 impl<const INTERVAL_MS: u64> Default for LocalRepeatingTimer<INTERVAL_MS> {
     fn default() -> Self {
-        Self(Timer::new(Duration::from_millis(INTERVAL_MS), bevy::time::TimerMode::Repeating))
+        Self(Timer::new(
+            Duration::from_millis(INTERVAL_MS),
+            bevy::time::TimerMode::Repeating,
+        ))
     }
 }
 
@@ -218,7 +241,7 @@ impl<T: bevy::prelude::Event> bevy::ecs::system::Command for SendEventCommand<T>
 pub fn get_wrapping<T>(slice: &[T], idx: usize) -> Option<&T> {
     match slice.len() {
         0 => None,
-        len => slice.get(idx % len)
+        len => slice.get(idx % len),
     }
 }
 
@@ -248,7 +271,7 @@ pub const fn f64_powi(b: f64, power: u32) -> f64 {
 //assumes plane goes through (0,0,0)
 pub fn project_onto_plane(vector: Vec3, plane_normal: Vec3) -> Vec3 {
     let dist = vector.dot(plane_normal);
-    vector - dist*plane_normal
+    vector - dist * plane_normal
 }
 
 pub trait FlattenRef<'a, T> {

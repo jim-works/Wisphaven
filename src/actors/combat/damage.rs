@@ -10,11 +10,12 @@ pub fn process_attacks (
     mut combat_query: Query<(&mut CombatInfo, Option<(&Mass, &mut Velocity)>)>,
     name_query: Query<&Name>,
 ) {
+    const BASE_KNOCKBACK: f32 = 0.01; //rescale knockback so that knockback mult = 1 is sensible
     for attack in attack_reader.read() {
         if let Ok((mut target_info, impulse)) = combat_query.get_mut(attack.target) {
             let damage_taken = calc_damage(attack, &target_info);
             if let Some((mass, mut v)) = impulse {
-                mass.add_impulse(attack.knockback*target_info.knockback_multiplier, &mut v);
+                mass.add_impulse(attack.knockback*target_info.knockback_multiplier*BASE_KNOCKBACK, &mut v);
             }
             target_info.curr_health = (target_info.curr_health-damage_taken).max(0.0);
             info!("{:?} ({:?}) attacked {:?} ({:?}) for {} damage (inital damage {:?}). health: {}", attack.attacker, name_query.get(attack.attacker).ok(), attack.target, name_query.get(attack.target).ok(), damage_taken, attack.damage, target_info.curr_health);

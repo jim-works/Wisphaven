@@ -1,22 +1,31 @@
+use std::{array, f32::consts::PI};
+
 use bevy::prelude::*;
 
 use crate::{
     physics::{
         collision::Aabb,
-        movement::{GravityMult, Velocity},
+        movement::Velocity,
         PhysicsBundle, PhysicsSystemSet,
     },
     ui::debug::FixedUpdateBlockGizmos,
-    util::{plugin::SmoothLookTo, SendEventCommand},
+    util::{
+        ease_in_back, ease_in_out_quad, iterators::even_distribution_on_sphere, lerp, plugin::SmoothLookTo, SendEventCommand
+    },
     world::LevelLoadState,
     BlockCoord, BlockPhysics, Level,
 };
 
 use super::{ActorName, ActorResources, CombatInfo, CombatantBundle, Idler};
 
+const GHOST_PARTICLE_COUNT: u32 = 7;
 #[derive(Resource)]
 pub struct GhostResources {
-    pub scene: Handle<Scene>,
+    pub center_mesh: Handle<Mesh>,
+    pub particle_mesh: Handle<Mesh>,
+    pub material: Handle<StandardMaterial>,
+    pub particle_materials: [Handle<StandardMaterial>; GHOST_PARTICLE_COUNT as usize],
+    pub hand_particle_material: Handle<StandardMaterial>,
 }
 
 #[derive(Component, Default)]
@@ -43,9 +52,58 @@ impl Default for Float {
     }
 }
 
+#[derive(Component)]
+pub struct GhostHand {
+    pub owner: Entity,
+    pub offset: Vec3,
+    pub state: GhostHandState,
+}
+
+pub enum GhostHandState {
+    Following,
+    Hitting {
+        start_pos: Vec3,
+        target: Vec3,
+        hit_time: f32,
+        return_time: f32,
+        hit_time_remaining: f32,
+    },
+    Returning {
+        start_pos: Vec3,
+        return_time: f32,
+        return_time_remaining: f32,
+    },
+}
+
+#[derive(Component, Copy, Clone, Default)]
+pub struct OrbitParticle {
+    pub gravity: f32,
+    pub vel: Vec3,
+    pub origin: Vec3, //local
+    radius: f32,      //only for fun with stable
+}
+
+impl OrbitParticle {
+    pub fn stable(radius: f32, vel: Vec3) -> Self {
+        //a = v^2/r
+        let v2 = vel.length_squared();
+        Self {
+            gravity: v2 / radius,
+            vel,
+            radius,
+            ..default()
+        }
+    }
+    pub fn update_stable_speed(&mut self, speed: f32) {
+        let new_vel = self.vel.normalize_or_zero() * speed;
+        self.gravity = speed * speed / self.radius;
+        self.vel = new_vel;
+    }
+}
+
 #[derive(Event)]
 pub struct SpawnGhostEvent {
-    pub location: GlobalTransform,
+    pub location: Transform,
 }
 
 pub struct GhostPlugin;
@@ -54,26 +112,72 @@ impl Plugin for GhostPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (load_resources, add_to_registry))
             .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
-            .add_systems(Update, spawn_ghost)
+            .add_systems(
+                Update,
+                (spawn_ghost, move_cube_orbit_particles, update_ghost_hand),
+            )
             .add_systems(FixedUpdate, update_floater.in_set(PhysicsSystemSet::Main))
             .add_event::<SpawnGhostEvent>();
     }
 }
 
-pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
+pub fn load_resources(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    const CENTER_PARTICLE_COLOR: Color = Color::rgb(0.95, 0.95, 0.95);
+    const OUTER_PARTICLE_COLOR: Color = Color::rgb(0.96, 0.90, 1.0);
+    let particle_materials: [Handle<StandardMaterial>; GHOST_PARTICLE_COUNT as usize] =
+        array::from_fn(|n| {
+            let progress = (n + 1) as f32 / (GHOST_PARTICLE_COUNT + 1) as f32;
+            materials.add(StandardMaterial {
+                base_color: Color::hsl(
+                    lerp(
+                        CENTER_PARTICLE_COLOR.h(),
+                        OUTER_PARTICLE_COLOR.h(),
+                        progress,
+                    ),
+                    lerp(
+                        CENTER_PARTICLE_COLOR.s(),
+                        OUTER_PARTICLE_COLOR.s(),
+                        progress,
+                    ),
+                    lerp(
+                        CENTER_PARTICLE_COLOR.l(),
+                        OUTER_PARTICLE_COLOR.l(),
+                        progress,
+                    ),
+                ),
+                ..default()
+            })
+        });
     commands.insert_resource(GhostResources {
-        scene: assets.load("ghost/ghost.gltf#Scene0"),
+        center_mesh: meshes.add(Mesh::from(shape::Box::from_corners(
+            Vec3::new(-0.3, -0.5, -0.3),
+            Vec3::new(0.3, 0.5, 0.3),
+        ))),
+        particle_mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+        material: materials.add(StandardMaterial {
+            base_color: CENTER_PARTICLE_COLOR,
+            ..default()
+        }),
+        particle_materials,
+        hand_particle_material: materials.add(StandardMaterial {
+            base_color: OUTER_PARTICLE_COLOR,
+            ..default()
+        }),
     });
 }
 
 fn trigger_spawning(mut writer: EventWriter<SpawnGhostEvent>) {
     for i in 0..5 {
         writer.send(SpawnGhostEvent {
-            location: GlobalTransform::from_xyz(
+            location: Transform::from_xyz(
                 (i % 5) as f32 * -5.0,
                 (i / 5) as f32 * 5.0 + 50.0,
                 0.0,
-            ),
+            ).with_rotation(Quat::from_euler(EulerRot::XYZ, 0.0, PI, 0.0)),
         });
     }
 }
@@ -90,32 +194,243 @@ fn spawn_ghost(
     res: Res<GhostResources>,
     mut spawn_requests: EventReader<SpawnGhostEvent>,
 ) {
+    const MIN_PARTICLE_SIZE: f32 = 0.225;
+    const MAX_PARTICLE_SIZE: f32 = 0.7;
+    const MIN_PARTICLE_DIST: f32 = 0.15;
+    const MAX_PARTICLE_DIST: f32 = 0.5;
+    const MIN_PARTICLE_SPEED: f32 = 0.05;
+    const MAX_PARTICLE_SPEED: f32 = 0.2;
     for spawn in spawn_requests.read() {
-        commands.spawn((
-            SceneBundle {
-                scene: res.scene.clone_weak(),
-                transform: spawn.location.compute_transform(),
-                ..default()
-            },
-            Name::new("ghost"),
-            CombatantBundle {
-                combat_info: CombatInfo {
-                    knockback_multiplier: 2.0,
-                    ..CombatInfo::new(10.0, 0.0)
+        let ghost_entity = commands
+            .spawn((
+                PbrBundle {
+                    material: res.material.clone(),
+                    mesh: res.center_mesh.clone(),
+                    transform: spawn.location,
+                    ..default()
                 },
+                Name::new("ghost"),
+                CombatantBundle {
+                    combat_info: CombatInfo {
+                        knockback_multiplier: 2.0,
+                        ..CombatInfo::new(10.0, 0.0)
+                    },
+                    ..default()
+                },
+                PhysicsBundle {
+                    collider: Aabb::centered(Vec3::new(0.8, 1.0, 0.8)),
+                    ..default()
+                },
+                Float::default(),
+                Ghost,
+                Idler::default(),
+                SmoothLookTo::new(0.5),
+            ))
+            .with_children(|children| {
+                //orbit particles
+                for (i, point) in
+                    (0..GHOST_PARTICLE_COUNT).zip(even_distribution_on_sphere(GHOST_PARTICLE_COUNT))
+                {
+                    //size and distance are inversely correlated
+                    let size = lerp(
+                        MAX_PARTICLE_SIZE,
+                        MIN_PARTICLE_SIZE,
+                        i as f32 / GHOST_PARTICLE_COUNT as f32,
+                    );
+                    let dist = lerp(
+                        MIN_PARTICLE_DIST,
+                        MAX_PARTICLE_DIST,
+                        i as f32 / GHOST_PARTICLE_COUNT as f32,
+                    );
+                    let speed = lerp(
+                        MIN_PARTICLE_SPEED,
+                        MAX_PARTICLE_SPEED,
+                        i as f32 / GHOST_PARTICLE_COUNT as f32,
+                    );
+                    let material = (&res.particle_materials[i as usize]).clone();
+                    let angle_inc = 2.0 * PI / GHOST_PARTICLE_COUNT as f32;
+                    let angle = i as f32 * angle_inc;
+                    children.spawn((
+                        PbrBundle {
+                            material,
+                            mesh: res.particle_mesh.clone(),
+                            transform: Transform::from_translation(point * dist)
+                                .with_scale(Vec3::splat(size)),
+                            ..default()
+                        },
+                        OrbitParticle::stable(
+                            dist,
+                            Vec3::new(speed * angle.sin(), 0.0, speed * angle.cos()),
+                        ),
+                    ));
+                }
+            })
+            .id();
+        //right hand
+        spawn_ghost_hand(
+            ghost_entity,
+            spawn.location,
+            Vec3::new(0.5, -0.2, -0.6),
+            &res,
+            &mut commands,
+        );
+        //left hand
+        spawn_ghost_hand(
+            ghost_entity,
+            spawn.location,
+            Vec3::new(-0.5, -0.2, -0.6),
+            &res,
+            &mut commands,
+        );
+    }
+}
+
+fn spawn_ghost_hand(
+    owner: Entity,
+    owner_pos: Transform,
+    offset: Vec3,
+    res: &GhostResources,
+    commands: &mut Commands,
+) {
+    const HAND_SIZE: f32 = 0.15;
+    const HAND_PARTICLE_COUNT: u32 = 3;
+    const MIN_PARTICLE_SIZE: f32 = 0.1 / HAND_SIZE;
+    const MAX_PARTICLE_SIZE: f32 = 0.15 / HAND_SIZE;
+    const MIN_PARTICLE_SPEED: f32 = 0.05 / HAND_SIZE;
+    const MAX_PARTICLE_SPEED: f32 = 0.1 / HAND_SIZE;
+    const MIN_PARTICLE_DIST: f32 = 0.15 / HAND_SIZE;
+    const MAX_PARTICLE_DIST: f32 = 0.2 / HAND_SIZE;
+    commands
+        .spawn((
+            PbrBundle {
+                mesh: res.particle_mesh.clone(),
+                material: res.hand_particle_material.clone(),
+                transform: Transform::from_translation(owner_pos.transform_point(offset))
+                    .with_scale(Vec3::splat(HAND_SIZE)),
                 ..default()
             },
-            PhysicsBundle {
-                collider: Aabb::centered(Vec3::splat(0.5)),
-                gravity: GravityMult(0.1),
-                ..default()
+            GhostHand {
+                owner,
+                offset,
+                state: GhostHandState::Following,
             },
-            Ghost,
-            Idler::default(),
-            SmoothLookTo::new(0.5),
-            bevy::pbr::CubemapVisibleEntities::default(),
-            bevy::render::primitives::CubemapFrusta::default(),
-        ));
+        ))
+        .with_children(|children| {
+            //orbit particles
+            for (i, point) in
+                (0..HAND_PARTICLE_COUNT).zip(even_distribution_on_sphere(HAND_PARTICLE_COUNT))
+            {
+                //size and distance are inversely correlated
+                let size = lerp(
+                    MAX_PARTICLE_SIZE,
+                    MIN_PARTICLE_SIZE,
+                    i as f32 / HAND_PARTICLE_COUNT as f32,
+                );
+                let dist = lerp(
+                    MIN_PARTICLE_DIST,
+                    MAX_PARTICLE_DIST,
+                    i as f32 / HAND_PARTICLE_COUNT as f32,
+                );
+                let speed = lerp(
+                    MIN_PARTICLE_SPEED,
+                    MAX_PARTICLE_SPEED,
+                    i as f32 / HAND_PARTICLE_COUNT as f32,
+                );
+                let material = res.hand_particle_material.clone();
+                let angle_inc = 2.0 * PI / HAND_PARTICLE_COUNT as f32;
+                let angle = i as f32 * angle_inc;
+                children.spawn((
+                    PbrBundle {
+                        material,
+                        mesh: res.particle_mesh.clone(),
+                        transform: Transform::from_translation(point * dist)
+                            .with_scale(Vec3::splat(size)),
+                        ..default()
+                    },
+                    OrbitParticle::stable(
+                        dist,
+                        Vec3::new(speed * angle.sin(), 0.0, speed * angle.cos()),
+                    ),
+                ));
+            }
+        });
+}
+
+fn update_ghost_hand(
+    mut query: Query<(Entity, &mut Transform, &mut GhostHand)>,
+    ghost_query: Query<&Transform, Without<GhostHand>>,
+    time: Res<Time>,
+    mut commands: Commands,
+) {
+    for (entity, mut tf, mut hand) in query.iter_mut() {
+        let owner = hand.owner;
+        let offset = hand.offset;
+        match &mut hand.state {
+            GhostHandState::Following => {
+                if let Ok(ghost_tf) = ghost_query.get(owner) {
+                    tf.translation = ghost_tf.transform_point(offset);
+                    hand.state = GhostHandState::Hitting {
+                        start_pos: tf.translation,
+                        target: ghost_tf.transform_point(offset + Vec3::new(0.0, 1.0, -1.0)),
+                        hit_time_remaining: 1.0,
+                        hit_time: 1.0,
+                        return_time: 1.0,
+                    }
+                } else {
+                    //invalid owner (most likely despawned)
+                    commands.entity(entity).despawn_recursive();
+                }
+            }
+            GhostHandState::Hitting {
+                start_pos,
+                target,
+                hit_time,
+                hit_time_remaining,
+                return_time,
+            } => {
+                tf.translation =
+                    start_pos.lerp(*target, ease_in_back((*hit_time - *hit_time_remaining)/(*hit_time)));
+                *hit_time_remaining -= time.delta_seconds();
+                if *hit_time_remaining <= 0.0 {
+                    hand.state = GhostHandState::Returning {
+                        start_pos: tf.translation,
+                        return_time: *return_time,
+                        return_time_remaining: *return_time,
+                    };
+                }
+            }
+            GhostHandState::Returning {
+                return_time_remaining,
+                start_pos,
+                return_time,
+            } => {
+                if let Ok(ghost_tf) = ghost_query.get(owner) {
+                    let target = ghost_tf.transform_point(offset);
+                    tf.translation =
+                        start_pos.lerp(target, ease_in_out_quad((*return_time-*return_time_remaining)/(*return_time)));
+                    *return_time_remaining -= time.delta_seconds();
+                    if *return_time_remaining <= 0.0 {
+                        hand.state = GhostHandState::Following;
+                    }
+                } else {
+                    //invalid owner (most likely despawned)
+                    commands.entity(entity).despawn_recursive();
+                }
+            }
+        }
+    }
+}
+
+fn move_cube_orbit_particles(
+    mut query: Query<(&mut Transform, &mut OrbitParticle)>,
+    time: Res<Time>,
+) {
+    let dt = time.delta_seconds();
+    for (mut tf, mut particle) in query.iter_mut() {
+        let delta = (particle.origin - tf.translation).normalize_or_zero();
+        let g = particle.gravity;
+        particle.vel += dt * delta * g;
+        tf.translation += dt * particle.vel;
     }
 }
 
@@ -133,7 +448,7 @@ fn update_floater(
     mut block_gizmos: ResMut<FixedUpdateBlockGizmos>,
 ) {
     const CHECK_MULT: f32 = 2.0;
-    for (mut v, mut float, tf, aabb) in query.iter_mut() {
+    for (mut v, float, tf, aabb) in query.iter_mut() {
         //the ground has check area slightly larger than the actual hitbox to climb walls
         let ground_area = aabb.scale(float.ground_aabb_scale).move_min(Vec3::new(
             0.0,
@@ -222,8 +537,15 @@ fn update_floater(
             //don't want to get pulled down to the ground or pushed up to the ceiling
             continue;
         }
-        if v.0.y * delta_v.signum() > delta_v.abs() {
-            //we are already moving in the right direction faster than the floater would push, so do nothing
+        if v.0.y * delta_v.signum() >= delta_v.abs() {
+            //we are already moving in the right direction faster than the floater would push
+            //slow down a bit to reduce bobbing
+            let extra_v = v.0.y - delta_v;
+            if extra_v.abs() > delta_v.abs() {
+                v.0.y -= delta_v;
+            } else {
+                v.0.y -= extra_v;
+            }
             continue;
         }
         v.0.y += delta_v;

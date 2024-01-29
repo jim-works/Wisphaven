@@ -295,7 +295,7 @@ pub type ActorNameIdMap = HashMap<ActorName, ActorId>;
 
 #[derive(Default)]
 pub struct ActorRegistry {
-    pub dynamic_generators: Vec<Box<dyn Fn(&mut Commands, GlobalTransform) + Send + Sync>>,
+    pub dynamic_generators: Vec<Box<dyn Fn(&mut Commands, Transform) + Send + Sync>>,
     //ids may not be stable across program runs
     pub id_map: ActorNameIdMap,
 }
@@ -304,7 +304,7 @@ impl ActorRegistry {
     pub fn add_dynamic(
         &mut self,
         name: ActorName,
-        generator: Box<dyn Fn(&mut Commands, GlobalTransform) + Send + Sync>,
+        generator: Box<dyn Fn(&mut Commands, Transform) + Send + Sync>,
     ) {
         let id = ActorId(self.dynamic_generators.len());
         self.dynamic_generators.push(generator);
@@ -313,14 +313,14 @@ impl ActorRegistry {
     pub fn get_id(&self, name: &ActorName) -> Option<ActorId> {
         self.id_map.get(name).copied()
     }
-    pub fn spawn(&self, actor: &ActorName, commands: &mut Commands, spawn_tf: GlobalTransform) {
+    pub fn spawn(&self, actor: &ActorName, commands: &mut Commands, spawn_tf: Transform) {
         if let Some(actor_id) = self.get_id(actor) {
             if let Some(gen) = self.dynamic_generators.get(actor_id.0) {
                 gen(commands, spawn_tf);
             }
         }
     }
-    pub fn spawn_id(&self, actor_id: ActorId, commands: &mut Commands, spawn_tf: GlobalTransform) {
+    pub fn spawn_id(&self, actor_id: ActorId, commands: &mut Commands, spawn_tf: Transform) {
         if let Some(gen) = self.dynamic_generators.get(actor_id.0) {
             gen(commands, spawn_tf);
         }

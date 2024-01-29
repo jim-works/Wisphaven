@@ -9,7 +9,7 @@ pub struct SkeletonPirateSpawn;
 impl SpawnAction for SkeletonPirateSpawn {
     fn spawn(&self, commands: &mut Commands, translation: Vec3) {
         commands.add(SendEventCommand(SpawnSkeletonPirateEvent {
-            location: GlobalTransform::from_translation(translation),
+            location: Transform::from_translation(translation),
         }))
     }
 }

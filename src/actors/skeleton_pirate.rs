@@ -32,7 +32,7 @@ pub struct SkeletonPirateScene;
 
 #[derive(Event)]
 pub struct SpawnSkeletonPirateEvent {
-    pub location: GlobalTransform,
+    pub location: Transform,
 }
 
 pub struct SkeletonPiratePlugin;
@@ -75,7 +75,7 @@ pub fn spawn_skeleton_pirate(
         commands.spawn((
             SceneBundle {
                 scene: skele_res.scene.clone_weak(),
-                transform: spawn.location.compute_transform(),
+                transform: spawn.location,
                 ..default()
             },
             Name::new("SkeletonPirate"),

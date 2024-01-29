@@ -1,4 +1,4 @@
-use bevy::{prelude::*, math::UVec2};
+use bevy::{math::UVec2, prelude::*};
 
 use crate::ChunkLoader;
 
@@ -14,21 +14,20 @@ pub struct Settings {
     pub item_tex_path: &'static str,
     pub item_type_path: &'static str,
     pub recipe_path: &'static str,
-    pub block_tex_size: UVec2
+    pub block_tex_size: UVec2,
 }
 
 impl Default for Settings {
-
     fn default() -> Self {
         let loader = ChunkLoader {
-            radius: ChunkCoord::new(12,8,12),
+            radius: ChunkCoord::new(12, 8, 12),
             lod_levels: 0,
-            mesh: true
+            mesh: true,
         };
         Self {
             init_loader: loader.clone(),
             player_loader: ChunkLoader {
-                radius: ChunkCoord::new(12, 8,12),
+                radius: ChunkCoord::new(12, 8, 12),
                 ..loader.clone()
             },
             env_path: "worlds/world",
@@ -42,7 +41,20 @@ impl Default for Settings {
             item_type_path: "items",
             //prefixed with "assets/"
             recipe_path: "recipes",
-            block_tex_size: UVec2::new(16,16)
+            block_tex_size: UVec2::new(16, 16),
+        }
+    }
+}
+
+#[derive(Resource)]
+pub struct GraphicsSettings {
+    pub particle_animation_distance: f32,
+}
+
+impl Default for GraphicsSettings {
+    fn default() -> Self {
+        Self {
+            particle_animation_distance: 128.0,
         }
     }
 }

@@ -17,6 +17,7 @@ use crate::serialization::queries::{
     CREATE_CHUNK_TABLE, CREATE_WORLD_INFO_TABLE, INSERT_WORLD_INFO, LOAD_WORLD_INFO,
 };
 use crate::serialization::{LoadingBlocks, LoadingItems, LoadingRecipes};
+use crate::settings::GraphicsSettings;
 use crate::util::string::Version;
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
 use crate::world::{
@@ -31,6 +32,7 @@ pub struct SetupPlugin;
 impl Plugin for SetupPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(load_settings())
+            .insert_resource(load_graphics_settings())
             //instantiate entities that we need to load
             .add_systems(PreStartup, load_folders)
             //initiate loading of each type of scene
@@ -98,6 +100,10 @@ pub struct LoadingRecipeScenes(Handle<LoadedFolder>);
 
 pub fn load_settings() -> Settings {
     Settings::default()
+}
+
+pub fn load_graphics_settings() -> GraphicsSettings {
+    GraphicsSettings::default()
 }
 
 //begins loading the terrain texture images and creates the filename->texture id map

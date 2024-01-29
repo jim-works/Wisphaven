@@ -131,7 +131,7 @@ fn do_spawn_actors(
                 resources.registry.spawn(
                     &item.0,
                     &mut commands,
-                    GlobalTransform::from_translation(spawn_pos),
+                    Transform::from_translation(spawn_pos),
                 );
                 if let Ok((mut tf, mut spawner)) = particles.get_mut(effects.spawn_particles) {
                     tf.translation = spawn_pos;
