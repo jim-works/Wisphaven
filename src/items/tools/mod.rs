@@ -10,8 +10,7 @@ use crate::{
 };
 
 use super::{
-    inventory::Inventory, CreatorItem, EquipItemEvent, ItemStack, ItemSystemSet, MaxStackSize,
-    PickupItemEvent, SwingItemEvent,
+    inventory::Inventory, CreatorItem, EquipItemEvent, ItemStack, ItemSystemSet, MaxStackSize, PickupItemEvent, SwingHitEvent, SwingItemEvent
 };
 
 pub mod abilities;
@@ -60,29 +59,36 @@ pub struct Tool {
 pub fn on_swing(
     mut reader: EventReader<SwingItemEvent>,
     mut writer: EventWriter<BlockHitEvent>,
+    mut swing_hit_writer: EventWriter<SwingHitEvent>,
     level: Res<Level>,
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
 ) {
     for SwingItemEvent {
         user,
-        inventory_slot: _,
+        inventory_slot,
         stack,
         tf,
     } in reader.read()
     {
-        if let Some(query::RaycastHit::Block(block_position, _)) = query::raycast(
+        if let Some(query::RaycastHit::Block(block_position, hit)) = query::raycast(
             query::Ray::new(tf.translation(), tf.forward(), 10.0),
             &level,
             &block_physics_query,
             &object_query,
             vec![*user]
-        ) { //move into the block just a bit
+        ) {
             writer.send(BlockHitEvent {
                 item: Some(stack.id),
                 user: Some(*user),
                 block_position,
                 hit_forward: tf.forward(),
+            });
+            swing_hit_writer.send(SwingHitEvent {
+                user: *user,
+                inventory_slot: *inventory_slot,
+                stack: *stack,
+                pos: hit.hit_pos,
             })
         }
     }

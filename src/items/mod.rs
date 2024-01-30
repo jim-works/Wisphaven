@@ -23,11 +23,13 @@ pub struct ItemsPlugin;
 impl Plugin for ItemsPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<UseItemEvent>()
+            .add_event::<UseHitEvent>()
             .add_event::<EquipItemEvent>()
             .add_event::<UnequipItemEvent>()
             .add_event::<PickupItemEvent>()
             .add_event::<DropItemEvent>()
             .add_event::<SwingItemEvent>()
+            .add_event::<SwingHitEvent>()
             .configure_sets(
                 Update,
                 (
@@ -161,17 +163,35 @@ pub struct ItemIcon(pub Handle<Image>);
 #[derive(Event)]
 pub struct UseItemEvent {
     pub user: Entity,
-    pub inventory_slot: usize,
+    pub inventory_slot: Option<usize>,
     pub stack: ItemStack,
     pub tf: GlobalTransform,
 }
+
+#[derive(Event)]
+pub struct UseHitEvent {
+    pub user: Entity,
+    pub inventory_slot: Option<usize>,
+    pub stack: ItemStack,
+    pub pos: Vec3,
+}
+
 #[derive(Event)]
 pub struct SwingItemEvent {
     pub user: Entity,
-    pub inventory_slot: usize,
+    pub inventory_slot: Option<usize>,
     pub stack: ItemStack,
     pub tf: GlobalTransform,
 }
+
+#[derive(Event)]
+pub struct SwingHitEvent {
+    pub user: Entity,
+    pub inventory_slot: Option<usize>,
+    pub stack: ItemStack,
+    pub pos: Vec3,
+}
+
 #[derive(Event)]
 pub struct EquipItemEvent {
     pub user: Entity,

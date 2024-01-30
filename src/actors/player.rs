@@ -9,18 +9,26 @@ use bevy_quinnet::client::Client;
 use leafwing_input_manager::InputManagerBundle;
 
 use crate::{
-    chunk_loading::ChunkLoader, controllers::{self, *}, items::{
+    chunk_loading::ChunkLoader,
+    controllers::{self, *},
+    items::{
         inventory::Inventory,
         item_attributes::{ItemSwingSpeed, ItemUseSpeed},
         *,
-    }, net::{
+    },
+    net::{
         client::ClientState,
         server::{SyncPosition, SyncVelocity},
         ClientMessage, NetworkType, PlayerList, RemoteClient,
-    }, physics::{movement::*, *}, world::{atmosphere::SkyboxCubemap, settings::Settings, *}
+    },
+    physics::{movement::*, *},
+    world::{atmosphere::SkyboxCubemap, settings::Settings, *},
 };
 
-use super::{ghost::Float, CombatInfo, CombatantBundle, Damage, DeathInfo};
+use super::{
+    ghost::{spawn_ghost_hand, Float, GhostResources, Handed},
+    CombatInfo, CombatantBundle, Damage, DeathInfo,
+};
 
 #[derive(Component)]
 pub struct Player {
@@ -55,6 +63,7 @@ fn spawn_remote_player(
     clients: Res<PlayerList>,
     settings: Res<Settings>,
     network_type: Res<State<NetworkType>>,
+    ghost_resources: Res<GhostResources>
 ) {
     for (entity, RemoteClient(client_id)) in joined_query.iter() {
         info!(
@@ -78,7 +87,7 @@ fn spawn_remote_player(
                 ..settings.player_loader.clone()
             });
         }
-        populate_player_entity(entity, Vec3::ZERO, &mut commands);
+        populate_player_entity(entity, Vec3::ZERO, &ghost_resources, &mut commands);
     }
 }
 
@@ -92,6 +101,7 @@ pub fn spawn_local_player(
     resources: Res<ItemResources>,
     item_query: Query<&MaxStackSize>,
     skybox: Res<SkyboxCubemap>,
+    ghost_resources: Res<GhostResources>
 ) {
     info!("Spawning local player!");
     let mut spawn_point = level.spawn_point;
@@ -113,6 +123,8 @@ pub fn spawn_local_player(
             } //into unloaded chunks
         }
     }
+    //adjust for ghost height (0.5 from center)
+    spawn_point.y += 0.6;
     let player_id = commands
         .spawn((
             Name::new("local player"),
@@ -135,7 +147,7 @@ pub fn spawn_local_player(
             },
         ))
         .id();
-    populate_player_entity(player_id, spawn_point, &mut commands);
+    populate_player_entity(player_id, spawn_point, &ghost_resources, &mut commands);
     let mut inventory = Inventory::new(player_id, 40);
 
     inventory.pickup_item(
@@ -257,7 +269,7 @@ pub fn spawn_local_player(
     commands.spawn((
         Name::new("Camera"),
         Camera3dBundle {
-            transform: Transform::from_xyz(0.0, 1.5, 0.0),
+            transform: Transform::from_xyz(0.0, 0.3, 0.0),
             projection: Projection::Perspective(projection.clone()),
             frustum: Frustum::from_view_projection(&projection.get_projection_matrix()),
             ..default()
@@ -279,7 +291,7 @@ pub fn spawn_local_player(
             ..default()
         },
         FollowPlayer {
-            offset: Vec3::new(0.0, 1.5, 0.0),
+            offset: Vec3::new(0.0, 0.3, 0.0),
         },
         PlayerActionOrigin {},
         InputManagerBundle {
@@ -289,7 +301,7 @@ pub fn spawn_local_player(
     ));
 }
 
-fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Commands) {
+fn populate_player_entity(entity: Entity, spawn_point: Vec3, ghost_resources: &GhostResources, commands: &mut Commands) {
     commands.entity(entity).insert((
         Player {
             hit_damage: Damage { amount: 1.0 },
@@ -298,7 +310,7 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
         InterpolatedAttribute::from(Transform::from_translation(spawn_point)),
         Float::default(),
         PhysicsBundle {
-            collider: collision::Aabb::new(Vec3::new(0.8, 1.6, 0.8), Vec3::new(-0.4, 0.0, -0.4)),
+            collider: collision::Aabb::centered(Vec3::new(0.8, 1.0, 0.8)),
             ..default()
         },
         ItemUseSpeed {
@@ -312,6 +324,23 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, commands: &mut Comm
         SyncPosition,
         SyncVelocity,
     ));
+    //right hand
+    let right_hand = spawn_ghost_hand(
+        entity,
+        Transform::from_translation(spawn_point),
+        Vec3::new(0.7, -0.2, -0.6),
+        ghost_resources,
+        commands,
+    );
+    //left hand
+    let left_hand = spawn_ghost_hand(
+        entity,
+        Transform::from_translation(spawn_point),
+        Vec3::new(-0.7, -0.2, -0.6),
+        ghost_resources,
+        commands,
+    );
+    Handed::Right.assign_hands(entity, left_hand, right_hand, commands)
 }
 
 fn send_updated_position_client(

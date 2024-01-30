@@ -2,11 +2,15 @@ use bevy::prelude::*;
 
 use crate::{
     actors::{coin::SpawnCoinEvent, AttackEvent, CombatInfo, CombatantBundle, Damage},
-    physics::{query::{self, RaycastHit}, collision::Aabb, movement::Velocity},
+    physics::{
+        collision::Aabb,
+        movement::Velocity,
+        query::{self, RaycastHit},
+    },
     world::{BlockPhysics, Level},
 };
 
-use super::{ItemSystemSet, SwingItemEvent, UseItemEvent};
+use super::{ItemSystemSet, SwingHitEvent, SwingItemEvent, UseItemEvent};
 
 pub struct WeaponItemPlugin;
 
@@ -37,6 +41,7 @@ pub struct CoinLauncherItem {
 pub fn attack_melee(
     mut attack_item_reader: EventReader<SwingItemEvent>,
     mut attack_writer: EventWriter<AttackEvent>,
+    mut swing_hit_writer: EventWriter<SwingHitEvent>,
     level: Res<Level>,
     physics_query: Query<&BlockPhysics>,
     weapon_query: Query<&MeleeWeaponItem>,
@@ -44,7 +49,7 @@ pub fn attack_melee(
 ) {
     for SwingItemEvent {
         user,
-        inventory_slot: _,
+        inventory_slot,
         stack,
         tf,
     } in attack_item_reader.read()
@@ -55,13 +60,19 @@ pub fn attack_melee(
                 &level,
                 &physics_query,
                 &object_query,
-                vec![*user]
+                vec![*user],
             ) {
                 attack_writer.send(AttackEvent {
                     attacker: *user,
                     target: hit.entity,
                     damage: weapon.damage,
                     knockback: tf.forward() * weapon.knockback,
+                });
+                swing_hit_writer.send(SwingHitEvent {
+                    user: *user,
+                    inventory_slot: *inventory_slot,
+                    stack: *stack,
+                    pos: hit.hit_pos,
                 })
             }
         }

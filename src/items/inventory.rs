@@ -311,7 +311,7 @@ pub fn tick_item_timers(
                                 if elapsed.elapsed() >= use_speed.windup {
                                     use_writer.send(UseItemEvent {
                                         user: owner,
-                                        inventory_slot,
+                                        inventory_slot: Some(inventory_slot),
                                         stack: *stack,
                                         tf: *use_pos,
                                     });
@@ -321,7 +321,7 @@ pub fn tick_item_timers(
                             _ => {
                                 use_writer.send(UseItemEvent {
                                     user: owner,
-                                    inventory_slot,
+                                    inventory_slot: Some(inventory_slot),
                                     stack: *stack,
                                     tf: *use_pos,
                                 });
@@ -351,7 +351,7 @@ pub fn tick_item_timers(
                                 if elapsed.elapsed() >= swing_speed.windup {
                                     swing_writer.send(SwingItemEvent {
                                         user: owner,
-                                        inventory_slot,
+                                        inventory_slot: Some(inventory_slot),
                                         stack: *stack,
                                         tf: *use_pos,
                                     });
@@ -361,7 +361,7 @@ pub fn tick_item_timers(
                             _ => {
                                 swing_writer.send(SwingItemEvent {
                                     user: owner,
-                                    inventory_slot,
+                                    inventory_slot: Some(inventory_slot),
                                     stack: *stack,
                                     tf: *use_pos,
                                 });

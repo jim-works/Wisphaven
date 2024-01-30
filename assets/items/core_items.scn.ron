@@ -16,7 +16,7 @@
         ),
         "wisphaven::items::item_attributes::ItemSwingSpeed": (
             windup: (
-                secs: 0,
+                secs: 1,
                 nanos: 0,
             ),
             backswing: (

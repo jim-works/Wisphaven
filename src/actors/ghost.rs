@@ -3,14 +3,12 @@ use std::{array, f32::consts::PI};
 use bevy::prelude::*;
 
 use crate::{
-    physics::{
-        collision::Aabb,
-        movement::Velocity,
-        PhysicsBundle, PhysicsSystemSet,
-    },
+    items::{item_attributes::ItemSwingSpeed, SwingHitEvent},
+    physics::{collision::Aabb, movement::Velocity, PhysicsBundle, PhysicsSystemSet},
     ui::debug::FixedUpdateBlockGizmos,
     util::{
-        ease_in_back, ease_in_out_quad, iterators::even_distribution_on_sphere, lerp, plugin::SmoothLookTo, SendEventCommand
+        ease_in_back, ease_in_out_quad, iterators::even_distribution_on_sphere, lerp,
+        plugin::SmoothLookTo, SendEventCommand,
     },
     world::LevelLoadState,
     BlockCoord, BlockPhysics, Level,
@@ -53,13 +51,20 @@ impl Default for Float {
 }
 
 #[derive(Component)]
-pub struct GhostHand {
+pub struct Hand {
     pub owner: Entity,
     pub offset: Vec3,
-    pub state: GhostHandState,
+    pub state: HandState,
 }
 
-pub enum GhostHandState {
+#[derive(Component)]
+pub struct SwingHand(Entity);
+
+#[derive(Component)]
+pub struct UseHand(Entity);
+
+#[derive(Debug)]
+pub enum HandState {
     Following,
     Hitting {
         start_pos: Vec3,
@@ -73,6 +78,35 @@ pub enum GhostHandState {
         return_time: f32,
         return_time_remaining: f32,
     },
+}
+
+#[derive(Component, Clone, Copy)]
+pub enum Handed {
+    Left,
+    Right,
+}
+
+impl Handed {
+    pub fn assign_hands(
+        self,
+        entity: Entity,
+        left_hand: Entity,
+        right_hand: Entity,
+        commands: &mut Commands,
+    ) {
+        match self {
+            Handed::Left => {
+                if let Some(mut ec) = commands.get_entity(entity) {
+                    ec.insert((SwingHand(left_hand), UseHand(right_hand)));
+                }
+            }
+            Handed::Right => {
+                if let Some(mut ec) = commands.get_entity(entity) {
+                    ec.insert((SwingHand(right_hand), UseHand(left_hand)));
+                }
+            }
+        };
+    }
 }
 
 #[derive(Component, Copy, Clone, Default)]
@@ -104,6 +138,7 @@ impl OrbitParticle {
 #[derive(Event)]
 pub struct SpawnGhostEvent {
     pub location: Transform,
+    pub handed: Handed,
 }
 
 pub struct GhostPlugin;
@@ -114,7 +149,7 @@ impl Plugin for GhostPlugin {
             .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
             .add_systems(
                 Update,
-                (spawn_ghost, move_cube_orbit_particles, update_ghost_hand),
+                (spawn_ghost, move_cube_orbit_particles, update_ghost_hand, swing_hand),
             )
             .add_systems(FixedUpdate, update_floater.in_set(PhysicsSystemSet::Main))
             .add_event::<SpawnGhostEvent>();
@@ -173,11 +208,13 @@ pub fn load_resources(
 fn trigger_spawning(mut writer: EventWriter<SpawnGhostEvent>) {
     for i in 0..5 {
         writer.send(SpawnGhostEvent {
-            location: Transform::from_xyz(
-                (i % 5) as f32 * -5.0,
-                (i / 5) as f32 * 5.0 + 50.0,
-                0.0,
-            ).with_rotation(Quat::from_euler(EulerRot::XYZ, 0.0, PI, 0.0)),
+            location: Transform::from_xyz((i % 5) as f32 * -5.0, (i / 5) as f32 * 5.0 + 50.0, 0.0)
+                .with_rotation(Quat::from_euler(EulerRot::XYZ, 0.0, PI, 0.0)),
+            handed: if i % 2 == 0 {
+                Handed::Right
+            } else {
+                Handed::Left
+            },
         });
     }
 }
@@ -185,7 +222,12 @@ fn trigger_spawning(mut writer: EventWriter<SpawnGhostEvent>) {
 fn add_to_registry(mut res: ResMut<ActorResources>) {
     res.registry.add_dynamic(
         ActorName::core("ghost"),
-        Box::new(|commands, tf| commands.add(SendEventCommand(SpawnGhostEvent { location: tf }))),
+        Box::new(|commands, tf| {
+            commands.add(SendEventCommand(SpawnGhostEvent {
+                location: tf,
+                handed: Handed::Right,
+            }))
+        }),
     );
 }
 
@@ -267,7 +309,7 @@ fn spawn_ghost(
             })
             .id();
         //right hand
-        spawn_ghost_hand(
+        let right_hand_entity = spawn_ghost_hand(
             ghost_entity,
             spawn.location,
             Vec3::new(0.5, -0.2, -0.6),
@@ -275,23 +317,29 @@ fn spawn_ghost(
             &mut commands,
         );
         //left hand
-        spawn_ghost_hand(
+        let left_hand_entity = spawn_ghost_hand(
             ghost_entity,
             spawn.location,
             Vec3::new(-0.5, -0.2, -0.6),
             &res,
             &mut commands,
         );
+        spawn.handed.assign_hands(
+            ghost_entity,
+            left_hand_entity,
+            right_hand_entity,
+            &mut commands,
+        )
     }
 }
 
-fn spawn_ghost_hand(
+pub fn spawn_ghost_hand(
     owner: Entity,
     owner_pos: Transform,
     offset: Vec3,
     res: &GhostResources,
     commands: &mut Commands,
-) {
+) -> Entity {
     const HAND_SIZE: f32 = 0.15;
     const HAND_PARTICLE_COUNT: u32 = 3;
     const MIN_PARTICLE_SIZE: f32 = 0.1 / HAND_SIZE;
@@ -309,10 +357,10 @@ fn spawn_ghost_hand(
                     .with_scale(Vec3::splat(HAND_SIZE)),
                 ..default()
             },
-            GhostHand {
+            Hand {
                 owner,
                 offset,
-                state: GhostHandState::Following,
+                state: HandState::Following,
             },
         ))
         .with_children(|children| {
@@ -353,12 +401,45 @@ fn spawn_ghost_hand(
                     ),
                 ));
             }
-        });
+        })
+        .id()
+}
+
+fn swing_hand(
+    owner_query: Query<&SwingHand, Without<Hand>>,
+    item_query: Query<&ItemSwingSpeed, Without<Hand>>,
+    mut hand_query: Query<(&Transform, &mut Hand)>,
+    mut swing_event: EventReader<SwingHitEvent>,
+) {
+    for event in swing_event.read() {
+        if let Ok(swing_hand) = owner_query.get(event.user) {
+            if let Ok(swing_speed) = item_query.get(event.stack.id) {
+                if let Ok((tf, mut hand)) = hand_query.get_mut(swing_hand.0) {
+                    const MIN_TIME: f32 = 0.05;
+                    //set a min time so the animation doesn't completely glitch out
+                    //subtract off the backswing if we have the budget so the animation still has the correct total duration
+                    let (hit_time, return_time) = if swing_speed.windup.as_secs_f32() < MIN_TIME {
+                        (MIN_TIME, (swing_speed.backswing.as_secs_f32() - (MIN_TIME - swing_speed.windup.as_secs_f32())).min(MIN_TIME))
+                    } else {
+                        (swing_speed.windup.as_secs_f32(), swing_speed.backswing.as_secs_f32().min(MIN_TIME))
+                    };
+                    hand.state = HandState::Hitting {
+                        start_pos: tf.translation,
+                        target: event.pos,
+                        hit_time,
+                        return_time,
+                        hit_time_remaining: hit_time,
+                    };
+                    info!("hand state: {:?}", hand.state);
+                }
+            }
+        }
+    }
 }
 
 fn update_ghost_hand(
-    mut query: Query<(Entity, &mut Transform, &mut GhostHand)>,
-    ghost_query: Query<&Transform, Without<GhostHand>>,
+    mut query: Query<(Entity, &mut Transform, &mut Hand)>,
+    ghost_query: Query<&Transform, Without<Hand>>,
     time: Res<Time>,
     mut commands: Commands,
 ) {
@@ -366,51 +447,55 @@ fn update_ghost_hand(
         let owner = hand.owner;
         let offset = hand.offset;
         match &mut hand.state {
-            GhostHandState::Following => {
+            HandState::Following => {
                 if let Ok(ghost_tf) = ghost_query.get(owner) {
                     tf.translation = ghost_tf.transform_point(offset);
-                    hand.state = GhostHandState::Hitting {
-                        start_pos: tf.translation,
-                        target: ghost_tf.transform_point(offset + Vec3::new(0.0, 1.0, -1.0)),
-                        hit_time_remaining: 1.0,
-                        hit_time: 1.0,
-                        return_time: 1.0,
-                    }
+                    // hand.state = HandState::Hitting {
+                    //     start_pos: tf.translation,
+                    //     target: ghost_tf.transform_point(offset + Vec3::new(0.0, 1.0, -1.0)),
+                    //     hit_time_remaining: 1.0,
+                    //     hit_time: 1.0,
+                    //     return_time: 1.0,
+                    // }
                 } else {
                     //invalid owner (most likely despawned)
                     commands.entity(entity).despawn_recursive();
                 }
             }
-            GhostHandState::Hitting {
+            HandState::Hitting {
                 start_pos,
                 target,
                 hit_time,
                 hit_time_remaining,
                 return_time,
             } => {
-                tf.translation =
-                    start_pos.lerp(*target, ease_in_back((*hit_time - *hit_time_remaining)/(*hit_time)));
+                tf.translation = start_pos.lerp(
+                    *target,
+                    ease_in_back((*hit_time - *hit_time_remaining) / (*hit_time)),
+                );
                 *hit_time_remaining -= time.delta_seconds();
                 if *hit_time_remaining <= 0.0 {
-                    hand.state = GhostHandState::Returning {
+                    hand.state = HandState::Returning {
                         start_pos: tf.translation,
                         return_time: *return_time,
                         return_time_remaining: *return_time,
                     };
                 }
             }
-            GhostHandState::Returning {
+            HandState::Returning {
                 return_time_remaining,
                 start_pos,
                 return_time,
             } => {
                 if let Ok(ghost_tf) = ghost_query.get(owner) {
                     let target = ghost_tf.transform_point(offset);
-                    tf.translation =
-                        start_pos.lerp(target, ease_in_out_quad((*return_time-*return_time_remaining)/(*return_time)));
+                    tf.translation = start_pos.lerp(
+                        target,
+                        ease_in_out_quad((*return_time - *return_time_remaining) / (*return_time)),
+                    );
                     *return_time_remaining -= time.delta_seconds();
                     if *return_time_remaining <= 0.0 {
-                        hand.state = GhostHandState::Following;
+                        hand.state = HandState::Following;
                     }
                 } else {
                     //invalid owner (most likely despawned)
