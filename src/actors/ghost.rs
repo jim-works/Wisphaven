@@ -3,15 +3,10 @@ use std::{array, f32::consts::PI};
 use bevy::prelude::*;
 
 use crate::{
-    items::{item_attributes::ItemSwingSpeed, SwingHitEvent},
-    physics::{collision::Aabb, movement::Velocity, PhysicsBundle, PhysicsSystemSet},
-    ui::debug::FixedUpdateBlockGizmos,
-    util::{
+    items::{item_attributes::ItemSwingSpeed, StartSwingingItemEvent, SwingHitEvent}, physics::{collision::Aabb, movement::Velocity, PhysicsBundle, PhysicsSystemSet}, settings::GraphicsSettings, ui::debug::FixedUpdateBlockGizmos, util::{
         ease_in_back, ease_in_out_quad, iterators::even_distribution_on_sphere, lerp,
         plugin::SmoothLookTo, SendEventCommand,
-    },
-    world::LevelLoadState,
-    BlockCoord, BlockPhysics, Level,
+    }, world::LevelLoadState, BlockCoord, BlockPhysics, Level
 };
 
 use super::{ActorName, ActorResources, CombatInfo, CombatantBundle, Idler};
@@ -54,6 +49,7 @@ impl Default for Float {
 pub struct Hand {
     pub owner: Entity,
     pub offset: Vec3,
+    pub windup_offset: Vec3,
     pub state: HandState,
 }
 
@@ -66,6 +62,11 @@ pub struct UseHand(Entity);
 #[derive(Debug)]
 pub enum HandState {
     Following,
+    Windup {
+        start_pos: Vec3,
+        windup_time: f32,
+        time_remaining: f32,
+    },
     Hitting {
         start_pos: Vec3,
         target: Vec3,
@@ -149,7 +150,12 @@ impl Plugin for GhostPlugin {
             .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
             .add_systems(
                 Update,
-                (spawn_ghost, move_cube_orbit_particles, update_ghost_hand, swing_hand),
+                (
+                    spawn_ghost,
+                    move_cube_orbit_particles,
+                    update_ghost_hand,
+                    (windup_hand, swing_hand).chain(), //chain so that conflicts will resolve to the swing animation
+                ),
             )
             .add_systems(FixedUpdate, update_floater.in_set(PhysicsSystemSet::Main))
             .add_event::<SpawnGhostEvent>();
@@ -313,6 +319,7 @@ fn spawn_ghost(
             ghost_entity,
             spawn.location,
             Vec3::new(0.5, -0.2, -0.6),
+            Vec3::new(0.6, 0.2, -0.5),
             &res,
             &mut commands,
         );
@@ -321,6 +328,7 @@ fn spawn_ghost(
             ghost_entity,
             spawn.location,
             Vec3::new(-0.5, -0.2, -0.6),
+            Vec3::new(-0.6, 0.2, -0.5),
             &res,
             &mut commands,
         );
@@ -337,6 +345,7 @@ pub fn spawn_ghost_hand(
     owner: Entity,
     owner_pos: Transform,
     offset: Vec3,
+    windup_offset: Vec3,
     res: &GhostResources,
     commands: &mut Commands,
 ) -> Entity {
@@ -360,6 +369,7 @@ pub fn spawn_ghost_hand(
             Hand {
                 owner,
                 offset,
+                windup_offset,
                 state: HandState::Following,
             },
         ))
@@ -405,32 +415,51 @@ pub fn spawn_ghost_hand(
         .id()
 }
 
-fn swing_hand(
+fn windup_hand(
     owner_query: Query<&SwingHand, Without<Hand>>,
     item_query: Query<&ItemSwingSpeed, Without<Hand>>,
     mut hand_query: Query<(&Transform, &mut Hand)>,
-    mut swing_event: EventReader<SwingHitEvent>,
+    mut swing_event: EventReader<StartSwingingItemEvent>,
 ) {
     for event in swing_event.read() {
         if let Ok(swing_hand) = owner_query.get(event.user) {
             if let Ok(swing_speed) = item_query.get(event.stack.id) {
                 if let Ok((tf, mut hand)) = hand_query.get_mut(swing_hand.0) {
-                    const MIN_TIME: f32 = 0.05;
-                    //set a min time so the animation doesn't completely glitch out
-                    //subtract off the backswing if we have the budget so the animation still has the correct total duration
-                    let (hit_time, return_time) = if swing_speed.windup.as_secs_f32() < MIN_TIME {
-                        (MIN_TIME, (swing_speed.backswing.as_secs_f32() - (MIN_TIME - swing_speed.windup.as_secs_f32())).min(MIN_TIME))
-                    } else {
-                        (swing_speed.windup.as_secs_f32(), swing_speed.backswing.as_secs_f32().min(MIN_TIME))
+                    //play windup animation for the items windup duration, if 0 duration, don't play anim
+                    //simple xP
+                    hand.state = HandState::Windup {
+                        start_pos: tf.translation,
+                        windup_time: swing_speed.windup.as_secs_f32(),
+                        time_remaining: swing_speed.windup.as_secs_f32(),
                     };
+                }
+            }
+        }
+    }
+}
+
+fn swing_hand(
+    owner_query: Query<&SwingHand, Without<Hand>>,
+    item_query: Query<&ItemSwingSpeed, Without<Hand>>,
+    mut hand_query: Query<(&Transform, &mut Hand)>,
+    mut swing_event: EventReader<SwingHitEvent>,
+    settings: Res<GraphicsSettings>,
+) {
+    for event in swing_event.read() {
+        if let Ok(swing_hand) = owner_query.get(event.user) {
+            if let Ok(swing_speed) = item_query.get(event.stack.id) {
+                if let Ok((tf, mut hand)) = hand_query.get_mut(swing_hand.0) {
+                    //we already waiting for the windup, but we need a small amount of time for the animation to play
+                    //subtract that time off the backswing if we have the budget so the animation still has the correct total duration
+                    //if we don't have the time budget, it will be slightly off. better than no animation though!
                     hand.state = HandState::Hitting {
                         start_pos: tf.translation,
                         target: event.pos,
-                        hit_time,
-                        return_time,
-                        hit_time_remaining: hit_time,
+                        hit_time: settings.hand_hit_animation_duration,
+                        return_time: (swing_speed.backswing.as_secs_f32() - settings.hand_hit_animation_duration)
+                            .max(settings.hand_hit_animation_duration),
+                        hit_time_remaining: settings.hand_hit_animation_duration,
                     };
-                    info!("hand state: {:?}", hand.state);
                 }
             }
         }
@@ -446,17 +475,30 @@ fn update_ghost_hand(
     for (entity, mut tf, mut hand) in query.iter_mut() {
         let owner = hand.owner;
         let offset = hand.offset;
+        let windup_offset = hand.windup_offset;
         match &mut hand.state {
             HandState::Following => {
                 if let Ok(ghost_tf) = ghost_query.get(owner) {
                     tf.translation = ghost_tf.transform_point(offset);
-                    // hand.state = HandState::Hitting {
-                    //     start_pos: tf.translation,
-                    //     target: ghost_tf.transform_point(offset + Vec3::new(0.0, 1.0, -1.0)),
-                    //     hit_time_remaining: 1.0,
-                    //     hit_time: 1.0,
-                    //     return_time: 1.0,
-                    // }
+                } else {
+                    //invalid owner (most likely despawned)
+                    commands.entity(entity).despawn_recursive();
+                }
+            }
+            HandState::Windup {
+                start_pos,
+                windup_time,
+                time_remaining,
+            } => {
+                if let Ok(ghost_tf) = ghost_query.get(owner) {
+                    let dest = ghost_tf.transform_point(windup_offset);
+                    tf.translation = start_pos.lerp(
+                        dest,
+                        ease_in_out_quad((*windup_time - *time_remaining) / (*windup_time)),
+                    );
+                    let t = *time_remaining - time.delta_seconds();
+                    *time_remaining = t.max(0.0);
+                    //hold at top of windup until hit event comes through, then transition to hitting
                 } else {
                     //invalid owner (most likely despawned)
                     commands.entity(entity).despawn_recursive();
@@ -475,6 +517,7 @@ fn update_ghost_hand(
                 );
                 *hit_time_remaining -= time.delta_seconds();
                 if *hit_time_remaining <= 0.0 {
+                    tf.translation = *target;
                     hand.state = HandState::Returning {
                         start_pos: tf.translation,
                         return_time: *return_time,

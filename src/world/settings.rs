@@ -49,12 +49,14 @@ impl Default for Settings {
 #[derive(Resource)]
 pub struct GraphicsSettings {
     pub particle_animation_distance: f32,
+    pub hand_hit_animation_duration: f32,
 }
 
 impl Default for GraphicsSettings {
     fn default() -> Self {
         Self {
             particle_animation_distance: 128.0,
+            hand_hit_animation_duration: 0.1,
         }
     }
 }

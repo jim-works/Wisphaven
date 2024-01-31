@@ -11,12 +11,23 @@ use super::{
 pub enum ItemAction {
     #[default]
     None,
+    UsingWindup {
+        elapsed_time: Stopwatch,
+        target_position: GlobalTransform,
+        sent_start_event: bool,
+    },
+    UsingBackswing {
+        elapsed_time: Stopwatch,
+    },
     //elapsed time, target position
-    UsingWindup(Stopwatch, GlobalTransform),
-    UsingBackswing(Stopwatch),
-    //elapsed time, target position
-    SwingingWindup(Stopwatch, GlobalTransform),
-    SwingingBackswing(Stopwatch),
+    SwingingWindup {
+        elapsed_time: Stopwatch,
+        target_position: GlobalTransform,
+        sent_start_event: bool,
+    },
+    SwingingBackswing {
+        elapsed_time: Stopwatch,
+    },
 }
 
 impl ItemAction {
@@ -25,20 +36,28 @@ impl ItemAction {
     pub fn cancel_action(&mut self) {
         match self {
             ItemAction::None => (),
-            ItemAction::UsingWindup(_, _) => *self = ItemAction::None,
-            ItemAction::UsingBackswing(_) => (),
-            ItemAction::SwingingWindup(_, _) => *self = ItemAction::None,
-            ItemAction::SwingingBackswing(_) => (),
+            ItemAction::UsingWindup { .. } => *self = ItemAction::None,
+            ItemAction::UsingBackswing { .. } => (),
+            ItemAction::SwingingWindup { .. } => *self = ItemAction::None,
+            ItemAction::SwingingBackswing { .. } => (),
         }
     }
     pub fn try_swing(&mut self, tf: GlobalTransform) {
         if let ItemAction::None = self {
-            *self = ItemAction::SwingingWindup(default(), tf);
+            *self = ItemAction::SwingingWindup {
+                elapsed_time: Stopwatch::default(),
+                target_position: tf,
+                sent_start_event: false
+            }
         }
     }
     pub fn try_use(&mut self, tf: GlobalTransform) {
         if let ItemAction::None = self {
-            *self = ItemAction::UsingWindup(default(), tf);
+            *self = ItemAction::UsingWindup {
+                elapsed_time: Stopwatch::default(),
+                target_position: tf,
+                sent_start_event: false,
+            };
         }
     }
 }
@@ -292,7 +311,9 @@ pub fn tick_item_timers(
     swing_speed_query: Query<&ItemSwingSpeed>,
     use_speed_query: Query<&ItemUseSpeed>,
     time: Res<Time>,
+    mut start_using_writer: EventWriter<StartUsingItemEvent>,
     mut use_writer: EventWriter<UseItemEvent>,
+    mut start_swinging_writer: EventWriter<StartSwingingItemEvent>,
     mut swing_writer: EventWriter<SwingItemEvent>,
 ) {
     for mut inventory in query.iter_mut() {
@@ -304,18 +325,32 @@ pub fn tick_item_timers(
             if let Some((stack, action)) = opt {
                 match action {
                     ItemAction::None => (),
-                    ItemAction::UsingWindup(elapsed, use_pos) => {
-                        elapsed.tick(time.delta());
+                    ItemAction::UsingWindup {
+                        elapsed_time,
+                        target_position,
+                        sent_start_event,
+                    } => {
+                        elapsed_time.tick(time.delta());
                         match use_speed_query.get(stack.id).ok().fallback(base_use_speed) {
                             Some(use_speed) => {
-                                if elapsed.elapsed() >= use_speed.windup {
+                                if elapsed_time.elapsed() >= use_speed.windup {
                                     use_writer.send(UseItemEvent {
                                         user: owner,
                                         inventory_slot: Some(inventory_slot),
                                         stack: *stack,
-                                        tf: *use_pos,
+                                        tf: *target_position,
                                     });
-                                    *action = ItemAction::UsingBackswing(default());
+                                    *action = ItemAction::UsingBackswing {
+                                        elapsed_time: Stopwatch::default(),
+                                    };
+                                } else if !*sent_start_event {
+                                    start_using_writer.send(StartUsingItemEvent {
+                                        user: owner,
+                                        inventory_slot: Some(inventory_slot),
+                                        stack: *stack,
+                                        tf: *target_position,
+                                    });
+                                    *sent_start_event = true;
                                 }
                             }
                             _ => {
@@ -323,39 +358,53 @@ pub fn tick_item_timers(
                                     user: owner,
                                     inventory_slot: Some(inventory_slot),
                                     stack: *stack,
-                                    tf: *use_pos,
+                                    tf: *target_position,
                                 });
                                 *action = ItemAction::None;
                             }
                         }
                     }
-                    ItemAction::UsingBackswing(elapsed) => {
-                        elapsed.tick(time.delta());
+                    ItemAction::UsingBackswing { elapsed_time } => {
+                        elapsed_time.tick(time.delta());
                         match use_speed_query.get(stack.id).ok().fallback(base_use_speed) {
                             Some(use_speed) => {
-                                if elapsed.elapsed() >= use_speed.backswing {
+                                if elapsed_time.elapsed() >= use_speed.backswing {
                                     *action = ItemAction::None;
                                 }
                             }
                             _ => *action = ItemAction::None,
                         }
                     }
-                    ItemAction::SwingingWindup(elapsed, use_pos) => {
-                        elapsed.tick(time.delta());
+                    ItemAction::SwingingWindup {
+                        elapsed_time,
+                        target_position,
+                        sent_start_event,
+                    } => {
+                        elapsed_time.tick(time.delta());
                         match swing_speed_query
                             .get(stack.id)
                             .ok()
                             .fallback(base_swing_speed)
                         {
                             Some(swing_speed) => {
-                                if elapsed.elapsed() >= swing_speed.windup {
+                                if elapsed_time.elapsed() >= swing_speed.windup {
                                     swing_writer.send(SwingItemEvent {
                                         user: owner,
                                         inventory_slot: Some(inventory_slot),
                                         stack: *stack,
-                                        tf: *use_pos,
+                                        tf: *target_position,
                                     });
-                                    *action = ItemAction::SwingingBackswing(default());
+                                    *action = ItemAction::SwingingBackswing {
+                                        elapsed_time: Stopwatch::default(),
+                                    };
+                                } else if !*sent_start_event {
+                                    start_swinging_writer.send(StartSwingingItemEvent {
+                                        user: owner,
+                                        inventory_slot: Some(inventory_slot),
+                                        stack: *stack,
+                                        tf: *target_position,
+                                    });
+                                    *sent_start_event = true;
                                 }
                             }
                             _ => {
@@ -363,21 +412,21 @@ pub fn tick_item_timers(
                                     user: owner,
                                     inventory_slot: Some(inventory_slot),
                                     stack: *stack,
-                                    tf: *use_pos,
+                                    tf: *target_position,
                                 });
                                 *action = ItemAction::None;
                             }
                         }
                     }
-                    ItemAction::SwingingBackswing(elapsed) => {
-                        elapsed.tick(time.delta());
+                    ItemAction::SwingingBackswing { elapsed_time } => {
+                        elapsed_time.tick(time.delta());
                         match swing_speed_query
                             .get(stack.id)
                             .ok()
                             .fallback(base_swing_speed)
                         {
                             Some(swing_speed) => {
-                                if elapsed.elapsed() >= swing_speed.backswing {
+                                if elapsed_time.elapsed() >= swing_speed.backswing {
                                     *action = ItemAction::None;
                                 }
                             }

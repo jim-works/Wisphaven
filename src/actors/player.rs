@@ -329,6 +329,7 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, ghost_resources: &G
         entity,
         Transform::from_translation(spawn_point),
         Vec3::new(0.7, -0.2, -0.6),
+        Vec3::new(0.8, 0.2, -0.5),
         ghost_resources,
         commands,
     );
@@ -337,6 +338,7 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, ghost_resources: &G
         entity,
         Transform::from_translation(spawn_point),
         Vec3::new(-0.7, -0.2, -0.6),
+        Vec3::new(-0.8, 0.2, -0.5),
         ghost_resources,
         commands,
     );
