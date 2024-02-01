@@ -183,7 +183,8 @@ pub struct UseHitEvent {
     pub user: Entity,
     pub inventory_slot: Option<usize>,
     pub stack: ItemStack,
-    pub pos: Vec3,
+    pub pos: Option<Vec3>,
+    pub success: bool,
 }
 
 #[derive(Event)]

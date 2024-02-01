@@ -3,7 +3,7 @@ use std::{ops::AddAssign, path::PathBuf, sync::Arc};
 use crate::{
     items::{
         block_item::BlockItem,
-        item_attributes::ConsumableItem,
+        item_attributes::ConsumeItemOnHit,
         loot::{LootTable, LootTableDrop},
         CreatorItem, ItemBundle, ItemName, MaxStackSize,
     },
@@ -280,7 +280,7 @@ impl BlockRegistry {
                     max_stack_size: MaxStackSize(999),
                 },
                 BlockItem(entity),
-                ConsumableItem,
+                ConsumeItemOnHit,
             ))
             .id();
         commands.entity(entity).insert((

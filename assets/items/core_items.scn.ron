@@ -54,7 +54,7 @@
           ),
           10
         ),
-        "wisphaven::items::item_attributes::ConsumableItem": (),
+        "wisphaven::items::item_attributes::ConsumeItemOnHit": (),
       },
     ),
     6: (
@@ -154,7 +154,17 @@
           namespace: "core",
           name: "glowjelly",
         )),
-        "wisphaven::items::item_attributes::ConsumableItem": (),
+        "wisphaven::items::item_attributes::ConsumeItemOnHit": (),
+        "wisphaven::items::item_attributes::ItemUseSpeed": (
+            windup: (
+                secs: 0,
+                nanos: 250000000,
+            ),
+            backswing: (
+                secs: 0,
+                nanos: 500000000,
+            )
+        ),
       },
     ),
     10: (
@@ -170,7 +180,17 @@
           namespace: "core",
           name: "world_anchor",
         )),
-        "wisphaven::items::item_attributes::ConsumableItem": (),
+        "wisphaven::items::item_attributes::ConsumeItemOnHit": (),
+        "wisphaven::items::item_attributes::ItemUseSpeed": (
+            windup: (
+                secs: 1,
+                nanos: 0,
+            ),
+            backswing: (
+                secs: 0,
+                nanos: 500000000,
+            )
+        ),
       },
     ),
     11: (
@@ -182,7 +202,17 @@
         "wisphaven::items::NamedItemIcon": (
             path: "moon.png"
         ),
-        "wisphaven::items::time_items::SkipToNightItem": ()
+        "wisphaven::items::time_items::SkipToNightItem": (),
+        "wisphaven::items::item_attributes::ItemUseSpeed": (
+            windup: (
+                secs: 0,
+                nanos: 250000000,
+            ),
+            backswing: (
+                secs: 0,
+                nanos: 500000000,
+            )
+        ),
       },
     ),
     12: (
@@ -197,7 +227,18 @@
         "wisphaven::items::weapons::CoinLauncherItem": (
           speed: 0.5,
           damage: Damage (amount: 2.0)
-        )
+        ),
+        "wisphaven::items::item_attributes::ItemUseSpeed": (
+            windup: (
+                secs: 0,
+                nanos: 250000000,
+            ),
+            backswing: (
+                secs: 0,
+                nanos: 500000000,
+            )
+        ),
+        "wisphaven::items::item_attributes::ConsumeItemOnHit": ()
       },
     ),
     13: (
@@ -212,7 +253,7 @@
         "wisphaven::items::crafting::CraftingHammer": (),
         "wisphaven::items::item_attributes::ItemSwingSpeed": (
             windup: (
-                secs: 0,
+                secs: 1,
                 nanos: 0,
             ),
             backswing: (

@@ -3,7 +3,10 @@ use std::{array, f32::consts::PI};
 use bevy::prelude::*;
 
 use crate::{
-    items::{item_attributes::ItemSwingSpeed, StartSwingingItemEvent, SwingHitEvent},
+    items::{
+        item_attributes::{ItemSwingSpeed, ItemUseSpeed},
+        StartSwingingItemEvent, StartUsingItemEvent, SwingHitEvent, UseHitEvent,
+    },
     physics::{collision::Aabb, movement::Velocity, PhysicsBundle, PhysicsSystemSet},
     settings::GraphicsSettings,
     ui::debug::FixedUpdateBlockGizmos,
@@ -63,7 +66,11 @@ pub struct Hand {
 pub struct SwingHand(Entity);
 
 #[derive(Component)]
-pub struct UseHand(Entity);
+pub struct UseHand {
+    hand: Entity,
+    //offset to play hit animation at if the item doesn't have a use coord (e.g. throwing a coin or not placing a block)
+    miss_offset: Vec3,
+}
 
 #[derive(Debug)]
 pub enum HandState {
@@ -104,12 +111,24 @@ impl Handed {
         match self {
             Handed::Left => {
                 if let Some(mut ec) = commands.get_entity(entity) {
-                    ec.insert((SwingHand(left_hand), UseHand(right_hand)));
+                    ec.insert((
+                        SwingHand(left_hand),
+                        UseHand {
+                            hand: right_hand,
+                            miss_offset: Vec3::new(0.0, 0.4, 0.0), //idk default for now
+                        },
+                    ));
                 }
             }
             Handed::Right => {
                 if let Some(mut ec) = commands.get_entity(entity) {
-                    ec.insert((SwingHand(right_hand), UseHand(left_hand)));
+                    ec.insert((
+                        SwingHand(right_hand),
+                        UseHand {
+                            hand: left_hand,
+                            miss_offset: Vec3::new(0.0, 0.4, 0.0), //idk default for now
+                        },
+                    ));
                 }
             }
         };
@@ -160,7 +179,7 @@ impl Plugin for GhostPlugin {
                     spawn_ghost,
                     move_cube_orbit_particles,
                     update_ghost_hand,
-                    (windup_hand, swing_hand).chain(), //chain so that conflicts will resolve to the swing animation
+                    ((windup_swing_hand, windup_use_hand), (swing_hand, use_hand)).chain(), //chain so that conflicts will resolve to the main animation
                 ),
             )
             .add_systems(FixedUpdate, update_floater.in_set(PhysicsSystemSet::Main))
@@ -421,7 +440,7 @@ pub fn spawn_ghost_hand(
         .id()
 }
 
-fn windup_hand(
+fn windup_swing_hand(
     owner_query: Query<&SwingHand, Without<Hand>>,
     item_query: Query<&ItemSwingSpeed, Without<Hand>>,
     mut hand_query: Query<(&Transform, &mut Hand)>,
@@ -437,6 +456,29 @@ fn windup_hand(
                         start_pos: tf.translation,
                         windup_time: swing_speed.windup.as_secs_f32(),
                         time_remaining: swing_speed.windup.as_secs_f32(),
+                    };
+                }
+            }
+        }
+    }
+}
+
+fn windup_use_hand(
+    owner_query: Query<&UseHand, Without<Hand>>,
+    item_query: Query<&ItemUseSpeed, Without<Hand>>,
+    mut hand_query: Query<(&Transform, &mut Hand)>,
+    mut swing_event: EventReader<StartUsingItemEvent>,
+) {
+    for event in swing_event.read() {
+        if let Ok(use_hand) = owner_query.get(event.user) {
+            if let Ok(use_speed) = item_query.get(event.stack.id) {
+                if let Ok((tf, mut hand)) = hand_query.get_mut(use_hand.hand) {
+                    //play windup animation for the items windup duration, if 0 duration, don't play anim
+                    //simple xP
+                    hand.state = HandState::Windup {
+                        start_pos: tf.translation,
+                        windup_time: use_speed.windup.as_secs_f32(),
+                        time_remaining: use_speed.windup.as_secs_f32(),
                     };
                 }
             }
@@ -463,6 +505,38 @@ fn swing_hand(
                         target: event.pos,
                         hit_time: settings.hand_hit_animation_duration,
                         return_time: (swing_speed.backswing.as_secs_f32()
+                            - settings.hand_hit_animation_duration)
+                            .max(settings.hand_hit_animation_duration),
+                        hit_time_remaining: settings.hand_hit_animation_duration,
+                    };
+                }
+            }
+        }
+    }
+}
+
+fn use_hand(
+    owner_query: Query<&UseHand, Without<Hand>>,
+    item_query: Query<&ItemUseSpeed, Without<Hand>>,
+    mut hand_query: Query<(&Transform, &mut Hand)>,
+    mut use_event: EventReader<UseHitEvent>,
+    settings: Res<GraphicsSettings>,
+) {
+    for event in use_event.read() {
+        if let Ok(use_hand) = owner_query.get(event.user) {
+            if let Ok(use_speed) = item_query.get(event.stack.id) {
+                if let Ok((tf, mut hand)) = hand_query.get_mut(use_hand.hand) {
+                    //we already waiting for the windup, but we need a small amount of time for the animation to play
+                    //subtract that time off the backuse if we have the budget so the animation still has the correct total duration
+                    //if we don't have the time budget, it will be slightly off. better than no animation though!
+                    hand.state = HandState::Hitting {
+                        start_pos: tf.translation,
+                        target: match event.pos {
+                            Some(p) => p,
+                            None => tf.transform_point(use_hand.miss_offset),
+                        },
+                        hit_time: settings.hand_hit_animation_duration,
+                        return_time: (use_speed.backswing.as_secs_f32()
                             - settings.hand_hit_animation_duration)
                             .max(settings.hand_hit_animation_duration),
                         hit_time_remaining: settings.hand_hit_animation_duration,

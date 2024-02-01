@@ -5,7 +5,7 @@ use crate::{
     physics::{query::{raycast, Ray, RaycastHit}, collision::Aabb}, world::{BlockPhysics, Level},
 };
 
-use super::{ItemSystemSet, UseItemEvent};
+use super::{ItemSystemSet, UseHitEvent, UseItemEvent};
 
 pub struct DebugItems;
 
@@ -25,6 +25,7 @@ pub struct PersonalityTester;
 
 pub fn use_personality_item(
     mut reader: EventReader<UseItemEvent>,
+    mut hit_writer: EventWriter<UseHitEvent>,
     physical_attributes: Query<&PhysicalAttributes>,
     mental_attributes: Query<&MentalAttributes>,
     values: Query<&PersonalityValues>,
@@ -36,7 +37,7 @@ pub fn use_personality_item(
 ) {
     for UseItemEvent {
         user,
-        inventory_slot: _,
+        inventory_slot,
         stack,
         tf,
     } in reader.read()
@@ -61,8 +62,21 @@ pub fn use_personality_item(
                 if let Ok(x) = tasks.get(hit.entity) {
                     info!("{:?}", x);
                 }
+                hit_writer.send(UseHitEvent {
+                    user: *user,
+                    inventory_slot: *inventory_slot,
+                    stack: *stack,
+                    pos: Some(hit.hit_pos),
+                    success: true
+                })
             } else {
-                info!("No entity hit!");
+                hit_writer.send(UseHitEvent {
+                    user: *user,
+                    inventory_slot: *inventory_slot,
+                    stack: *stack,
+                    pos: None,
+                    success: false
+                })
             }
         }
     }

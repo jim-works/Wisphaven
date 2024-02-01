@@ -3,7 +3,7 @@ use bevy_hanabi::prelude::*;
 
 use crate::{actors::{ActorName, ActorResources}, physics::{query::{RaycastHit, Ray, self}, collision::Aabb}, world::{BlockPhysics, Level}};
 
-use super::{UseItemEvent, ItemSystemSet};
+use super::{ItemSystemSet, UseHitEvent, UseItemEvent};
 
 pub struct ActorItems;
 
@@ -106,6 +106,7 @@ fn setup(mut commands: Commands, mut effects: ResMut<Assets<EffectAsset>>) {
 
 fn do_spawn_actors(
     mut reader: EventReader<UseItemEvent>,
+    mut hit_writer: EventWriter<UseHitEvent>,
     mut commands: Commands,
     item_query: Query<&SpawnActorItem>,
     mut particles: Query<(&mut Transform, &mut EffectSpawner), With<SpawnParticles>>,
@@ -116,8 +117,8 @@ fn do_spawn_actors(
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
 ) {
     const REACH: f32 = 10.0;
-    const BACKWARD_DIST: f32 = 0.5;
-    for UseItemEvent { user, inventory_slot: _, stack, tf } in reader.read() {
+    const BACKWARD_DIST: f32 = 1.0;
+    for UseItemEvent { user, inventory_slot, stack, tf } in reader.read() {
         if let Ok(item) = item_query.get(stack.id) {
             if let Some(RaycastHit::Block(_, hit)) = query::raycast(
                 Ray::new(tf.translation, tf.forward(), REACH),
@@ -126,17 +127,33 @@ fn do_spawn_actors(
                 &object_query,
                 vec![*user]
             ) {
-                let impact_dist = (hit.hit_pos - tf.translation).normalize_or_zero();
-                let spawn_pos = tf.translation + tf.forward() * (impact_dist - BACKWARD_DIST);
+                //jank to not spawn inside ground so easy
+                let backward = (tf.translation-hit.hit_pos).normalize_or_zero()*BACKWARD_DIST;
+                let spawn_pos = hit.hit_pos + backward;
                 resources.registry.spawn(
                     &item.0,
                     &mut commands,
                     Transform::from_translation(spawn_pos),
                 );
+                hit_writer.send(UseHitEvent {
+                    user: *user,
+                    inventory_slot: *inventory_slot,
+                    stack: *stack,
+                    pos: Some(spawn_pos),
+                    success: true
+                });
                 if let Ok((mut tf, mut spawner)) = particles.get_mut(effects.spawn_particles) {
                     tf.translation = spawn_pos;
                     spawner.reset();
                 }
+            } else {
+                hit_writer.send(UseHitEvent {
+                    user: *user,
+                    inventory_slot: *inventory_slot,
+                    stack: *stack,
+                    pos: None,
+                    success: false
+                })
             }
         }
     }

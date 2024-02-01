@@ -10,7 +10,7 @@ use crate::{
     world::{BlockPhysics, Level},
 };
 
-use super::{ItemSystemSet, SwingHitEvent, SwingItemEvent, UseItemEvent};
+use super::{ItemSystemSet, SwingHitEvent, SwingItemEvent, UseHitEvent, UseItemEvent};
 
 pub struct WeaponItemPlugin;
 
@@ -81,12 +81,13 @@ pub fn attack_melee(
 
 pub fn launch_coin(
     mut attack_item_reader: EventReader<UseItemEvent>,
+    mut hit_writer: EventWriter<UseHitEvent>,
     mut writer: EventWriter<SpawnCoinEvent>,
     weapon_query: Query<&CoinLauncherItem>,
 ) {
     for UseItemEvent {
         user,
-        inventory_slot: _,
+        inventory_slot,
         stack,
         tf,
     } in attack_item_reader.read()
@@ -102,6 +103,13 @@ pub fn launch_coin(
                 owner: *user,
                 damage: weapon.damage,
             });
+            hit_writer.send(UseHitEvent {
+                user: *user,
+                inventory_slot: *inventory_slot,
+                stack: *stack,
+                pos: None,
+                success: true
+            })
         }
     }
 }
