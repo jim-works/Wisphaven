@@ -22,6 +22,7 @@ pub mod palette;
 pub mod physics;
 pub mod plugin;
 pub mod string;
+pub mod image;
 
 use bevy::{
     prelude::{Deref, DerefMut, Vec3},

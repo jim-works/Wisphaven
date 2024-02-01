@@ -24,7 +24,7 @@ fn use_skip_to_night_item(
     query: Query<With<SkipToNightItem>>,
     cal: Res<Calendar>
 ) {
-    for UseItemEvent { user, inventory_slot, stack, tf } in reader.read() {
+    for UseItemEvent { user, inventory_slot, stack, tf: _ } in reader.read() {
         if query.contains(stack.id) {
             info!("Skipping to night...");
             writer.send(SpeedupCalendarEvent(cal.next_night()));

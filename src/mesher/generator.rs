@@ -40,13 +40,14 @@ pub struct ChunkMesh {
 impl ChunkMesh {
     pub fn new(scale: f32) -> Self {
         Self {
-            opaque: MeshData::new(),
-            transparent: MeshData::new(),
+            opaque: MeshData::default(),
+            transparent: MeshData::default(),
             scale,
         }
     }
 }
 
+#[derive(Default)]
 pub struct MeshData {
     pub verts: Vec<Vec3>,
     pub norms: Vec<Vec3>,
@@ -57,18 +58,20 @@ pub struct MeshData {
 }
 
 impl MeshData {
-    pub fn new() -> Self {
-        Self {
-            verts: Vec::new(),
-            norms: Vec::new(),
-            tris: Vec::new(),
-            uvs: Vec::new(),
-            layer_idx: Vec::new(),
-            ao_level: Vec::new(),
-        }
-    }
     pub fn is_empty(&self) -> bool {
         self.verts.is_empty()
+    }
+
+    pub fn create_mesh(self, meshes: &mut ResMut<Assets<Mesh>>) -> Handle<Mesh> {
+        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, self.verts);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, self.norms);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, self.uvs);
+        mesh.insert_attribute(ATTRIBUTE_TEXLAYER, self.layer_idx);
+        mesh.insert_attribute(ATTRIBUTE_AO, self.ao_level);
+    
+        mesh.set_indices(Some(mesh::Indices::U32(self.tris)));
+        meshes.add(mesh)
     }
 }
 
@@ -251,18 +254,6 @@ pub fn poll_mesh_queue(
     }
 }
 
-pub fn create_mesh(data: MeshData, meshes: &mut ResMut<Assets<Mesh>>) -> Handle<Mesh> {
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, data.verts);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, data.norms);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, data.uvs);
-    mesh.insert_attribute(ATTRIBUTE_TEXLAYER, data.layer_idx);
-    mesh.insert_attribute(ATTRIBUTE_AO, data.ao_level);
-
-    mesh.set_indices(Some(mesh::Indices::U32(data.tris)));
-    meshes.add(mesh)
-}
-
 pub fn spawn_mesh<T: Bundle>(
     data: MeshData,
     material: Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>,
@@ -274,7 +265,7 @@ pub fn spawn_mesh<T: Bundle>(
     commands.entity(entity).with_children(|children| {
         let mut ec = children.spawn((
             MaterialMeshBundle::<ExtendedMaterial<StandardMaterial, TextureArrayExtension>> {
-                mesh: create_mesh(data, meshes),
+                mesh: data.create_mesh(meshes),
                 material,
                 transform: Transform::default(),
                 ..default()
@@ -287,7 +278,7 @@ pub fn spawn_mesh<T: Bundle>(
     });
 }
 
-fn mesh_chunk<T: ChunkStorage<BlockMesh>>(fat_chunk: &Chunk<T, BlockMesh>, data: &mut ChunkMesh) {
+pub fn mesh_chunk<T: ChunkStorage<BlockMesh>>(fat_chunk: &Chunk<T, BlockMesh>, data: &mut ChunkMesh) {
     let _my_span = info_span!("mesh_chunk", name = "mesh_chunk").entered();
     for x in 0..CHUNK_SIZE_I8 {
         for y in 0..CHUNK_SIZE_I8 {
@@ -340,7 +331,7 @@ pub fn mesh_single_block(b: &BlockMesh, meshes: &mut ResMut<Assets<Mesh>>) -> Op
     if matches!(b.shape, BlockMeshShape::Empty) {
         return None;
     }
-    let mut mesh = MeshData::new();
+    let mut mesh = MeshData::default();
     if has_face(b, Direction::PosZ) {
         mesh_pos_z(&b.shape, Vec3::ZERO, Vec3::ONE, &mut mesh);
         mesh.ao_level.extend([1.0; 4]);
@@ -365,7 +356,7 @@ pub fn mesh_single_block(b: &BlockMesh, meshes: &mut ResMut<Assets<Mesh>>) -> Op
         mesh_neg_y(&b.shape, Vec3::ZERO, Vec3::ONE, &mut mesh);
         mesh.ao_level.extend([1.0; 4]);
     }
-    Some(create_mesh(mesh, meshes))
+    Some(mesh.create_mesh(meshes))
 }
 fn mesh_block<T: ChunkStorage<BlockMesh>>(
     fat_chunk: &Chunk<T, BlockMesh>,

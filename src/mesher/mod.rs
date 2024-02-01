@@ -4,6 +4,7 @@ pub use generator::*;
 pub mod extended_materials;
 pub mod materials;
 pub mod order;
+pub mod item_mesher;
 pub use materials::ChunkMaterial;
 
 use bevy::{asset::load_internal_asset, pbr::*, prelude::*};
@@ -20,6 +21,7 @@ const SPAWN_MESH_TIME_BUDGET_COUNT: u32 = 1000;
 
 impl Plugin for MesherPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(item_mesher::ItemMesherPlugin);
         load_internal_asset!(
             app,
             Handle::weak_from_u128(21908015359337029746),

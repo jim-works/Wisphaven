@@ -3,7 +3,7 @@ use std::{ops::{Index, IndexMut, Add, Div, Sub}, marker::PhantomData};
 use bevy::prelude::*;
 use serde::{Serialize, Deserialize};
 
-use crate::util::{Direction, palette::BlockPalette};
+use crate::{util::{palette::BlockPalette, Direction}, BlockMesh};
 
 use super::{BlockType, BlockCoord, BlockId, BlockRegistry, Id};
 
@@ -245,7 +245,7 @@ pub struct Chunk<Storage, Block> where Storage: ChunkStorage<Block>, Block: Chun
     //lod level, scale of chunk is 2^level
     pub level: u8,
     //not sure how to get around this
-    _data: PhantomData<Block>
+    pub _data: PhantomData<Block>
 }
 
 impl<Storage: ChunkStorage<Block>, Block: ChunkBlock> Chunk<Storage, Block> {
