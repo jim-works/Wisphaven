@@ -7,13 +7,37 @@ use super::{
     *,
 };
 
+#[derive(Clone, Copy)]
+pub enum ItemTargetPosition {
+    Entity(Entity),
+    Positon(GlobalTransform),
+}
+
+impl ItemTargetPosition {
+    pub fn get_use_pos(
+        self,
+        query: &Query<(&GlobalTransform, Option<&ItemTargetLocalOffset>)>,
+    ) -> Option<Transform> {
+        match self {
+            ItemTargetPosition::Entity(e) => query.get(e).ok().map(|(tf, offset)| {
+                let translation = tf.transform_point(offset.copied().unwrap_or_default().0);
+                tf.compute_transform().with_translation(translation)
+            }),
+            ItemTargetPosition::Positon(tf) => Some(tf.compute_transform()),
+        }
+    }
+}
+
+#[derive(Component, Default, Clone, Copy, Debug)]
+pub struct ItemTargetLocalOffset(Vec3);
+
 #[derive(Default, Clone)]
 pub enum ItemAction {
     #[default]
     None,
     UsingWindup {
         elapsed_time: Stopwatch,
-        target_position: GlobalTransform,
+        target_position: ItemTargetPosition,
         sent_start_event: bool,
     },
     UsingBackswing {
@@ -22,7 +46,7 @@ pub enum ItemAction {
     //elapsed time, target position
     SwingingWindup {
         elapsed_time: Stopwatch,
-        target_position: GlobalTransform,
+        target_position: ItemTargetPosition,
         sent_start_event: bool,
     },
     SwingingBackswing {
@@ -42,16 +66,16 @@ impl ItemAction {
             ItemAction::SwingingBackswing { .. } => (),
         }
     }
-    pub fn try_swing(&mut self, tf: GlobalTransform) {
+    pub fn try_swing(&mut self, tf: ItemTargetPosition) {
         if let ItemAction::None = self {
             *self = ItemAction::SwingingWindup {
                 elapsed_time: Stopwatch::default(),
                 target_position: tf,
-                sent_start_event: false
+                sent_start_event: false,
             }
         }
     }
-    pub fn try_use(&mut self, tf: GlobalTransform) {
+    pub fn try_use(&mut self, tf: ItemTargetPosition) {
         if let ItemAction::None = self {
             *self = ItemAction::UsingWindup {
                 elapsed_time: Stopwatch::default(),
@@ -284,14 +308,14 @@ impl Inventory {
             None
         }
     }
-    pub fn use_item(&mut self, slot: usize, use_pos: GlobalTransform) {
+    pub fn use_item(&mut self, slot: usize, target: ItemTargetPosition) {
         if let Some((_, action)) = &mut self.items[slot] {
-            action.try_use(use_pos);
+            action.try_use(target);
         }
     }
-    pub fn swing_item(&mut self, slot: usize, use_pos: GlobalTransform) {
+    pub fn swing_item(&mut self, slot: usize, target: ItemTargetPosition) {
         if let Some((_, action)) = &mut self.items[slot] {
-            action.try_swing(use_pos);
+            action.try_swing(target);
         }
     }
     pub fn get(&self, slot: usize) -> Option<ItemStack> {
@@ -308,6 +332,7 @@ impl Inventory {
 
 pub fn tick_item_timers(
     mut query: Query<&mut Inventory>,
+    use_pos_query: Query<(&GlobalTransform, Option<&ItemTargetLocalOffset>)>,
     swing_speed_query: Query<&ItemSwingSpeed>,
     use_speed_query: Query<&ItemUseSpeed>,
     time: Res<Time>,
@@ -334,32 +359,44 @@ pub fn tick_item_timers(
                         match use_speed_query.get(stack.id).ok().fallback(base_use_speed) {
                             Some(use_speed) => {
                                 if elapsed_time.elapsed() >= use_speed.windup {
-                                    use_writer.send(UseItemEvent {
-                                        user: owner,
-                                        inventory_slot: Some(inventory_slot),
-                                        stack: *stack,
-                                        tf: *target_position,
-                                    });
+                                    if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
+                                        use_writer.send(UseItemEvent {
+                                            user: owner,
+                                            inventory_slot: Some(inventory_slot),
+                                            stack: *stack,
+                                            tf,
+                                        });
+                                    } else {
+                                        warn!("Invalid entity get_use_pos");
+                                    }
                                     *action = ItemAction::UsingBackswing {
                                         elapsed_time: Stopwatch::default(),
                                     };
                                 } else if !*sent_start_event {
-                                    start_using_writer.send(StartUsingItemEvent {
-                                        user: owner,
-                                        inventory_slot: Some(inventory_slot),
-                                        stack: *stack,
-                                        tf: *target_position,
-                                    });
+                                    if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
+                                        start_using_writer.send(StartUsingItemEvent {
+                                            user: owner,
+                                            inventory_slot: Some(inventory_slot),
+                                            stack: *stack,
+                                            tf,
+                                        });
+                                    } else {
+                                        warn!("Invalid entity get_use_pos");
+                                    }
                                     *sent_start_event = true;
                                 }
                             }
                             _ => {
-                                use_writer.send(UseItemEvent {
-                                    user: owner,
-                                    inventory_slot: Some(inventory_slot),
-                                    stack: *stack,
-                                    tf: *target_position,
-                                });
+                                if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
+                                    use_writer.send(UseItemEvent {
+                                        user: owner,
+                                        inventory_slot: Some(inventory_slot),
+                                        stack: *stack,
+                                        tf,
+                                    });
+                                } else {
+                                    warn!("Invalid entity get_use_pos");
+                                }
                                 *action = ItemAction::None;
                             }
                         }
@@ -388,32 +425,44 @@ pub fn tick_item_timers(
                         {
                             Some(swing_speed) => {
                                 if elapsed_time.elapsed() >= swing_speed.windup {
-                                    swing_writer.send(SwingItemEvent {
-                                        user: owner,
-                                        inventory_slot: Some(inventory_slot),
-                                        stack: *stack,
-                                        tf: *target_position,
-                                    });
+                                    if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
+                                        swing_writer.send(SwingItemEvent {
+                                            user: owner,
+                                            inventory_slot: Some(inventory_slot),
+                                            stack: *stack,
+                                            tf,
+                                        });
+                                    } else {
+                                        warn!("Invalid entity get_use_pos");
+                                    }
                                     *action = ItemAction::SwingingBackswing {
                                         elapsed_time: Stopwatch::default(),
                                     };
                                 } else if !*sent_start_event {
-                                    start_swinging_writer.send(StartSwingingItemEvent {
-                                        user: owner,
-                                        inventory_slot: Some(inventory_slot),
-                                        stack: *stack,
-                                        tf: *target_position,
-                                    });
+                                    if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
+                                        start_swinging_writer.send(StartSwingingItemEvent {
+                                            user: owner,
+                                            inventory_slot: Some(inventory_slot),
+                                            stack: *stack,
+                                            tf,
+                                        });
+                                    } else {
+                                        warn!("Invalid entity get_use_pos");
+                                    }
                                     *sent_start_event = true;
                                 }
                             }
                             _ => {
-                                swing_writer.send(SwingItemEvent {
-                                    user: owner,
-                                    inventory_slot: Some(inventory_slot),
-                                    stack: *stack,
-                                    tf: *target_position,
-                                });
+                                if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
+                                    swing_writer.send(SwingItemEvent {
+                                        user: owner,
+                                        inventory_slot: Some(inventory_slot),
+                                        stack: *stack,
+                                        tf,
+                                    });
+                                } else {
+                                    warn!("Invalid entity get_use_pos");
+                                }
                                 *action = ItemAction::None;
                             }
                         }

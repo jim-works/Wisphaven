@@ -43,7 +43,7 @@ pub fn use_personality_item(
     {
         if personality_item.contains(stack.id) {
             if let Some(RaycastHit::Object(hit)) = raycast(
-                Ray::new(tf.translation(), tf.forward(), 10.0),
+                Ray::new(tf.translation, tf.forward(), 10.0),
                 &level,
                 &physics_query,
                 &object_query,

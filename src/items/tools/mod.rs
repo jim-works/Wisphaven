@@ -72,7 +72,7 @@ pub fn on_swing(
     } in reader.read()
     {
         if let Some(query::RaycastHit::Block(block_position, hit)) = query::raycast(
-            query::Ray::new(tf.translation(), tf.forward(), 10.0),
+            query::Ray::new(tf.translation, tf.forward(), 10.0),
             &level,
             &block_physics_query,
             &object_query,

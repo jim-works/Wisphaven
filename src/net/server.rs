@@ -165,7 +165,7 @@ fn handle_client_messages(
                         entity
                     }) = users.infos.get(&client_id) {
                         if let Ok(Some(stack)) = inventory_query.get(*entity).map(|inv| inv.get(slot)) {
-                            use_item_writer.send(UseItemEvent{ user: *entity, inventory_slot: Some(slot), stack, tf})
+                            use_item_writer.send(UseItemEvent{ user: *entity, inventory_slot: Some(slot), stack, tf: tf.into()})
                         }
                     }
                 },
@@ -175,7 +175,7 @@ fn handle_client_messages(
                         entity
                     }) = users.infos.get(&client_id) {
                         if let Ok(Some(stack)) = inventory_query.get(*entity).map(|inv| inv.get(slot)) {
-                            swing_item_writer.send(SwingItemEvent { user: *entity, inventory_slot: Some(slot), stack, tf})
+                            swing_item_writer.send(SwingItemEvent { user: *entity, inventory_slot: Some(slot), stack, tf: tf.into()})
                         }
                     }
                 },

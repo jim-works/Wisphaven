@@ -167,7 +167,7 @@ pub struct StartUsingItemEvent {
     pub user: Entity,
     pub inventory_slot: Option<usize>,
     pub stack: ItemStack,
-    pub tf: GlobalTransform,
+    pub tf: Transform,
 }
 
 #[derive(Event)]
@@ -175,7 +175,7 @@ pub struct UseItemEvent {
     pub user: Entity,
     pub inventory_slot: Option<usize>,
     pub stack: ItemStack,
-    pub tf: GlobalTransform,
+    pub tf: Transform,
 }
 
 #[derive(Event)]
@@ -191,7 +191,7 @@ pub struct StartSwingingItemEvent {
     pub user: Entity,
     pub inventory_slot: Option<usize>,
     pub stack: ItemStack,
-    pub tf: GlobalTransform,
+    pub tf: Transform,
 }
 
 #[derive(Event)]
@@ -199,7 +199,7 @@ pub struct SwingItemEvent {
     pub user: Entity,
     pub inventory_slot: Option<usize>,
     pub stack: ItemStack,
-    pub tf: GlobalTransform,
+    pub tf: Transform,
 }
 
 #[derive(Event)]

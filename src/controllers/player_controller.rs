@@ -164,7 +164,7 @@ pub fn follow_local_player(
 
 pub fn player_punch(
     camera_query: Query<
-        (&GlobalTransform, &ActionState<Action>),
+        (Entity, &GlobalTransform, &ActionState<Action>),
         (
             With<PlayerActionOrigin>,
             With<FollowPlayer>,
@@ -183,13 +183,13 @@ pub fn player_punch(
     if !world_mouse_active(ui_state.get()) {
         return;
     }
-    if let Ok((tf, act)) = camera_query.get_single() {
+    if let Ok((cam_entity, tf, act)) = camera_query.get_single() {
         if act.pressed(Action::Punch) {
             let (player_entity, player, mut inv) = player_query.get_single_mut().unwrap();
             //first test if we punched a combatant
             let slot = inv.selected_slot();
             match inv.get(slot) {
-                Some(_) => inv.swing_item(slot, *tf),
+                Some(_) => inv.swing_item(slot, crate::items::inventory::ItemTargetPosition::Entity(cam_entity)),
                 None => {
                     //todo convert to ability
                     match query::raycast(
@@ -227,7 +227,7 @@ pub fn player_punch(
 
 pub fn player_use(
     camera_query: Query<
-        (&GlobalTransform, &ActionState<Action>),
+        (Entity, &GlobalTransform, &ActionState<Action>),
         (
             With<PlayerActionOrigin>,
             With<FollowPlayer>,
@@ -246,7 +246,7 @@ pub fn player_use(
         return;
     }
     if let Ok((mut inv, entity)) = player_query.get_single_mut() {
-        if let Ok((tf, act)) = camera_query.get_single() {
+        if let Ok((cam_entity, tf, act)) = camera_query.get_single() {
             if act.just_pressed(Action::Use) {
                 //first test if we used a block
                 if let Some(RaycastHit::Block(coord, _)) = query::raycast(
@@ -269,7 +269,7 @@ pub fn player_use(
                 }
                 //we didn't use a block, so try to use an item
                 let slot = inv.selected_slot();
-                inv.use_item(slot, *tf);
+                inv.use_item(slot, crate::items::inventory::ItemTargetPosition::Entity(cam_entity));
             }
         }
     }

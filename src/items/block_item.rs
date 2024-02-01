@@ -24,7 +24,7 @@ pub fn use_block_entity_item(
     for UseItemEvent { user, inventory_slot: _, stack, tf } in reader.read() {
         if let Ok(block_item) = block_query.get(stack.id) {
             if let Some(RaycastHit::Block(coord, hit)) = query::raycast(
-                Ray::new(tf.translation(), tf.forward(), 10.0),
+                Ray::new(tf.translation, tf.forward(), 10.0),
                 &level,
                 &block_physics_query,
                 &object_query,
@@ -53,7 +53,7 @@ pub fn use_mega_block_item(
             let id = resources.registry.get_id(&block_item.0);
             let size = block_item.1;
             if let Some(RaycastHit::Block(coord, _)) = query::raycast(
-                Ray::new(tf.translation(), tf.forward(), 10.0),
+                Ray::new(tf.translation, tf.forward(), 10.0),
                 &level,
                 &block_physics_query,
                 &object_query,

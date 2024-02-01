@@ -120,14 +120,14 @@ fn do_spawn_actors(
     for UseItemEvent { user, inventory_slot: _, stack, tf } in reader.read() {
         if let Ok(item) = item_query.get(stack.id) {
             if let Some(RaycastHit::Block(_, hit)) = query::raycast(
-                Ray::new(tf.translation(), tf.forward(), REACH),
+                Ray::new(tf.translation, tf.forward(), REACH),
                 &level,
                 &block_physics_query,
                 &object_query,
                 vec![*user]
             ) {
-                let impact_dist = (hit.hit_pos - tf.translation()).normalize_or_zero();
-                let spawn_pos = tf.translation() + tf.forward() * (impact_dist - BACKWARD_DIST);
+                let impact_dist = (hit.hit_pos - tf.translation).normalize_or_zero();
+                let spawn_pos = tf.translation + tf.forward() * (impact_dist - BACKWARD_DIST);
                 resources.registry.spawn(
                     &item.0,
                     &mut commands,

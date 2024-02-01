@@ -56,7 +56,7 @@ pub fn attack_melee(
     {
         if let Ok(weapon) = weapon_query.get(stack.id) {
             if let Some(RaycastHit::Object(hit)) = query::raycast(
-                query::Ray::new(tf.translation(), tf.forward(), 10.0),
+                query::Ray::new(tf.translation, tf.forward(), 10.0),
                 &level,
                 &physics_query,
                 &object_query,
@@ -93,7 +93,7 @@ pub fn launch_coin(
     {
         if let Ok(weapon) = weapon_query.get(stack.id) {
             writer.send(SpawnCoinEvent {
-                location: Transform::from_translation(tf.translation()),
+                location: Transform::from_translation(tf.translation),
                 velocity: Velocity(tf.forward() * weapon.speed),
                 combat: CombatantBundle {
                     combat_info: CombatInfo::new(1.0, 0.0),
