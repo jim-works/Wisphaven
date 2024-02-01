@@ -3,10 +3,16 @@ use std::{array, f32::consts::PI};
 use bevy::prelude::*;
 
 use crate::{
-    items::{item_attributes::ItemSwingSpeed, StartSwingingItemEvent, SwingHitEvent}, physics::{collision::Aabb, movement::Velocity, PhysicsBundle, PhysicsSystemSet}, settings::GraphicsSettings, ui::debug::FixedUpdateBlockGizmos, util::{
+    items::{item_attributes::ItemSwingSpeed, StartSwingingItemEvent, SwingHitEvent},
+    physics::{collision::Aabb, movement::Velocity, PhysicsBundle, PhysicsSystemSet},
+    settings::GraphicsSettings,
+    ui::debug::FixedUpdateBlockGizmos,
+    util::{
         ease_in_back, ease_in_out_quad, iterators::even_distribution_on_sphere, lerp,
         plugin::SmoothLookTo, SendEventCommand,
-    }, world::LevelLoadState, BlockCoord, BlockPhysics, Level
+    },
+    world::LevelLoadState,
+    BlockCoord, BlockPhysics, Level,
 };
 
 use super::{ActorName, ActorResources, CombatInfo, CombatantBundle, Idler};
@@ -456,7 +462,8 @@ fn swing_hand(
                         start_pos: tf.translation,
                         target: event.pos,
                         hit_time: settings.hand_hit_animation_duration,
-                        return_time: (swing_speed.backswing.as_secs_f32() - settings.hand_hit_animation_duration)
+                        return_time: (swing_speed.backswing.as_secs_f32()
+                            - settings.hand_hit_animation_duration)
                             .max(settings.hand_hit_animation_duration),
                         hit_time_remaining: settings.hand_hit_animation_duration,
                     };
@@ -492,12 +499,17 @@ fn update_ghost_hand(
             } => {
                 if let Ok(ghost_tf) = ghost_query.get(owner) {
                     let dest = ghost_tf.transform_point(windup_offset);
-                    tf.translation = start_pos.lerp(
-                        dest,
-                        ease_in_out_quad((*windup_time - *time_remaining) / (*windup_time)),
-                    );
-                    let t = *time_remaining - time.delta_seconds();
-                    *time_remaining = t.max(0.0);
+                    if *windup_time <= 0.0 {
+                        tf.translation = dest;
+                    } else {
+                        tf.translation = start_pos.lerp(
+                            dest,
+                            ease_in_out_quad((*windup_time - *time_remaining) / (*windup_time)),
+                        );
+                        let t = *time_remaining - time.delta_seconds();
+                        *time_remaining = t.max(0.0);
+                    }
+
                     //hold at top of windup until hit event comes through, then transition to hitting
                 } else {
                     //invalid owner (most likely despawned)
@@ -511,18 +523,27 @@ fn update_ghost_hand(
                 hit_time_remaining,
                 return_time,
             } => {
-                tf.translation = start_pos.lerp(
-                    *target,
-                    ease_in_back((*hit_time - *hit_time_remaining) / (*hit_time)),
-                );
-                *hit_time_remaining -= time.delta_seconds();
-                if *hit_time_remaining <= 0.0 {
+                if *hit_time <= 0.0 {
                     tf.translation = *target;
                     hand.state = HandState::Returning {
                         start_pos: tf.translation,
                         return_time: *return_time,
                         return_time_remaining: *return_time,
                     };
+                } else {
+                    tf.translation = start_pos.lerp(
+                        *target,
+                        ease_in_back((*hit_time - *hit_time_remaining) / (*hit_time)),
+                    );
+                    *hit_time_remaining -= time.delta_seconds();
+                    if *hit_time_remaining <= 0.0 {
+                        tf.translation = *target;
+                        hand.state = HandState::Returning {
+                            start_pos: tf.translation,
+                            return_time: *return_time,
+                            return_time_remaining: *return_time,
+                        };
+                    }
                 }
             }
             HandState::Returning {
@@ -532,13 +553,20 @@ fn update_ghost_hand(
             } => {
                 if let Ok(ghost_tf) = ghost_query.get(owner) {
                     let target = ghost_tf.transform_point(offset);
-                    tf.translation = start_pos.lerp(
-                        target,
-                        ease_in_out_quad((*return_time - *return_time_remaining) / (*return_time)),
-                    );
-                    *return_time_remaining -= time.delta_seconds();
-                    if *return_time_remaining <= 0.0 {
+                    if *return_time <= 0.0 {
+                        tf.translation = target;
                         hand.state = HandState::Following;
+                    } else {
+                        tf.translation = start_pos.lerp(
+                            target,
+                            ease_in_out_quad(
+                                (*return_time - *return_time_remaining) / (*return_time),
+                            ),
+                        );
+                        *return_time_remaining -= time.delta_seconds();
+                        if *return_time_remaining <= 0.0 {
+                            hand.state = HandState::Following;
+                        }
                     }
                 } else {
                     //invalid owner (most likely despawned)
