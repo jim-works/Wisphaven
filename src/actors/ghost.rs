@@ -4,18 +4,11 @@ use bevy::prelude::*;
 
 use crate::{
     items::{
-        item_attributes::{ItemSwingSpeed, ItemUseSpeed},
-        StartSwingingItemEvent, StartUsingItemEvent, SwingHitEvent, UseHitEvent,
-    },
-    physics::{collision::Aabb, movement::Velocity, PhysicsBundle, PhysicsSystemSet},
-    settings::GraphicsSettings,
-    ui::debug::FixedUpdateBlockGizmos,
-    util::{
+        inventory::Inventory, item_attributes::{ItemSwingSpeed, ItemUseSpeed}, ItemName, ItemResources, ItemStack, StartSwingingItemEvent, StartUsingItemEvent, SwingHitEvent, UseHitEvent
+    }, mesher::item_mesher::HeldItemResources, physics::{collision::Aabb, movement::Velocity, PhysicsBundle, PhysicsSystemSet}, settings::GraphicsSettings, ui::debug::FixedUpdateBlockGizmos, util::{
         ease_in_back, ease_in_out_quad, iterators::even_distribution_on_sphere, lerp,
         plugin::SmoothLookTo, SendEventCommand,
-    },
-    world::LevelLoadState,
-    BlockCoord, BlockPhysics, Level,
+    }, world::LevelLoadState, BlockCoord, BlockPhysics, Level, LevelSystemSet
 };
 
 use super::{ActorName, ActorResources, CombatInfo, CombatantBundle, Idler};
@@ -178,7 +171,7 @@ impl Plugin for GhostPlugin {
             .add_systems(
                 Update,
                 (
-                    spawn_ghost,
+                    spawn_ghost.in_set(LevelSystemSet::Main),
                     move_cube_orbit_particles,
                     update_ghost_hand,
                     ((windup_swing_hand, windup_use_hand), (swing_hand, use_hand)).chain(), //chain so that conflicts will resolve to the main animation
@@ -267,6 +260,8 @@ fn add_to_registry(mut res: ResMut<ActorResources>) {
 fn spawn_ghost(
     mut commands: Commands,
     res: Res<GhostResources>,
+    items: Res<ItemResources>,
+    held_item_resources: Res<HeldItemResources>,
     mut spawn_requests: EventReader<SpawnGhostEvent>,
 ) {
     const MIN_PARTICLE_SIZE: f32 = 0.225;
@@ -341,6 +336,15 @@ fn spawn_ghost(
                 }
             })
             .id();
+        let mut inventory = Inventory::new(ghost_entity, 5);
+        inventory.set_slot_no_events(0, ItemStack::new(
+            items
+                .registry
+                .get_basic(&ItemName::core("ruby_pickaxe"))
+                .unwrap(),
+            1,
+        ));
+        commands.entity(ghost_entity).insert(inventory);
         //right hand
         let right_hand_entity = spawn_ghost_hand(
             ghost_entity,
@@ -368,7 +372,21 @@ fn spawn_ghost(
             left_hand_entity,
             right_hand_entity,
             &mut commands,
-        )
+        );
+        let item_visualizer = crate::mesher::item_mesher::create_held_item_visualizer(
+            &mut commands,
+            ghost_entity,
+            Transform::from_scale(Vec3::splat(1.0 / 4.0))
+            .with_translation(Vec3::new(0.0,3.5,-3.5))
+            .with_rotation(Quat::from_euler(
+                EulerRot::XYZ,
+                PI / 2.0,
+                0.0,
+                PI / 2.0,
+            )),
+            &held_item_resources,
+        );
+        commands.entity(right_hand_entity).add_child(item_visualizer);
     }
 }
 

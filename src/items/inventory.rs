@@ -238,6 +238,9 @@ impl Inventory {
         }
         Some(item)
     }
+    pub fn set_slot_no_events(&mut self, slot: usize, item: ItemStack) {
+        self.items[slot] = Some((item, default()));
+    }
     //returns the dropped items
     pub fn drop_slot(
         &mut self,
