@@ -93,6 +93,15 @@ fn create_chunk_texture(
     images.add(image)
 }
 
+pub fn chunk_base_material() -> StandardMaterial {
+    StandardMaterial {
+        alpha_mode: AlphaMode::Opaque,
+        perceptual_roughness: 1.0,
+        reflectance: 0.25,
+        ..default()
+    }
+}
+
 pub fn create_chunk_material(
     mut chunk_material: ResMut<ChunkMaterial>,
     mut materials: ResMut<Assets<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>>,
@@ -111,12 +120,7 @@ pub fn create_chunk_material(
     ));
     block_textures.0.clear();
 
-    let base = StandardMaterial {
-        alpha_mode: AlphaMode::Opaque,
-        perceptual_roughness: 1.0,
-        reflectance: 0.25,
-        ..default()
-    };
+    let base = chunk_base_material();
 
     chunk_material.opaque_material = Some(materials.add(ExtendedMaterial {
         base: base.clone(),

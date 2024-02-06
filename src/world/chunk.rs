@@ -3,7 +3,7 @@ use std::{ops::{Index, IndexMut, Add, Div, Sub}, marker::PhantomData};
 use bevy::prelude::*;
 use serde::{Serialize, Deserialize};
 
-use crate::{util::{palette::BlockPalette, Direction}, BlockMesh};
+use crate::{util::{palette::BlockPalette, Direction}};
 
 use super::{BlockType, BlockCoord, BlockId, BlockRegistry, Id};
 

@@ -58,6 +58,8 @@ impl Default for Float {
 pub struct Hand {
     pub owner: Entity,
     pub offset: Vec3,
+    pub scale: f32,
+    pub rotation: Quat,
     pub windup_offset: Vec3,
     pub state: HandState,
 }
@@ -345,6 +347,8 @@ fn spawn_ghost(
             spawn.location,
             Vec3::new(0.5, -0.2, -0.6),
             Vec3::new(0.6, 0.2, -0.5),
+            0.15,
+            Quat::default(),
             &res,
             &mut commands,
         );
@@ -354,6 +358,8 @@ fn spawn_ghost(
             spawn.location,
             Vec3::new(-0.5, -0.2, -0.6),
             Vec3::new(-0.6, 0.2, -0.5),
+            0.15,
+            Quat::default(),
             &res,
             &mut commands,
         );
@@ -371,30 +377,33 @@ pub fn spawn_ghost_hand(
     owner_pos: Transform,
     offset: Vec3,
     windup_offset: Vec3,
+    hand_size: f32,
+    hand_rot: Quat,
     res: &GhostResources,
     commands: &mut Commands,
 ) -> Entity {
-    const HAND_SIZE: f32 = 0.15;
     const HAND_PARTICLE_COUNT: u32 = 3;
-    const MIN_PARTICLE_SIZE: f32 = 0.1 / HAND_SIZE;
-    const MAX_PARTICLE_SIZE: f32 = 0.15 / HAND_SIZE;
-    const MIN_PARTICLE_SPEED: f32 = 0.05 / HAND_SIZE;
-    const MAX_PARTICLE_SPEED: f32 = 0.1 / HAND_SIZE;
-    const MIN_PARTICLE_DIST: f32 = 0.15 / HAND_SIZE;
-    const MAX_PARTICLE_DIST: f32 = 0.2 / HAND_SIZE;
+    let min_particle_size: f32 = 0.1 / hand_size;
+    let max_particle_size: f32 = 0.15 / hand_size;
+    let min_particle_speed: f32 = 0.05 / hand_size;
+    let max_particle_speed: f32 = 0.1 / hand_size;
+    let min_particle_dist: f32 = 0.15 / hand_size;
+    let max_particle_dist: f32 = 0.2 / hand_size;
     commands
         .spawn((
             PbrBundle {
                 mesh: res.particle_mesh.clone(),
                 material: res.hand_particle_material.clone(),
                 transform: Transform::from_translation(owner_pos.transform_point(offset))
-                    .with_scale(Vec3::splat(HAND_SIZE)),
+                    .with_scale(Vec3::splat(hand_size)),
                 ..default()
             },
             Hand {
                 owner,
                 offset,
                 windup_offset,
+                scale: hand_size,
+                rotation: hand_rot,
                 state: HandState::Following,
             },
         ))
@@ -405,18 +414,18 @@ pub fn spawn_ghost_hand(
             {
                 //size and distance are inversely correlated
                 let size = lerp(
-                    MAX_PARTICLE_SIZE,
-                    MIN_PARTICLE_SIZE,
+                    max_particle_size,
+                    min_particle_size,
                     i as f32 / HAND_PARTICLE_COUNT as f32,
                 );
                 let dist = lerp(
-                    MIN_PARTICLE_DIST,
-                    MAX_PARTICLE_DIST,
+                    min_particle_dist,
+                    max_particle_dist,
                     i as f32 / HAND_PARTICLE_COUNT as f32,
                 );
                 let speed = lerp(
-                    MIN_PARTICLE_SPEED,
-                    MAX_PARTICLE_SPEED,
+                    min_particle_speed,
+                    max_particle_speed,
                     i as f32 / HAND_PARTICLE_COUNT as f32,
                 );
                 let material = res.hand_particle_material.clone();
@@ -556,11 +565,15 @@ fn update_ghost_hand(
     for (entity, mut tf, mut hand) in query.iter_mut() {
         let owner = hand.owner;
         let offset = hand.offset;
+        let rot = hand.rotation;
+        let scale = hand.scale;
         let windup_offset = hand.windup_offset;
         match &mut hand.state {
             HandState::Following => {
                 if let Ok(ghost_tf) = ghost_query.get(owner) {
                     tf.translation = ghost_tf.transform_point(offset);
+                    tf.rotation = ghost_tf.rotation*rot;
+                    tf.scale = ghost_tf.scale*scale;
                 } else {
                     //invalid owner (most likely despawned)
                     commands.entity(entity).despawn_recursive();

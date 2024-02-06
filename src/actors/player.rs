@@ -16,6 +16,7 @@ use crate::{
         item_attributes::{ItemSwingSpeed, ItemUseSpeed},
         *,
     },
+    mesher::item_mesher::HeldItemResources,
     net::{
         client::ClientState,
         server::{SyncPosition, SyncVelocity},
@@ -63,7 +64,8 @@ fn spawn_remote_player(
     clients: Res<PlayerList>,
     settings: Res<Settings>,
     network_type: Res<State<NetworkType>>,
-    ghost_resources: Res<GhostResources>
+    ghost_resources: Res<GhostResources>,
+    held_item_resouces: Res<HeldItemResources>,
 ) {
     for (entity, RemoteClient(client_id)) in joined_query.iter() {
         info!(
@@ -87,7 +89,13 @@ fn spawn_remote_player(
                 ..settings.player_loader.clone()
             });
         }
-        populate_player_entity(entity, Vec3::ZERO, &ghost_resources, &mut commands);
+        populate_player_entity(
+            entity,
+            Vec3::ZERO,
+            &ghost_resources,
+            &held_item_resouces,
+            &mut commands,
+        );
     }
 }
 
@@ -101,7 +109,8 @@ pub fn spawn_local_player(
     resources: Res<ItemResources>,
     item_query: Query<&MaxStackSize>,
     skybox: Res<SkyboxCubemap>,
-    ghost_resources: Res<GhostResources>
+    ghost_resources: Res<GhostResources>,
+    held_item_resouces: Res<HeldItemResources>,
 ) {
     info!("Spawning local player!");
     let mut spawn_point = level.spawn_point;
@@ -147,7 +156,13 @@ pub fn spawn_local_player(
             },
         ))
         .id();
-    populate_player_entity(player_id, spawn_point, &ghost_resources, &mut commands);
+    populate_player_entity(
+        player_id,
+        spawn_point,
+        &ghost_resources,
+        &held_item_resouces,
+        &mut commands,
+    );
     let mut inventory = Inventory::new(player_id, 40);
 
     inventory.pickup_item(
@@ -301,7 +316,13 @@ pub fn spawn_local_player(
     ));
 }
 
-fn populate_player_entity(entity: Entity, spawn_point: Vec3, ghost_resources: &GhostResources, commands: &mut Commands) {
+fn populate_player_entity(
+    entity: Entity,
+    spawn_point: Vec3,
+    ghost_resources: &GhostResources,
+    held_item_resources: &HeldItemResources,
+    commands: &mut Commands,
+) {
     commands.entity(entity).insert((
         Player {
             hit_damage: Damage { amount: 1.0 },
@@ -330,19 +351,38 @@ fn populate_player_entity(entity: Entity, spawn_point: Vec3, ghost_resources: &G
         Transform::from_translation(spawn_point),
         Vec3::new(0.7, -0.2, -0.6),
         Vec3::new(0.8, 0.2, -0.5),
+        0.15,
+            Quat::default(),
         ghost_resources,
         commands,
     );
     //left hand
-    let left_hand = spawn_ghost_hand(
+    let _left_hand = spawn_ghost_hand(
         entity,
         Transform::from_translation(spawn_point),
         Vec3::new(-0.7, -0.2, -0.6),
         Vec3::new(-0.8, 0.2, -0.5),
+        0.15,
+            Quat::default(),
         ghost_resources,
         commands,
     );
-    Handed::Right.assign_hands(entity, left_hand, right_hand, commands)
+    Handed::Right.assign_hands(entity, right_hand, right_hand, commands);
+    let item_visualizer = crate::mesher::item_mesher::create_held_item_visualizer(
+        commands,
+        entity,
+        Transform::from_scale(Vec3::splat(1.0 / 4.0))
+        .with_translation(Vec3::new(0.0,3.5,-3.5))
+        .with_rotation(Quat::from_euler(
+            EulerRot::XYZ,
+            PI / 2.0,
+            0.0,
+            PI / 2.0,
+        )),
+        held_item_resources,
+    );
+    commands.entity(right_hand).add_child(item_visualizer);
+    
 }
 
 fn send_updated_position_client(

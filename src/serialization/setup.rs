@@ -11,6 +11,7 @@ use crate::items::crafting::recipes::{BasicBlockRecipe, NamedBasicBlockRecipe, R
 use crate::items::{
     ItemIcon, ItemId, ItemName, ItemNameIdMap, ItemRegistry, ItemResources, NamedItemIcon,
 };
+use crate::mesher::item_mesher::GenerateItemMeshEvent;
 use crate::mesher::{mesh_single_block, TerrainTexture};
 use crate::serialization::db::{LevelDB, LevelDBErr};
 use crate::serialization::queries::{
@@ -308,6 +309,7 @@ pub fn load_block_registry(
 
 pub fn load_item_registry(
     mut commands: Commands,
+    mut generate_item_mesh: EventWriter<GenerateItemMeshEvent>,
     texture_map: Res<ItemTextureMap>,
     loading_items: Query<(Entity, Option<&Children>), With<LoadingItems>>,
     item_name_query: Query<&ItemName>,
@@ -335,6 +337,7 @@ pub fn load_item_registry(
                             .entity(*child)
                             .insert(ItemIcon(handle.clone()))
                             .remove::<NamedItemIcon>();
+                        generate_item_mesh.send(GenerateItemMeshEvent(*child));
                     }
                     None => {
                         error!(
