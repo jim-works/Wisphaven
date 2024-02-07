@@ -391,7 +391,6 @@ fn spawn_block_preview(
 ) -> (Entity, Handle<Image>) {
     // This code for rendering to a texture is taken from one of the Bevy examples,
     // https://github.com/bevyengine/bevy/blob/main/examples/3d/render_to_texture.rs
-
     let size = Extent3d {
         width: SLOT_PX as u32,
         height: SLOT_PX as u32,

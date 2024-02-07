@@ -46,13 +46,22 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(LevelLoadState::Loaded), spawn_local_player)
-            .add_systems(Update, (spawn_remote_player, handle_disconnect))
-            .add_systems(
-                Update,
-                send_updated_position_client.run_if(in_state(ClientState::Ready)),
-            )
-            .add_event::<LocalPlayerSpawnedEvent>();
+        app.add_systems(
+            OnEnter(LevelLoadState::Loaded),
+            spawn_local_player.run_if(resource_exists::<HeldItemResources>()),
+        )
+        .add_systems(
+            Update,
+            (
+                spawn_remote_player.run_if(resource_exists::<HeldItemResources>()),
+                handle_disconnect,
+            ),
+        )
+        .add_systems(
+            Update,
+            send_updated_position_client.run_if(in_state(ClientState::Ready)),
+        )
+        .add_event::<LocalPlayerSpawnedEvent>();
     }
 }
 
@@ -352,7 +361,7 @@ fn populate_player_entity(
         Vec3::new(0.7, -0.2, -0.6),
         Vec3::new(0.8, 0.2, -0.5),
         0.15,
-            Quat::default(),
+        Quat::default(),
         ghost_resources,
         commands,
     );
@@ -363,7 +372,7 @@ fn populate_player_entity(
         Vec3::new(-0.7, -0.2, -0.6),
         Vec3::new(-0.8, 0.2, -0.5),
         0.15,
-            Quat::default(),
+        Quat::default(),
         ghost_resources,
         commands,
     );
@@ -371,18 +380,11 @@ fn populate_player_entity(
     let item_visualizer = crate::mesher::item_mesher::create_held_item_visualizer(
         commands,
         entity,
-        Transform::from_scale(Vec3::splat(1.0 / 4.0))
-        .with_translation(Vec3::new(0.0,3.5,-3.5))
-        .with_rotation(Quat::from_euler(
-            EulerRot::XYZ,
-            PI / 2.0,
-            0.0,
-            PI / 2.0,
-        )),
+        Transform::from_scale(Vec3::splat(4.0))
+            .with_translation(Vec3::new(0.0, -1.0, -3.4)),
         held_item_resources,
     );
     commands.entity(right_hand).add_child(item_visualizer);
-    
 }
 
 fn send_updated_position_client(

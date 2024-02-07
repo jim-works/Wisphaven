@@ -6,9 +6,7 @@ use crate::{
         item_attributes::ConsumeItemOnHit,
         loot::{LootTable, LootTableDrop},
         CreatorItem, ItemBundle, ItemName, MaxStackSize,
-    },
-    serialization::BlockTextureMap,
-    util::Direction, physics::collision::Aabb,
+    }, mesher::item_mesher::ItemMesh, physics::collision::Aabb, serialization::BlockTextureMap, util::Direction
 };
 use bevy::{prelude::*, utils::HashMap};
 use serde::{Deserialize, Serialize};
@@ -269,7 +267,7 @@ pub struct BlockRegistry {
 
 impl BlockRegistry {
     //inserts the corresponding BlockId component on the block
-    pub fn add_basic(&mut self, name: BlockName, entity: Entity, commands: &mut Commands) {
+    pub fn add_basic(&mut self, name: BlockName, item_mesh: Option<Handle<Mesh>>, entity: Entity, commands: &mut Commands) {
         info!("added block {:?}", name);
         let id = BlockId(Id::Basic(self.basic_entities.len() as u32));
         let item_name = ItemName::core(name.name.clone());
@@ -283,6 +281,13 @@ impl BlockRegistry {
                 ConsumeItemOnHit,
             ))
             .id();
+        if let Some(mesh) = item_mesh {
+            info!("added item mesh for {:?}", name);
+            commands.entity(item).insert(ItemMesh {
+                mesh,
+                material: crate::mesher::item_mesher::ItemMeshMaterial::TextureArray
+            }); 
+        }
         commands.entity(entity).insert((
             id,
             LootTable {

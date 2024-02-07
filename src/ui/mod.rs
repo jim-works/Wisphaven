@@ -29,6 +29,7 @@ impl Plugin for UIPlugin {
             .add_systems(OnEnter(state::UIState::Inventory), release_mouse)
             .add_systems(Update, (state::toggle_hidden, state::toggle_debug).in_set(LevelSystemSet::Main))
             .add_systems(Update, toggle_fullscreen)
+            .insert_resource(UiScale(2.0))
         ;
     }
 }

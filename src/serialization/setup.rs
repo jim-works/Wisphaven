@@ -286,16 +286,18 @@ pub fn load_block_registry(
         commands.entity(scene_entity).remove::<LoadingBlocks>();
         for child in children.unwrap() {
             //do name resolution
+            let mut single_mesh = None;
             if let Ok(named_mesh) = name_resolution_query.get(*child) {
                 let mut mesh = named_mesh.clone().into_block_mesh(&texture_map);
                 mesh.single_mesh = mesh_single_block(&mesh, &mut meshes);
+                single_mesh = mesh.single_mesh.clone();
                 commands
                     .entity(*child)
                     .insert(mesh)
                     .remove::<NamedBlockMesh>();
             }
             match block_name_query.get(*child) {
-                Ok(name) => registry.add_basic(name.clone(), *child, &mut commands),
+                Ok(name) => registry.add_basic(name.clone(), single_mesh, *child, &mut commands),
                 Err(e) => warn!("Block doesn't have a name! Error {:?}", e),
             }
         }

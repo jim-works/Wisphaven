@@ -39,8 +39,8 @@ pub struct Float {
 impl Default for Float {
     fn default() -> Self {
         Self {
-            target_ground_dist: 2.5,
-            target_ceiling_dist: 2.5,
+            target_ground_dist: 3.5,
+            target_ceiling_dist: 3.5,
             max_force: 0.04,
             ground_aabb_scale: Vec3::splat(1.5),
         }
@@ -376,14 +376,8 @@ fn spawn_ghost(
         let item_visualizer = crate::mesher::item_mesher::create_held_item_visualizer(
             &mut commands,
             ghost_entity,
-            Transform::from_scale(Vec3::splat(1.0 / 4.0))
-            .with_translation(Vec3::new(0.0,3.5,-3.5))
-            .with_rotation(Quat::from_euler(
-                EulerRot::XYZ,
-                PI / 2.0,
-                0.0,
-                PI / 2.0,
-            )),
+            Transform::from_scale(Vec3::splat(4.0))
+            .with_translation(Vec3::new(0.0, -1.0, -3.4)),
             &held_item_resources,
         );
         commands.entity(right_hand_entity).add_child(item_visualizer);

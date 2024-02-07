@@ -11,8 +11,9 @@ use crate::{
 };
 
 use super::{
-    extended_materials::ColorArrayExtension, materials::chunk_base_material, mesh_chunk, ChunkMesh,
-    MeshData,
+    extended_materials::{ColorArrayExtension, TextureArrayExtension},
+    materials::chunk_base_material,
+    mesh_chunk, ChunkMaterial, ChunkMesh, MeshData,
 };
 
 pub struct ItemMesherPlugin;
@@ -20,9 +21,20 @@ pub struct ItemMesherPlugin;
 impl Plugin for ItemMesherPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<GenerateItemMeshEvent>()
-            .add_systems(PreUpdate, generate_item_meshes)
-            .add_systems(Update, visualize_held_item)
-            .add_systems(Startup, setup_held_item);
+            .add_systems(
+                PreUpdate,
+                generate_item_meshes.run_if(resource_exists::<HeldItemResources>()),
+            )
+            .add_systems(
+                Update,
+                visualize_held_item.run_if(resource_exists::<HeldItemResources>()),
+            )
+            .add_systems(
+                Update,
+                setup_held_item
+                    .run_if(resource_exists::<ChunkMaterial>())
+                    .run_if(not(resource_exists::<HeldItemResources>())),
+            );
         app.add_plugins(
             MaterialPlugin::<ExtendedMaterial<StandardMaterial, ColorArrayExtension>> {
                 prepass_enabled: false,
@@ -38,11 +50,19 @@ pub struct GenerateItemMeshEvent(pub Entity);
 #[derive(Component, Clone)]
 pub struct ItemMesh {
     pub mesh: Handle<Mesh>,
+    pub material: ItemMeshMaterial,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ItemMeshMaterial {
+    ColorArray,
+    TextureArray,
 }
 
 #[derive(Resource)]
 pub struct HeldItemResources {
-    pub material: Handle<ExtendedMaterial<StandardMaterial, ColorArrayExtension>>,
+    pub color_material: Handle<ExtendedMaterial<StandardMaterial, ColorArrayExtension>>,
+    pub texture_material: Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>,
 }
 #[derive(Component)]
 pub struct VisualizeHeldItem {
@@ -50,28 +70,76 @@ pub struct VisualizeHeldItem {
 }
 
 fn setup_held_item(
-    mut materials: ResMut<Assets<ExtendedMaterial<StandardMaterial, ColorArrayExtension>>>,
+    mut color_materials: ResMut<Assets<ExtendedMaterial<StandardMaterial, ColorArrayExtension>>>,
+    chunk: Res<ChunkMaterial>,
     mut commands: Commands,
 ) {
-    commands.insert_resource(HeldItemResources {
-        material: materials.add(ExtendedMaterial {
-            base: chunk_base_material(),
-            extension: ColorArrayExtension {},
-        }),
-    })
+    if let Some(tex_mat) = &chunk.transparent_material {
+        commands.insert_resource(HeldItemResources {
+            color_material: color_materials.add(ExtendedMaterial {
+                base: chunk_base_material(),
+                extension: ColorArrayExtension {},
+            }),
+            texture_material: tex_mat.clone(),
+        })
+    }
 }
 
 fn visualize_held_item(
     mut commands: Commands,
-    mut held_query: Query<(Entity, &VisualizeHeldItem, &mut Handle<Mesh>)>,
+    //ugly but idc
+    mut color_held_query: Query<
+        (Entity, &VisualizeHeldItem, &mut Handle<Mesh>),
+        (
+            With<Handle<ExtendedMaterial<StandardMaterial, ColorArrayExtension>>>,
+            Without<Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>>,
+        ),
+    >,
+    mut texture_held_query: Query<
+        (Entity, &VisualizeHeldItem, &mut Handle<Mesh>),
+        (
+            With<Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>>,
+            Without<Handle<ExtendedMaterial<StandardMaterial, ColorArrayExtension>>>,
+        ),
+    >,
     inv_query: Query<&Inventory>,
     item_query: Query<&ItemMesh>,
+    res: Res<HeldItemResources>,
 ) {
-    for (entity, held, mut mesh) in held_query.iter_mut() {
+    //color materials
+    for (entity, held, mut mesh) in color_held_query.iter_mut() {
         if let Ok(inv) = inv_query.get(held.inventory) {
             if let Some(item) = inv.selected_item_entity() {
                 if let Ok(item_mesh) = item_query.get(item) {
                     *mesh = item_mesh.mesh.clone();
+                    if item_mesh.material == ItemMeshMaterial::TextureArray {
+                        //we have color material attached, need to switch to texture
+                        commands.entity(entity).remove::<Handle<ExtendedMaterial<StandardMaterial, ColorArrayExtension>>>()
+                            .insert(res.texture_material.clone());
+                    }
+                } else {
+                    *mesh = Default::default();
+                }
+            } else {
+                *mesh = Default::default();
+            }
+        } else {
+            //owner despawned
+            commands.entity(entity).despawn_recursive();
+        }
+    }
+
+    //texture materials
+    for (entity, held, mut mesh) in texture_held_query.iter_mut() {
+        if let Ok(inv) = inv_query.get(held.inventory) {
+            if let Some(item) = inv.selected_item_entity() {
+                if let Ok(item_mesh) = item_query.get(item) {
+                    *mesh = item_mesh.mesh.clone();
+                    if item_mesh.material == ItemMeshMaterial::ColorArray {
+                        //we have texture material attached, need to switch to color
+                        commands.entity(entity).remove::<Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>>()
+                            .insert(res.color_material.clone());
+                    }
                 } else {
                     *mesh = Default::default();
                 }
@@ -94,7 +162,7 @@ pub fn create_held_item_visualizer(
     commands
         .spawn((
             MaterialMeshBundle::<ExtendedMaterial<StandardMaterial, ColorArrayExtension>> {
-                material: res.material.clone(),
+                material: res.color_material.clone(),
                 transform: tf,
                 ..default()
             },
@@ -144,7 +212,7 @@ pub fn generate_item_meshes(
                                 }
                                 let layer = color.as_rgba_u32();
                                 fat_chunk.blocks.set(
-                                    Into::<usize>::into(FatChunkIdx::new(x as i8, 0, y as i8)),
+                                    Into::<usize>::into(FatChunkIdx::new(0, (height-y) as i8, x as i8)),
                                     BlockMesh {
                                         use_transparent_shader: true,
                                         shape: BlockMeshShape::Uniform(layer),
@@ -158,8 +226,14 @@ pub fn generate_item_meshes(
                 }
 
                 mesh_chunk(&fat_chunk, &mut chunk_mesh);
+                for vert in chunk_mesh.transparent.verts.iter_mut() {
+                    *vert = *vert / 16.0;
+                }
                 let item_mesh = chunk_mesh.transparent.create_mesh(&mut meshes);
-                commands.entity(*item).insert(ItemMesh { mesh: item_mesh });
+                commands.entity(*item).insert(ItemMesh {
+                    mesh: item_mesh,
+                    material: ItemMeshMaterial::ColorArray,
+                });
             } else {
                 error!("tried to create item mesh when icon image isn't ready!");
             }
