@@ -13,6 +13,7 @@ impl Plugin for CombatPlugin {
         app.add_plugins(projectile::ProjectilePlugin)
             .add_event::<AttackEvent>()
             .add_event::<DeathEvent>()
+            .add_event::<DamageTakenEvent>()
             .add_systems(PreUpdate, purge_despawned_targets)
             .add_systems(Update, update_aggro_on_player)
             .add_systems(PostUpdate, (process_attacks, do_death).chain())
@@ -82,6 +83,16 @@ pub struct AttackEvent {
     pub target: Entity,
     pub damage: Damage,
     pub knockback: Vec3,
+}
+
+//entities may be despawned depending on event ordering and death behavior
+#[derive(Clone, Copy, Event)]
+pub struct DamageTakenEvent {
+    pub attacker: Entity,
+    pub target: Entity,
+    //after reductions
+    pub damage_taken: Damage,
+    pub knockback_impulse: Vec3,
 }
 
 #[derive(Clone, Copy, Event)]
