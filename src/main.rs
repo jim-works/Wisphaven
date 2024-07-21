@@ -14,7 +14,7 @@
 use std::{env, net::Ipv4Addr};
 
 use actors::ActorPlugin;
-use bevy::prelude::*;
+use bevy::{prelude::*, window::WindowResolution};
 use bevy_hanabi::HanabiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use chunk_loading::{ChunkLoader, ChunkLoaderPlugin};
@@ -70,6 +70,7 @@ fn main() {
             .set(WindowPlugin {
                 primary_window: Some(Window {
                     title: "Wisphaven".to_string(),
+                    resolution: WindowResolution::new(1600.0, 900.0),
                     ..default()
                 }),
                 ..default()

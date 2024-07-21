@@ -23,7 +23,7 @@ debug = true
 ahash = "0.8.3"
 #TODO: remove dynamic_linking/trace_tracy for releases (automate this)
 #TODO: maybe enable wayland feature?
-bevy = { version = "0.12.0", features = ["dynamic_linking", "serialize"] }
+bevy = { version = "0.12.1", features = ["dynamic_linking", "serialize"] }
 bracket-noise = "0.8.7"
 dashmap = "5.4.0"
 futures-lite = "1.13.0"
@@ -45,3 +45,6 @@ serde_with = "3.2.0"
 bevy_hanabi = "0.8"
 bitflags = "2.4.1"
 
+[patch.crates-io]
+#include to fix crash on linux without updating to bevy 0.13.2
+bevy_render = { git = "https://github.com/jim-works/bevy_render.git" }
