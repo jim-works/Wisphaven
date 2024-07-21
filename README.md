@@ -4,7 +4,7 @@
 
 Wisphaven is a voxel village defense game that is currently in development.
 
-Build a village around your graveyard, befriend the ghostly inhabitants, and defend them from swarms of invaders in the night.
+This project has mostly been abandoned, but I'm making one more update to quickly turn it into a somewhat fun game before moving on.
 
 Written in Rust using the Bevy game engine.
 
@@ -16,6 +16,16 @@ Clone the project, have cargo installed, and run
 
 in the same folder as this file.
 
+If you are developing, you can create `.cargo/config.toml` with the following to improve compile times:
+
+```
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=/usr/bin/mold", "-Zshare-generics=y",]
+```
+
+Cranelift does not work very well with this project at the time of writing.
+
 ## Features
 
 - Infinite, procedurally generated world
@@ -24,104 +34,11 @@ in the same folder as this file.
 - Basic combat
 - Modular item, block, and crafting recipe systems
 
-## Basic development roadmap
+## Development
+
+Initially, this project was going to be a town building game, but I fell out of love with that idea. I'm going to turn it into a more arcade survival game instead.
 
 I will be posting development updates on my [YouTube channel](https://www.youtube.com/channel/UCsfEWFba7Zo1DPNHisczM-g)
-
-### v0.1 - prototype (done!)
-
-The goal of this phase is to get the most basic gameplay in.
-
-🗹 Skeleton pirates exist
-
-🗹 Skeleton pirates attack placeholder base and player, can and change prioritize targets
-
-🗹 Controllable day/night cycle
-
-🗹 Waves of enemies spawn each night, composition changes each night
-
-🗹 Coin launcher weapon
-
-🗹 Ghosts exist
-
-🗹 Blocks drop items
-
-🗹 Crafting
-
-🗹 Ability to die
-
-### v0.2 - Better Combat and Basic NPCs
-
-Ghosts are the citizens of your village. You will protect them, befriend them, and trade with them.
-In return, they will perform jobs around the village and grant access to unique resources and powers.
-Some ghosts may even fight along side you.
-
-The goal of this phase is to get the game to the point where it is fun to play for a few minutes, and
-smooth out the rough edges enough for other people to be able to play it.
-
-☐ Ghost spawning
-
-☐ Ghost routines
-
-☐ Basic ghost interactions
-
-☐ Damage types
-
-☐ Teams/Factions
-
-☐ Polish movement/physics systems
-
-☐ Better pathfinding (Ghosts and enemies)
-
-☐ Buff system
-
-☐ Animation system
-
-☐ A boss
-
-☐ Weapon enhancement system
-
-☐ Visualize held item with animations
-
-☐ Create basic main menu, add support for multiple worlds
-
-☐ Update multiplayer and finish saving/loading
-
-☐ Post devlog
-
-### v0.3 - The Machines and Transportation
-
-☐ Timed and Proximity block events
-
-☐ Block entity saving
-
-☐ Recipe classes (macerator, furnace, crafting) + basic autocrafting machines
-
-☐ Attacking machines
-
-☐ Dropped items
-
-☐ Conveyor belts
-
-☐ Hopper like machine to pick up items
-
-☐ Power system
-
-☐ Rideable entities
-
-☐ Trains
-
-☐ Shoot yourself out of a cannon?
-
-☐ Post devlog
-
-... probably more
-
-### v0.4 - Weather and Basic Towns
-
-### v0.5 - The plant update
-
-... to be continued
 
 ## Contributing
 
