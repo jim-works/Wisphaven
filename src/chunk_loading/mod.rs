@@ -55,7 +55,7 @@ impl Plugin for ChunkLoaderPlugin {
 pub struct InitialLoader;
 
 pub fn on_load_level(mut commands: Commands, settings: Res<Settings>, level: Res<Level>) {
-    let spawn_point = Transform::from_translation(level.spawn_point);
+    let spawn_point = Transform::from_translation(level.get_spawn_point());
     info!(
         "creating inital loader at {:?} loader: {:?}",
         spawn_point, settings.init_loader

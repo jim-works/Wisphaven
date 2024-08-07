@@ -1,5 +1,7 @@
 use bevy::{
     core_pipeline::clear_color::ClearColorConfig,
+    ecs::system::SystemId,
+    pbr::ExtendedMaterial,
     prelude::*,
     render::{
         camera::RenderTarget,
@@ -7,7 +9,7 @@ use bevy::{
             Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
         },
         view::RenderLayers,
-    }, pbr::ExtendedMaterial,
+    },
 };
 use leafwing_input_manager::prelude::ActionState;
 
@@ -17,7 +19,8 @@ use crate::{
     items::{
         block_item::BlockItem, inventory::Inventory, DropItemEvent, ItemIcon, PickupItemEvent,
     },
-    world::{BlockMesh, LevelSystemSet}, mesher::{ChunkMaterial, extended_materials::TextureArrayExtension},
+    mesher::{extended_materials::TextureArrayExtension, ChunkMaterial},
+    world::{BlockMesh, LevelSystemSet},
 };
 
 use super::{state::UIState, styles::get_small_text_style};
@@ -60,6 +63,15 @@ impl Plugin for InventoryPlugin {
         .add_systems(OnEnter(UIState::Default), hide_inventory::<false>)
         .add_systems(OnEnter(UIState::Hidden), hide_inventory::<true>)
         .add_systems(Startup, init);
+
+        let show_inventory_id = app.world.register_system(show_inventory);
+        let hide_inventory_id = app.world.register_system(hide_inventory::<false>);
+        let hide_inventory_and_hotbar_id = app.world.register_system(hide_inventory::<true>);
+        app.insert_resource(InventorySystemIds {
+            show_inventory: show_inventory_id,
+            hide_inventory: hide_inventory_id,
+            hide_inventory_and_hotbar: hide_inventory_and_hotbar_id,
+        });
     }
 }
 
@@ -68,6 +80,13 @@ struct InventoryResources {
     item_counts: TextStyle,
     slot_background: Handle<Image>,
     selection_image: Handle<Image>,
+}
+
+#[derive(Resource)]
+struct InventorySystemIds {
+    show_inventory: SystemId,
+    hide_inventory_and_hotbar: SystemId,
+    hide_inventory: SystemId,
 }
 
 #[derive(Component)]
@@ -113,6 +132,8 @@ fn spawn_inventory_system(
     inventory_query: Query<&Inventory, With<LocalPlayer>>,
     mut commands: Commands,
     resources: Res<InventoryResources>,
+    state: Res<State<UIState>>,
+    system_ids: Res<InventorySystemIds>
 ) {
     if !inventory_ui_query.is_empty() {
         return;
@@ -120,6 +141,11 @@ fn spawn_inventory_system(
     for LocalPlayerSpawnedEvent(id) in event_reader.read() {
         if let Ok(inv) = inventory_query.get(*id) {
             spawn_inventory(&mut commands, inv.len(), &resources);
+            match state.get() {
+                UIState::Hidden => commands.run_system(system_ids.hide_inventory_and_hotbar),
+                UIState::Default => commands.run_system(system_ids.hide_inventory),
+                UIState::Inventory => commands.run_system(system_ids.show_inventory),
+            };
             return;
         }
     }
@@ -355,14 +381,24 @@ fn update_icons(
                             Ok(item) => {
                                 //render block item
                                 //todo - despawn if dynamic
-                                match block_mesh_query.get(item.0).ok()
+                                match block_mesh_query
+                                    .get(item.0)
+                                    .ok()
                                     .and_then(|block_mesh| block_mesh.single_mesh.as_ref())
                                 {
                                     Some(mesh) => {
                                         //spawn these entities super far out because lighting affects all layers
                                         //this way they (probably) won't end up in the shadow of some terrain
-                                        const PREVIEW_ORIGIN: Vec3 = Vec3::new(1_000_000.0, 1_000_000.0, 1_000_000.0);
-                                        let (preview_entity, preview) = spawn_block_preview(&mut commands, &mut images, mesh.clone(), materials.opaque_material.clone().unwrap(), Vec3::new(index as f32*5.0,0.0,0.0)+PREVIEW_ORIGIN);
+                                        const PREVIEW_ORIGIN: Vec3 =
+                                            Vec3::new(1_000_000.0, 1_000_000.0, 1_000_000.0);
+                                        let (preview_entity, preview) = spawn_block_preview(
+                                            &mut commands,
+                                            &mut images,
+                                            mesh.clone(),
+                                            materials.opaque_material.clone().unwrap(),
+                                            Vec3::new(index as f32 * 5.0, 0.0, 0.0)
+                                                + PREVIEW_ORIGIN,
+                                        );
                                         ui_slot.1 = Some(preview_entity);
                                         image.texture = preview;
                                         *vis.as_mut() = Visibility::Inherited;

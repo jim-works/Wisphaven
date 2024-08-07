@@ -41,13 +41,13 @@ struct DamagedBlock(BlockDamage, Entity);
 
 pub struct LevelData {
     pub name: &'static str,
-    pub spawn_point: Vec3,
     pub seed: u64,
     chunks: DashMap<ChunkCoord, ChunkType, ahash::RandomState>,
     buffers: DashMap<ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>, ahash::RandomState>,
     block_damages: DashMap<BlockCoord, BlockDamage, ahash::RandomState>,
     lod_chunks:
         DashMap<usize, DashMap<ChunkCoord, LODChunkType, ahash::RandomState>, ahash::RandomState>,
+    spawn_point: Vec3,
 }
 
 impl LevelData {
@@ -694,7 +694,7 @@ impl LevelData {
         mut checker: impl FnMut(Option<BlockType>) -> bool,
     ) -> Option<BlockcastHit> {
         let _my_span = info_span!("blockcast", name = "blockcast").entered();
-        const STEP_SIZE: f32 = 1.0/32.0;
+        const STEP_SIZE: f32 = 1.0 / 32.0;
         let line_len = end_offset.length();
         let line_norm = end_offset / line_len;
         let mut old_coords = BlockCoord::from(origin);
@@ -728,5 +728,28 @@ impl LevelData {
             }
         }
         None
+    }
+
+    pub fn get_spawn_point(&self) -> Vec3 {
+        let mut calculated_spawn_point = self.spawn_point;
+        const MAX_CHECK_RANGE: i32 = 1000;
+        for _ in 0..MAX_CHECK_RANGE {
+            match self.get_block(calculated_spawn_point.into()) {
+                Some(BlockType::Empty) => {
+                    if let Some(BlockType::Empty) =
+                        self.get_block(BlockCoord::from(calculated_spawn_point) + BlockCoord::new(0, -1, 0))
+                    {
+                        break;
+                    }
+                }
+                Some(_) => {
+                    calculated_spawn_point.y += 1.0;
+                }
+                None => {
+                    break;
+                } //into unloaded chunks
+            }
+        }
+        calculated_spawn_point
     }
 }

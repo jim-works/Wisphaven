@@ -112,7 +112,7 @@ fn handle_client_messages(
                     handle_join(
                         client_id,
                         name,
-                        level.spawn_point,
+                        level.get_spawn_point(),
                         &mut users,
                         server_player.as_ref().map(|s| s.0.clone()),
                         endpoint,
