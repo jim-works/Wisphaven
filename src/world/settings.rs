@@ -8,6 +8,7 @@ use super::chunk::ChunkCoord;
 pub struct Settings {
     pub init_loader: ChunkLoader,
     pub player_loader: ChunkLoader,
+    pub anchor_loader: ChunkLoader,
     pub env_path: &'static str,
     pub block_tex_path: &'static str,
     pub block_type_path: &'static str,
@@ -28,6 +29,10 @@ impl Default for Settings {
             init_loader: loader.clone(),
             player_loader: ChunkLoader {
                 radius: ChunkCoord::new(12, 8, 12),
+                ..loader.clone()
+            },
+            anchor_loader: ChunkLoader {
+                mesh: false,
                 ..loader.clone()
             },
             env_path: "worlds/world",

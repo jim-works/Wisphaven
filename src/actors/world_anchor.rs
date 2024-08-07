@@ -1,5 +1,5 @@
 use crate::{
-    ui::healthbar::spawn_billboard_healthbar, util::SendEventCommand, physics::{PhysicsBundle, collision::Aabb}
+    physics::{collision::Aabb, PhysicsBundle}, settings::Settings, ui::healthbar::spawn_billboard_healthbar, util::SendEventCommand, Level, LevelLoadState
 };
 use bevy::prelude::*;
 
@@ -28,6 +28,7 @@ impl Plugin for WorldAnchorPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (load_resources, add_to_registry))
             .add_systems(Update, spawn_world_anchor)
+            .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
             .add_event::<SpawnWorldAnchorEvent>();
     }
 }
@@ -49,9 +50,9 @@ pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     });
 }
 
-fn trigger_spawning(mut writer: EventWriter<SpawnWorldAnchorEvent>) {
+fn trigger_spawning(mut writer: EventWriter<SpawnWorldAnchorEvent>, level: Res<Level>) {
     writer.send(SpawnWorldAnchorEvent {
-        location: Transform::from_xyz(0.0, 0.0, 0.0),
+        location: Transform::from_translation(level.get_spawn_point()),
     });
 }
 
@@ -59,6 +60,7 @@ pub fn spawn_world_anchor(
     mut commands: Commands,
     res: Res<WorldAnchorResources>,
     mut spawn_requests: EventReader<SpawnWorldAnchorEvent>,
+    settings: Res<Settings>,
     _children_query: Query<&Children>,
 ) {
     for spawn in spawn_requests.read() {
@@ -83,6 +85,7 @@ pub fn spawn_world_anchor(
                     ..default()
                 },
                 WorldAnchor,
+                settings.init_loader.clone()
                 //no UninitializedActor b/c we don't have to do any setup
             ))
             .id();

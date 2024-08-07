@@ -144,7 +144,7 @@ impl Plugin for AtmospherePlugin {
             .add_event::<NightStartedEvent>()
             .add_event::<SpeedupCalendarEvent>()
             .insert_resource(CalendarSpeed {
-                fast_forward_timescale: 50.0,
+                fast_forward_timescale: 200.0,
                 target: GameTime::default(),
             })
             .insert_resource(Calendar {

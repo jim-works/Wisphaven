@@ -39,6 +39,11 @@ pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a * (1.0 - t) + b * t
 }
 
+// lerp(a,b,inverse_lerp(a,b,v)) = v
+pub fn inverse_lerp(a: f32, b: f32, v: f32) -> f32 {
+    (v-a)/(b-a)
+}
+
 pub fn trilerp<const X: usize, const Y: usize, const Z: usize>(
     samples: &[[[f32; X]; Y]; Z],
     x: usize,

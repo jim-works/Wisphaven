@@ -46,7 +46,6 @@ mod worldgen;
 
 fn main() {
     //todo - this should be in GUI
-    println!("block: {}, entity: {}", std::mem::size_of::<BlockType>(), std::mem::size_of::<Entity>());
     let args: Vec<String> = env::args().collect();
     let mut server_port = None;
     let mut client_connection_ip = None;

@@ -1,9 +1,10 @@
 use std::time::Duration;
 
-use bevy::prelude::*;
+use bevy::{ecs::system::SystemId, prelude::*};
 
 use crate::{
-    actors::{process_attacks, DamageTakenEvent, LocalPlayer},
+    actors::{process_attacks, CombatInfo, DamageTakenEvent, LocalPlayer, LocalPlayerSpawnedEvent},
+    util::inverse_lerp,
     LevelLoadState,
 };
 
@@ -17,7 +18,12 @@ impl Plugin for PlayerStatsUiPlugin {
             .add_systems(PostUpdate, flash_hearts.after(process_attacks))
             .add_systems(OnEnter(UIState::Default), show_player_stat_ui)
             .add_systems(OnExit(UIState::Default), hide_player_stat_ui)
-            .add_systems(OnEnter(LevelLoadState::Loaded), spawn_heart);
+            .add_systems(Update, spawn_heart.run_if(in_state(LevelLoadState::Loaded)));
+
+        let update_hearts_id = app.world.register_system(update_hearts);
+        app.insert_resource(HeartSystems {
+            update_hearts: update_hearts_id,
+        });
     }
 }
 
@@ -35,30 +41,38 @@ pub struct PlayerHealthUiResources {
 }
 
 //images
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 struct PlayerHeart;
 
-#[derive(Component)]
-struct PlayerBrokenHeart;
+#[derive(Component, Clone, Copy)]
+struct PlayerBrokenHeart {
+    min_health: f32,
+    max_health: f32,
+}
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 struct PlayerFlashHeart;
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 struct PlayerEmptyHeart;
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 struct PlayerHappyGhost;
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 struct PlayerSadGhost;
 
 //containers
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct PlayerStatContainer;
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct PlayerHeartContainer;
+
+#[derive(Resource)]
+struct HeartSystems {
+    update_hearts: SystemId,
+}
 
 fn init(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(PlayerHealthUiResources {
@@ -142,6 +156,8 @@ fn flash_hearts(
     mut reader: EventReader<DamageTakenEvent>,
     mut state: Local<(Duration, i32, bool)>,
     time: Res<Time>,
+    mut commands: Commands,
+    systems: Res<HeartSystems>,
 ) {
     let flash_duration = Duration::from_secs_f32(0.1);
     let flashes = 1;
@@ -155,6 +171,7 @@ fn flash_hearts(
                 for mut heart in heart_query.iter_mut() {
                     heart.0 = Color::rgba(1.0, 1.0, 1.0, 1.0);
                 }
+                commands.run_system(systems.update_hearts);
             }
         }
     }
@@ -169,7 +186,6 @@ fn flash_hearts(
             for mut heart in heart_query.iter_mut() {
                 heart.0 = Color::rgba(1.0, 1.0, 1.0, 0.0);
             }
-            
         } else {
             //inactive, switch to active
             state.0 = flash_duration;
@@ -179,55 +195,84 @@ fn flash_hearts(
             }
         }
     }
+}
 
+fn update_hearts(
+    player_query: Query<&CombatInfo, With<LocalPlayer>>,
+    mut heart_query: Query<(&PlayerBrokenHeart, &mut BackgroundColor)>,
+) {
+    let curr_health = player_query
+        .get_single()
+        .map_or(0.0, |info| info.curr_health);
+    for (
+        PlayerBrokenHeart {
+            min_health,
+            max_health,
+        },
+        mut color,
+    ) in heart_query.iter_mut()
+    {
+        let progress = inverse_lerp(*max_health, *min_health, curr_health);
+        let alpha = progress.clamp(0.0, 1.0);
+        color.0 = color.0.with_a(alpha);
+    }
 }
 
 fn spawn_heart(
     mut commands: Commands,
+    mut reader: EventReader<LocalPlayerSpawnedEvent>,
+    combat_query: Query<&CombatInfo>,
     res: Res<PlayerHealthUiResources>,
     root_query: Query<Entity, With<PlayerHeartContainer>>,
+    systems: Res<HeartSystems>,
 ) {
-    if let Ok(root) = root_query.get_single() {
-        commands.entity(root).with_children(|children| {
-            for _ in 0..10 {
-                info!("spawned heart");
-                children
-                    .spawn((
-                        ImageBundle {
-                            style: res.heart_style.clone(),
-                            image: res.heart.clone(),
-                            ..default()
-                        },
-                        PlayerHeart,
-                    ))
-                    .with_children(|heart_overlay| {
-                        heart_overlay
-                            .spawn((
-                                ImageBundle {
-                                    style: res.heart_overlay_style.clone(),
-                                    image: res.broken_heart.clone(),
-                                    background_color: BackgroundColor(Color::rgba(
-                                        1.0, 1.0, 1.0, 0.0,
-                                    )),
-                                    ..default()
-                                },
-                                PlayerBrokenHeart,
-                            ))
-                            .with_children(|flash_overlay| {
-                                flash_overlay.spawn((
+    for LocalPlayerSpawnedEvent(entity) in reader.read() {
+        if let (Ok(root), Ok(player_combat)) = (root_query.get_single(), combat_query.get(*entity))
+        {
+            commands.entity(root).with_children(|children| {
+                for i in 0..player_combat.max_health.ceil() as i32 {
+                    children
+                        .spawn((
+                            ImageBundle {
+                                style: res.heart_style.clone(),
+                                image: res.heart.clone(),
+                                ..default()
+                            },
+                            PlayerHeart,
+                        ))
+                        .with_children(|heart_overlay| {
+                            heart_overlay
+                                .spawn((
                                     ImageBundle {
                                         style: res.heart_overlay_style.clone(),
-                                        image: res.flash_heart.clone(),
+                                        image: res.empty_heart.clone(),
                                         background_color: BackgroundColor(Color::rgba(
                                             1.0, 1.0, 1.0, 0.0,
                                         )),
                                         ..default()
                                     },
-                                    PlayerFlashHeart,
-                                ));
-                            });
-                    });
-            }
-        });
+                                    PlayerBrokenHeart {
+                                        min_health: (i as f32),
+                                        max_health: (i as f32 + 1.0),
+                                    },
+                                ))
+                                .with_children(|flash_overlay| {
+                                    flash_overlay.spawn((
+                                        ImageBundle {
+                                            style: res.heart_overlay_style.clone(),
+                                            image: res.flash_heart.clone(),
+                                            background_color: BackgroundColor(Color::rgba(
+                                                1.0, 1.0, 1.0, 0.0,
+                                            )),
+                                            ..default()
+                                        },
+                                        PlayerFlashHeart,
+                                    ));
+                                });
+                        });
+                }
+            });
+        }
+        commands.run_system(systems.update_hearts);
     }
 }
