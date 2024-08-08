@@ -246,11 +246,13 @@ impl LevelData {
         update_writer: &mut EventWriter<ChunkUpdatedEvent>,
     ) {
         if SAVE {
-            commands
-                .entity(chunk_entity)
-                .insert((NeedsMesh::default(), NeedsSaving));
+            if let Some(mut ec) = commands.get_entity(chunk_entity) {
+                ec.insert((NeedsMesh::default(), NeedsSaving));
+            }    
         } else {
-            commands.entity(chunk_entity).insert(NeedsMesh::default());
+            if let Some(mut ec) = commands.get_entity(chunk_entity) {
+                ec.insert(NeedsMesh::default());
+            }
         }
         update_writer.send(ChunkUpdatedEvent { coord });
     }
@@ -263,7 +265,9 @@ impl LevelData {
         for dir in Direction::iter() {
             if let Some(neighbor_ref) = self.get_chunk(coord.offset(dir)) {
                 if let ChunkType::Full(c) = neighbor_ref.value() {
-                    commands.entity(c.entity).insert(NeedsMesh::default());
+                    if let Some(mut ec) = commands.get_entity(c.entity) {
+                        ec.insert(NeedsMesh::default());
+                    }
                     update_writer.send(ChunkUpdatedEvent { coord: c.position });
                 }
             }
@@ -442,9 +446,9 @@ impl LevelData {
             }
         };
         if should_mesh {
-            commands.entity(id).remove::<DontMeshChunk>();
+            if let Some(mut ec) = commands.get_entity(id) { ec.remove::<DontMeshChunk>(); }
         } else {
-            commands.entity(id).insert(DontMeshChunk);
+            if let Some(mut ec) = commands.get_entity(id) { ec.insert(DontMeshChunk); }
         }
         id
     }

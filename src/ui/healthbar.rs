@@ -1,6 +1,6 @@
 use bevy::prelude::{shape::Quad, *};
 
-use crate::{actors::CombatInfo, controllers::PlayerActionOrigin};
+use crate::{actors::CombatInfo, controllers::player_controller::PlayerActionOrigin};
 
 pub struct HealthbarPlugin;
 

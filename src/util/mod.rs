@@ -304,3 +304,15 @@ impl<'a, T> FlattenRefMut<'a, T> for Option<&'a mut Option<T>> {
         }
     }
 }
+
+pub trait OptionExtension<T,R> {
+    fn then(self, f: impl FnOnce(T) -> R);
+}
+
+impl<T,R> OptionExtension<T,R> for Option<T> {
+    fn then(self, f: impl FnOnce(T) -> R) {
+        if let Some(t) = self {
+            f(t);
+        }
+    }
+}

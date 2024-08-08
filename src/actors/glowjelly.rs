@@ -1,11 +1,12 @@
+//WARNING - THESE ARE SO SUPREMELY LAGGY IDK WHY AND IDC
+
 use bevy::prelude::*;
 use big_brain::prelude::*;
 
 use crate::{
     physics::{collision::Aabb, movement::GravityMult, PhysicsBundle},
     ui::healthbar::spawn_billboard_healthbar,
-    util::{plugin::SmoothLookTo, SendEventCommand},
-    world::LevelLoadState,
+    util::{plugin::SmoothLookTo, SendEventCommand}
 };
 
 use super::{
@@ -41,7 +42,6 @@ pub struct GlowjellyPlugin;
 impl Plugin for GlowjellyPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (load_resources, add_to_registry))
-            .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
             .add_systems(Update, (spawn_glowjelly, setup_glowjelly, social_score))
             .add_event::<SpawnGlowjellyEvent>();
     }

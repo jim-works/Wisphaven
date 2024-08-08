@@ -7,6 +7,7 @@ use bevy::{
 };
 use bevy_quinnet::client::Client;
 use leafwing_input_manager::InputManagerBundle;
+use player_controller::{FollowPlayer, PlayerActionOrigin, RotateWithMouse};
 
 use crate::{
     chunk_loading::ChunkLoader,
@@ -27,8 +28,7 @@ use crate::{
 };
 
 use super::{
-    ghost::{spawn_ghost_hand, Float, GhostResources, Handed},
-    CombatInfo, CombatantBundle, Damage, DeathInfo,
+    abilities::{dash::Dash, Stamina}, ghost::{spawn_ghost_hand, Float, GhostResources, Handed}, CombatInfo, CombatantBundle, Damage, DeathInfo
 };
 
 #[derive(Component)]
@@ -322,6 +322,8 @@ fn populate_player_entity(
         },
         SyncPosition,
         SyncVelocity,
+        Stamina::default(),
+        Dash::new(10.0)
     ));
     //right hand
     let right_hand = spawn_ghost_hand(

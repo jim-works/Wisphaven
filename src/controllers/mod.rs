@@ -1,6 +1,6 @@
-mod player_controller;
+pub mod player_controller;
 use leafwing_input_manager::prelude::*;
-pub use player_controller::*;
+use player_controller::*;
 
 mod input;
 pub use input::*;
@@ -30,6 +30,7 @@ impl Plugin for ControllersPlugin {
                 rotate_mouse,
                 jump_player,
                 move_player,
+                dash_player,
                 follow_local_player,
                 player_punch,
                 player_use,
@@ -55,6 +56,10 @@ pub struct FrameMovement(pub Vec3);
 //reset every frame in do_jump
 #[derive(Component)]
 pub struct FrameJump(pub bool);
+
+//reset every frame in do_dash
+#[derive(Component)]
+pub struct FrameDash(pub Vec3);
 
 #[derive(Component, Default, Eq, PartialEq, Clone, Copy, Debug)]
 pub enum MovementMode {

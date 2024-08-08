@@ -10,16 +10,17 @@ use serde::{Deserialize, Serialize};
 
 use self::personality::PersonalityPlugin;
 
+pub mod abilities;
 pub mod ai;
 pub mod behaviors;
 pub mod block_actors;
 pub mod coin;
+pub mod ghost;
 pub mod glowjelly;
 pub mod personality;
 pub mod skeleton_pirate;
-pub mod world_anchor;
-pub mod ghost;
 pub mod wisp;
+pub mod world_anchor;
 
 #[cfg(test)]
 mod test;
@@ -42,6 +43,7 @@ impl Plugin for ActorPlugin {
             ai::AIPlugin,
             ghost::GhostPlugin,
             wisp::WispPlugin,
+            abilities::AbilityPlugin,
         ))
         .add_systems(Update, idle_action_system)
         .insert_resource(ActorResources {

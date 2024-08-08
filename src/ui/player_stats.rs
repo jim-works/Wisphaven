@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::{ecs::system::SystemId, prelude::*};
 
 use crate::{
-    actors::{process_attacks, CombatInfo, DamageTakenEvent, LocalPlayer, LocalPlayerSpawnedEvent},
+    actors::{abilities::{send_stamina_updated_events, Stamina, StaminaUpdatedEvent}, process_attacks, CombatInfo, DamageTakenEvent, LocalPlayer, LocalPlayerSpawnedEvent},
     util::inverse_lerp,
     LevelLoadState,
 };
@@ -15,32 +15,47 @@ pub struct PlayerStatsUiPlugin;
 impl Plugin for PlayerStatsUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, init)
-            .add_systems(PostUpdate, flash_hearts.after(process_attacks))
+            .add_systems(PostUpdate, (flash_hearts.after(process_attacks), flash_stamina.after(send_stamina_updated_events)))
             .add_systems(OnEnter(UIState::Default), show_player_stat_ui)
             .add_systems(OnExit(UIState::Default), hide_player_stat_ui)
-            .add_systems(Update, spawn_heart.run_if(in_state(LevelLoadState::Loaded)));
+            .add_systems(Update, (spawn_heart, spawn_stamina).run_if(in_state(LevelLoadState::Loaded)));
 
         let update_hearts_id = app.world.register_system(update_hearts);
         app.insert_resource(HeartSystems {
             update_hearts: update_hearts_id,
         });
+        let update_stamina_id = app.world.register_system(update_stamina);
+        app.insert_resource(StaminaSystems {
+            update_stamina: update_stamina_id,
+        });
     }
 }
 
 #[derive(Resource)]
-pub struct PlayerHealthUiResources {
-    pub heart: UiImage,
-    pub broken_heart: UiImage,
-    pub flash_heart: UiImage,
-    pub empty_heart: UiImage,
-    pub happy_ghost: UiImage,
-    pub sad_ghost: UiImage,
-    pub heart_style: Style,
-    pub heart_overlay_style: Style,
-    pub ghost_style: Style,
+struct PlayerHealthUiResources {
+    heart: UiImage,
+    broken_heart: UiImage,
+    flash_heart: UiImage,
+    empty_heart: UiImage,
+    happy_ghost: UiImage,
+    sad_ghost: UiImage,
+    heart_style: Style,
+    heart_overlay_style: Style,
+    ghost_style: Style,
+}
+
+#[derive(Resource)]
+struct PlayerStaminaUiResources {
+    bolt: UiImage,
+    empty_bolt: UiImage,
+    flash_bolt: UiImage,
+    style: Style,
+    overlay_style: Style,
 }
 
 //images
+
+//health
 #[derive(Component, Clone, Copy)]
 struct PlayerHeart;
 
@@ -62,6 +77,19 @@ struct PlayerHappyGhost;
 #[derive(Component, Clone, Copy)]
 struct PlayerSadGhost;
 
+//stamina
+#[derive(Component, Clone, Copy)]
+struct PlayerEmptyBolt {
+    min_stamina: f32,
+    max_stamina: f32,
+}
+
+#[derive(Component, Clone, Copy)]
+struct PlayerFlashBolt;
+
+#[derive(Component, Clone, Copy)]
+struct PlayerBolt;
+
 //containers
 #[derive(Component, Clone, Copy)]
 pub struct PlayerStatContainer;
@@ -69,9 +97,18 @@ pub struct PlayerStatContainer;
 #[derive(Component, Clone, Copy)]
 pub struct PlayerHeartContainer;
 
+#[derive(Component, Clone, Copy)]
+pub struct PlayerStaminaContainer;
+
+//systems
 #[derive(Resource)]
 struct HeartSystems {
     update_hearts: SystemId,
+}
+
+#[derive(Resource)]
+struct StaminaSystems {
+    update_stamina: SystemId,
 }
 
 fn init(mut commands: Commands, assets: Res<AssetServer>) {
@@ -103,6 +140,25 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
             ..default()
         },
     });
+    commands.insert_resource(PlayerStaminaUiResources {
+        bolt: assets.load("textures/ui/bolt.png").into(),
+        flash_bolt: assets.load("textures/ui/flash_bolt.png").into(),
+        empty_bolt: assets.load("textures/ui/dead_bolt.png").into(),
+        style: Style {
+            width: Val::Px(16.0),
+            height: Val::Px(16.0),
+            aspect_ratio: Some(1.0),
+            margin: UiRect::all(Val::Px(1.0)),
+            ..default()
+        },
+        overlay_style: Style {
+            width: Val::Px(16.0),
+            height: Val::Px(16.0),
+            aspect_ratio: Some(1.0),
+            position_type: PositionType::Absolute,
+            ..default()
+        },
+    });
     commands
         .spawn((
             PlayerStatContainer,
@@ -122,6 +178,21 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
         .with_children(|children| {
             children.spawn((
                 PlayerHeartContainer,
+                NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Px(18.0),
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        position_type: PositionType::Relative,
+                        ..default()
+                    },
+                    ..default()
+                },
+            ));
+            children.spawn((
+                PlayerStaminaContainer,
                 NodeBundle {
                     style: Style {
                         width: Val::Percent(100.0),
@@ -197,6 +268,53 @@ fn flash_hearts(
     }
 }
 
+fn flash_stamina(
+    player_query: Query<Entity, With<LocalPlayer>>,
+    mut bolt_query: Query<&mut BackgroundColor, With<PlayerFlashBolt>>,
+    mut reader: EventReader<StaminaUpdatedEvent>,
+    mut state: Local<(Duration, i32, bool)>,
+    time: Res<Time>,
+    mut commands: Commands,
+    systems: Res<StaminaSystems>,
+) {
+    let flash_duration = Duration::from_secs_f32(0.1);
+    let flashes = 1;
+    state.0 = state.0.saturating_sub(time.delta());
+    if let Ok(player_entity) = player_query.get_single() {
+        for StaminaUpdatedEvent(entity, _) in reader.read() {
+            if *entity == player_entity {
+                state.0 = flash_duration;
+                state.1 = flashes;
+                state.2 = true;
+                for mut heart in bolt_query.iter_mut() {
+                    heart.0 = Color::rgba(1.0, 1.0, 1.0, 1.0);
+                }
+                commands.run_system(systems.update_stamina);
+            }
+        }
+    }
+
+    if state.1 > 0 && state.0.is_zero() {
+        //switch color
+        if state.2 {
+            //active, switch to inactive
+            state.0 = flash_duration;
+            state.1 -= 1;
+            state.2 = false;
+            for mut heart in bolt_query.iter_mut() {
+                heart.0 = Color::rgba(1.0, 1.0, 1.0, 0.0);
+            }
+        } else {
+            //inactive, switch to active
+            state.0 = flash_duration;
+            state.2 = true;
+            for mut heart in bolt_query.iter_mut() {
+                heart.0 = Color::rgba(1.0, 1.0, 1.0, 1.0);
+            }
+        }
+    }
+}
+
 fn update_hearts(
     player_query: Query<&CombatInfo, With<LocalPlayer>>,
     mut heart_query: Query<(&PlayerBrokenHeart, &mut BackgroundColor)>,
@@ -213,6 +331,27 @@ fn update_hearts(
     ) in heart_query.iter_mut()
     {
         let progress = inverse_lerp(*max_health, *min_health, curr_health);
+        let alpha = progress.clamp(0.0, 1.0);
+        color.0 = color.0.with_a(alpha);
+    }
+}
+
+fn update_stamina(
+    player_query: Query<&Stamina, With<LocalPlayer>>,
+    mut bolt_query: Query<(&PlayerEmptyBolt, &mut BackgroundColor)>,
+) {
+    let curr_stamina = player_query
+        .get_single()
+        .map_or(0.0, |info| info.current);
+    for (
+        PlayerEmptyBolt {
+            min_stamina,
+            max_stamina,
+        },
+        mut color,
+    ) in bolt_query.iter_mut()
+    {
+        let progress = inverse_lerp(*max_stamina, *min_stamina, curr_stamina);
         let alpha = progress.clamp(0.0, 1.0);
         color.0 = color.0.with_a(alpha);
     }
@@ -274,5 +413,64 @@ fn spawn_heart(
             });
         }
         commands.run_system(systems.update_hearts);
+    }
+}
+
+fn spawn_stamina(
+    mut commands: Commands,
+    mut reader: EventReader<LocalPlayerSpawnedEvent>,
+    stamina_query: Query<&Stamina>,
+    res: Res<PlayerStaminaUiResources>,
+    root_query: Query<Entity, With<PlayerStaminaContainer>>,
+    systems: Res<StaminaSystems>,
+) {
+    for LocalPlayerSpawnedEvent(entity) in reader.read() {
+        if let (Ok(root), Ok(stamina)) = (root_query.get_single(), stamina_query.get(*entity))
+        {
+            commands.entity(root).with_children(|children| {
+                for i in 0..stamina.max.ceil() as i32 {
+                    children
+                        .spawn((
+                            ImageBundle {
+                                style: res.style.clone(),
+                                image: res.bolt.clone(),
+                                ..default()
+                            },
+                            PlayerHeart,
+                        ))
+                        .with_children(|heart_overlay| {
+                            heart_overlay
+                                .spawn((
+                                    ImageBundle {
+                                        style: res.overlay_style.clone(),
+                                        image: res.empty_bolt.clone(),
+                                        background_color: BackgroundColor(Color::rgba(
+                                            1.0, 1.0, 1.0, 0.0,
+                                        )),
+                                        ..default()
+                                    },
+                                    PlayerEmptyBolt {
+                                        min_stamina: (i as f32),
+                                        max_stamina: (i as f32 + 1.0),
+                                    },
+                                ))
+                                .with_children(|flash_overlay| {
+                                    flash_overlay.spawn((
+                                        ImageBundle {
+                                            style: res.overlay_style.clone(),
+                                            image: res.flash_bolt.clone(),
+                                            background_color: BackgroundColor(Color::rgba(
+                                                1.0, 1.0, 1.0, 0.0,
+                                            )),
+                                            ..default()
+                                        },
+                                        PlayerFlashBolt,
+                                    ));
+                                });
+                        });
+                }
+            });
+        }
+        commands.run_system(systems.update_stamina);
     }
 }

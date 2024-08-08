@@ -1,19 +1,16 @@
+use abilities::{dash::{CurrentlyDashing, Dash}, Stamina};
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
-    actors::*,
-    items::{inventory::Inventory, EquipItemEvent, UnequipItemEvent},
-    physics::{
+    actors::*, items::{inventory::Inventory, EquipItemEvent, UnequipItemEvent}, physics::{
         collision::Aabb,
         movement::GravityMult,
         query::{self, Ray, RaycastHit},
-    },
-    ui::{state::UIState, world_mouse_active},
-    world::{
+    }, ui::{state::UIState, world_mouse_active}, util::OptionExtension, world::{
         events::{BlockHitEvent, BlockUsedEvent},
         BlockCoord, BlockPhysics, Level, UsableBlock,
-    },
+    }
 };
 
 use super::{Action, FrameJump, FrameMovement, MovementMode};
@@ -113,6 +110,21 @@ pub fn jump_player(
     for (mut fj, act, mode) in query.iter_mut() {
         if *mode != MovementMode::Flying && act.just_pressed(Action::Jump) {
             fj.0 = true;
+        }
+    }
+}
+
+pub fn dash_player(
+    mut query: Query<(Entity, &ActionState<Action>, &Dash, &mut Stamina), (With<Player>, Without<CurrentlyDashing>)>,
+    mut commands: Commands,
+    time: Res<Time>
+) {
+    let current_time = time.elapsed();
+    for (entity, act, dash, mut stamina) in query.iter_mut() {
+        if act.just_pressed(Action::Dash) && dash.stamina_cost.apply(&mut stamina) {
+            if let Some(mut ec) = commands.get_entity(entity) {
+                ec.insert(CurrentlyDashing::new(*dash, current_time));
+            }
         }
     }
 }
