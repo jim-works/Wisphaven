@@ -10,22 +10,15 @@ use leafwing_input_manager::InputManagerBundle;
 use player_controller::RotateWithMouse;
 
 use crate::{
-    actors::MoveSpeed,
-    chunk_loading::ChunkLoader,
-    controllers::{self, *},
-    items::{
+    actors::MoveSpeed, chunk_loading::ChunkLoader, controllers::{self, *}, effects::camera::CameraEffectsBundle, items::{
         inventory::Inventory,
         item_attributes::{ItemSwingSpeed, ItemUseSpeed},
         *,
-    },
-    mesher::item_mesher::HeldItemResources,
-    net::{
+    }, mesher::item_mesher::HeldItemResources, net::{
         client::ClientState,
         server::{SyncPosition, SyncVelocity},
         ClientMessage, NetworkType, PlayerList, RemoteClient,
-    },
-    physics::{movement::*, *},
-    world::{atmosphere::SkyboxCubemap, settings::Settings, *},
+    }, physics::{movement::*, *}, world::{atmosphere::SkyboxCubemap, settings::Settings, *}
 };
 
 use super::{
@@ -161,6 +154,7 @@ pub fn spawn_local_player(
                 frustum: Frustum::from_view_projection(&projection.get_projection_matrix()),
                 ..default()
             },
+            CameraEffectsBundle::default(),
             FogSettings {
                 color: Color::rgba(0.56, 0.824, 1.0, 1.0),
                 // directional_light_color: Color::rgba(1.0, 0.95, 0.85, 0.5),

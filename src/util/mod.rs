@@ -1,5 +1,5 @@
 mod direction;
-use std::time::Duration;
+use std::{f32::consts::PI, time::Duration};
 
 pub use direction::*;
 
@@ -33,6 +33,9 @@ use rand_distr::StandardNormal;
 
 #[cfg(test)]
 mod test;
+
+pub const DEG_TO_RAD: f32 = (2.0*PI)/360.0;
+pub const RAD_TO_DEG: f32 = 1.0/DEG_TO_RAD;
 
 pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a * (1.0 - t) + b * t

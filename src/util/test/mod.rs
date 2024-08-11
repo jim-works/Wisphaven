@@ -1,6 +1,8 @@
+use std::f32::consts::PI;
+
 use bevy::prelude::*;
 
-use crate::{util::max_component_norm, world::{chunk::{BLOCKS_PER_CHUNK, ChunkCoord, CHUNK_SIZE, FatChunkIdx, CHUNK_SIZE_I8}, BlockType}};
+use crate::{util::{max_component_norm, DEG_TO_RAD, RAD_TO_DEG}, world::{chunk::{ChunkCoord, FatChunkIdx, BLOCKS_PER_CHUNK, CHUNK_SIZE, CHUNK_SIZE_I8}, BlockType}};
 
 
 use super::{Direction, palette::BlockPalette};
@@ -11,7 +13,7 @@ mod iterators;
 mod string;
 
 #[test]
-pub fn test_max_component_norm() {
+fn test_max_component_norm() {
     //test in each direction
     assert_eq!(Vec3::new(1.0,0.0,0.0), max_component_norm(Vec3::new(0.7,-0.5,0.5)));
     assert_eq!(Vec3::new(-1.0,0.0,0.0), max_component_norm(Vec3::new(-0.7,0.5,0.5)));
@@ -22,7 +24,7 @@ pub fn test_max_component_norm() {
 }
 
 #[test]
-pub fn vec3_to_direction() {
+fn vec3_to_direction() {
     //test in each direction
     assert_eq!(Direction::PosX, Direction::from(Vec3::new(0.7,-0.5,0.5)));
     assert_eq!(Direction::NegX, Direction::from(Vec3::new(-0.7,0.5,0.5)));
@@ -33,7 +35,7 @@ pub fn vec3_to_direction() {
 }
 
 #[test]
-pub fn test_create_fat_palette() {
+fn test_create_fat_palette() {
     let mut app = App::new();
 
     app.add_systems(Update, |query: Query<&ChunkCoord>| {
@@ -69,4 +71,16 @@ pub fn test_create_fat_palette() {
 
     app.update();
 
+}
+
+#[test]
+fn test_deg_to_rad() {
+    assert!((90.0*DEG_TO_RAD - PI/2.0).abs() < 0.00001);
+    assert!((180.0*DEG_TO_RAD - PI).abs() < 0.00001);
+}
+
+#[test]
+fn test_rad_to_deg() {
+    assert!((90.0 - RAD_TO_DEG*PI/2.0).abs() < 0.00001);
+    assert!((180.0 - RAD_TO_DEG*PI).abs() < 0.00001);
 }

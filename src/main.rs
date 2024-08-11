@@ -43,6 +43,7 @@ mod ui;
 mod util;
 mod world;
 mod worldgen;
+mod effects;
 
 fn main() {
     //todo - this should be in GUI
@@ -91,7 +92,8 @@ fn main() {
         ui::UIPlugin,
         net::NetPlugin,
         util::bevy_utils::BevyUtilsPlugin,
-        gameplay::GameplayPlugin
+        gameplay::GameplayPlugin,
+        effects::EffectsPlugin
     ))
     .insert_resource(AmbientLight {
         brightness: 0.15,
