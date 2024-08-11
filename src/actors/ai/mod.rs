@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use big_brain::prelude::*;
 
 use crate::{
-    controllers::{FrameJump, FrameMovement},
+    controllers::{FrameJump, TickMovement},
     util::plugin::SmoothLookTo,
     world::{BlockCoord, BlockPhysics, Level, LevelSystemSet},
 };
@@ -49,7 +49,7 @@ impl Default for WalkToDestinationAction {
 fn walk_to_destination_action(
     mut info: Query<(
         &Transform,
-        &mut FrameMovement,
+        &mut TickMovement,
         Option<&mut FrameJump>,
         Option<&mut SmoothLookTo>,
     )>,
@@ -78,6 +78,7 @@ fn walk_to_destination_action(
                                 look.enabled = false;
                             }
                         }
+                        fm.0 = Vec3::ZERO;
                         return;
                     }
 
@@ -113,6 +114,7 @@ fn walk_to_destination_action(
                             look.enabled = false;
                         }
                     }
+                    fm.0 = Vec3::ZERO;
                 }
                 _ => {}
             }
@@ -142,7 +144,7 @@ impl Default for WalkToEntityAction {
 fn walk_to_entity_action(
     mut info: Query<(
         &Transform,
-        &mut FrameMovement,
+        &mut TickMovement,
         Option<&mut FrameJump>,
         Option<&mut SmoothLookTo>,
     )>,
@@ -172,6 +174,7 @@ fn walk_to_entity_action(
                                     look.enabled = false;
                                 }
                             }
+                            fm.0 = Vec3::ZERO;
                             return;
                         }
 
@@ -207,6 +210,7 @@ fn walk_to_entity_action(
                                 look.enabled = false;
                             }
                         }
+                        fm.0 = Vec3::ZERO;
                     }
                     _ => {}
                 }
@@ -239,7 +243,7 @@ fn walk_to_current_target_action(
     mut info: Query<(
         &Transform,
         &AggroTargets,
-        &mut FrameMovement,
+        &mut TickMovement,
         Option<&mut FrameJump>,
         Option<&mut SmoothLookTo>,
     )>,
@@ -272,6 +276,7 @@ fn walk_to_current_target_action(
                                     look.enabled = false;
                                 }
                             }
+                            fm.0 = Vec3::ZERO;
                             return;
                         }
 
@@ -316,6 +321,7 @@ fn walk_to_current_target_action(
                             look.enabled = false;
                         }
                     }
+                    fm.0 = Vec3::ZERO;
                 }
                 _ => {}
             }

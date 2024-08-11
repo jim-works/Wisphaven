@@ -10,6 +10,7 @@ use leafwing_input_manager::InputManagerBundle;
 use player_controller::RotateWithMouse;
 
 use crate::{
+    actors::MoveSpeed,
     chunk_loading::ChunkLoader,
     controllers::{self, *},
     items::{
@@ -28,7 +29,9 @@ use crate::{
 };
 
 use super::{
-    abilities::{dash::Dash, Stamina}, ghost::{spawn_ghost_hand, Float, GhostResources, Handed}, CombatInfo, CombatantBundle, Damage, DeathInfo
+    abilities::{dash::Dash, Stamina},
+    ghost::{spawn_ghost_hand, Float, GhostResources, Handed},
+    CombatInfo, CombatantBundle, Damage, DeathInfo,
 };
 
 #[derive(Component)]
@@ -123,7 +126,7 @@ pub fn spawn_local_player(
 ) {
     info!("Spawning local player!");
     //adjust for ghost height (0.5 from center)
-    let spawn_point = level.get_spawn_point() + Vec3::new(0.,0.6,0.);
+    let spawn_point = level.get_spawn_point() + Vec3::new(0., 0.6, 0.);
     let projection = PerspectiveProjection {
         fov: PI / 2.,
         far: 1_000_000_000.0,
@@ -143,7 +146,10 @@ pub fn spawn_local_player(
                 pitch_bound: PI * 0.49,
                 ..default()
             },
-            ControllableBundle { ..default() },
+            ControllableBundle {
+                move_speed: MoveSpeed::new(0.5, 0.5, 0.10),
+                ..default()
+            },
             settings.player_loader.clone(),
             InputManagerBundle {
                 input_map: controllers::get_input_map(),
@@ -293,7 +299,8 @@ fn populate_player_entity(
         InterpolatedAttribute::from(Transform::from_translation(spawn_point)),
         Float::default(),
         PhysicsBundle {
-            collider: collision::Aabb::centered(Vec3::new(0.8, 1.0, 0.8)).add_offset(Vec3::new(0.0,-0.3,0.0)),
+            collider: collision::Aabb::centered(Vec3::new(0.8, 1.0, 0.8))
+                .add_offset(Vec3::new(0.0, -0.3, 0.0)),
             ..default()
         },
         ItemUseSpeed {
@@ -307,13 +314,13 @@ fn populate_player_entity(
         SyncPosition,
         SyncVelocity,
         Stamina::default(),
-        Dash::new(1.0)
+        Dash::new(1.0),
     ));
     //right hand
     let right_hand = spawn_ghost_hand(
         entity,
         Transform::from_translation(spawn_point),
-        Vec3::new(0.7, -0.2, -0.6),
+        Vec3::new(0.7, -0.5, -0.6),
         Vec3::new(0.8, 0.2, -0.5),
         0.15,
         Quat::default(),
@@ -324,7 +331,7 @@ fn populate_player_entity(
     let _left_hand = spawn_ghost_hand(
         entity,
         Transform::from_translation(spawn_point),
-        Vec3::new(-0.7, -0.2, -0.6),
+        Vec3::new(-0.7, -0.5, -0.6),
         Vec3::new(-0.8, 0.2, -0.5),
         0.15,
         Quat::default(),
@@ -335,8 +342,7 @@ fn populate_player_entity(
     let item_visualizer = crate::mesher::item_mesher::create_held_item_visualizer(
         commands,
         entity,
-        Transform::from_scale(Vec3::splat(4.0))
-            .with_translation(Vec3::new(0.0, -1.0, -3.4)),
+        Transform::from_scale(Vec3::splat(4.0)).with_translation(Vec3::new(0.0, -1.0, -3.4)),
         held_item_resources,
     );
     commands.entity(right_hand).add_child(item_visualizer);

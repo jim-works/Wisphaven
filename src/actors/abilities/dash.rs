@@ -65,6 +65,7 @@ impl CurrentlyDashing {
     }
 }
 
+//when adding movement modes, be sure to update do_tick_movement
 fn do_dash(
     mut commands: Commands,
     mut dashing_query: Query<(Entity, &GlobalTransform, &mut Velocity, &CurrentlyDashing, Option<&MoveSpeed>)>,

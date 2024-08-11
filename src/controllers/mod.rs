@@ -9,8 +9,8 @@ mod pi_controllers;
 use bevy::prelude::*;
 
 use crate::{
-    actors::{Jump, MoveSpeed},
-    physics::collision::CollidingDirections,
+    actors::{abilities::dash::CurrentlyDashing, Jump, MoveSpeed},
+    physics::{collision::CollidingDirections, PhysicsSystemSet},
     util::DirectionFlags,
     world::LevelSystemSet,
 };
@@ -41,17 +41,16 @@ impl Plugin for ControllersPlugin {
         )
         //common
         .add_systems(
-            PostUpdate,
-            (do_jump, do_frame_movement).in_set(LevelSystemSet::PostUpdate),
+            FixedUpdate,
+            (do_jump, do_tick_movement).in_set(PhysicsSystemSet::Main),
         );
     }
 }
 
 //vector is the desired proportion of the movespeed to use, it's not normalized, but if the magnitude is greater than 1 it will be.
 //global space
-//reset every frame in do_planar_movement
 #[derive(Component)]
-pub struct FrameMovement(pub Vec3);
+pub struct TickMovement(pub Vec3);
 
 //reset every frame in do_jump
 #[derive(Component)]
@@ -71,7 +70,7 @@ pub enum MovementMode {
 //should have a PhysicsObjectBundle too
 #[derive(Bundle)]
 pub struct ControllableBundle {
-    pub frame_movement: FrameMovement,
+    pub frame_movement: TickMovement,
     pub frame_jump: FrameJump,
     pub move_speed: MoveSpeed,
     pub jump: Jump,
@@ -81,7 +80,7 @@ pub struct ControllableBundle {
 impl Default for ControllableBundle {
     fn default() -> Self {
         ControllableBundle {
-            frame_movement: FrameMovement(Vec3::default()),
+            frame_movement: TickMovement(Vec3::default()),
             move_speed: MoveSpeed::default(),
             jump: Jump::default(),
             frame_jump: FrameJump(false),
@@ -90,27 +89,28 @@ impl Default for ControllableBundle {
     }
 }
 
-fn do_frame_movement(
+fn do_tick_movement(
     mut query: Query<(
-        &mut FrameMovement,
-        &crate::physics::movement::Velocity,
-        &mut crate::physics::movement::Acceleration,
+        &TickMovement,
+        &mut crate::physics::movement::Velocity,
         &MoveSpeed,
         &MovementMode,
         Option<&CollidingDirections>,
-    )>,
-    time: Res<Time>,
+    ), Without<CurrentlyDashing>>,
 ) {
     const EPSILON: f32 = 1e-3;
-    for (mut fm, v, mut a, ms, mode, opt_grounded) in query.iter_mut() {
+    for (fm, mut v, ms, mode, opt_grounded) in query.iter_mut() {
         let speed = fm.0.length();
-        let acceleration =
-            ms.get_accel(opt_grounded.is_some_and(|x| x.0.contains(DirectionFlags::NegY)));
-        //don't actively resist sliding if no input is provided (also smooths out jittering)
-        if speed < EPSILON {
-            fm.0 = Vec3::ZERO;
+        let has_input = speed > EPSILON;
+        let acceleration = ms.get_accel(
+            opt_grounded.is_some_and(|x| x.0.contains(DirectionFlags::NegY)),
+            has_input,
+        );
+        //don't actively resist sliding if v is small to reduce jitter
+        if v.0.length_squared() < EPSILON * EPSILON {
             continue;
         }
+
         //global space
         let mut v_desired = if speed > 1.0 {
             fm.0 * (ms.max_speed / speed)
@@ -121,18 +121,20 @@ fn do_frame_movement(
             v_desired.y = 0.0;
         }
 
-        //create impulse that pushes us in the desired direction
-        //this impulse will be pushing back into the circle of radius ms.max, so no need to normalize
+        //create impulse that would set us to the desired speed
+        //this impulse will be pushing back into the circle of radius ms.max
         let mut dv = v_desired - v.0;
         if *mode != MovementMode::Flying {
             dv.y = 0.0;
         }
-        let dv_len = dv.length();
-        //don't overcorrect
-        if dv_len > EPSILON {
-            a.0 += dv * (acceleration * time.delta_seconds() / dv_len);
-        }
-        fm.0 = Vec3::ZERO;
+
+        let a_desired = dv * acceleration;
+        let a_mag = a_desired.length();
+        v.0 += if a_mag > acceleration {
+            acceleration * a_desired / a_mag
+        } else {
+            a_desired
+        };
     }
 }
 

@@ -55,6 +55,7 @@ impl Plugin for ActorPlugin {
 
 #[derive(Component)]
 pub struct MoveSpeed {
+    pub no_input_accel: f32,
     pub grounded_accel: f32,
     pub aerial_accel: f32,
     //multiplier, applied after accel_add
@@ -67,7 +68,8 @@ pub struct MoveSpeed {
 impl Default for MoveSpeed {
     fn default() -> Self {
         MoveSpeed {
-            grounded_accel: 1.0,
+            no_input_accel: 0.1,
+            grounded_accel: 0.5,
             aerial_accel: 0.2,
             accel_mult: 1.0,
             accel_add: 0.0,
@@ -86,13 +88,16 @@ impl MoveSpeed {
         }
     }
 
-    pub fn get_accel(&self, grounded: bool) -> f32 {
-        (if grounded {
+    pub fn get_accel(&self, grounded: bool, has_input: bool) -> f32 {
+        let base_speed = if !has_input {
+            self.no_input_accel
+        } else if grounded {
             self.grounded_accel
         } else {
             self.aerial_accel
-        } + self.accel_add)
-            * self.accel_mult
+        };
+
+        (base_speed + self.accel_add) * self.accel_mult
     }
 }
 

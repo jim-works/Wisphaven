@@ -20,7 +20,7 @@ use crate::{
     },
 };
 
-use super::{Action, FrameJump, FrameMovement, MovementMode};
+use super::{Action, FrameJump, TickMovement, MovementMode};
 
 #[derive(Component, Default)]
 pub struct RotateWithMouse {
@@ -63,7 +63,7 @@ pub fn move_player(
         (
             &ActionState<Action>,
             &Transform,
-            &mut FrameMovement,
+            &mut TickMovement,
             &MovementMode,
         ),
         With<Player>,
@@ -92,7 +92,9 @@ pub fn move_player(
             0.0
         };
 
-        fm.0 = tf.rotation * dv;
+        let (y_rot, _, _) = tf.rotation.to_euler(EulerRot::YXZ);
+        fm.0 = Quat::from_axis_angle(Vec3::Y, y_rot)*dv;
+
         if *mode == MovementMode::Flying {
             fm.0.y += if act.pressed(Action::MoveUp) {
                 1.0

@@ -78,7 +78,7 @@ pub struct MovementPlugin;
 
 impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Gravity(Vec3::new(0.0, -0.005, 0.0)))
+        app.insert_resource(Gravity(Vec3::new(0.0, -0.01, 0.0)))
             .add_systems(
                 FixedUpdate,
                 snap_tf_interpolation.in_set(PhysicsSystemSet::ResetInterpolation),
