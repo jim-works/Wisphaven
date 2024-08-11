@@ -3,7 +3,7 @@ use bevy_hanabi::prelude::*;
 
 use crate::{actors::{ActorName, ActorResources}, physics::{query::{RaycastHit, Ray, self}, collision::Aabb}, world::{BlockPhysics, Level}};
 
-use super::{ItemSystemSet, UseHitEvent, UseItemEvent};
+use super::{ItemSystemSet, UseEndEvent, UseItemEvent};
 
 pub struct ActorItems;
 
@@ -106,7 +106,7 @@ fn setup(mut commands: Commands, mut effects: ResMut<Assets<EffectAsset>>) {
 
 fn do_spawn_actors(
     mut reader: EventReader<UseItemEvent>,
-    mut hit_writer: EventWriter<UseHitEvent>,
+    mut hit_writer: EventWriter<UseEndEvent>,
     mut commands: Commands,
     item_query: Query<&SpawnActorItem>,
     mut particles: Query<(&mut Transform, &mut EffectSpawner), With<SpawnParticles>>,
@@ -135,24 +135,22 @@ fn do_spawn_actors(
                     &mut commands,
                     Transform::from_translation(spawn_pos),
                 );
-                hit_writer.send(UseHitEvent {
+                hit_writer.send(UseEndEvent {
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
-                    pos: Some(spawn_pos),
-                    success: true
+                    result: crate::items::HitResult::Hit(spawn_pos),
                 });
                 if let Ok((mut tf, mut spawner)) = particles.get_mut(effects.spawn_particles) {
                     tf.translation = spawn_pos;
                     spawner.reset();
                 }
             } else {
-                hit_writer.send(UseHitEvent {
+                hit_writer.send(UseEndEvent {
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
-                    pos: None,
-                    success: false
+                    result: crate::items::HitResult::Miss
                 })
             }
         }

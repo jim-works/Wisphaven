@@ -1,6 +1,6 @@
 use bevy::prelude::{shape::Quad, *};
 
-use crate::{actors::CombatInfo, controllers::player_controller::PlayerActionOrigin};
+use crate::actors::{CombatInfo, LocalPlayer};
 
 pub struct HealthbarPlugin;
 
@@ -90,7 +90,7 @@ fn follow_billboard(
     mut commands: Commands,
     mut billboards: Query<(Entity, &mut Transform, &BillboardFollow)>,
     target_query: Query<&GlobalTransform>,
-    camera_query: Query<&GlobalTransform, With<PlayerActionOrigin>>,
+    camera_query: Query<&GlobalTransform, With<LocalPlayer>>,
 ) {
     if let Ok(cam_tf) = camera_query.get_single() {
         for (entity, mut tf, follow) in billboards.iter_mut() {

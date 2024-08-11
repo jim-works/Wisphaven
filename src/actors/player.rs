@@ -7,7 +7,7 @@ use bevy::{
 };
 use bevy_quinnet::client::Client;
 use leafwing_input_manager::InputManagerBundle;
-use player_controller::{FollowPlayer, PlayerActionOrigin, RotateWithMouse};
+use player_controller::RotateWithMouse;
 
 use crate::{
     chunk_loading::ChunkLoader,
@@ -124,6 +124,11 @@ pub fn spawn_local_player(
     info!("Spawning local player!");
     //adjust for ghost height (0.5 from center)
     let spawn_point = level.get_spawn_point() + Vec3::new(0.,0.6,0.);
+    let projection = PerspectiveProjection {
+        fov: PI / 2.,
+        far: 1_000_000_000.0,
+        ..default()
+    };
     let player_id = commands
         .spawn((
             Name::new("local player"),
@@ -135,7 +140,7 @@ pub fn spawn_local_player(
                 },
             },
             RotateWithMouse {
-                lock_pitch: true,
+                pitch_bound: PI * 0.49,
                 ..default()
             },
             ControllableBundle { ..default() },
@@ -144,6 +149,23 @@ pub fn spawn_local_player(
                 input_map: controllers::get_input_map(),
                 ..default()
             },
+            Camera3dBundle {
+                transform: Transform::from_xyz(0.0, 0.3, 0.0),
+                projection: Projection::Perspective(projection.clone()),
+                frustum: Frustum::from_view_projection(&projection.get_projection_matrix()),
+                ..default()
+            },
+            FogSettings {
+                color: Color::rgba(0.56, 0.824, 1.0, 1.0),
+                // directional_light_color: Color::rgba(1.0, 0.95, 0.85, 0.5),
+                directional_light_exponent: 0.8,
+                falloff: FogFalloff::Linear {
+                    start: 100.0,
+                    end: 200.0,
+                },
+                ..default()
+            },
+            Skybox(skybox.0.clone()),
         ))
         .id();
     populate_player_entity(
@@ -253,45 +275,7 @@ pub fn spawn_local_player(
     );
 
     commands.entity(player_id).insert(inventory);
-    let projection = PerspectiveProjection {
-        fov: PI / 2.,
-        far: 1_000_000_000.0,
-        ..default()
-    };
     spawn_event.send(LocalPlayerSpawnedEvent(player_id));
-    commands.spawn((
-        Name::new("Camera"),
-        Camera3dBundle {
-            transform: Transform::from_xyz(0.0, 0.3, 0.0),
-            projection: Projection::Perspective(projection.clone()),
-            frustum: Frustum::from_view_projection(&projection.get_projection_matrix()),
-            ..default()
-        },
-        FogSettings {
-            color: Color::rgba(0.56, 0.824, 1.0, 1.0),
-            // directional_light_color: Color::rgba(1.0, 0.95, 0.85, 0.5),
-            directional_light_exponent: 0.8,
-            falloff: FogFalloff::Linear {
-                start: 100.0,
-                end: 200.0,
-            },
-            ..default()
-        },
-        Skybox(skybox.0.clone()),
-        RotateWithMouse {
-            pitch_bound: PI * 0.49,
-            lock_yaw: true,
-            ..default()
-        },
-        FollowPlayer {
-            offset: Vec3::new(0.0, 0.3, 0.0),
-        },
-        PlayerActionOrigin {},
-        InputManagerBundle {
-            input_map: controllers::get_input_map(),
-            ..default()
-        },
-    ));
 }
 
 fn populate_player_entity(
@@ -305,11 +289,11 @@ fn populate_player_entity(
         Player {
             hit_damage: Damage { amount: 1.0 },
         },
-        TransformBundle::from_transform(Transform::from_translation(spawn_point)),
+        SpatialBundle::from_transform(Transform::from_translation(spawn_point)),
         InterpolatedAttribute::from(Transform::from_translation(spawn_point)),
         Float::default(),
         PhysicsBundle {
-            collider: collision::Aabb::centered(Vec3::new(0.8, 1.0, 0.8)),
+            collider: collision::Aabb::centered(Vec3::new(0.8, 1.0, 0.8)).add_offset(Vec3::new(0.0,-0.3,0.0)),
             ..default()
         },
         ItemUseSpeed {
@@ -323,7 +307,7 @@ fn populate_player_entity(
         SyncPosition,
         SyncVelocity,
         Stamina::default(),
-        Dash::new(10.0)
+        Dash::new(1.0)
     ));
     //right hand
     let right_hand = spawn_ghost_hand(

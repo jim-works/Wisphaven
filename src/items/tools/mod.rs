@@ -10,7 +10,7 @@ use crate::{
 };
 
 use super::{
-    inventory::Inventory, CreatorItem, EquipItemEvent, ItemStack, ItemSystemSet, MaxStackSize, PickupItemEvent, SwingHitEvent, SwingItemEvent
+    inventory::Inventory, CreatorItem, EquipItemEvent, HitResult, ItemStack, ItemSystemSet, MaxStackSize, PickupItemEvent, SwingEndEvent, SwingItemEvent
 };
 
 pub mod abilities;
@@ -22,6 +22,7 @@ impl Plugin for ToolsPlugin {
         app.add_plugins(abilities::ToolAbilitiesPlugin)
             .register_type::<Tool>()
             .register_type::<ToolResistance>()
+            .register_type::<DontHitBlocks>()
             .add_systems(
                 Update,
                 (on_swing, deal_block_damage).in_set(ItemSystemSet::UsageProcessing),
@@ -56,13 +57,20 @@ pub struct Tool {
     pub shovel: u32,
 }
 
+#[derive(
+    Copy, Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize,
+)]
+#[reflect(Component)]
+pub struct DontHitBlocks;
+
 pub fn on_swing(
     mut reader: EventReader<SwingItemEvent>,
     mut writer: EventWriter<BlockHitEvent>,
-    mut swing_hit_writer: EventWriter<SwingHitEvent>,
+    mut swing_hit_writer: EventWriter<SwingEndEvent>,
     level: Res<Level>,
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
+    item_query: Query<(), Without<DontHitBlocks>>
 ) {
     for SwingItemEvent {
         user,
@@ -71,6 +79,9 @@ pub fn on_swing(
         tf,
     } in reader.read()
     {
+        if !item_query.contains(stack.id) {
+            continue;
+        }
         if let Some(query::RaycastHit::Block(block_position, hit)) = query::raycast(
             query::Ray::new(tf.translation, tf.forward(), 10.0),
             &level,
@@ -84,11 +95,18 @@ pub fn on_swing(
                 block_position,
                 hit_forward: tf.forward(),
             });
-            swing_hit_writer.send(SwingHitEvent {
+            swing_hit_writer.send(SwingEndEvent {
                 user: *user,
                 inventory_slot: *inventory_slot,
                 stack: *stack,
-                pos: hit.hit_pos,
+                result: HitResult::Hit(hit.hit_pos),
+            })
+        } else {
+            swing_hit_writer.send(SwingEndEvent {
+                user: *user,
+                inventory_slot: *inventory_slot,
+                stack: *stack,
+                result: HitResult::Miss,
             })
         }
     }

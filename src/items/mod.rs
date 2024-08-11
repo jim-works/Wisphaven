@@ -24,14 +24,14 @@ impl Plugin for ItemsPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<StartUsingItemEvent>()
             .add_event::<UseItemEvent>()
-            .add_event::<UseHitEvent>()
+            .add_event::<UseEndEvent>()
             .add_event::<EquipItemEvent>()
             .add_event::<UnequipItemEvent>()
             .add_event::<PickupItemEvent>()
             .add_event::<DropItemEvent>()
             .add_event::<StartSwingingItemEvent>()
             .add_event::<SwingItemEvent>()
-            .add_event::<SwingHitEvent>()
+            .add_event::<SwingEndEvent>()
             .configure_sets(
                 Update,
                 (
@@ -179,12 +179,11 @@ pub struct UseItemEvent {
 }
 
 #[derive(Event)]
-pub struct UseHitEvent {
+pub struct UseEndEvent {
     pub user: Entity,
     pub inventory_slot: Option<usize>,
     pub stack: ItemStack,
-    pub pos: Option<Vec3>,
-    pub success: bool,
+    pub result: HitResult
 }
 
 #[derive(Event)]
@@ -204,11 +203,26 @@ pub struct SwingItemEvent {
 }
 
 #[derive(Event)]
-pub struct SwingHitEvent {
+pub struct SwingEndEvent {
     pub user: Entity,
     pub inventory_slot: Option<usize>,
     pub stack: ItemStack,
-    pub pos: Vec3,
+    pub result: HitResult
+}
+
+#[derive(Clone, Copy)]
+pub enum HitResult {
+    Hit(Vec3),
+    Miss
+}
+
+impl HitResult {
+    pub fn is_hit(self) -> bool { 
+        matches!(self, HitResult::Hit(_))
+    }
+    pub fn is_miss(self) -> bool {
+        matches!(self, HitResult::Miss)
+    }
 }
 
 #[derive(Event)]

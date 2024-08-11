@@ -14,6 +14,7 @@
             damage: Damage (amount: 5.0),
             knockback: 5.0,
         ),
+        "wisphaven::items::tools::DontHitBlocks": (),
         "wisphaven::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 1,
@@ -261,6 +262,7 @@
                 nanos: 500000000,
             )
         ),
+        "wisphaven::items::tools::Tool": (),
       },
     ),
   },

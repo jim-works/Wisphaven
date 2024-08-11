@@ -66,9 +66,7 @@ pub fn send_stamina_updated_events(
     mut writer: EventWriter<StaminaUpdatedEvent>
 ) {
     for (entity, mut stamina) in query.iter_mut() {
-        info!("changed {:?}", stamina);
         if stamina.old_max != stamina.max || stamina.old_current != stamina.current {
-            info!("changed2");
             stamina.old_max = stamina.max;
             stamina.old_current = stamina.current;
             writer.send(StaminaUpdatedEvent(entity, *stamina));

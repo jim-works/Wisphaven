@@ -25,8 +25,7 @@ pub mod string;
 pub mod image;
 
 use bevy::{
-    prelude::{Deref, DerefMut, Vec3},
-    time::Timer,
+    prelude::{Deref, DerefMut, Vec3}, time::Timer
 };
 
 use rand::prelude::*;
@@ -187,6 +186,10 @@ pub fn ease_in_out_quad(t: f32) -> f32 {
     };
 }
 
+pub fn ease_out_quad(t: f32) -> f32 {
+    return 1.0 - (1.0 - t)*(1.0 - t);
+}
+
 //this is used to make a continuous distribution discrete
 //we find the smallest index of buckets greater than a given value
 //buckets should be sorted in increasing order
@@ -301,18 +304,6 @@ impl<'a, T> FlattenRefMut<'a, T> for Option<&'a mut Option<T>> {
         match self {
             Some(opt) => opt.as_mut(),
             None => None,
-        }
-    }
-}
-
-pub trait OptionExtension<T,R> {
-    fn then(self, f: impl FnOnce(T) -> R);
-}
-
-impl<T,R> OptionExtension<T,R> for Option<T> {
-    fn then(self, f: impl FnOnce(T) -> R) {
-        if let Some(t) = self {
-            f(t);
         }
     }
 }

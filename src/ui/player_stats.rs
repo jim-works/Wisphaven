@@ -145,14 +145,14 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
         flash_bolt: assets.load("textures/ui/flash_bolt.png").into(),
         empty_bolt: assets.load("textures/ui/dead_bolt.png").into(),
         style: Style {
-            width: Val::Px(16.0),
+            width: Val::Px(11.0),
             height: Val::Px(16.0),
             aspect_ratio: Some(1.0),
             margin: UiRect::all(Val::Px(1.0)),
             ..default()
         },
         overlay_style: Style {
-            width: Val::Px(16.0),
+            width: Val::Px(11.0),
             height: Val::Px(16.0),
             aspect_ratio: Some(1.0),
             position_type: PositionType::Absolute,

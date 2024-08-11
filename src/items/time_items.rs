@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::world::atmosphere::{SpeedupCalendarEvent, Calendar};
+use crate::{items::HitResult, world::atmosphere::{Calendar, SpeedupCalendarEvent}};
 
-use super::{ItemSystemSet, UseHitEvent, UseItemEvent};
+use super::{ItemSystemSet, UseEndEvent, UseItemEvent};
 
 pub struct TimeItemsPlugin;
 
@@ -19,7 +19,7 @@ pub struct SkipToNightItem;
 
 fn use_skip_to_night_item(
     mut reader: EventReader<UseItemEvent>,
-    mut hit_writer: EventWriter<UseHitEvent>,
+    mut hit_writer: EventWriter<UseEndEvent>,
     mut writer: EventWriter<SpeedupCalendarEvent>,
     query: Query<With<SkipToNightItem>>,
     cal: Res<Calendar>
@@ -28,12 +28,11 @@ fn use_skip_to_night_item(
         if query.contains(stack.id) {
             info!("Skipping to night...");
             writer.send(SpeedupCalendarEvent(cal.next_night()));
-            hit_writer.send(UseHitEvent {
+            hit_writer.send(UseEndEvent {
                 user: *user,
                 inventory_slot: *inventory_slot,
                 stack: *stack,
-                pos: None,
-                success: true
+                result: HitResult::Miss
             })
         }
     }

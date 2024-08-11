@@ -1,16 +1,23 @@
-use abilities::{dash::{CurrentlyDashing, Dash}, Stamina};
+use abilities::{
+    dash::{CurrentlyDashing, Dash},
+    Stamina,
+};
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
-    actors::*, items::{inventory::Inventory, EquipItemEvent, UnequipItemEvent}, physics::{
+    actors::*,
+    items::{inventory::Inventory, EquipItemEvent, UnequipItemEvent},
+    physics::{
         collision::Aabb,
-        movement::GravityMult,
+        movement::{GravityMult, Velocity},
         query::{self, Ray, RaycastHit},
-    }, ui::{state::UIState, world_mouse_active}, util::OptionExtension, world::{
+    },
+    ui::{state::UIState, world_mouse_active},
+    world::{
         events::{BlockHitEvent, BlockUsedEvent},
         BlockCoord, BlockPhysics, Level, UsableBlock,
-    }
+    },
 };
 
 use super::{Action, FrameJump, FrameMovement, MovementMode};
@@ -27,11 +34,8 @@ pub struct RotateWithMouse {
 
 #[derive(Component)]
 pub struct FollowPlayer {
-    pub offset: Vec3
+    pub offset: Vec3,
 }
-
-#[derive(Component)]
-pub struct PlayerActionOrigin {}
 
 pub fn toggle_player_flight(
     mut query: Query<(&ActionState<Action>, &mut MovementMode, &mut GravityMult), With<Player>>,
@@ -115,15 +119,18 @@ pub fn jump_player(
 }
 
 pub fn dash_player(
-    mut query: Query<(Entity, &ActionState<Action>, &Dash, &mut Stamina), (With<Player>, Without<CurrentlyDashing>)>,
+    mut query: Query<
+        (Entity, &ActionState<Action>, &Dash, &mut Stamina, &Velocity),
+        (With<Player>, Without<CurrentlyDashing>),
+    >,
     mut commands: Commands,
-    time: Res<Time>
+    time: Res<Time>,
 ) {
     let current_time = time.elapsed();
-    for (entity, act, dash, mut stamina) in query.iter_mut() {
+    for (entity, act, dash, mut stamina, v) in query.iter_mut() {
         if act.just_pressed(Action::Dash) && dash.stamina_cost.apply(&mut stamina) {
             if let Some(mut ec) = commands.get_entity(entity) {
-                ec.insert(CurrentlyDashing::new(*dash, current_time));
+                ec.insert(CurrentlyDashing::new(*dash, current_time, v.0));
             }
         }
     }
@@ -175,15 +182,16 @@ pub fn follow_local_player(
 }
 
 pub fn player_punch(
-    camera_query: Query<
-        (Entity, &GlobalTransform, &ActionState<Action>),
+    mut player_query: Query<
         (
-            With<PlayerActionOrigin>,
-            With<FollowPlayer>,
-            Without<LocalPlayer>,
+            Entity,
+            &GlobalTransform,
+            &ActionState<Action>,
+            &Player,
+            &mut Inventory,
         ),
+        With<LocalPlayer>,
     >,
-    mut player_query: Query<(Entity, &Player, &mut Inventory), With<LocalPlayer>>,
     combat_query: Query<&CombatInfo>,
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
@@ -195,13 +203,15 @@ pub fn player_punch(
     if !world_mouse_active(ui_state.get()) {
         return;
     }
-    if let Ok((cam_entity, tf, act)) = camera_query.get_single() {
+    if let Ok((player_entity, tf, act, player, mut inv)) = player_query.get_single_mut() {
         if act.pressed(Action::Punch) {
-            let (player_entity, player, mut inv) = player_query.get_single_mut().unwrap();
             //first test if we punched a combatant
             let slot = inv.selected_slot();
             match inv.get(slot) {
-                Some(_) => inv.swing_item(slot, crate::items::inventory::ItemTargetPosition::Entity(cam_entity)),
+                Some(_) => inv.swing_item(
+                    slot,
+                    crate::items::inventory::ItemTargetPosition::Entity(player_entity),
+                ),
                 None => {
                     //todo convert to ability
                     match query::raycast(
@@ -209,7 +219,7 @@ pub fn player_punch(
                         &level,
                         &block_physics_query,
                         &object_query,
-                        vec![player_entity]
+                        vec![player_entity],
                     ) {
                         Some(RaycastHit::Block(hit_pos, _)) => {
                             block_hit_writer.send(BlockHitEvent {
@@ -238,15 +248,15 @@ pub fn player_punch(
 }
 
 pub fn player_use(
-    camera_query: Query<
-        (Entity, &GlobalTransform, &ActionState<Action>),
+    mut player_query: Query<
         (
-            With<PlayerActionOrigin>,
-            With<FollowPlayer>,
-            Without<LocalPlayer>,
+            &mut Inventory,
+            Entity,
+            &GlobalTransform,
+            &ActionState<Action>,
         ),
+        With<LocalPlayer>,
     >,
-    mut player_query: Query<(&mut Inventory, Entity), With<LocalPlayer>>,
     ui_state: Res<State<UIState>>,
     level: Res<Level>,
     block_physics_query: Query<&BlockPhysics>,
@@ -257,32 +267,33 @@ pub fn player_use(
     if !world_mouse_active(ui_state.get()) {
         return;
     }
-    if let Ok((mut inv, entity)) = player_query.get_single_mut() {
-        if let Ok((cam_entity, tf, act)) = camera_query.get_single() {
-            if act.just_pressed(Action::Use) {
-                //first test if we used a block
-                if let Some(RaycastHit::Block(coord, _)) = query::raycast(
-                    Ray::new(tf.translation(), tf.forward(), 10.0),
-                    &level,
-                    &block_physics_query,
-                    &object_query,
-                    vec![entity]
+    if let Ok((mut inv, entity, tf, act)) = player_query.get_single_mut() {
+        if act.just_pressed(Action::Use) {
+            //first test if we used a block
+            if let Some(RaycastHit::Block(coord, _)) = query::raycast(
+                Ray::new(tf.translation(), tf.forward(), 10.0),
+                &level,
+                &block_physics_query,
+                &object_query,
+                vec![entity],
+            ) {
+                if level.use_block(
+                    coord,
+                    entity,
+                    tf.forward(),
+                    &usable_block_query,
+                    &mut block_use_writer,
                 ) {
-                    if level.use_block(
-                        coord,
-                        entity,
-                        tf.forward(),
-                        &usable_block_query,
-                        &mut block_use_writer,
-                    ) {
-                        //we used a block, so don't also use an item
-                        return;
-                    }
+                    //we used a block, so don't also use an item
+                    return;
                 }
-                //we didn't use a block, so try to use an item
-                let slot = inv.selected_slot();
-                inv.use_item(slot, crate::items::inventory::ItemTargetPosition::Entity(cam_entity));
             }
+            //we didn't use a block, so try to use an item
+            let slot = inv.selected_slot();
+            inv.use_item(
+                slot,
+                crate::items::inventory::ItemTargetPosition::Entity(entity),
+            );
         }
     }
 }

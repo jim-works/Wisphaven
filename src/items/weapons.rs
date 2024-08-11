@@ -10,7 +10,7 @@ use crate::{
     world::{BlockPhysics, Level},
 };
 
-use super::{ItemSystemSet, SwingHitEvent, SwingItemEvent, UseHitEvent, UseItemEvent};
+use super::{ItemSystemSet, SwingEndEvent, SwingItemEvent, UseEndEvent, UseItemEvent};
 
 pub struct WeaponItemPlugin;
 
@@ -41,7 +41,7 @@ pub struct CoinLauncherItem {
 pub fn attack_melee(
     mut attack_item_reader: EventReader<SwingItemEvent>,
     mut attack_writer: EventWriter<AttackEvent>,
-    mut swing_hit_writer: EventWriter<SwingHitEvent>,
+    mut swing_hit_writer: EventWriter<SwingEndEvent>,
     level: Res<Level>,
     physics_query: Query<&BlockPhysics>,
     weapon_query: Query<&MeleeWeaponItem>,
@@ -68,12 +68,21 @@ pub fn attack_melee(
                     damage: weapon.damage,
                     knockback: tf.forward() * weapon.knockback,
                 });
-                swing_hit_writer.send(SwingHitEvent {
+                swing_hit_writer.send(SwingEndEvent {
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
-                    pos: hit.hit_pos,
-                })
+                    result: super::HitResult::Hit(hit.hit_pos),
+                });
+                info!("melee hit!");
+            } else {
+                swing_hit_writer.send(SwingEndEvent {
+                    user: *user,
+                    inventory_slot: *inventory_slot,
+                    stack: *stack,
+                    result: super::HitResult::Miss,
+                });
+                info!("melee miss!");
             }
         }
     }
@@ -81,7 +90,7 @@ pub fn attack_melee(
 
 pub fn launch_coin(
     mut attack_item_reader: EventReader<UseItemEvent>,
-    mut hit_writer: EventWriter<UseHitEvent>,
+    mut hit_writer: EventWriter<UseEndEvent>,
     mut writer: EventWriter<SpawnCoinEvent>,
     weapon_query: Query<&CoinLauncherItem>,
 ) {
@@ -103,12 +112,11 @@ pub fn launch_coin(
                 owner: *user,
                 damage: weapon.damage,
             });
-            hit_writer.send(UseHitEvent {
+            hit_writer.send(UseEndEvent {
                 user: *user,
                 inventory_slot: *inventory_slot,
                 stack: *stack,
-                pos: None,
-                success: true
+                result: super::HitResult::Miss
             })
         }
     }
