@@ -56,11 +56,11 @@ pub fn attack_melee(
     {
         if let Ok(weapon) = weapon_query.get(stack.id) {
             if let Some(RaycastHit::Object(hit)) = query::raycast(
-                query::Ray::new(tf.translation, tf.forward(), 10.0),
+                query::Raycast::new(tf.translation, tf.forward(), 10.0),
                 &level,
                 &physics_query,
                 &object_query,
-                vec![*user],
+                &[*user],
             ) {
                 attack_writer.send(AttackEvent {
                     attacker: *user,
@@ -116,7 +116,7 @@ pub fn launch_coin(
                 user: *user,
                 inventory_slot: *inventory_slot,
                 stack: *stack,
-                result: super::HitResult::Miss
+                result: super::HitResult::Miss,
             })
         }
     }

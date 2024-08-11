@@ -5,14 +5,15 @@ use crate::{
     world::{BlockCoord, BlockPhysics, Level},
 };
 
-pub struct Ray {
+#[derive(Copy, Clone)]
+pub struct Raycast {
     pub origin: Vec3,
     pub direction: Vec3,
     pub length: f32,
 }
 
-impl Ray {
-    pub fn new(origin: Vec3, direction: Vec3, length: f32) -> Ray {
+impl Raycast {
+    pub fn new(origin: Vec3, direction: Vec3, length: f32) -> Raycast {
         Self {
             origin,
             direction,
@@ -35,11 +36,11 @@ pub struct RayCastHitEntity {
 //todo improve this: blockcast for blocks (breseham's -> sweeping), only query entities store in chunks along the line and sweep
 //todo: normal -- update use_block_entity_item after
 pub fn raycast(
-    ray: Ray,
+    ray: Raycast,
     level: &Level,
     physics_query: &Query<&BlockPhysics>,
     object_query: &Query<(Entity, &GlobalTransform, &Aabb)>,
-    exclude: Vec<Entity>,
+    exclude: &[Entity],
 ) -> Option<RaycastHit> {
     const STEP_SIZE: f32 = 1. / 32.;
     let mut dist = 0.0;

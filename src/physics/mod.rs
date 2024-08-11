@@ -8,6 +8,7 @@ pub mod collision;
 pub mod movement;
 pub mod query;
 mod test;
+pub mod grapple;
 
 const SPAWN_CHUNK_TIME_BUDGET_COUNT: u32 = 1000;
 pub const GRAVITY: Vec3 = Vec3::new(0., -10.0, 0.);
@@ -31,6 +32,7 @@ impl Plugin for PhysicsPlugin {
         app.add_plugins((
             movement::MovementPlugin,
             collision::CollisionPlugin,
+            grapple::GrapplePlugin
         ))
         .insert_resource(Time::<Fixed>::from_hz(TPS))
         .configure_sets(

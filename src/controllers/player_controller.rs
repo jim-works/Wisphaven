@@ -10,8 +10,9 @@ use crate::{
     items::{inventory::Inventory, EquipItemEvent, UnequipItemEvent},
     physics::{
         collision::Aabb,
+        grapple::Grappled,
         movement::{GravityMult, Velocity},
-        query::{self, Ray, RaycastHit},
+        query::{self, Raycast, RaycastHit},
     },
     ui::{state::UIState, world_mouse_active},
     world::{
@@ -20,7 +21,7 @@ use crate::{
     },
 };
 
-use super::{Action, FrameJump, TickMovement, MovementMode};
+use super::{Action, FrameJump, MovementMode, TickMovement};
 
 #[derive(Component, Default)]
 pub struct RotateWithMouse {
@@ -93,7 +94,7 @@ pub fn move_player(
         };
 
         let (y_rot, _, _) = tf.rotation.to_euler(EulerRot::YXZ);
-        fm.0 = Quat::from_axis_angle(Vec3::Y, y_rot)*dv;
+        fm.0 = Quat::from_axis_angle(Vec3::Y, y_rot) * dv;
 
         if *mode == MovementMode::Flying {
             fm.0.y += if act.pressed(Action::MoveUp) {
@@ -111,11 +112,17 @@ pub fn move_player(
 }
 
 pub fn jump_player(
-    mut query: Query<(&mut FrameJump, &ActionState<Action>, &MovementMode), With<Player>>,
+    mut query: Query<(Entity, &mut FrameJump, &ActionState<Action>, &MovementMode), With<Player>>,
+    mut commands: Commands,
 ) {
-    for (mut fj, act, mode) in query.iter_mut() {
+    for (entity, mut fj, act, mode) in query.iter_mut() {
         if *mode != MovementMode::Flying && act.just_pressed(Action::Jump) {
             fj.0 = true;
+        }
+        if act.just_pressed(Action::Jump) {
+            if let Some(mut ec) = commands.get_entity(entity) {
+                ec.remove::<Grappled>();
+            }
         }
     }
 }
@@ -217,11 +224,11 @@ pub fn player_punch(
                 None => {
                     //todo convert to ability
                     match query::raycast(
-                        Ray::new(tf.translation(), tf.forward(), 10.0),
+                        Raycast::new(tf.translation(), tf.forward(), 10.0),
                         &level,
                         &block_physics_query,
                         &object_query,
-                        vec![player_entity],
+                        &[player_entity],
                     ) {
                         Some(RaycastHit::Block(hit_pos, _)) => {
                             block_hit_writer.send(BlockHitEvent {
@@ -273,11 +280,11 @@ pub fn player_use(
         if act.just_pressed(Action::Use) {
             //first test if we used a block
             if let Some(RaycastHit::Block(coord, _)) = query::raycast(
-                Ray::new(tf.translation(), tf.forward(), 10.0),
+                Raycast::new(tf.translation(), tf.forward(), 10.0),
                 &level,
                 &block_physics_query,
                 &object_query,
-                vec![entity],
+                &[entity],
             ) {
                 if level.use_block(
                     coord,

@@ -9,7 +9,7 @@ pub enum Action {
     MoveRight,
     MoveUp,
     MoveDown,
-    Jump,
+    Jump, //also removed grapples
     Dash,
     Punch,
     Use,

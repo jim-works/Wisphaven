@@ -2,7 +2,11 @@ use bevy::prelude::*;
 
 use crate::{
     actors::personality::components::*,
-    physics::{query::{raycast, Ray, RaycastHit}, collision::Aabb}, world::{BlockPhysics, Level},
+    physics::{
+        collision::Aabb,
+        query::{raycast, Raycast, RaycastHit},
+    },
+    world::{BlockPhysics, Level},
 };
 
 use super::{HitResult, ItemSystemSet, UseEndEvent, UseItemEvent};
@@ -44,11 +48,11 @@ pub fn use_personality_item(
     {
         if personality_item.contains(stack.id) {
             if let Some(RaycastHit::Object(hit)) = raycast(
-                Ray::new(tf.translation, tf.forward(), 10.0),
+                Raycast::new(tf.translation, tf.forward(), 10.0),
                 &level,
                 &physics_query,
                 &object_query,
-                vec![*user],
+                &[*user],
             ) {
                 if let Ok(x) = physical_attributes.get(hit.entity) {
                     info!("{:?}", x);
@@ -66,14 +70,14 @@ pub fn use_personality_item(
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
-                    result: HitResult::Hit(hit.hit_pos)
+                    result: HitResult::Hit(hit.hit_pos),
                 })
             } else {
                 hit_writer.send(UseEndEvent {
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
-                    result: HitResult::Miss
+                    result: HitResult::Miss,
                 })
             }
         }

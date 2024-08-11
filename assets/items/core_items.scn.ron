@@ -265,5 +265,31 @@
         "wisphaven::items::tools::Tool": (),
       },
     ),
+    14: (
+      components: {
+        "wisphaven::items::ItemName": (
+          namespace: "core",
+          name: "grapple",
+        ),
+        "wisphaven::items::NamedItemIcon": (
+            path: "grapple.png"
+        ),
+        "wisphaven::items::grapple_item::GrappleItem": (
+          strength: 0.01,
+          length: 50.0,
+          remove_distance: Some(2.0)
+        ),
+        "wisphaven::items::item_attributes::ItemUseSpeed": (
+            windup: (
+                secs: 0,
+                nanos: 0
+            ),
+            backswing: (
+                secs: 0,
+                nanos: 500000000,
+            )
+        ),
+      },
+    ),
   },
 )

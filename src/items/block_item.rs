@@ -1,6 +1,15 @@
 use bevy::prelude::*;
 
-use crate::{world::{Level, BlockCoord, BlockResources, BlockName, BlockId, events::ChunkUpdatedEvent, BlockType, BlockPhysics}, physics::{query::{RaycastHit, Ray, self}, collision::Aabb}};
+use crate::{
+    physics::{
+        collision::Aabb,
+        query::{self, Raycast, RaycastHit},
+    },
+    world::{
+        events::ChunkUpdatedEvent, BlockCoord, BlockId, BlockName, BlockPhysics, BlockResources,
+        BlockType, Level,
+    },
+};
 
 use super::{HitResult, UseEndEvent, UseItemEvent};
 
@@ -22,29 +31,41 @@ pub fn use_block_entity_item(
     id_query: Query<&BlockId>,
     mut commands: Commands,
 ) {
-    for UseItemEvent { user, inventory_slot, stack, tf } in reader.read() {
+    for UseItemEvent {
+        user,
+        inventory_slot,
+        stack,
+        tf,
+    } in reader.read()
+    {
         if let Ok(block_item) = block_query.get(stack.id) {
             if let Some(RaycastHit::Block(coord, hit)) = query::raycast(
-                Ray::new(tf.translation, tf.forward(), 10.0),
+                Raycast::new(tf.translation, tf.forward(), 10.0),
                 &level,
                 &block_physics_query,
                 &object_query,
-                vec![*user]
+                &[*user],
             ) {
                 let normal = crate::util::max_component_norm(hit.hit_pos - coord.center()).into();
-                level.set_block_entity(coord+normal, BlockType::Filled(block_item.0), &id_query, &mut update_writer, &mut commands);
+                level.set_block_entity(
+                    coord + normal,
+                    BlockType::Filled(block_item.0),
+                    &id_query,
+                    &mut update_writer,
+                    &mut commands,
+                );
                 hit_writer.send(UseEndEvent {
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
-                    result: HitResult::Hit(hit.hit_pos)
+                    result: HitResult::Hit(hit.hit_pos),
                 })
             } else {
                 hit_writer.send(UseEndEvent {
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
-                    result: HitResult::Miss
+                    result: HitResult::Miss,
                 })
             }
         }
@@ -63,41 +84,50 @@ pub fn use_mega_block_item(
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
     mut commands: Commands,
 ) {
-    for UseItemEvent { user, inventory_slot, stack, tf } in reader.read() {
+    for UseItemEvent {
+        user,
+        inventory_slot,
+        stack,
+        tf,
+    } in reader.read()
+    {
         if let Ok(block_item) = megablock_query.get(stack.id) {
             let id = resources.registry.get_id(&block_item.0);
             let size = block_item.1;
             if let Some(RaycastHit::Block(coord, hit)) = query::raycast(
-                Ray::new(tf.translation, tf.forward(), 10.0),
+                Raycast::new(tf.translation, tf.forward(), 10.0),
                 &level,
                 &block_physics_query,
                 &object_query,
-                vec![*user]
+                &[*user],
             ) {
-                let mut changes = Vec::with_capacity((size*size*size) as usize);
-                for x in -size..size+1 {
-                    for y in -size..size+1 {
-                        for z in -size..size+1 {
-                            changes.push((
-                                coord + BlockCoord::new(x, y, z),
-                                id,
-                            ));
+                let mut changes = Vec::with_capacity((size * size * size) as usize);
+                for x in -size..size + 1 {
+                    for y in -size..size + 1 {
+                        for z in -size..size + 1 {
+                            changes.push((coord + BlockCoord::new(x, y, z), id));
                         }
                     }
                 }
-                level.batch_set_block(changes.into_iter(), &resources.registry, &id_query, &mut update_writer, &mut commands);
+                level.batch_set_block(
+                    changes.into_iter(),
+                    &resources.registry,
+                    &id_query,
+                    &mut update_writer,
+                    &mut commands,
+                );
                 hit_writer.send(UseEndEvent {
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
-                    result: HitResult::Hit(hit.hit_pos)
+                    result: HitResult::Hit(hit.hit_pos),
                 })
             } else {
                 hit_writer.send(UseEndEvent {
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
-                    result: HitResult::Miss
+                    result: HitResult::Miss,
                 })
             }
         }

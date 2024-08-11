@@ -1,7 +1,10 @@
 use bevy::{prelude::*, transform::TransformSystem};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::{physics::TPS, util::{iterators::AxisMap, project_onto_plane}};
+use crate::{
+    physics::TPS,
+    util::{iterators::AxisMap, project_onto_plane},
+};
 
 use super::{
     collision::{CollidingBlocks, Friction, IgnoreTerrainCollision},
@@ -9,12 +12,16 @@ use super::{
 };
 
 //local space, without local rotation
-#[derive(Component, Default, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(
+    Component, Default, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize,
+)]
 pub struct Velocity(pub Vec3);
 
 //local space, without local rotation
 //optional - acceleration not due to gravity
-#[derive(Component, Default, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(
+    Component, Default, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize,
+)]
 pub struct Acceleration(pub Vec3);
 
 //local space, without local rotation
@@ -52,10 +59,16 @@ impl Default for Mass {
 
 impl Mass {
     pub fn add_force(self, f: Vec3, accel: &mut Acceleration) {
-        accel.0 += f / self.0
+        accel.0 += self.get_force(f)
+    }
+    pub fn get_force(self, f: Vec3) -> Vec3 {
+        f / self.0
     }
     pub fn add_impulse(self, i: Vec3, vel: &mut Velocity) {
-        vel.0 += i / self.0
+        vel.0 += self.get_impulse(i)
+    }
+    pub fn get_impulse(self, i: Vec3) -> Vec3 {
+        i / self.0
     }
 }
 
@@ -112,14 +125,17 @@ fn update_derivatives(
     for (mut v, mut a, opt_g) in query.iter_mut() {
         //min move speed to alleviate imprecision/jittering
         v.0 = v.0.axis_map(|e| if e.abs() < EPSILON { 0.0 } else { e });
-        
+
         v.0 += a.0;
         //reset acceleration
         a.0 = opt_g.map(|g| g.0).unwrap_or(0.0) * gravity.0;
     }
 }
 
-fn update_friction(mut query: Query<(&mut Velocity, &Acceleration, &CollidingBlocks, &Friction)>, block_query: Query<&Friction>) {
+fn update_friction(
+    mut query: Query<(&mut Velocity, &Acceleration, &CollidingBlocks, &Friction)>,
+    block_query: Query<&Friction>,
+) {
     const EPSILON: f32 = 0.0001;
     for (mut v, a, blocks, f) in query.iter_mut() {
         blocks.for_each_dir(|dir, blocks| {
@@ -129,21 +145,25 @@ fn update_friction(mut query: Query<(&mut Velocity, &Acceleration, &CollidingBlo
             //get avg friction of all collided blocks
             let mut sum_fric_coeff = 0.0;
             for (_, e, _) in blocks.iter() {
-                sum_fric_coeff += block_query.get(*e).ok().and_then(|f| Some(f.0)).unwrap_or_default();
+                sum_fric_coeff += block_query
+                    .get(*e)
+                    .ok()
+                    .and_then(|f| Some(f.0))
+                    .unwrap_or_default();
             }
             //total friction is block avg friction combined with entity's friction
             let f = ((sum_fric_coeff / blocks.len() as f32) + f.0) / 2.0;
             //calculate friction vector in the plane of the block
             let normal = dir.opposite().to_vec3();
             let planar_v = project_onto_plane(v.0, normal).normalize_or_zero();
-            let fric_mag = -a.0.dot(normal)*f;
+            let fric_mag = -a.0.dot(normal) * f;
             if fric_mag <= 0.0 {
                 //make sure friction slows us down
                 if v.0.length_squared() < EPSILON {
                     //prevent sliding forever super slow due to imprecision
                     v.0 = Vec3::ZERO;
                 } else {
-                    v.0 += planar_v*fric_mag;
+                    v.0 += planar_v * fric_mag;
                 }
             }
         })
@@ -152,7 +172,7 @@ fn update_friction(mut query: Query<(&mut Velocity, &Acceleration, &CollidingBlo
 
 fn update_drag(mut query: Query<(&mut Velocity, &Drag)>) {
     for (mut v, d) in query.iter_mut() {
-        v.0 *= 1.0-d.0;
+        v.0 *= 1.0 - d.0;
     }
 }
 

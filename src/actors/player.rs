@@ -10,15 +10,23 @@ use leafwing_input_manager::InputManagerBundle;
 use player_controller::RotateWithMouse;
 
 use crate::{
-    actors::MoveSpeed, chunk_loading::ChunkLoader, controllers::{self, *}, effects::camera::CameraEffectsBundle, items::{
+    actors::MoveSpeed,
+    chunk_loading::ChunkLoader,
+    controllers::{self, *},
+    effects::camera::CameraEffectsBundle,
+    items::{
         inventory::Inventory,
         item_attributes::{ItemSwingSpeed, ItemUseSpeed},
         *,
-    }, mesher::item_mesher::HeldItemResources, net::{
+    },
+    mesher::item_mesher::HeldItemResources,
+    net::{
         client::ClientState,
         server::{SyncPosition, SyncVelocity},
         ClientMessage, NetworkType, PlayerList, RemoteClient,
-    }, physics::{movement::*, *}, world::{atmosphere::SkyboxCubemap, settings::Settings, *}
+    },
+    physics::{movement::*, *},
+    world::{atmosphere::SkyboxCubemap, settings::Settings, *},
 };
 
 use super::{
@@ -265,9 +273,9 @@ pub fn spawn_local_player(
         ItemStack::new(
             resources
                 .registry
-                .get_basic(&ItemName::core("glowjelly_jar"))
+                .get_basic(&ItemName::core("grapple"))
                 .unwrap(),
-            100,
+            1,
         ),
         &item_query,
         &mut pickup_item,

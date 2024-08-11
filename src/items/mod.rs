@@ -11,6 +11,7 @@ pub mod actor_items;
 pub mod block_item;
 pub mod crafting;
 pub mod debug_items;
+mod grapple_item;
 pub mod inventory;
 pub mod item_attributes;
 pub mod loot;
@@ -39,7 +40,8 @@ impl Plugin for ItemsPlugin {
                     ItemSystemSet::UsageProcessing.in_set(LevelSystemSet::Main),
                     ItemSystemSet::DropPickup.in_set(LevelSystemSet::Main),
                     ItemSystemSet::DropPickupProcessing.in_set(LevelSystemSet::Main),
-                ).chain(),
+                )
+                    .chain(),
             )
             .add_plugins((
                 debug_items::DebugItems,
@@ -50,6 +52,7 @@ impl Plugin for ItemsPlugin {
                 time_items::TimeItemsPlugin,
                 loot::LootPlugin,
                 crafting::CraftingPlugin,
+                grapple_item::GrappleItemPlugin,
             ))
             .add_systems(
                 Update,
@@ -183,7 +186,7 @@ pub struct UseEndEvent {
     pub user: Entity,
     pub inventory_slot: Option<usize>,
     pub stack: ItemStack,
-    pub result: HitResult
+    pub result: HitResult,
 }
 
 #[derive(Event)]
@@ -207,17 +210,17 @@ pub struct SwingEndEvent {
     pub user: Entity,
     pub inventory_slot: Option<usize>,
     pub stack: ItemStack,
-    pub result: HitResult
+    pub result: HitResult,
 }
 
 #[derive(Clone, Copy)]
 pub enum HitResult {
     Hit(Vec3),
-    Miss
+    Miss,
 }
 
 impl HitResult {
-    pub fn is_hit(self) -> bool { 
+    pub fn is_hit(self) -> bool {
         matches!(self, HitResult::Hit(_))
     }
     pub fn is_miss(self) -> bool {

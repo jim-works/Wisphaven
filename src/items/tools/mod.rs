@@ -3,14 +3,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     actors::Player,
+    physics::{collision::Aabb, query},
     world::{
         events::{BlockDamageSetEvent, BlockHitEvent, ChunkUpdatedEvent},
-        BlockId, Level, BlockPhysics,
-    }, physics::{query, collision::Aabb},
+        BlockId, BlockPhysics, Level,
+    },
 };
 
 use super::{
-    inventory::Inventory, CreatorItem, EquipItemEvent, HitResult, ItemStack, ItemSystemSet, MaxStackSize, PickupItemEvent, SwingEndEvent, SwingItemEvent
+    inventory::Inventory, CreatorItem, EquipItemEvent, HitResult, ItemStack, ItemSystemSet,
+    MaxStackSize, PickupItemEvent, SwingEndEvent, SwingItemEvent,
 };
 
 pub mod abilities;
@@ -70,7 +72,7 @@ pub fn on_swing(
     level: Res<Level>,
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
-    item_query: Query<(), Without<DontHitBlocks>>
+    item_query: Query<(), Without<DontHitBlocks>>,
 ) {
     for SwingItemEvent {
         user,
@@ -83,11 +85,11 @@ pub fn on_swing(
             continue;
         }
         if let Some(query::RaycastHit::Block(block_position, hit)) = query::raycast(
-            query::Ray::new(tf.translation, tf.forward(), 10.0),
+            query::Raycast::new(tf.translation, tf.forward(), 10.0),
             &level,
             &block_physics_query,
             &object_query,
-            vec![*user]
+            &[*user],
         ) {
             writer.send(BlockHitEvent {
                 item: Some(stack.id),

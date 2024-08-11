@@ -1,7 +1,14 @@
 use bevy::prelude::*;
 use bevy_hanabi::prelude::*;
 
-use crate::{actors::{ActorName, ActorResources}, physics::{query::{RaycastHit, Ray, self}, collision::Aabb}, world::{BlockPhysics, Level}};
+use crate::{
+    actors::{ActorName, ActorResources},
+    physics::{
+        collision::Aabb,
+        query::{self, Raycast, RaycastHit},
+    },
+    world::{BlockPhysics, Level},
+};
 
 use super::{ItemSystemSet, UseEndEvent, UseItemEvent};
 
@@ -9,9 +16,12 @@ pub struct ActorItems;
 
 impl Plugin for ActorItems {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, do_spawn_actors.in_set(ItemSystemSet::UsageProcessing))
-            .add_systems(Startup, setup)
-            .register_type::<SpawnActorItem>();
+        app.add_systems(
+            Update,
+            do_spawn_actors.in_set(ItemSystemSet::UsageProcessing),
+        )
+        .add_systems(Startup, setup)
+        .register_type::<SpawnActorItem>();
     }
 }
 
@@ -86,7 +96,7 @@ fn setup(mut commands: Commands, mut effects: ResMut<Assets<EffectAsset>>) {
             screen_space_size: false,
         })
         .render(OrientModifier {
-            mode: OrientMode::FaceCameraPosition
+            mode: OrientMode::FaceCameraPosition,
         });
     let id = commands
         .spawn((
@@ -118,17 +128,23 @@ fn do_spawn_actors(
 ) {
     const REACH: f32 = 10.0;
     const BACKWARD_DIST: f32 = 1.0;
-    for UseItemEvent { user, inventory_slot, stack, tf } in reader.read() {
+    for UseItemEvent {
+        user,
+        inventory_slot,
+        stack,
+        tf,
+    } in reader.read()
+    {
         if let Ok(item) = item_query.get(stack.id) {
             if let Some(RaycastHit::Block(_, hit)) = query::raycast(
-                Ray::new(tf.translation, tf.forward(), REACH),
+                Raycast::new(tf.translation, tf.forward(), REACH),
                 &level,
                 &block_physics_query,
                 &object_query,
-                vec![*user]
+                &[*user],
             ) {
                 //jank to not spawn inside ground so easy
-                let backward = (tf.translation-hit.hit_pos).normalize_or_zero()*BACKWARD_DIST;
+                let backward = (tf.translation - hit.hit_pos).normalize_or_zero() * BACKWARD_DIST;
                 let spawn_pos = hit.hit_pos + backward;
                 resources.registry.spawn(
                     &item.0,
@@ -150,7 +166,7 @@ fn do_spawn_actors(
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
-                    result: crate::items::HitResult::Miss
+                    result: crate::items::HitResult::Miss,
                 })
             }
         }
