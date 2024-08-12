@@ -226,7 +226,7 @@
             path: "coin.png"
         ),
         "wisphaven::items::weapons::CoinLauncherItem": (
-          speed: 0.5,
+          speed: 1,
           damage: Damage (amount: 2.0)
         ),
         "wisphaven::items::item_attributes::ItemUseSpeed": (
@@ -275,7 +275,8 @@
             path: "grapple.png"
         ),
         "wisphaven::items::grapple_item::GrappleItem": (
-          strength: 0.01,
+          max_speed: 2,
+          strength: 0.5,
           length: 200.0,
           remove_distance: Some(2.0)
         ),

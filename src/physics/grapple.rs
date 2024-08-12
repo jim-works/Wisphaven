@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
-use crate::{items::ItemSystemSet, BlockCoord, Level, LevelSystemSet};
+use crate::{actors::ghost::UseHand, items::ItemSystemSet, BlockCoord, Level, LevelSystemSet};
 
 use super::{
-    movement::{Acceleration, Mass},
+    movement::{Acceleration, Mass, Velocity},
     query::{raycast, Raycast},
     PhysicsSystemSet,
 };
@@ -13,20 +13,22 @@ pub struct GrapplePlugin;
 
 impl Plugin for GrapplePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            FixedUpdate,
-            (update_grapple, update_force)
-                .chain()
-                .in_set(PhysicsSystemSet::Main),
-        )
-        .add_systems(
-            Update,
-            (shoot_grapple)
-                .in_set(LevelSystemSet::Main)
-                .after(ItemSystemSet::UsageProcessing),
-        )
-        .add_event::<UpdateAccelEvent>()
-        .add_event::<ShootGrappleEvent>();
+        app.add_systems(Startup, init)
+            .add_systems(
+                FixedUpdate,
+                (update_grapple, update_force)
+                    .chain()
+                    .in_set(PhysicsSystemSet::Main),
+            )
+            .add_systems(
+                Update,
+                (shoot_grapple)
+                    .in_set(LevelSystemSet::Main)
+                    .after(ItemSystemSet::UsageProcessing),
+            )
+            .add_systems(Update, update_visual.in_set(LevelSystemSet::Main))
+            .add_event::<UpdateAccelEvent>()
+            .add_event::<ShootGrappleEvent>();
     }
 }
 
@@ -46,7 +48,22 @@ pub enum GrappleTarget {
 pub struct Grappled {
     target: GrappleTarget,
     strength: f32, //ignores mass
+    max_speed: f32,
     remove_distance: Option<f32>,
+    visual: Entity,
+}
+
+#[derive(Component)]
+struct GrappleVisual {
+    user: Entity,
+    visual_origin: Entity,
+    width: f32,
+}
+
+#[derive(Resource)]
+struct VisualResources {
+    material: Handle<StandardMaterial>,
+    mesh: Handle<Mesh>,
 }
 
 #[derive(Event)]
@@ -54,15 +71,31 @@ pub struct ShootGrappleEvent {
     pub ray: Raycast,
     pub owner: Entity,
     pub strength: f32,
+    pub max_speed: f32,
     pub remove_distance: Option<f32>,
 }
 
 #[derive(Event, Clone, Copy)]
 struct UpdateAccelEvent(Entity, Vec3);
 
+fn init(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    commands.insert_resource(VisualResources {
+        material: materials.add(StandardMaterial {
+            base_color: Color::DARK_GRAY,
+            ..Default::default()
+        }),
+        mesh: meshes.add(crate::util::bevy_utils::cuboid(Vec3::splat(0.5))),
+    })
+}
+
 fn shoot_grapple(
     mut event_reader: EventReader<ShootGrappleEvent>,
     level: Res<Level>,
+    hand_query: Query<&UseHand>,
     physics_query: Query<&crate::BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &super::collision::Aabb)>,
     mut commands: Commands,
@@ -72,11 +105,18 @@ fn shoot_grapple(
         owner,
         strength,
         remove_distance,
+        max_speed,
     } in event_reader.read()
     {
         let Some(hit) = raycast(*ray, &level, &physics_query, &object_query, &[*owner]) else {
             continue;
         };
+        let visual = GrappleVisual {
+            visual_origin: hand_query.get(*owner).map_or(*owner, |hand| hand.hand),
+            user: *owner,
+            width: 0.1,
+        };
+        let visual_entity = commands.spawn(visual).id();
         let Some(mut ec) = commands.get_entity(*owner) else {
             continue;
         };
@@ -89,6 +129,8 @@ fn shoot_grapple(
                     },
                     strength: *strength,
                     remove_distance: *remove_distance,
+                    max_speed: *max_speed,
+                    visual: visual_entity,
                 });
             }
             super::query::RaycastHit::Object(hit) => {
@@ -102,6 +144,8 @@ fn shoot_grapple(
                     },
                     strength: *strength,
                     remove_distance: *remove_distance,
+                    max_speed: *max_speed,
+                    visual: visual_entity,
                 });
             }
         }
@@ -110,14 +154,19 @@ fn shoot_grapple(
 
 //couldn't figure out paramset here, since there's two queries that need read access at the same time
 fn update_grapple(
-    grapple_query: Query<(Entity, &Grappled, &GlobalTransform, Option<&Mass>)>,
+    grapple_query: Query<(
+        Entity,
+        &Grappled,
+        &GlobalTransform,
+        &Velocity,
+        Option<&Mass>,
+    )>,
     hit_entity_query: Query<(&GlobalTransform, Option<&Mass>)>,
     level: Res<Level>,
     mut writer: EventWriter<UpdateAccelEvent>,
     mut commands: Commands,
-    mut gizmo: Gizmos,
 ) {
-    for (entity, grapple, gtf, mass_opt) in grapple_query.iter() {
+    for (entity, grapple, gtf, v, mass_opt) in grapple_query.iter() {
         match grapple.target {
             GrappleTarget::Block {
                 block_coord,
@@ -135,7 +184,13 @@ fn update_grapple(
                     }
                     continue;
                 }
-                let a = grapple_force(gtf.translation(), anchor_pos, grapple.strength, &mut gizmo);
+                let a = grapple_force(
+                    gtf.translation(),
+                    anchor_pos,
+                    grapple.strength,
+                    v.0,
+                    grapple.max_speed,
+                );
                 writer.send(UpdateAccelEvent(entity, a));
             }
             GrappleTarget::Entity {
@@ -146,6 +201,9 @@ fn update_grapple(
                     //entity removed
                     if let Some(mut ec) = commands.get_entity(entity) {
                         ec.remove::<Grappled>();
+                    }
+                    if let Some(mut ec) = commands.get_entity(grapple.visual) {
+                        ec.despawn();
                     }
                     continue;
                 };
@@ -158,13 +216,17 @@ fn update_grapple(
                     if let Some(mut ec) = commands.get_entity(entity) {
                         ec.remove::<Grappled>();
                     }
+                    if let Some(mut ec) = commands.get_entity(grapple.visual) {
+                        ec.despawn();
+                    }
                     continue;
                 }
                 let f = grapple_force(
                     gtf.translation(),
                     target_gtf.transform_point(anchor_offset),
                     grapple.strength,
-                    &mut gizmo,
+                    v.0,
+                    grapple.max_speed,
                 );
                 let mass_ratio = Mass(
                     mass_opt.copied().unwrap_or_default().0
@@ -186,7 +248,87 @@ fn update_force(mut reader: EventReader<UpdateAccelEvent>, mut query: Query<&mut
     }
 }
 
-fn grapple_force(pos: Vec3, anchor_pos: Vec3, strength: f32, gizmos: &mut Gizmos) -> Vec3 {
-    gizmos.line(pos, anchor_pos, Color::OLIVE);
-    (anchor_pos - pos) * strength
+fn grapple_force(
+    pos: Vec3,
+    anchor_pos: Vec3,
+    strength: f32,
+    current_v: Vec3,
+    max_speed: f32,
+) -> Vec3 {
+    let line = (anchor_pos - pos).normalize_or_zero();
+    let v_in_line = current_v.project_onto_normalized(line);
+    if !v_in_line.is_finite() || v_in_line.length_squared() > max_speed * max_speed {
+        Vec3::ZERO
+    } else {
+        line * strength
+    }
+}
+
+fn update_visual(
+    uninit_query: Query<(Entity, &GrappleVisual), Without<Transform>>,
+    mut init_query: Query<(&mut Transform, &GrappleVisual)>,
+    user_query: Query<(&GlobalTransform, &Grappled), Without<GrappleVisual>>,
+    dest_query: Query<&GlobalTransform, Without<GrappleVisual>>,
+    resources: Res<VisualResources>,
+    mut commands: Commands,
+) {
+    let calc_tf = |user: Entity, visual_origin: Entity, width: f32| {
+        if let Ok((owner_gtf, grapple)) = user_query.get(user) {
+            let origin = if let Ok(gtf) = dest_query.get(visual_origin) {
+                gtf.translation()
+            } else {
+                owner_gtf.translation()
+            };
+            let dest = match grapple.target {
+                GrappleTarget::Block {
+                    block_coord: _,
+                    anchor_pos,
+                } => anchor_pos,
+                GrappleTarget::Entity {
+                    target,
+                    anchor_offset,
+                } => {
+                    if let Ok(gtf) = dest_query.get(target) {
+                        gtf.transform_point(anchor_offset)
+                    } else {
+                        origin
+                    }
+                }
+            };
+            Transform::from_translation((origin + dest) / 2.)
+                .with_scale(Vec3::new(width, width, origin.distance(dest)))
+                .looking_at(origin, Vec3::Y)
+        } else {
+            return Transform::default();
+        }
+    };
+
+    for (
+        entity,
+        GrappleVisual {
+            visual_origin,
+            user,
+            width,
+        },
+    ) in uninit_query.iter()
+    {
+        commands.entity(entity).insert(PbrBundle {
+            mesh: resources.mesh.clone(),
+            material: resources.material.clone(),
+            transform: calc_tf(*user, *visual_origin, *width),
+            ..default()
+        });
+    }
+
+    for (
+        mut tf,
+        GrappleVisual {
+            visual_origin,
+            user,
+            width,
+        },
+    ) in init_query.iter_mut()
+    {
+        *tf = calc_tf(*user, *visual_origin, *width);
+    }
 }

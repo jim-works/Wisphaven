@@ -4,7 +4,10 @@ use bevy::prelude::*;
 
 use crate::{
     items::{
-        inventory::Inventory, item_attributes::{ItemSwingSpeed, ItemUseSpeed}, HitResult, ItemName, ItemResources, ItemStack, StartSwingingItemEvent, StartUsingItemEvent, SwingEndEvent, UseEndEvent
+        inventory::Inventory,
+        item_attributes::{ItemSwingSpeed, ItemUseSpeed},
+        HitResult, ItemName, ItemResources, ItemStack, StartSwingingItemEvent, StartUsingItemEvent,
+        SwingEndEvent, UseEndEvent,
     },
     mesher::item_mesher::HeldItemResources,
     physics::{collision::Aabb, movement::Velocity, PhysicsBundle, PhysicsSystemSet},
@@ -66,14 +69,14 @@ pub struct Hand {
 
 #[derive(Component)]
 pub struct SwingHand {
-    hand: Entity,
+    pub hand: Entity,
     //offset to play hit animation at if the swing misses
-    miss_offset: Vec3
+    miss_offset: Vec3,
 }
 
 #[derive(Component)]
 pub struct UseHand {
-    hand: Entity,
+    pub hand: Entity,
     //offset to play hit animation at if the item doesn't have a use coord (e.g. throwing a coin or not placing a block)
     miss_offset: Vec3,
 }
@@ -546,7 +549,7 @@ fn swing_hand(
                         start_pos: tf.translation(),
                         target: match event.result {
                             HitResult::Hit(pos) => pos,
-                            HitResult::Miss => tf.transform_point(swing_hand.miss_offset)
+                            HitResult::Miss => tf.transform_point(swing_hand.miss_offset),
                         },
                         hit_time: settings.hand_hit_animation_duration,
                         return_time: (swing_speed.backswing.as_secs_f32()
