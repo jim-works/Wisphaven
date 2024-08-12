@@ -90,30 +90,35 @@ impl Default for ControllableBundle {
 }
 
 fn do_tick_movement(
-    mut query: Query<(
-        &TickMovement,
-        &mut crate::physics::movement::Velocity,
-        &MoveSpeed,
-        &MovementMode,
-        Option<&CollidingDirections>,
-    ), Without<CurrentlyDashing>>,
+    mut query: Query<
+        (
+            &TickMovement,
+            &mut crate::physics::movement::Velocity,
+            &MoveSpeed,
+            &MovementMode,
+            Option<&CollidingDirections>,
+        ),
+        Without<CurrentlyDashing>,
+    >,
 ) {
     const EPSILON: f32 = 1e-3;
+    const HIGH_SPEED_MODE_MULT: f32 = 1.5;
     for (fm, mut v, ms, mode, opt_grounded) in query.iter_mut() {
-        let speed = fm.0.length();
-        let has_input = speed > EPSILON;
-        let acceleration = ms.get_accel(
-            opt_grounded.is_some_and(|x| x.0.contains(DirectionFlags::NegY)),
-            has_input,
-        );
-        //don't actively resist sliding if v is small to reduce jitter
-        if v.0.length_squared() < EPSILON * EPSILON {
-            continue;
-        }
+        let input_speed = fm.0.length();
+
+        let current_velocity = if *mode != MovementMode::Flying {
+            Vec3::new(v.0.x, 0.0, v.0.z)
+        } else {
+            v.0
+        };
+
+        let current_speed = current_velocity.length();
+        let norm_velocity = current_velocity / current_speed;
+        let has_input = input_speed > EPSILON;
 
         //global space
-        let mut v_desired = if speed > 1.0 {
-            fm.0 * (ms.max_speed / speed)
+        let mut v_desired = if input_speed > 1.0 {
+            fm.0 * (ms.max_speed / input_speed)
         } else {
             fm.0 * ms.max_speed
         };
@@ -121,20 +126,52 @@ fn do_tick_movement(
             v_desired.y = 0.0;
         }
 
-        //create impulse that would set us to the desired speed
-        //this impulse will be pushing back into the circle of radius ms.max
-        let mut dv = v_desired - v.0;
-        if *mode != MovementMode::Flying {
-            dv.y = 0.0;
+        let acceleration = ms.get_accel(
+            opt_grounded.is_some_and(|x| x.0.contains(DirectionFlags::NegY)),
+            has_input,
+            fm.0 / input_speed,
+            norm_velocity,
+        );
+
+        //don't actively resist sliding if v is small to reduce jitter
+        if current_speed < EPSILON {
+            //v is small, so we can just aply the whole acceleration
+            v.0 += acceleration * v_desired;
+            continue;
         }
 
-        let a_desired = dv * acceleration;
-        let a_mag = a_desired.length();
-        v.0 += if a_mag > acceleration {
-            acceleration * a_desired / a_mag
+        if current_speed > ms.max_speed * HIGH_SPEED_MODE_MULT {
+            //high speed mode - don't allow acceleration in the direction of velocity, but allow movement on the transverse axis
+            let desired_speed = v_desired.length();
+            if desired_speed < EPSILON {
+                continue; //maintain momentum if not moving
+            }
+            let main_axis = v_desired.project_onto_normalized(norm_velocity);
+            let orthogonal_axis = v_desired - main_axis;
+            let mut delta = orthogonal_axis;
+            //only allow movement on the main axis if it's against current velocity
+            if v_desired.dot(norm_velocity) < 0. {
+                delta += main_axis;
+            }
+            v.0 += delta * acceleration;
         } else {
-            a_desired
-        };
+            //low speed mode - enables more precise movement and "auto braking" behavior
+            //we will actively resist sliding
+            //create impulse that would set us to the desired speed
+            //this impulse will be pushing back into the circle of radius ms.max
+            let mut dv = v_desired - current_velocity;
+            if *mode != MovementMode::Flying {
+                dv.y = 0.0;
+            }
+
+            let a_desired = dv * acceleration;
+            let a_mag = a_desired.length();
+            v.0 += if a_mag > acceleration {
+                acceleration * a_desired / a_mag
+            } else {
+                a_desired
+            };
+        }
     }
 }
 

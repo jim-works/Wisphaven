@@ -129,7 +129,6 @@ fn update_grapple(
                         .map(|limit| gtf.translation().distance(anchor_pos) <= limit)
                         .unwrap_or(false)
                 {
-                    info!("too close!");
                     //block removed or too close
                     if let Some(mut ec) = commands.get_entity(entity) {
                         ec.remove::<Grappled>();
@@ -155,7 +154,6 @@ fn update_grapple(
                     .map(|limit| gtf.translation().distance(target_gtf.translation()) <= limit)
                     .unwrap_or(false)
                 {
-                    info!("too close!");
                     //too close
                     if let Some(mut ec) = commands.get_entity(entity) {
                         ec.remove::<Grappled>();

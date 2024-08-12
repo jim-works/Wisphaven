@@ -276,7 +276,7 @@
         ),
         "wisphaven::items::grapple_item::GrappleItem": (
           strength: 0.01,
-          length: 50.0,
+          length: 200.0,
           remove_distance: Some(2.0)
         ),
         "wisphaven::items::item_attributes::ItemUseSpeed": (

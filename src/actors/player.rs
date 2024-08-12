@@ -126,8 +126,8 @@ pub fn spawn_local_player(
     held_item_resouces: Res<HeldItemResources>,
 ) {
     info!("Spawning local player!");
-    //adjust for ghost height (0.5 from center)
-    let spawn_point = level.get_spawn_point() + Vec3::new(0., 0.6, 0.);
+    //adjust for ghost height
+    let spawn_point = level.get_spawn_point() + Vec3::new(0., 1.5, 0.);
     let projection = PerspectiveProjection {
         fov: PI / 2.,
         far: 1_000_000_000.0,

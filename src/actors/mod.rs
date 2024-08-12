@@ -8,6 +8,8 @@ mod combat;
 pub use combat::*;
 use serde::{Deserialize, Serialize};
 
+use crate::util::{ease_out_quad, inverse_lerp, lerp};
+
 use self::personality::PersonalityPlugin;
 
 pub mod abilities;
@@ -58,6 +60,8 @@ pub struct MoveSpeed {
     pub no_input_accel: f32,
     pub grounded_accel: f32,
     pub aerial_accel: f32,
+    //extra acceleration when moving in directly opposite to velocity (makes turns snappier)
+    pub turn_accel_mult: f32,
     //multiplier, applied after accel_add
     pub accel_mult: f32,
     //added before accel_mult is applied
@@ -74,6 +78,7 @@ impl Default for MoveSpeed {
             accel_mult: 1.0,
             accel_add: 0.0,
             max_speed: 0.1,
+            turn_accel_mult: 2.0,
         }
     }
 }
@@ -88,7 +93,14 @@ impl MoveSpeed {
         }
     }
 
-    pub fn get_accel(&self, grounded: bool, has_input: bool) -> f32 {
+    pub fn get_accel(
+        &self,
+        grounded: bool,
+        has_input: bool,
+        norm_target_v: Vec3,
+        norm_current_v: Vec3,
+    ) -> f32 {
+        const EPSILON: f32 = 0.001;
         let base_speed = if !has_input {
             self.no_input_accel
         } else if grounded {
@@ -96,8 +108,13 @@ impl MoveSpeed {
         } else {
             self.aerial_accel
         };
-
-        (base_speed + self.accel_add) * self.accel_mult
+        let mut opposite_factor =
+            inverse_lerp(1.0, -1.0, norm_target_v.dot(norm_current_v)).clamp(0.0, 1.0);
+        if !opposite_factor.is_finite() {
+            opposite_factor = 0.5; //assume v is 0, which would be 0 dot product, which is halfway between -1 and 1
+        }
+        let turn_accel_mult = lerp(1.0, self.turn_accel_mult, ease_out_quad(opposite_factor));
+        (base_speed + self.accel_add) * self.accel_mult * turn_accel_mult
     }
 }
 

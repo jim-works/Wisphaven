@@ -122,6 +122,9 @@ fn update_derivatives(
     gravity: Res<Gravity>,
 ) {
     const EPSILON: f32 = 0.0001;
+    // TODO - evaluate if having max speed is more fun than glitching into walls
+    //seems like the highest speed we can go without collision breaking atm
+    // const MAX_SPEED: f32 = 4.;
     for (mut v, mut a, opt_g) in query.iter_mut() {
         //min move speed to alleviate imprecision/jittering
         v.0 = v.0.axis_map(|e| if e.abs() < EPSILON { 0.0 } else { e });
@@ -129,6 +132,10 @@ fn update_derivatives(
         v.0 += a.0;
         //reset acceleration
         a.0 = opt_g.map(|g| g.0).unwrap_or(0.0) * gravity.0;
+        // let v_sqr = v.0.length_squared();
+        // if v_sqr > MAX_SPEED * MAX_SPEED {
+        //     v.0 = MAX_SPEED * v.0 / v_sqr.sqrt();
+        // }
     }
 }
 

@@ -1,9 +1,14 @@
 use crate::{
-    physics::{collision::Aabb, PhysicsBundle}, settings::Settings, ui::healthbar::spawn_billboard_healthbar, util::SendEventCommand, Level, LevelLoadState
+    chunk_loading::ChunkLoader,
+    physics::{collision::Aabb, PhysicsBundle},
+    settings::Settings,
+    ui::healthbar::spawn_billboard_healthbar,
+    util::SendEventCommand,
+    Level, LevelLoadState,
 };
 use bevy::prelude::*;
 
-use super::{CombatInfo, CombatantBundle, ActorResources, ActorName};
+use super::{ActorName, ActorResources, CombatInfo, CombatantBundle};
 
 #[derive(Resource)]
 pub struct WorldAnchorResources {
@@ -37,9 +42,7 @@ fn add_to_registry(mut res: ResMut<ActorResources>) {
     res.registry.add_dynamic(
         ActorName::core("world_anchor"),
         Box::new(|commands, tf| {
-            commands.add(SendEventCommand(SpawnWorldAnchorEvent {
-                location: tf
-            }))
+            commands.add(SendEventCommand(SpawnWorldAnchorEvent { location: tf }))
         }),
     );
 }
@@ -68,7 +71,7 @@ pub fn spawn_world_anchor(
             .spawn((
                 SceneBundle {
                     scene: res.scene.clone_weak(),
-                    transform: spawn.location.with_scale(Vec3::new(2.0,2.0,2.0)),
+                    transform: spawn.location.with_scale(Vec3::new(2.0, 2.0, 2.0)),
                     ..default()
                 },
                 Name::new("world anchor"),
@@ -81,20 +84,18 @@ pub fn spawn_world_anchor(
                 },
                 PhysicsBundle {
                     //center of anchor is at bottom of model, so spawn the collision box offset
-                    collider: Aabb::new(Vec3::new(2.0,2.0,2.0), Vec3::new(-1.0,0.0,-1.0)),
+                    collider: Aabb::new(Vec3::new(2.0, 2.0, 2.0), Vec3::new(-1.0, 0.0, -1.0)),
                     ..default()
                 },
                 WorldAnchor,
-                settings.init_loader.clone()
-                //no UninitializedActor b/c we don't have to do any setup
+                ChunkLoader {
+                    mesh: false,
+                    ..settings.init_loader.clone()
+                }, //no UninitializedActor b/c we don't have to do any setup
             ))
             .id();
         commands.insert_resource(WorldAnchor);
         //add healthbar
-        spawn_billboard_healthbar(
-            &mut commands,
-            id,
-            Vec3::new(0.0, 2.0, 0.0),
-        );
+        spawn_billboard_healthbar(&mut commands, id, Vec3::new(0.0, 2.0, 0.0));
     }
 }
