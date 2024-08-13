@@ -3,6 +3,7 @@ use abilities::{
     Stamina,
 };
 use bevy::prelude::*;
+use ghost::FloatBoost;
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
@@ -21,7 +22,7 @@ use crate::{
     },
 };
 
-use super::{Action, FrameJump, MovementMode, TickMovement};
+use super::{Action, MovementMode, TickMovement};
 
 #[derive(Component, Default)]
 pub struct RotateWithMouse {
@@ -111,15 +112,13 @@ pub fn move_player(
     }
 }
 
-pub fn jump_player(
-    mut query: Query<(Entity, &mut FrameJump, &ActionState<Action>, &MovementMode), With<Player>>,
+pub fn boost_float_player(
+    mut query: Query<(Entity, &mut FloatBoost, &ActionState<Action>, &MovementMode), With<Player>>,
     mut commands: Commands,
 ) {
-    for (entity, mut fj, act, mode) in query.iter_mut() {
-        if *mode != MovementMode::Flying && act.just_pressed(Action::Jump) {
-            fj.0 = true;
-        }
-        if act.just_pressed(Action::Jump) {
+    for (entity, mut fb, act, mode) in query.iter_mut() {
+        fb.enabled = *mode != MovementMode::Flying && act.pressed(Action::Float);
+        if act.just_pressed(Action::Float) {
             if let Some(mut ec) = commands.get_entity(entity) {
                 ec.remove::<Grappled>();
             }

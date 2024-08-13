@@ -21,7 +21,7 @@ use crate::{
     BlockCoord, BlockPhysics, Level, LevelSystemSet,
 };
 
-use super::{ActorName, ActorResources, CombatInfo, CombatantBundle, Idler};
+use super::{abilities::Stamina, ActorName, ActorResources, CombatInfo, CombatantBundle, Idler};
 
 const GHOST_PARTICLE_COUNT: u32 = 7;
 #[derive(Resource)]
@@ -53,6 +53,40 @@ impl Default for Float {
             target_ceiling_dist: 3.5,
             max_force: 0.04,
             ground_aabb_scale: Vec3::splat(1.5),
+        }
+    }
+}
+
+#[derive(Component, Clone, Copy)]
+pub struct FloatBoost {
+    pub extra_height: f32,
+    pub stamina_per_tick: f32,
+    pub enabled: bool,
+    added: f32,
+}
+
+impl Default for FloatBoost {
+    fn default() -> Self {
+        Self {
+            extra_height: 3.0,
+            stamina_per_tick: 1.0 / 64.0,
+            enabled: Default::default(),
+            added: Default::default(),
+        }
+    }
+}
+
+impl FloatBoost {
+    pub fn with_extra_height(self, extra_height: f32) -> Self {
+        Self {
+            extra_height,
+            ..self
+        }
+    }
+    pub fn with_stamina_per_tick(self, stamina_per_tick: f32) -> Self {
+        Self {
+            stamina_per_tick,
+            ..self
         }
     }
 }
@@ -197,7 +231,12 @@ impl Plugin for GhostPlugin {
                     ((windup_swing_hand, windup_use_hand), (swing_hand, use_hand)).chain(), //chain so that conflicts will resolve to the main animation
                 ),
             )
-            .add_systems(FixedUpdate, update_floater.in_set(PhysicsSystemSet::Main))
+            .add_systems(
+                FixedUpdate,
+                (float_boost, update_floater)
+                    .chain()
+                    .in_set(PhysicsSystemSet::Main),
+            )
             .add_event::<SpawnGhostEvent>();
     }
 }
@@ -835,5 +874,25 @@ fn update_floater(
             continue;
         }
         v.0.y += delta_v;
+    }
+}
+
+fn float_boost(mut query: Query<(&mut Float, &mut FloatBoost, Option<&mut Stamina>)>) {
+    for (mut float, mut boost, stamina_opt) in query.iter_mut() {
+        if boost.enabled {
+            if let Some(mut stamina) = stamina_opt {
+                stamina.change(-boost.stamina_per_tick);
+                if stamina.current <= 0.0 {
+                    boost.enabled = false;
+                }
+            }
+        }
+        if boost.enabled && boost.added < boost.extra_height {
+            float.target_ground_dist += boost.extra_height - boost.added;
+            boost.added = boost.extra_height;
+        } else if !boost.enabled && boost.added > 0. {
+            float.target_ground_dist -= boost.added;
+            boost.added = 0.;
+        }
     }
 }

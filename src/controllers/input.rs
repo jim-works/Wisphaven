@@ -9,7 +9,7 @@ pub enum Action {
     MoveRight,
     MoveUp,
     MoveDown,
-    Jump, //also removed grapples
+    Float, //also removed grapples
     Dash,
     Punch,
     Use,
@@ -34,7 +34,7 @@ pub fn get_input_map() -> InputMap<Action> {
     map.insert(KeyCode::Space, Action::MoveUp);
     map.insert(KeyCode::ShiftLeft, Action::Dash);
     map.insert(KeyCode::ControlLeft, Action::MoveDown);
-    map.insert(KeyCode::Space, Action::Jump);
+    map.insert(KeyCode::Space, Action::Float);
     map.insert(KeyCode::F, Action::ToggleFlight);
 
     map.insert(MouseButton::Left, Action::Punch);

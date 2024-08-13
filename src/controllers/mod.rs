@@ -9,7 +9,7 @@ mod pi_controllers;
 use bevy::prelude::*;
 
 use crate::{
-    actors::{abilities::dash::CurrentlyDashing, Jump, MoveSpeed},
+    actors::{abilities::dash::CurrentlyDashing, ghost::FloatBoost, Jump, MoveSpeed},
     physics::{collision::CollidingDirections, PhysicsSystemSet},
     util::DirectionFlags,
     world::LevelSystemSet,
@@ -28,7 +28,7 @@ impl Plugin for ControllersPlugin {
             Update,
             (
                 rotate_mouse,
-                jump_player,
+                boost_float_player,
                 move_player,
                 dash_player,
                 follow_local_player,
@@ -53,7 +53,7 @@ impl Plugin for ControllersPlugin {
 pub struct TickMovement(pub Vec3);
 
 //reset every frame in do_jump
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct FrameJump(pub bool);
 
 //reset every frame in do_dash
@@ -71,9 +71,7 @@ pub enum MovementMode {
 #[derive(Bundle)]
 pub struct ControllableBundle {
     pub frame_movement: TickMovement,
-    pub frame_jump: FrameJump,
     pub move_speed: MoveSpeed,
-    pub jump: Jump,
     pub mode: MovementMode,
 }
 
@@ -82,11 +80,15 @@ impl Default for ControllableBundle {
         ControllableBundle {
             frame_movement: TickMovement(Vec3::default()),
             move_speed: MoveSpeed::default(),
-            jump: Jump::default(),
-            frame_jump: FrameJump(false),
             mode: MovementMode::default(),
         }
     }
+}
+
+#[derive(Bundle, Default)]
+pub struct JumpBundle {
+    pub jump: Jump,
+    pub frame_jump: FrameJump,
 }
 
 fn do_tick_movement(
@@ -97,13 +99,14 @@ fn do_tick_movement(
             &MoveSpeed,
             &MovementMode,
             Option<&CollidingDirections>,
+            Option<&FloatBoost>,
         ),
         Without<CurrentlyDashing>,
     >,
 ) {
     const EPSILON: f32 = 1e-3;
     const HIGH_SPEED_MODE_MULT: f32 = 1.5;
-    for (fm, mut v, ms, mode, opt_grounded) in query.iter_mut() {
+    for (fm, mut v, ms, mode, opt_grounded, opt_boost) in query.iter_mut() {
         let input_speed = fm.0.length();
 
         let current_velocity = if *mode != MovementMode::Flying {
@@ -140,7 +143,8 @@ fn do_tick_movement(
             continue;
         }
 
-        if current_speed > ms.max_speed * HIGH_SPEED_MODE_MULT {
+        let float_boost_active = opt_boost.is_some_and(|b| b.enabled);
+        if current_speed > ms.max_speed * HIGH_SPEED_MODE_MULT || float_boost_active {
             //high speed mode - don't allow acceleration in the direction of velocity, but allow movement on the transverse axis
             let desired_speed = v_desired.length();
             if desired_speed < EPSILON {

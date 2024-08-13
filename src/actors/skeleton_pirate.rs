@@ -4,10 +4,10 @@ use big_brain::prelude::*;
 use crate::{
     actors::{
         ai::{scorers::AggroScorer, AttackAction, WalkToCurrentTargetAction},
-        AggroTargets, AggroPlayer,
+        AggroPlayer, AggroTargets,
     },
-    controllers::ControllableBundle,
-    physics::{PhysicsBundle, GRAVITY, collision::Aabb, movement::Velocity},
+    controllers::{ControllableBundle, JumpBundle},
+    physics::{collision::Aabb, movement::Velocity, PhysicsBundle, GRAVITY},
     util::{physics::aim_projectile_straight_fallback, plugin::SmoothLookTo, SendEventCommand},
 };
 
@@ -70,7 +70,7 @@ pub fn spawn_skeleton_pirate(
 ) {
     let anchor_entity = anchor.get_single().ok().unwrap_or(Entity::PLACEHOLDER);
     const ATTACK_RANGE: f32 = 10.0;
-    const AGGRO_RANGE: f32 = ATTACK_RANGE*2.0 + 5.0;
+    const AGGRO_RANGE: f32 = ATTACK_RANGE * 2.0 + 5.0;
     for spawn in spawn_requests.read() {
         commands.spawn((
             SceneBundle {
@@ -84,17 +84,23 @@ pub fn spawn_skeleton_pirate(
                 ..default()
             },
             PhysicsBundle {
-                collider: Aabb::new(Vec3::new(0.8,1.6,0.8), Vec3::ZERO),
+                collider: Aabb::new(Vec3::new(0.8, 1.6, 0.8), Vec3::ZERO),
                 ..default()
             },
             ControllableBundle {
-                jump: Jump::new(12.0, 0),
                 move_speed: MoveSpeed::new(50.0, 10.0, 5.0),
+                ..default()
+            },
+            JumpBundle {
+                jump: Jump::new(12.0, 0),
                 ..default()
             },
             SmoothLookTo::new(0.7),
             SkeletonPirate { ..default() },
-            AggroPlayer { range: AGGRO_RANGE, priority: 0 },
+            AggroPlayer {
+                range: AGGRO_RANGE,
+                priority: 0,
+            },
             AggroTargets::new(vec![(anchor_entity, i32::MIN)]),
             DefaultAnimation::new(Handle::default(), Entity::PLACEHOLDER, 0.5, 1.0),
             UninitializedActor,
@@ -213,8 +219,7 @@ fn attack(
                                         location: Transform::from_translation(spawn_point),
                                         velocity: Velocity(aim_projectile_straight_fallback(
                                             target.translation() - spawn_point,
-                                            target_v_opt.unwrap_or(&Velocity::default()).0
-                                                - v.0,
+                                            target_v_opt.unwrap_or(&Velocity::default()).0 - v.0,
                                             THROW_IMPULSE,
                                             GRAVITY,
                                         )),
@@ -234,8 +239,7 @@ fn attack(
                                     location: Transform::from_translation(spawn_point),
                                     velocity: Velocity(aim_projectile_straight_fallback(
                                         target.translation() - spawn_point,
-                                        target_v_opt.unwrap_or(&Velocity::default()).0
-                                            - v.0,
+                                        target_v_opt.unwrap_or(&Velocity::default()).0 - v.0,
                                         THROW_IMPULSE,
                                         GRAVITY,
                                     )),

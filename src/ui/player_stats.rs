@@ -3,7 +3,10 @@ use std::time::Duration;
 use bevy::{ecs::system::SystemId, prelude::*};
 
 use crate::{
-    actors::{abilities::{send_stamina_updated_events, Stamina, StaminaUpdatedEvent}, process_attacks, CombatInfo, DamageTakenEvent, LocalPlayer, LocalPlayerSpawnedEvent},
+    actors::{
+        abilities::{send_stamina_updated_events, Stamina, StaminaUpdatedEvent},
+        process_attacks, CombatInfo, DamageTakenEvent, LocalPlayer, LocalPlayerSpawnedEvent,
+    },
     util::inverse_lerp,
     LevelLoadState,
 };
@@ -15,10 +18,19 @@ pub struct PlayerStatsUiPlugin;
 impl Plugin for PlayerStatsUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, init)
-            .add_systems(PostUpdate, (flash_hearts.after(process_attacks), flash_stamina.after(send_stamina_updated_events)))
+            .add_systems(
+                PostUpdate,
+                (
+                    flash_hearts.after(process_attacks),
+                    flash_stamina.after(send_stamina_updated_events),
+                ),
+            )
             .add_systems(OnEnter(UIState::Default), show_player_stat_ui)
             .add_systems(OnExit(UIState::Default), hide_player_stat_ui)
-            .add_systems(Update, (spawn_heart, spawn_stamina).run_if(in_state(LevelLoadState::Loaded)));
+            .add_systems(
+                Update,
+                (spawn_heart, spawn_stamina).run_if(in_state(LevelLoadState::Loaded)),
+            );
 
         let update_hearts_id = app.world.register_system(update_hearts);
         app.insert_resource(HeartSystems {
@@ -279,16 +291,27 @@ fn flash_stamina(
 ) {
     let flash_duration = Duration::from_secs_f32(0.1);
     let flashes = 1;
+    let flash_threshold = 0.25;
     state.0 = state.0.saturating_sub(time.delta());
     if let Ok(player_entity) = player_query.get_single() {
-        for StaminaUpdatedEvent(entity, _) in reader.read() {
+        for StaminaUpdatedEvent {
+            entity,
+            stamina: _,
+            change,
+            change_max,
+        } in reader.read()
+        {
             if *entity == player_entity {
-                state.0 = flash_duration;
-                state.1 = flashes;
-                state.2 = true;
-                for mut heart in bolt_query.iter_mut() {
-                    heart.0 = Color::rgba(1.0, 1.0, 1.0, 1.0);
+                //flash
+                if change.abs() >= flash_threshold || change_max.abs() >= flash_threshold {
+                    state.0 = flash_duration;
+                    state.1 = flashes;
+                    state.2 = true;
+                    for mut heart in bolt_query.iter_mut() {
+                        heart.0 = Color::rgba(1.0, 1.0, 1.0, 1.0);
+                    }
                 }
+                //update stats on display
                 commands.run_system(systems.update_stamina);
             }
         }
@@ -340,9 +363,7 @@ fn update_stamina(
     player_query: Query<&Stamina, With<LocalPlayer>>,
     mut bolt_query: Query<(&PlayerEmptyBolt, &mut BackgroundColor)>,
 ) {
-    let curr_stamina = player_query
-        .get_single()
-        .map_or(0.0, |info| info.current);
+    let curr_stamina = player_query.get_single().map_or(0.0, |info| info.current);
     for (
         PlayerEmptyBolt {
             min_stamina,
@@ -425,8 +446,7 @@ fn spawn_stamina(
     systems: Res<StaminaSystems>,
 ) {
     for LocalPlayerSpawnedEvent(entity) in reader.read() {
-        if let (Ok(root), Ok(stamina)) = (root_query.get_single(), stamina_query.get(*entity))
-        {
+        if let (Ok(root), Ok(stamina)) = (root_query.get_single(), stamina_query.get(*entity)) {
             commands.entity(root).with_children(|children| {
                 for i in 0..stamina.max.ceil() as i32 {
                     children

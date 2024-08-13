@@ -10,7 +10,7 @@ use leafwing_input_manager::InputManagerBundle;
 use player_controller::RotateWithMouse;
 
 use crate::{
-    actors::MoveSpeed,
+    actors::{ghost::FloatBoost, MoveSpeed},
     chunk_loading::ChunkLoader,
     controllers::{self, *},
     effects::camera::CameraEffectsBundle,
@@ -151,6 +151,7 @@ pub fn spawn_local_player(
                 move_speed: MoveSpeed::new(0.5, 0.5, 0.10),
                 ..default()
             },
+            FloatBoost::default().with_extra_height(3.0),
             settings.player_loader.clone(),
             InputManagerBundle {
                 input_map: controllers::get_input_map(),
