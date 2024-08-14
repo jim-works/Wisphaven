@@ -39,7 +39,7 @@ pub fn load_resources(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     commands.insert_resource(WispResources {
-        mesh: meshes.add(shape::Box::new(1.0,1.0,1.0).into()),
+        mesh: meshes.add(shape::Box::new(1.0, 1.0, 1.0).into()),
         material: materials.add(StandardMaterial::from(Color::WHITE)),
     });
 }
@@ -86,7 +86,7 @@ fn spawn_wisp(
             },
             PhysicsBundle {
                 collider: Aabb::centered(Vec3::splat(1.0)),
-                gravity: GravityMult(0.5),
+                gravity: GravityMult::new(0.5),
                 ..default()
             },
             Wisp,

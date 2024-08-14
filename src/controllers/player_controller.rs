@@ -15,6 +15,7 @@ use crate::{
         movement::{GravityMult, Velocity},
         query::{self, Raycast, RaycastHit},
     },
+    settings::Settings,
     ui::{state::UIState, world_mouse_active},
     world::{
         events::{BlockHitEvent, BlockUsedEvent},
@@ -47,12 +48,12 @@ pub fn toggle_player_flight(
             match *mode {
                 MovementMode::Flying => {
                     *mode = MovementMode::Normal;
-                    gravity.0 = 1.0;
+                    gravity.set(1.0);
                     info!("Not Flying");
                 }
                 _ => {
                     *mode = MovementMode::Flying;
-                    gravity.0 = 0.0;
+                    gravity.set(0.0);
                     info!("Flying");
                 }
             };
@@ -147,18 +148,19 @@ pub fn dash_player(
 pub fn rotate_mouse(
     mut query: Query<(&mut Transform, &mut RotateWithMouse, &ActionState<Action>)>,
     ui_state: Res<State<UIState>>,
+    settings: Res<Settings>,
 ) {
     if !world_mouse_active(ui_state.get()) {
         return;
     }
-    const SENSITIVITY: f32 = 0.01;
+    let sensitivity = settings.mouse_sensitivity;
     for (mut tf, mut rotation, action) in query.iter_mut() {
         if let Some(delta) = action.axis_pair(Action::Look) {
             if !rotation.lock_yaw {
-                rotation.yaw -= delta.x() * SENSITIVITY;
+                rotation.yaw -= delta.x() * sensitivity;
             }
             if !rotation.lock_pitch {
-                rotation.pitch -= delta.y() * SENSITIVITY;
+                rotation.pitch -= delta.y() * sensitivity;
             }
 
             rotation.pitch = rotation

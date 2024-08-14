@@ -154,7 +154,7 @@ fn do_tick_movement(
             let orthogonal_axis = v_desired - main_axis;
             let mut delta = orthogonal_axis;
             //only allow movement on the main axis if it's against current velocity
-            if v_desired.dot(norm_velocity) < 0. {
+            if v_desired.dot(norm_velocity) < 0. || current_speed < ms.max_speed {
                 delta += main_axis;
             }
             v.0 += delta * acceleration;

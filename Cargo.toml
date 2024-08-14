@@ -15,9 +15,8 @@ opt-level = 3
 
 #TODO: uncomment for actual release builds
 #also look into this: https://nnethercote.github.io/perf-book/build-configuration.html#link-time-optimization
-#[profile.release]
-#lto = true
-debug = true
+[profile.release]
+lto = true
 
 [dependencies]
 ahash = "0.8.3"

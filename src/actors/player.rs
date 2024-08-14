@@ -316,7 +316,7 @@ fn populate_player_entity(
         },
         SyncPosition,
         SyncVelocity,
-        Stamina::default(),
+        Stamina::new(10.0),
         Dash::new(1.0),
     ));
     //right hand

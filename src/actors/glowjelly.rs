@@ -6,7 +6,7 @@ use big_brain::prelude::*;
 use crate::{
     physics::{collision::Aabb, movement::GravityMult, PhysicsBundle},
     ui::healthbar::spawn_billboard_healthbar,
-    util::{plugin::SmoothLookTo, SendEventCommand}
+    util::{plugin::SmoothLookTo, SendEventCommand},
 };
 
 use super::{
@@ -99,7 +99,7 @@ pub fn spawn_glowjelly(
                 },
                 PhysicsBundle {
                     collider: Aabb::new(Vec3::ONE, -0.5 * Vec3::ONE),
-                    gravity: GravityMult(0.1),
+                    gravity: GravityMult::new(0.1),
                     ..default()
                 },
                 PersonalityBundle {
@@ -213,7 +213,7 @@ fn social_score(
     mut query: Query<(&mut FloatHeight, &GlobalTransform)>,
     friend_query: Query<&GlobalTransform, With<Glowjelly>>,
 ) {
-    const SQUARE_RADIUS: f32 = 25.0*25.0;
+    const SQUARE_RADIUS: f32 = 25.0 * 25.0;
     for (mut height, tf) in query.iter_mut() {
         let mut sum_height_diff = 0.0;
         let mut count = 0.0;

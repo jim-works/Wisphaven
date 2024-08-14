@@ -31,11 +31,27 @@ pub struct Gravity(pub Vec3);
 //children of a parent should not typically have separate GravityMults unless the parent will not rotate
 //gravity is taken in local space without local rotation, so parent's rotation will affect the gravity direction
 #[derive(Component, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct GravityMult(pub f32);
+pub struct GravityMult(f32);
 
 impl Default for GravityMult {
     fn default() -> Self {
         Self(1.0)
+    }
+}
+
+impl GravityMult {
+    pub fn new(val: f32) -> Self {
+        Self(val)
+    }
+    //can cause issues with buffs (like FloatBoost) wearing off, so don't use unless you don't care
+    pub fn set(&mut self, val: f32) {
+        self.0 = val;
+    }
+    pub fn get(self) -> f32 {
+        self.0
+    }
+    pub fn scale(&mut self, factor: f32) {
+        self.0 *= factor;
     }
 }
 

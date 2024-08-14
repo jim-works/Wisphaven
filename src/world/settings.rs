@@ -16,6 +16,7 @@ pub struct Settings {
     pub item_type_path: &'static str,
     pub recipe_path: &'static str,
     pub block_tex_size: UVec2,
+    pub mouse_sensitivity: f32,
 }
 
 impl Default for Settings {
@@ -47,6 +48,7 @@ impl Default for Settings {
             //prefixed with "assets/"
             recipe_path: "recipes",
             block_tex_size: UVec2::new(16, 16),
+            mouse_sensitivity: 0.005,
         }
     }
 }

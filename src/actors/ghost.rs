@@ -10,7 +10,11 @@ use crate::{
         SwingEndEvent, UseEndEvent,
     },
     mesher::item_mesher::HeldItemResources,
-    physics::{collision::Aabb, movement::Velocity, PhysicsBundle, PhysicsSystemSet},
+    physics::{
+        collision::Aabb,
+        movement::{GravityMult, Velocity},
+        PhysicsBundle, PhysicsSystemSet,
+    },
     settings::GraphicsSettings,
     ui::debug::FixedUpdateBlockGizmos,
     util::{
@@ -60,18 +64,20 @@ impl Default for Float {
 #[derive(Component, Clone, Copy)]
 pub struct FloatBoost {
     pub extra_height: f32,
+    pub gravity_mult: f32,
     pub stamina_per_tick: f32,
     pub enabled: bool,
-    added: f32,
+    effects_added: bool,
 }
 
 impl Default for FloatBoost {
     fn default() -> Self {
         Self {
             extra_height: 3.0,
+            gravity_mult: 0.25,
             stamina_per_tick: 1.0 / 64.0,
-            enabled: Default::default(),
-            added: Default::default(),
+            enabled: false,
+            effects_added: false,
         }
     }
 }
@@ -80,6 +86,12 @@ impl FloatBoost {
     pub fn with_extra_height(self, extra_height: f32) -> Self {
         Self {
             extra_height,
+            ..self
+        }
+    }
+    pub fn with_gravity_mult(self, gravity_mult: f32) -> Self {
+        Self {
+            gravity_mult,
             ..self
         }
     }
@@ -877,8 +889,15 @@ fn update_floater(
     }
 }
 
-fn float_boost(mut query: Query<(&mut Float, &mut FloatBoost, Option<&mut Stamina>)>) {
-    for (mut float, mut boost, stamina_opt) in query.iter_mut() {
+fn float_boost(
+    mut query: Query<(
+        &mut Float,
+        &mut FloatBoost,
+        &mut GravityMult,
+        Option<&mut Stamina>,
+    )>,
+) {
+    for (mut float, mut boost, mut grav, stamina_opt) in query.iter_mut() {
         if boost.enabled {
             if let Some(mut stamina) = stamina_opt {
                 stamina.change(-boost.stamina_per_tick);
@@ -887,12 +906,19 @@ fn float_boost(mut query: Query<(&mut Float, &mut FloatBoost, Option<&mut Stamin
                 }
             }
         }
-        if boost.enabled && boost.added < boost.extra_height {
-            float.target_ground_dist += boost.extra_height - boost.added;
-            boost.added = boost.extra_height;
-        } else if !boost.enabled && boost.added > 0. {
-            float.target_ground_dist -= boost.added;
-            boost.added = 0.;
+        //I wish I could do this with Added<> queries and RemovedComponents<>, but if you remove a component in fixed update the added<> field doesn't get populated
+        //I would have to keep a FloatBoostActive(bool) component where the bool decides if it's FOR REAL active
+        //why do added and removed have to be treated differently? WHY NO ADDEDCOMPONENTS<>? WHY?
+        if boost.enabled && !boost.effects_added {
+            //add effects
+            float.target_ground_dist += boost.extra_height;
+            grav.scale(boost.gravity_mult);
+            boost.effects_added = true;
+        } else if !boost.enabled && boost.effects_added {
+            //clear effects
+            float.target_ground_dist -= boost.extra_height;
+            grav.scale(1. / boost.gravity_mult);
+            boost.effects_added = false;
         }
     }
 }
