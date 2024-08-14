@@ -25,7 +25,9 @@ use crate::{
     BlockCoord, BlockPhysics, Level, LevelSystemSet,
 };
 
-use super::{abilities::Stamina, ActorName, ActorResources, CombatInfo, CombatantBundle, Idler};
+use super::{
+    abilities::stamina::Stamina, ActorName, ActorResources, CombatInfo, CombatantBundle, Idler,
+};
 
 const GHOST_PARTICLE_COUNT: u32 = 7;
 #[derive(Resource)]

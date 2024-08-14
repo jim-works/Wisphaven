@@ -4,8 +4,11 @@ use bevy::{ecs::system::SystemId, prelude::*};
 
 use crate::{
     actors::{
-        abilities::{send_stamina_updated_events, Stamina, StaminaUpdatedEvent},
-        process_attacks, CombatInfo, DamageTakenEvent, LocalPlayer, LocalPlayerSpawnedEvent,
+        abilities::{
+            stamina::send_stamina_updated_events, stamina::Stamina, stamina::StaminaUpdatedEvent,
+        },
+        damage::process_attacks,
+        CombatInfo, DamageTakenEvent, LocalPlayer, LocalPlayerSpawnedEvent,
     },
     util::inverse_lerp,
     LevelLoadState,

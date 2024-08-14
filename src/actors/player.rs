@@ -30,7 +30,11 @@ use crate::{
 };
 
 use super::{
-    abilities::{dash::Dash, Stamina},
+    abilities::{
+        dash::Dash,
+        stamina::{RestoreStaminaDuringDay, Stamina},
+    },
+    death_effects::RestoreStaminaOnKill,
     ghost::{spawn_ghost_hand, Float, GhostResources, Handed},
     CombatInfo, CombatantBundle, Damage, DeathInfo,
 };
@@ -317,6 +321,10 @@ fn populate_player_entity(
         SyncPosition,
         SyncVelocity,
         Stamina::new(10.0),
+        RestoreStaminaOnKill { amount: 1.0 },
+        RestoreStaminaDuringDay {
+            per_tick: 1. / (64. * 16.),
+        },
         Dash::new(1.0),
     ));
     //right hand

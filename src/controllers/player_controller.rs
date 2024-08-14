@@ -1,6 +1,6 @@
 use abilities::{
     dash::{CurrentlyDashing, Dash},
-    Stamina,
+    stamina::Stamina,
 };
 use bevy::prelude::*;
 use ghost::FloatBoost;

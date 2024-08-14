@@ -2,9 +2,14 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use crate::{actors::MoveSpeed, physics::movement::Velocity, util::{ease_out_quad, inverse_lerp, lerp}, LevelSystemSet};
+use crate::{
+    actors::MoveSpeed,
+    physics::movement::Velocity,
+    util::{ease_out_quad, inverse_lerp, lerp},
+    LevelSystemSet,
+};
 
-use super::StaminaCost;
+use super::stamina::StaminaCost;
 
 pub struct DashPlugin;
 
@@ -20,7 +25,7 @@ pub struct Dash {
     pub current_speed: f32,
     pub dash_duration: Duration,
     pub begin_fade_offset: Duration,
-    pub stamina_cost: StaminaCost
+    pub stamina_cost: StaminaCost,
 }
 
 impl Default for Dash {
@@ -30,7 +35,7 @@ impl Default for Dash {
             current_speed: 10.0,
             dash_duration: Duration::from_secs_f32(0.5),
             begin_fade_offset: Duration::from_secs_f32(0.25),
-            stamina_cost: StaminaCost::new(1.0)
+            stamina_cost: StaminaCost::new(1.0),
         }
     }
 }
@@ -46,7 +51,7 @@ impl Dash {
 }
 
 #[derive(Component)]
-#[component(storage="SparseSet")]
+#[component(storage = "SparseSet")]
 pub struct CurrentlyDashing {
     fade_start_time: Duration,
     end_time: Duration,
@@ -60,7 +65,7 @@ impl CurrentlyDashing {
             end_time: dash.dash_duration + current_time,
             fade_start_time: dash.begin_fade_offset + current_time,
             speed: dash.current_speed,
-            initial_v
+            initial_v,
         }
     }
 }
@@ -68,8 +73,14 @@ impl CurrentlyDashing {
 //when adding movement modes, be sure to update do_tick_movement
 fn do_dash(
     mut commands: Commands,
-    mut dashing_query: Query<(Entity, &GlobalTransform, &mut Velocity, &CurrentlyDashing, Option<&MoveSpeed>)>,
-    time: Res<Time>
+    mut dashing_query: Query<(
+        Entity,
+        &GlobalTransform,
+        &mut Velocity,
+        &CurrentlyDashing,
+        Option<&MoveSpeed>,
+    )>,
+    time: Res<Time>,
 ) {
     let curr_time = time.elapsed();
     for (entity, tf, mut v, dash, ms_opt) in dashing_query.iter_mut() {
@@ -78,19 +89,32 @@ fn do_dash(
                 ec.remove::<CurrentlyDashing>();
             }
             //fade to max move speed, initial speed, or dash speed (if max ms is larger)
-            let initial_speed = Vec3::new(dash.initial_v.x,0.,dash.initial_v.z).length();
-            let ms = ms_opt.map(|ms| ms.max_speed).unwrap_or_default().min(dash.speed);
-            v.0 = tf.forward()*ms.max(initial_speed);
-        }
-        else if curr_time >= dash.fade_start_time {
-            let fade_amount = inverse_lerp(dash.fade_start_time.as_secs_f32(), dash.end_time.as_secs_f32(), curr_time.as_secs_f32());
+            let initial_speed = Vec3::new(dash.initial_v.x, 0., dash.initial_v.z).length();
+            let ms = ms_opt
+                .map(|ms| ms.max_speed)
+                .unwrap_or_default()
+                .min(dash.speed);
+            v.0 = tf.forward() * ms.max(initial_speed);
+        } else if curr_time >= dash.fade_start_time {
+            let fade_amount = inverse_lerp(
+                dash.fade_start_time.as_secs_f32(),
+                dash.end_time.as_secs_f32(),
+                curr_time.as_secs_f32(),
+            );
             //fade to max move speed, initial speed, or dash speed (if max ms is larger)
-            let initial_speed = Vec3::new(dash.initial_v.x,0.,dash.initial_v.z).length();
-            let ms = ms_opt.map(|ms| ms.max_speed).unwrap_or_default().min(dash.speed);
-            let speed = lerp(dash.speed, ms.max(initial_speed), ease_out_quad(fade_amount));
-            v.0 = tf.forward()*speed;
+            let initial_speed = Vec3::new(dash.initial_v.x, 0., dash.initial_v.z).length();
+            let ms = ms_opt
+                .map(|ms| ms.max_speed)
+                .unwrap_or_default()
+                .min(dash.speed);
+            let speed = lerp(
+                dash.speed,
+                ms.max(initial_speed),
+                ease_out_quad(fade_amount),
+            );
+            v.0 = tf.forward() * speed;
         } else {
-            v.0 = tf.forward()*dash.speed;
+            v.0 = tf.forward() * dash.speed;
         }
     }
 }
