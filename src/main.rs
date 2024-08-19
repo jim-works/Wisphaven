@@ -33,6 +33,7 @@ use crate::net::{server::ServerConfig, NetworkType};
 mod actors;
 mod chunk_loading;
 mod controllers;
+mod effects;
 mod gameplay;
 mod items;
 mod mesher;
@@ -43,7 +44,6 @@ mod ui;
 mod util;
 mod world;
 mod worldgen;
-mod effects;
 
 fn main() {
     //todo - this should be in GUI
@@ -62,7 +62,6 @@ fn main() {
         ));
         println!("Need to connect client to {:?}", client_connection_ip);
     }
-
     let mut app = App::new();
     app.add_plugins(
         DefaultPlugins
@@ -77,7 +76,7 @@ fn main() {
             }),
     )
     .add_plugins(HanabiPlugin)
-    // .add_plugins(WorldInspectorPlugin::new())
+    .add_plugins(WorldInspectorPlugin::new())
     .add_plugins((
         UtilPlugin,
         serialization::SerializationPlugin,
@@ -93,7 +92,7 @@ fn main() {
         net::NetPlugin,
         util::bevy_utils::BevyUtilsPlugin,
         gameplay::GameplayPlugin,
-        effects::EffectsPlugin
+        effects::EffectsPlugin,
     ))
     .insert_resource(AmbientLight {
         brightness: 0.15,

@@ -23,7 +23,7 @@ impl Plugin for DashPlugin {
 pub struct Dash {
     pub base_speed: f32,
     pub current_speed: f32,
-    pub dash_duration: Duration,
+    pub duration: Duration,
     pub begin_fade_offset: Duration,
     pub stamina_cost: StaminaCost,
 }
@@ -33,7 +33,7 @@ impl Default for Dash {
         Self {
             base_speed: 10.0,
             current_speed: 10.0,
-            dash_duration: Duration::from_secs_f32(0.5),
+            duration: Duration::from_secs_f32(0.5),
             begin_fade_offset: Duration::from_secs_f32(0.25),
             stamina_cost: StaminaCost::new(1.0),
         }
@@ -41,10 +41,11 @@ impl Default for Dash {
 }
 
 impl Dash {
-    pub fn new(speed: f32) -> Self {
+    pub fn new(speed: f32, duration: Duration) -> Self {
         Self {
             base_speed: speed,
             current_speed: speed,
+            duration,
             ..Default::default()
         }
     }
@@ -62,7 +63,7 @@ pub struct CurrentlyDashing {
 impl CurrentlyDashing {
     pub fn new(dash: Dash, current_time: Duration, initial_v: Vec3) -> Self {
         Self {
-            end_time: dash.dash_duration + current_time,
+            end_time: dash.duration + current_time,
             fade_start_time: dash.begin_fade_offset + current_time,
             speed: dash.current_speed,
             initial_v,

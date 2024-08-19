@@ -17,12 +17,12 @@
         "wisphaven::items::tools::DontHitBlocks": (),
         "wisphaven::items::item_attributes::ItemSwingSpeed": (
             windup: (
-                secs: 1,
+                secs: 0,
                 nanos: 0,
             ),
             backswing: (
                 secs: 0,
-                nanos: 250000000,
+                nanos: 500000000,
             )
         ),
       },
@@ -227,16 +227,16 @@
         ),
         "wisphaven::items::weapons::CoinLauncherItem": (
           speed: 1,
-          damage: Damage (amount: 2.0)
+          damage: Damage (amount: 3.0)
         ),
         "wisphaven::items::item_attributes::ItemUseSpeed": (
             windup: (
                 secs: 0,
-                nanos: 250000000,
+                nanos: 0,
             ),
             backswing: (
-                secs: 0,
-                nanos: 500000000,
+                secs: 1,
+                nanos: 0
             )
         ),
         "wisphaven::items::item_attributes::ConsumeItemOnHit": ()
@@ -275,9 +275,9 @@
             path: "grapple.png"
         ),
         "wisphaven::items::grapple_item::GrappleItem": (
-          max_speed: 2,
-          strength: 0.5,
-          length: 200.0,
+          max_speed: 0.5,
+          strength: 0.1,
+          length: 25.0,
           remove_distance: Some(2.0)
         ),
         "wisphaven::items::item_attributes::ItemUseSpeed": (

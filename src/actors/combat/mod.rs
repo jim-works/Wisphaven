@@ -13,19 +13,20 @@ impl Plugin for CombatPlugin {
         app.add_plugins((
             projectile::ProjectilePlugin,
             death_effects::DeathEffectsPlugin,
+            damage::DamagePlugin,
         ))
         .add_event::<AttackEvent>()
         .add_event::<DeathEvent>()
         .add_event::<DamageTakenEvent>()
+        .add_systems(Startup, create_level_entity)
         .add_systems(PreUpdate, purge_despawned_targets)
         .add_systems(Update, update_aggro_on_player)
-        .add_systems(
-            PostUpdate,
-            (damage::process_attacks, damage::do_death).chain(),
-        )
         .register_type::<Damage>();
     }
 }
+
+#[derive(Resource)]
+pub struct LevelEntity(Entity);
 
 #[derive(Bundle, Clone)]
 pub struct CombatantBundle {
@@ -78,9 +79,42 @@ pub enum DeathType {
     Immortal,
 }
 
+#[derive(Default, Copy, Clone, Reflect, Debug)]
+pub enum DamageType {
+    #[default]
+    Normal,
+    HPRemoval,
+}
+
 #[derive(Clone, Copy, Debug, Reflect, Default)]
 pub struct Damage {
     pub amount: f32,
+    pub dtype: DamageType,
+}
+
+impl Damage {
+    pub fn new(amount: f32) -> Self {
+        Self {
+            amount,
+            ..default()
+        }
+    }
+
+    //calculates actual HP to remove
+    pub fn calc(self, info: &CombatInfo) -> f32 {
+        //curve sets damage multiplier between 0 and 2. infinite defense gives multiplier 0, -infinite defense gives multiplier 2
+        //0 defense gives multiplier 1
+        //TODO: maybe switch to sigmoid, I don't think I want armor to have this amount of diminishing returns.
+        const DEFENSE_SCALE: f32 = 0.1;
+        match self.dtype {
+            DamageType::Normal => {
+                (1.0 - (DEFENSE_SCALE * info.curr_defense)
+                    / (1.0 + (DEFENSE_SCALE * info.curr_defense).abs()))
+                    * self.amount
+            }
+            DamageType::HPRemoval => self.amount,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Event)]
@@ -99,6 +133,7 @@ pub struct DamageTakenEvent {
     //after reductions
     pub damage_taken: Damage,
     pub knockback_impulse: Vec3,
+    pub hit_location: Vec3,
 }
 
 #[derive(Clone, Copy, Event)]
@@ -239,4 +274,9 @@ fn update_aggro_on_player(
             commands.entity(entity).remove::<AggroedOnPlayer>();
         }
     }
+}
+
+fn create_level_entity(mut commands: Commands) {
+    let entity = commands.spawn_empty().id();
+    commands.insert_resource(LevelEntity(entity));
 }

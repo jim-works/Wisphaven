@@ -300,7 +300,7 @@ fn populate_player_entity(
 ) {
     commands.entity(entity).insert((
         Player {
-            hit_damage: Damage { amount: 1.0 },
+            hit_damage: Damage::new(1.0),
         },
         SpatialBundle::from_transform(Transform::from_translation(spawn_point)),
         InterpolatedAttribute::from(Transform::from_translation(spawn_point)),
@@ -325,7 +325,7 @@ fn populate_player_entity(
         RestoreStaminaDuringDay {
             per_tick: 1. / (64. * 16.),
         },
-        Dash::new(1.0),
+        Dash::new(0.5, Duration::from_secs_f32(0.5)),
     ));
     //right hand
     let right_hand = spawn_ghost_hand(

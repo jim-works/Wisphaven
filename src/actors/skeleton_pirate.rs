@@ -4,6 +4,7 @@ use big_brain::prelude::*;
 use crate::{
     actors::{
         ai::{scorers::AggroScorer, AttackAction, WalkToCurrentTargetAction},
+        damage::KillOnSunrise,
         AggroPlayer, AggroTargets,
     },
     controllers::{ControllableBundle, JumpBundle},
@@ -88,7 +89,7 @@ pub fn spawn_skeleton_pirate(
                 ..default()
             },
             ControllableBundle {
-                move_speed: MoveSpeed::new(50.0, 10.0, 5.0),
+                move_speed: MoveSpeed::new(0.5, 0.5, 0.10),
                 ..default()
             },
             JumpBundle {
@@ -97,6 +98,7 @@ pub fn spawn_skeleton_pirate(
             },
             SmoothLookTo::new(0.7),
             SkeletonPirate { ..default() },
+            KillOnSunrise,
             AggroPlayer {
                 range: AGGRO_RANGE,
                 priority: 0,
@@ -195,7 +197,7 @@ fn attack(
     const COIN_OFFSET: Vec3 = Vec3::new(0.0, 2.0, 0.0);
     const THROW_IMPULSE: f32 = 0.5;
     let combat = CombatantBundle::default();
-    let damage = Damage { amount: 1.0 };
+    let damage = Damage::new(1.0);
     for (&Actor(actor), mut state) in action_query.iter_mut() {
         match *state {
             ActionState::Requested => {
