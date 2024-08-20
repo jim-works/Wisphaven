@@ -5,6 +5,7 @@ pub mod inventory;
 pub mod player_stats;
 pub mod state;
 pub mod styles;
+pub mod waves;
 
 use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
@@ -25,6 +26,7 @@ impl Plugin for UIPlugin {
                 crosshair::CrosshairPlugin,
                 healthbar::HealthbarPlugin,
                 player_stats::PlayerStatsUiPlugin,
+                waves::WavesPlugin,
             ))
             .add_plugins(debug::DebugUIPlugin)
             .add_systems(OnEnter(state::UIState::Default), capture_mouse)
