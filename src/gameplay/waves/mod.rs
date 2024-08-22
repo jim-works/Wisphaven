@@ -1,6 +1,7 @@
 use std::{f32::consts::PI, time::Duration};
 
 use bevy::prelude::*;
+use itertools::Itertools;
 use rand::{thread_rng, RngCore};
 
 use crate::{
@@ -23,43 +24,55 @@ pub struct WavesPlugin;
 
 impl Plugin for WavesPlugin {
     fn build(&self, app: &mut App) {
+        let mut spawns = vec![SpawnableEntity {
+            strength: 1.,
+            action: Box::new(SkeletonPirateSpawn),
+        }];
+        spawns.sort_by(|a, b| a.strength.total_cmp(&b.strength));
         app.add_systems(
             Update,
             (
                 trigger_assault.run_if(resource_exists::<WorldAnchor>()),
-                spawn_wave.run_if(
-                    in_state(AssaultState::Spawning).and_then(resource_exists::<Assault>()),
-                ),
+                spawn_wave.run_if(resource_exists::<Assault>()),
             ),
         )
         .insert_resource(Assault {
             to_spawn: Vec::new(),
-            possible_spawns: vec![Spawn {
-                strength: 1,
-                wave_strength_cutoff: None,
-                action: Box::new(SkeletonPirateSpawn),
-            }],
+            compiled: Vec::new(),
+            possible_spawns: spawns,
             spawn_points: Vec::new(),
-            wave_pause_interval: Duration::from_secs(5),
-        })
-        .add_state::<AssaultState>();
+        });
     }
-}
-
-#[derive(States, Default, Eq, PartialEq, Debug, Hash, Clone, Copy)]
-pub enum AssaultState {
-    #[default]
-    NotStarted,
-    Spawning,
-    Finished,
 }
 
 #[derive(Resource)]
 pub struct Assault {
     pub to_spawn: Vec<WaveInfo>,
-    pub possible_spawns: Vec<Spawn>,
+    //create by calling .compile(), sorted in descending time order (so you can pop)
+    compiled: Vec<CompiledSpawn>,
+    pub possible_spawns: Vec<SpawnableEntity>,
     pub spawn_points: Vec<SpawnPoint>,
-    pub wave_pause_interval: Duration,
+}
+
+impl Assault {
+    //assumes possible_spawns is sorted in ascending order
+    //returns spawn with lowest strength >= min_strength, or the spawn with the highest strength if none are possible
+    pub fn get_spawn_idx(&self, min_strength: f32) -> Option<usize> {
+        self.possible_spawns
+            .iter()
+            .enumerate()
+            .find_or_last(|(_, elem)| elem.strength >= min_strength)
+            .map(|(i, _)| i)
+    }
+
+    fn compile(&self) -> Vec<CompiledSpawn> {
+        let mut spawns = Vec::new();
+        for wave in self.to_spawn.iter() {
+            spawns.append(&mut wave.compile(&self));
+        }
+        spawns.sort_unstable_by(|a, b| b.spawn_time.cmp(&a.spawn_time));
+        spawns
+    }
 }
 
 pub struct SpawnPoint {
@@ -68,46 +81,100 @@ pub struct SpawnPoint {
 
 #[derive(Clone, Debug)]
 pub struct WaveInfo {
-    pub initial_strength: u64,
-    pub remaining_strength: u64,
-    pub duration: Duration,
-    pub end_time: Duration,
-    pub next_spawn_time: Duration,
+    pub strength_mult: f32,
+    pub start_time: Duration,
+    //sorted in ascending time order
+    spawns: Vec<WaveSpawn>,
 }
 
 impl WaveInfo {
-    fn new(strength: u64, duration: Duration) -> Self {
-        Self {
-            initial_strength: strength,
-            remaining_strength: strength,
-            duration,
-            end_time: Duration::ZERO,
-            next_spawn_time: Duration::ZERO,
+    fn compile(&self, assault: &Assault) -> Vec<CompiledSpawn> {
+        let mut spawns = Vec::new();
+        for spawn in self.spawns.iter() {
+            spawn.compile(assault, &mut spawns, self.start_time, self.strength_mult);
+        }
+        spawns.sort_unstable_by(|a, b| b.spawn_time.cmp(&a.spawn_time));
+        spawns
+    }
+}
+
+#[derive(Clone, Debug)]
+struct WaveSpawn {
+    start_offset: Duration,
+    spawn: WaveSpawnType,
+    strategy: SpawnStrategy,
+}
+
+impl WaveSpawn {
+    fn compile(
+        &self,
+        assault: &Assault,
+        dest: &mut Vec<CompiledSpawn>,
+        start_time: Duration,
+        strength_mult: f32,
+    ) {
+        let spawn_time = start_time + self.start_offset;
+        self.strategy.compile(spawn_time, |t| match &self.spawn {
+            WaveSpawnType::Recursive(spawner) => spawner.compile(assault, dest, t, strength_mult),
+            WaveSpawnType::Strength(strength) => {
+                let Some(spawn_index) = assault.get_spawn_idx(strength * strength_mult) else {
+                    return;
+                };
+                dest.push(CompiledSpawn {
+                    spawn_time: t,
+                    spawn_index,
+                })
+            }
+        });
+    }
+}
+
+#[derive(Clone, Debug)]
+enum WaveSpawnType {
+    Recursive(Box<WaveSpawn>),
+    Strength(f32),
+}
+
+#[derive(Clone, Copy, Debug)]
+enum SpawnStrategy {
+    Burst { count: u32 },
+    Stream { count: u32, delay: Duration },
+}
+
+impl SpawnStrategy {
+    fn compile(self, start_time: Duration, mut spawner: impl FnMut(Duration)) {
+        match self {
+            SpawnStrategy::Burst { count } => {
+                for _ in 0..count {
+                    spawner(start_time);
+                }
+            }
+            SpawnStrategy::Stream { count, delay } => {
+                for i in 0..count {
+                    spawner(start_time + delay * i);
+                }
+            }
         }
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct CompiledSpawn {
+    spawn_time: Duration,
+    spawn_index: usize,
 }
 
 pub trait SpawnAction {
     fn spawn(&self, commands: &mut Commands, translation: Vec3);
 }
 
-pub struct Spawn {
-    pub strength: u64,
-    pub wave_strength_cutoff: Option<u64>, //don't use this spawn if wave strength is larger
+pub struct SpawnableEntity {
+    pub strength: f32,
     pub action: Box<dyn SpawnAction + Send + Sync>,
-}
-
-impl Spawn {
-    pub fn usable(&self, wave_strength: u64) -> bool {
-        self.wave_strength_cutoff
-            .map(|cutoff| cutoff <= wave_strength)
-            .unwrap_or(true)
-    }
 }
 
 fn trigger_assault(
     mut assault: ResMut<Assault>,
-    mut next_state: ResMut<NextState<AssaultState>>,
     mut night_event: EventReader<NightStartedEvent>,
     calendar: Res<Calendar>,
     level: Res<Level>,
@@ -187,18 +254,35 @@ fn trigger_assault(
                 );
             }
         }
-        next_state.set(AssaultState::Finished);
     }
     info!("Assault begins on night {}!", calendar.time.day);
-    assault.to_spawn.push(WaveInfo::new(
-        get_wave_strength(&calendar),
-        Duration::from_secs(2),
-    ));
-    assault.to_spawn.push(WaveInfo::new(
-        get_wave_strength(&calendar),
-        Duration::from_secs(2),
-    ));
-    next_state.set(AssaultState::Spawning);
+    assault.to_spawn.clear();
+    let strength_mult = get_wave_strength(&calendar);
+    let start_time = calendar.time.time;
+    assault.to_spawn.push(WaveInfo {
+        strength_mult,
+        start_time,
+        spawns: vec![
+            WaveSpawn {
+                start_offset: Duration::ZERO,
+                spawn: WaveSpawnType::Strength(1.),
+                strategy: SpawnStrategy::Burst { count: 10 },
+            },
+            WaveSpawn {
+                start_offset: Duration::ZERO,
+                spawn: WaveSpawnType::Recursive(Box::new(WaveSpawn {
+                    start_offset: Duration::from_secs(1),
+                    spawn: WaveSpawnType::Strength(1.),
+                    strategy: SpawnStrategy::Burst { count: 5 },
+                })),
+                strategy: SpawnStrategy::Stream {
+                    count: 10,
+                    delay: Duration::from_secs(1),
+                },
+            },
+        ],
+    });
+    assault.compiled = assault.compile();
 }
 
 fn search_for_spawn_volume(
@@ -237,65 +321,35 @@ fn valid_spawn_volume(volume: &VolumeContainer<BlockType>) -> bool {
     })
 }
 
-fn get_wave_strength(calendar: &Calendar) -> u64 {
-    calendar.time.day + 5
+fn get_wave_strength(calendar: &Calendar) -> f32 {
+    calendar.time.day as f32 + 5.
 }
 
-fn spawn_wave(
-    mut assault: ResMut<Assault>,
-    time: Res<Time>,
-    mut commands: Commands,
-    mut assault_state: ResMut<NextState<AssaultState>>,
-) {
-    let current_time = time.elapsed();
-    let mut rng = thread_rng();
-    if let Some(mut wave) = assault.to_spawn.last().cloned() {
-        if wave.next_spawn_time != Duration::ZERO && wave.next_spawn_time > current_time {
-            return;
-        }
-        if wave.end_time == Duration::ZERO && wave.remaining_strength == 0 {
-            wave.end_time = current_time;
-            let idx = assault.to_spawn.len() - 1;
-            assault.to_spawn[idx] = wave;
-            info!("finished wave!");
-            return;
-        }
-        if wave.end_time != Duration::ZERO
-            && current_time > wave.end_time + assault.wave_pause_interval
-        {
-            assault.to_spawn.pop();
-            info!("done waiting after wave pause");
-            return;
-        }
-        let possible_spawns: Vec<&Spawn> = assault
-            .possible_spawns
-            .iter()
-            .filter(|spawn| {
-                spawn.usable(wave.initial_strength) && spawn.strength <= wave.remaining_strength
-            })
-            .collect();
-        if let Some(spawn) = get_wrapping(&possible_spawns, rng.next_u32() as usize) {
-            if let Some(spawnpoint) = get_wrapping(&assault.spawn_points, rng.next_u32() as usize) {
-                wave.remaining_strength -= spawn.strength;
-                spawn.action.spawn(&mut commands, spawnpoint.location);
-                wave.next_spawn_time = current_time
-                    + wave
-                        .duration
-                        .mul_f32(spawn.strength as f32 / wave.initial_strength as f32);
-                let idx = assault.to_spawn.len() - 1;
-                info!("spawn strength {:?} wave {:?}", spawn.strength, wave);
-                assault.to_spawn[idx] = wave;
-                return;
-            } else {
-                warn!("no spawnpoint for wave!");
-            }
-        }
-        //no possible spawns, make sure wave is finished
-        wave.remaining_strength = 0;
-        let idx = assault.to_spawn.len() - 1;
-        assault.to_spawn[idx] = wave;
+fn spawn_wave(mut assault: ResMut<Assault>, mut commands: Commands, calendar: Res<Calendar>) {
+    if !calendar.in_night() {
+        //only spawn at night
+        return;
+    }
+    let current_time = calendar.time.time;
+    let spawn_opt = if assault
+        .compiled
+        .last()
+        .map_or(false, |spawn| spawn.spawn_time < current_time)
+    {
+        assault.compiled.pop()
     } else {
-        assault_state.set(AssaultState::Finished);
-        info!("assault finished");
+        None
+    };
+    let Some(spawn_info) = spawn_opt else {
+        return;
+    };
+    let mut rng = thread_rng();
+    let Some(spawnpoint) = get_wrapping(&assault.spawn_points, rng.next_u32() as usize) else {
+        warn!("no spawnpoint!");
+        return;
+    };
+    if let Some(spawn) = assault.possible_spawns.get(spawn_info.spawn_index) {
+        spawn.action.spawn(&mut commands, spawnpoint.location);
+        info!("spawned wave entity!");
     }
 }
