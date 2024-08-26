@@ -34,6 +34,9 @@ impl Plugin for WavesPlugin {
             (
                 trigger_assault.run_if(resource_exists::<WorldAnchor>()),
                 spawn_wave.run_if(resource_exists::<Assault>()),
+                send_wave_started_event
+                    .after(trigger_assault)
+                    .run_if(resource_exists::<Assault>()),
             ),
         )
         .insert_resource(Assault {
@@ -41,9 +44,17 @@ impl Plugin for WavesPlugin {
             compiled: Vec::new(),
             possible_spawns: spawns,
             spawn_points: Vec::new(),
-        });
+        })
+        .add_event::<AssaultStartedEvent>()
+        .add_event::<WaveStartedEvent>();
     }
 }
+
+#[derive(Event)]
+pub struct AssaultStartedEvent;
+
+#[derive(Event)]
+pub struct WaveStartedEvent(usize);
 
 #[derive(Resource)]
 pub struct Assault {
@@ -83,6 +94,7 @@ pub struct SpawnPoint {
 pub struct WaveInfo {
     pub strength_mult: f32,
     pub start_time: Duration,
+    pub visible: bool,
     //sorted in ascending time order
     spawns: Vec<WaveSpawn>,
 }
@@ -176,6 +188,7 @@ pub struct SpawnableEntity {
 fn trigger_assault(
     mut assault: ResMut<Assault>,
     mut night_event: EventReader<NightStartedEvent>,
+    mut assault_event: EventWriter<AssaultStartedEvent>,
     calendar: Res<Calendar>,
     level: Res<Level>,
     anchor_query: Query<&GlobalTransform, With<WorldAnchor>>,
@@ -258,10 +271,59 @@ fn trigger_assault(
     info!("Assault begins on night {}!", calendar.time.day);
     assault.to_spawn.clear();
     let strength_mult = get_wave_strength(&calendar);
-    let start_time = calendar.time.time;
+    let start_time = calendar.time.time + Duration::from_secs_f32(15.);
     assault.to_spawn.push(WaveInfo {
         strength_mult,
         start_time,
+        visible: true,
+        spawns: vec![
+            WaveSpawn {
+                start_offset: Duration::ZERO,
+                spawn: WaveSpawnType::Strength(1.),
+                strategy: SpawnStrategy::Burst { count: 5 },
+            },
+            WaveSpawn {
+                start_offset: Duration::ZERO,
+                spawn: WaveSpawnType::Recursive(Box::new(WaveSpawn {
+                    start_offset: Duration::from_secs(1),
+                    spawn: WaveSpawnType::Strength(1.),
+                    strategy: SpawnStrategy::Burst { count: 2 },
+                })),
+                strategy: SpawnStrategy::Stream {
+                    count: 10,
+                    delay: Duration::from_secs(5),
+                },
+            },
+        ],
+    });
+    assault.to_spawn.push(WaveInfo {
+        strength_mult,
+        start_time: start_time + Duration::from_secs(120),
+        visible: true,
+        spawns: vec![
+            WaveSpawn {
+                start_offset: Duration::ZERO,
+                spawn: WaveSpawnType::Strength(1.),
+                strategy: SpawnStrategy::Burst { count: 5 },
+            },
+            WaveSpawn {
+                start_offset: Duration::ZERO,
+                spawn: WaveSpawnType::Recursive(Box::new(WaveSpawn {
+                    start_offset: Duration::from_secs(1),
+                    spawn: WaveSpawnType::Strength(1.),
+                    strategy: SpawnStrategy::Burst { count: 3 },
+                })),
+                strategy: SpawnStrategy::Stream {
+                    count: 3,
+                    delay: Duration::from_secs(10),
+                },
+            },
+        ],
+    });
+    assault.to_spawn.push(WaveInfo {
+        strength_mult,
+        start_time: start_time + Duration::from_secs(220),
+        visible: true,
         spawns: vec![
             WaveSpawn {
                 start_offset: Duration::ZERO,
@@ -276,13 +338,38 @@ fn trigger_assault(
                     strategy: SpawnStrategy::Burst { count: 5 },
                 })),
                 strategy: SpawnStrategy::Stream {
-                    count: 10,
+                    count: 2,
                     delay: Duration::from_secs(1),
                 },
             },
         ],
     });
+    assault.to_spawn.push(WaveInfo {
+        strength_mult,
+        start_time: start_time + Duration::from_secs(400),
+        visible: true,
+        spawns: vec![
+            WaveSpawn {
+                start_offset: Duration::ZERO,
+                spawn: WaveSpawnType::Strength(1.),
+                strategy: SpawnStrategy::Burst { count: 0 },
+            },
+            WaveSpawn {
+                start_offset: Duration::ZERO,
+                spawn: WaveSpawnType::Recursive(Box::new(WaveSpawn {
+                    start_offset: Duration::from_secs(1),
+                    spawn: WaveSpawnType::Strength(1.),
+                    strategy: SpawnStrategy::Burst { count: 5 },
+                })),
+                strategy: SpawnStrategy::Stream {
+                    count: 0,
+                    delay: Duration::from_secs(10),
+                },
+            },
+        ],
+    });
     assault.compiled = assault.compile();
+    assault_event.send(AssaultStartedEvent);
 }
 
 fn search_for_spawn_volume(
@@ -350,6 +437,37 @@ fn spawn_wave(mut assault: ResMut<Assault>, mut commands: Commands, calendar: Re
     };
     if let Some(spawn) = assault.possible_spawns.get(spawn_info.spawn_index) {
         spawn.action.spawn(&mut commands, spawnpoint.location);
-        info!("spawned wave entity!");
+    }
+}
+
+fn send_wave_started_event(
+    assault: Res<Assault>,
+    calendar: Res<Calendar>,
+    mut assault_event: EventReader<AssaultStartedEvent>,
+    mut wave_event: EventWriter<WaveStartedEvent>,
+    mut waves_spawned: Local<Vec<bool>>,
+    mut all_spawned: Local<bool>,
+) {
+    if !assault_event.is_empty() {
+        assault_event.clear();
+        waves_spawned.clear();
+        waves_spawned.resize(assault.to_spawn.len(), false);
+        *all_spawned = false;
+    }
+    if *all_spawned {
+        return;
+    }
+    let current_time = calendar.time.time;
+    for (i, wave) in assault.to_spawn.iter().enumerate() {
+        if !waves_spawned.get(i).unwrap_or(&true) && wave.start_time < current_time {
+            //wave just spawned
+            waves_spawned[i] = true;
+            wave_event.send(WaveStartedEvent(i));
+            info!("wave {} spawned", i);
+            if waves_spawned.iter().all(|spawned| *spawned) {
+                *all_spawned = true;
+                info!("all waves spawned!");
+            }
+        }
     }
 }

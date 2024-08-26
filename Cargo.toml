@@ -1,6 +1,6 @@
 [package]
 name = "wisphaven"
-version = "0.1.1" #not exactly using semver. will have game saves be compatible if major/minor versions are equal
+version = "0.1.1"  #will have game saves be compatible if major/minor versions are equal
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
