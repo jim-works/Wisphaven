@@ -1,6 +1,10 @@
 use std::{f32::consts::PI, time::Duration};
 
-use bevy::{prelude::*, asset::LoadState, render::render_resource::{TextureViewDescriptor, TextureViewDimension}};
+use bevy::{
+    asset::LoadState,
+    prelude::*,
+    render::render_resource::{TextureViewDescriptor, TextureViewDimension},
+};
 
 #[derive(Component)]
 struct Sun;
@@ -134,7 +138,10 @@ pub struct SpeedupCalendarEvent(pub GameTime);
 impl Plugin for AtmospherePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_environment)
-            .add_systems(Update, load_skybox.run_if(resource_exists::<LoadingSkyboxCubemap>()))
+            .add_systems(
+                Update,
+                load_skybox.run_if(resource_exists::<LoadingSkyboxCubemap>()),
+            )
             .add_systems(
                 PreUpdate,
                 (speedup_time, update_calendar, update_sun_position).chain(),
@@ -151,6 +158,10 @@ impl Plugin for AtmospherePlugin {
                 day_length: Duration::from_secs(600),
                 night_length: Duration::from_secs(300),
                 time: GameTime::new(0, Duration::from_secs(100)),
+            })
+            .insert_resource(AmbientLight {
+                brightness: 0.15,
+                ..default()
             });
     }
 }

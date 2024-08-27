@@ -76,7 +76,7 @@ fn main() {
             }),
     )
     .add_plugins(HanabiPlugin)
-    .add_plugins(WorldInspectorPlugin::new())
+    // .add_plugins(WorldInspectorPlugin::new())
     .add_plugins((
         UtilPlugin,
         serialization::SerializationPlugin,
@@ -94,10 +94,7 @@ fn main() {
         gameplay::GameplayPlugin,
         effects::EffectsPlugin,
     ))
-    .insert_resource(AmbientLight {
-        brightness: 0.15,
-        ..default()
-    });
+    .add_state::<GameState>();
 
     if let Some(port) = server_port {
         app.add_systems(
@@ -126,10 +123,23 @@ fn main() {
             },
         );
     } else {
-        app.add_systems(Startup, |mut next_state: ResMut<NextState<NetworkType>>| {
-            next_state.set(NetworkType::Singleplayer);
-        });
+        app.add_systems(
+            Startup,
+            |mut next_state: ResMut<NextState<NetworkType>>,
+             mut next_game_state: ResMut<NextState<GameState>>| {
+                next_state.set(NetworkType::Singleplayer);
+                next_game_state.set(GameState::Menu);
+            },
+        );
     }
 
     app.run();
+}
+
+#[derive(States, Default, Debug, Hash, Eq, PartialEq, Clone)]
+pub enum GameState {
+    #[default]
+    Setup,
+    Menu,
+    Game,
 }
