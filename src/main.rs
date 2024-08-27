@@ -47,10 +47,15 @@ mod worldgen;
 
 fn main() {
     //todo - this should be in GUI
+    //todo - do better parsing
     let args: Vec<String> = env::args().collect();
     let mut server_port = None;
     let mut client_connection_ip = None;
+    let mut skip_menu = false;
     println!("ARGS: {:?}", args);
+    if args.len() == 2 && args[1] == "skip-menu" {
+        skip_menu = true;
+    }
     if args.len() == 3 && args[1] == "host" {
         server_port = Some(args[2].parse::<u16>().unwrap());
         println!("Need to start server on port {}", server_port.unwrap());
@@ -99,19 +104,24 @@ fn main() {
     if let Some(port) = server_port {
         app.add_systems(
             Startup,
-            move |mut commands: Commands, mut next_state: ResMut<NextState<NetworkType>>| {
+            move |mut commands: Commands,
+                  mut next_state: ResMut<NextState<NetworkType>>,
+                  mut next_game_state: ResMut<NextState<GameState>>| {
                 info!("Creating server config on port {}", port);
                 commands.insert_resource(ServerConfig {
                     bind_addr: std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
                     bind_port: port,
                 });
                 next_state.set(NetworkType::Server);
+                next_game_state.set(GameState::Game);
             },
         );
     } else if let Some((ip, port)) = client_connection_ip {
         app.add_systems(
             Startup,
-            move |mut commands: Commands, mut next_state: ResMut<NextState<NetworkType>>| {
+            move |mut commands: Commands,
+                  mut next_state: ResMut<NextState<NetworkType>>,
+                  mut next_game_state: ResMut<NextState<GameState>>| {
                 info!("Creating client config, connecting to {}:{}", ip, port);
                 commands.insert_resource(ClientConfig {
                     server_ip: ip,
@@ -120,15 +130,20 @@ fn main() {
                     local_port: 0,
                 });
                 next_state.set(NetworkType::Client);
+                next_game_state.set(GameState::Game);
             },
         );
     } else {
         app.add_systems(
             Startup,
-            |mut next_state: ResMut<NextState<NetworkType>>,
-             mut next_game_state: ResMut<NextState<GameState>>| {
+            move |mut next_state: ResMut<NextState<NetworkType>>,
+                  mut next_game_state: ResMut<NextState<GameState>>| {
                 next_state.set(NetworkType::Singleplayer);
-                next_game_state.set(GameState::Menu);
+                next_game_state.set(if skip_menu {
+                    GameState::Game
+                } else {
+                    GameState::Menu
+                });
             },
         );
     }
