@@ -1,12 +1,11 @@
 use std::ops::Range;
 
+use bevy::math::IVec3;
 use bracket_noise::prelude::*;
 use rand::Rng;
 use rand_distr::Uniform;
 
-use crate::world::{chunk::ChunkCoord, BlockCoord};
-
-use super::Spline;
+use super::spline::Spline;
 
 pub struct SplineNoise<const S: usize> {
     pub noise: FastNoise,
@@ -29,24 +28,6 @@ pub trait ToSeed {
     fn to_seed(&self) -> u64;
 }
 
-impl ToSeed for ChunkCoord {
-    fn to_seed(&self) -> u64 {
-        let upper = u32::from_le_bytes(self.x.wrapping_mul(123979).to_le_bytes()) as u64;
-        let lower = u32::from_le_bytes(
-            (self.y.wrapping_mul(57891311) ^ self.z.wrapping_mul(7)).to_le_bytes(),
-        ) as u64;
-        upper << 32 | lower
-    }
-}
-
-impl ToSeed for BlockCoord {
-    fn to_seed(&self) -> u64 {
-        1400305337_u64.wrapping_mul(self.x as u64).rotate_left(32)
-        ^ 10570841_u64.wrapping_mul(self.y as u64).rotate_right(32)
-        ^ 122949823_u64.wrapping_mul(self.z as u64).rotate_right(16)
-    }
-}
-
 //xqo generator
 //todo: support 64 bit
 pub fn get_next_prng(input: u64) -> u64 {
@@ -57,12 +38,12 @@ pub fn get_next_prng(input: u64) -> u64 {
     ((word >> 22) ^ word) as u64
 }
 
-pub fn prng_3d(seed: u64, pos: BlockCoord) -> BlockCoord {
+pub fn prng_3d(seed: u64, pos: IVec3) -> IVec3 {
     let offset = 104729_i64.wrapping_mul(seed as i64)
         ^ 224737_i64.wrapping_mul(pos.x as i64)
         ^ 350377_i64.wrapping_mul(pos.y as i64)
         ^ 479909_i64.wrapping_mul(pos.z as i64);
-    BlockCoord::new(
+    IVec3::new(
         (pos.x as i64).wrapping_mul(offset) as i32,
         (pos.y as i64).wrapping_mul(offset) as i32,
         (pos.z as i64).wrapping_mul(offset) as i32,

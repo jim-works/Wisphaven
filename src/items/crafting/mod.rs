@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::util::iterators::BlockVolume;
+use crate::util::iterators::Volume;
 
 use super::ItemSystemSet;
 
@@ -21,7 +21,10 @@ impl Plugin for CraftingPlugin {
                 )
                     .chain(),
             )
-            .add_systems(Update, recipe_picker.in_set(CraftingSystemSet::RecipePicker))
+            .add_systems(
+                Update,
+                recipe_picker.in_set(CraftingSystemSet::RecipePicker),
+            )
             .add_event::<RecipeCandidateEvent>()
             .add_event::<RecipeCraftedEvent>()
             .register_type::<CraftingHammer>();
@@ -46,7 +49,7 @@ pub struct RecipeCandidateEvent(RecipeCraftedEvent);
 
 #[derive(Event, Clone, Copy)]
 pub struct RecipeCraftedEvent {
-    pub volume: BlockVolume,
+    pub volume: Volume,
     pub id: RecipeId,
 }
 

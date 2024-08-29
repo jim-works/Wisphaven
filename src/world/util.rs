@@ -1,71 +1,196 @@
-use std::{collections::VecDeque, ops::Index};
+use std::ops::Index;
 
 use bevy::prelude::*;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-
-use crate::world::{
-    chunk::{
-        ChunkBlock, ChunkIdx, ChunkStorage, FatChunkIdx, BLOCKS_PER_CHUNK, BLOCKS_PER_FAT_CHUNK,
-        CHUNK_SIZE, CHUNK_SIZE_I8, CHUNK_SIZE_U8,
-    },
-    BlockType,
+use util::{
+    bevy_utils,
+    direction::{Direction, *},
+    palette::*,
 };
 
-use super::{Corner, Edge};
+use crate::world::chunk::{
+    ChunkCoord, ChunkIdx, FatChunkIdx, BLOCKS_PER_CHUNK, BLOCKS_PER_FAT_CHUNK, CHUNK_SIZE_I8,
+    CHUNK_SIZE_U8,
+};
 
-//Assuming that most values in the palette will be small, so V gets cloned instead of referenced in the iterator
-pub trait Palette<K, V, I>: Index<usize, Output = V>
-where
-    I: Iterator<Item = (K, V)>,
-    K: Clone,
-    V: Clone,
-{
-    fn index_key(&self, index: usize) -> K;
-    fn get_key(&self, value: &V) -> Option<K>;
-    fn get_value(&self, key: K) -> Option<&V>;
-    fn set(&mut self, index: usize, val: V);
-    fn palette_iter(&self) -> I;
+use super::{
+    chunk::{ChunkBlock, ChunkStorage, CHUNK_SIZE},
+    BlockType, LevelSystemSet,
+};
+
+pub struct LevelUtilsPlugin;
+
+impl Plugin for LevelUtilsPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            bevy_utils::update_timed_despawner.in_set(LevelSystemSet::Despawn),
+        );
+    }
 }
 
-pub struct PaletteIter<K, V> {
-    data: VecDeque<(K, V)>,
+impl From<Corner> for ChunkCoord {
+    fn from(value: Corner) -> Self {
+        match value {
+            Corner::NXNYNZ => ChunkCoord::new(-1, -1, -1),
+            Corner::NXNYPZ => ChunkCoord::new(-1, -1, 1),
+            Corner::NXPYNZ => ChunkCoord::new(-1, 1, -1),
+            Corner::NXPYPZ => ChunkCoord::new(-1, 1, 1),
+            Corner::PXNYNZ => ChunkCoord::new(1, -1, -1),
+            Corner::PXNYPZ => ChunkCoord::new(1, -1, 1),
+            Corner::PXPYNZ => ChunkCoord::new(1, 1, -1),
+            Corner::PXPYPZ => ChunkCoord::new(1, 1, 1),
+        }
+    }
 }
 
-impl<K, V> Iterator for PaletteIter<K, V> {
-    type Item = (K, V);
+impl From<Corner> for ChunkIdx {
+    fn from(value: Corner) -> Self {
+        match value {
+            Corner::NXNYNZ => ChunkIdx::new(0, 0, 0),
+            Corner::NXNYPZ => ChunkIdx::new(0, 0, CHUNK_SIZE_U8 - 1),
+            Corner::NXPYNZ => ChunkIdx::new(0, CHUNK_SIZE_U8 - 1, 0),
+            Corner::NXPYPZ => ChunkIdx::new(0, CHUNK_SIZE_U8 - 1, CHUNK_SIZE_U8 - 1),
+            Corner::PXNYNZ => ChunkIdx::new(CHUNK_SIZE_U8 - 1, 0, 0),
+            Corner::PXNYPZ => ChunkIdx::new(CHUNK_SIZE_U8 - 1, 0, CHUNK_SIZE_U8 - 1),
+            Corner::PXPYNZ => ChunkIdx::new(CHUNK_SIZE_U8 - 1, CHUNK_SIZE_U8 - 1, 0),
+            Corner::PXPYPZ => {
+                ChunkIdx::new(CHUNK_SIZE_U8 - 1, CHUNK_SIZE_U8 - 1, CHUNK_SIZE_U8 - 1)
+            }
+        }
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum Edge {
+    NXFaceNY = 0,
+    NXFacePZ = 1,
+    NXFacePY = 2,
+    NXFaceNZ = 3,
+    PXFaceNY = 4,
+    PXFacePZ = 5,
+    PXFacePY = 6,
+    PXFaceNZ = 7,
+    NYFaceNZ = 8,
+    NYFacePZ = 9,
+    PYFaceNZ = 10,
+    PYFacePZ = 11,
+}
+#[derive(Clone, Copy)]
+pub struct EdgeIterator {
+    curr: Option<Edge>,
+}
 
+impl Iterator for EdgeIterator {
+    type Item = Edge;
     fn next(&mut self) -> Option<Self::Item> {
-        self.data.pop_front()
+        self.curr = match self.curr {
+            None => Some(Edge::NXFaceNY),
+            Some(Edge::NXFaceNY) => Some(Edge::NXFacePZ),
+            Some(Edge::NXFacePZ) => Some(Edge::NXFacePY),
+            Some(Edge::NXFacePY) => Some(Edge::NXFaceNZ),
+            Some(Edge::NXFaceNZ) => Some(Edge::PXFaceNY),
+            Some(Edge::PXFaceNY) => Some(Edge::PXFacePZ),
+            Some(Edge::PXFacePZ) => Some(Edge::PXFacePY),
+            Some(Edge::PXFacePY) => Some(Edge::PXFaceNZ),
+            Some(Edge::PXFaceNZ) => Some(Edge::NYFaceNZ),
+            Some(Edge::NYFaceNZ) => Some(Edge::NYFacePZ),
+            Some(Edge::NYFacePZ) => Some(Edge::PYFaceNZ),
+            Some(Edge::PYFaceNZ) => Some(Edge::PYFacePZ),
+            Some(Edge::PYFacePZ) => None,
+        };
+        self.curr
     }
 }
 
-pub trait PaletteMap<K, V, R> {
-    fn get_value(&self, key: K) -> Option<&V>;
-    fn get_entry_mut(&mut self, key: K) -> Option<&mut (K, V, R)>;
-    fn get_entry_mut_value(&mut self, val: &V) -> Option<&mut (K, V, R)>;
-    fn get_key(&self, value: &V) -> Option<K>;
+impl Edge {
+    pub fn iter() -> EdgeIterator {
+        EdgeIterator { curr: None }
+    }
+    pub fn opposite(self) -> Edge {
+        match self {
+            Edge::NXFaceNY => Edge::PXFacePY,
+            Edge::NXFacePZ => Edge::PXFaceNZ,
+            Edge::NXFacePY => Edge::PXFaceNY,
+            Edge::NXFaceNZ => Edge::PXFacePZ,
+            Edge::PXFaceNY => Edge::NXFacePY,
+            Edge::PXFacePZ => Edge::NXFaceNZ,
+            Edge::PXFacePY => Edge::NXFaceNY,
+            Edge::PXFaceNZ => Edge::NXFacePZ,
+            Edge::NYFaceNZ => Edge::PYFacePZ,
+            Edge::NYFacePZ => Edge::PYFaceNZ,
+            Edge::PYFaceNZ => Edge::NYFacePZ,
+            Edge::PYFacePZ => Edge::NYFaceNZ,
+        }
+    }
+    pub fn direction(self) -> IVec3 {
+        match self {
+            Edge::NXFaceNY => IVec3::new(0, 0, 1),
+            Edge::NXFacePZ => IVec3::new(0, 1, 0),
+            Edge::NXFacePY => IVec3::new(0, 0, 1),
+            Edge::NXFaceNZ => IVec3::new(0, 1, 0),
+            Edge::PXFaceNY => IVec3::new(0, 0, 1),
+            Edge::PXFacePZ => IVec3::new(0, 1, 0),
+            Edge::PXFacePY => IVec3::new(0, 0, 1),
+            Edge::PXFaceNZ => IVec3::new(0, 1, 0),
+            Edge::NYFaceNZ => IVec3::new(1, 0, 0),
+            Edge::NYFacePZ => IVec3::new(1, 0, 0),
+            Edge::PYFaceNZ => IVec3::new(1, 0, 0),
+            Edge::PYFacePZ => IVec3::new(1, 0, 0),
+        }
+    }
+    //edges for a normal sized chunk
+    pub fn origin(self) -> ChunkIdx {
+        match self {
+            Edge::NXFaceNY => ChunkIdx::new(0, 0, 0),
+            Edge::NXFacePZ => ChunkIdx::new(0, 0, CHUNK_SIZE_U8 - 1),
+            Edge::NXFacePY => ChunkIdx::new(0, CHUNK_SIZE_U8 - 1, 0),
+            Edge::NXFaceNZ => ChunkIdx::new(0, 0, 0),
+            Edge::PXFaceNY => ChunkIdx::new(CHUNK_SIZE_U8 - 1, 0, 0),
+            Edge::PXFacePZ => ChunkIdx::new(CHUNK_SIZE_U8 - 1, 0, CHUNK_SIZE_U8 - 1),
+            Edge::PXFacePY => ChunkIdx::new(CHUNK_SIZE_U8 - 1, CHUNK_SIZE_U8 - 1, 0),
+            Edge::PXFaceNZ => ChunkIdx::new(CHUNK_SIZE_U8 - 1, 0, 0),
+            Edge::NYFaceNZ => ChunkIdx::new(0, 0, 0),
+            Edge::NYFacePZ => ChunkIdx::new(0, 0, CHUNK_SIZE_U8 - 1),
+            Edge::PYFaceNZ => ChunkIdx::new(0, CHUNK_SIZE_U8 - 1, 0),
+            Edge::PYFacePZ => ChunkIdx::new(0, CHUNK_SIZE_U8 - 1, CHUNK_SIZE_U8 - 1),
+        }
+    }
+    //edges for a fat chunk
+    pub fn fat_origin(self) -> FatChunkIdx {
+        match self {
+            Edge::NXFaceNY => FatChunkIdx::new(-1, -1, -1),
+            Edge::NXFacePZ => FatChunkIdx::new(-1, -1, CHUNK_SIZE_I8),
+            Edge::NXFacePY => FatChunkIdx::new(-1, CHUNK_SIZE_I8, -1),
+            Edge::NXFaceNZ => FatChunkIdx::new(-1, -1, -1),
+            Edge::PXFaceNY => FatChunkIdx::new(CHUNK_SIZE_I8, -1, -1),
+            Edge::PXFacePZ => FatChunkIdx::new(CHUNK_SIZE_I8, -1, CHUNK_SIZE_I8),
+            Edge::PXFacePY => FatChunkIdx::new(CHUNK_SIZE_I8, CHUNK_SIZE_I8, -1),
+            Edge::PXFaceNZ => FatChunkIdx::new(CHUNK_SIZE_I8, -1, -1),
+            Edge::NYFaceNZ => FatChunkIdx::new(-1, -1, -1),
+            Edge::NYFacePZ => FatChunkIdx::new(-1, -1, CHUNK_SIZE_I8),
+            Edge::PYFaceNZ => FatChunkIdx::new(-1, CHUNK_SIZE_I8, -1),
+            Edge::PYFacePZ => FatChunkIdx::new(-1, CHUNK_SIZE_I8, CHUNK_SIZE_I8),
+        }
+    }
 }
 
-impl<K: Copy + PartialEq<K>, V: PartialEq<V>> PaletteMap<K, V, u16> for Vec<(K, V, u16)> {
-    fn get_value(&self, key: K) -> Option<&V> {
-        self.iter()
-            .find(|(k, _, r)| *k == key && *r > 0)
-            .map(|(_, v, _)| v)
-    }
-
-    fn get_key(&self, value: &V) -> Option<K> {
-        self.iter()
-            .find(|(_, v, r)| v == value && *r > 0)
-            .map(|(k, _, _)| *k)
-    }
-
-    fn get_entry_mut(&mut self, key: K) -> Option<&mut (K, V, u16)> {
-        self.iter_mut().find(|(k, _, r)| *k == key && *r > 0)
-    }
-
-    fn get_entry_mut_value(&mut self, val: &V) -> Option<&mut (K, V, u16)> {
-        self.iter_mut().find(|(_, v, r)| val == v && *r > 0)
+impl From<Edge> for ChunkCoord {
+    fn from(value: Edge) -> Self {
+        match value {
+            Edge::NXFaceNY => ChunkCoord::new(-1, -1, 0),
+            Edge::NXFacePZ => ChunkCoord::new(-1, 0, 1),
+            Edge::NXFacePY => ChunkCoord::new(-1, 1, 0),
+            Edge::NXFaceNZ => ChunkCoord::new(-1, 0, -1),
+            Edge::PXFaceNY => ChunkCoord::new(1, -1, 0),
+            Edge::PXFacePZ => ChunkCoord::new(1, 0, 1),
+            Edge::PXFacePY => ChunkCoord::new(1, 1, 0),
+            Edge::PXFaceNZ => ChunkCoord::new(1, 0, -1),
+            Edge::NYFaceNZ => ChunkCoord::new(0, -1, -1),
+            Edge::NYFacePZ => ChunkCoord::new(0, -1, 1),
+            Edge::PYFaceNZ => ChunkCoord::new(0, 1, -1),
+            Edge::PYFacePZ => ChunkCoord::new(0, 1, 1),
+        }
     }
 }
 
@@ -151,7 +276,7 @@ impl BlockPalette<BlockType, BLOCKS_PER_CHUNK> {
     pub fn create_fat_palette<T: Component + Clone + PartialEq + Default>(
         &self,
         query: &Query<&T>,
-        //full chunks of CHUNK_SIZExCHUNK_SIZE, array indexed by crate::util::Direction
+        //full chunks of CHUNK_SIZExCHUNK_SIZE, array indexed by Direction
         face_neighbors: [Option<impl Index<usize, Output = T>>; 6],
         //strips of 1xCHUNK_SIZE, array indexed by crate::util::Edge
         edge_neighbors: [Option<[T; CHUNK_SIZE]>; 12],
@@ -178,37 +303,37 @@ impl BlockPalette<BlockType, BLOCKS_PER_CHUNK> {
         }
         //neg x face
         fat_palette.fat_add_face(
-            &face_neighbors[crate::util::Direction::NegX.to_idx()],
+            &face_neighbors[Direction::NegX.to_idx()],
             |y, z| FatChunkIdx::new(-1, y, z).into(),
             |y, z| Into::<usize>::into(ChunkIdx::new(CHUNK_SIZE_U8 - 1, y as u8, z as u8)),
         );
         //pos x face
         fat_palette.fat_add_face(
-            &face_neighbors[crate::util::Direction::PosX.to_idx()],
+            &face_neighbors[Direction::PosX.to_idx()],
             |y, z| FatChunkIdx::new(CHUNK_SIZE_I8, y, z).into(),
             |y, z| Into::<usize>::into(ChunkIdx::new(0, y as u8, z as u8)),
         );
         //neg y face
         fat_palette.fat_add_face(
-            &face_neighbors[crate::util::Direction::NegY.to_idx()],
+            &face_neighbors[Direction::NegY.to_idx()],
             |x, z| FatChunkIdx::new(x, -1, z).into(),
             |x, z| Into::<usize>::into(ChunkIdx::new(x as u8, CHUNK_SIZE_U8 - 1, z as u8)),
         );
         //pos y face
         fat_palette.fat_add_face(
-            &face_neighbors[crate::util::Direction::PosY.to_idx()],
+            &face_neighbors[Direction::PosY.to_idx()],
             |x, z| FatChunkIdx::new(x, CHUNK_SIZE_I8, z).into(),
             |x, z| Into::<usize>::into(ChunkIdx::new(x as u8, 0, z as u8)),
-        );        
+        );
         //neg z face
         fat_palette.fat_add_face(
-            &face_neighbors[crate::util::Direction::NegZ.to_idx()],
+            &face_neighbors[Direction::NegZ.to_idx()],
             |x, y| FatChunkIdx::new(x, y, -1).into(),
             |x, y| Into::<usize>::into(ChunkIdx::new(x as u8, y as u8, CHUNK_SIZE_U8 - 1)),
         );
         //pos z face
         fat_palette.fat_add_face(
-            &face_neighbors[crate::util::Direction::PosZ.to_idx()],
+            &face_neighbors[Direction::PosZ.to_idx()],
             |x, y| FatChunkIdx::new(x, y, CHUNK_SIZE_I8).into(),
             |x, y| Into::<usize>::into(ChunkIdx::new(x as u8, y as u8, 0)),
         );

@@ -1,31 +1,27 @@
-mod direction;
+#![feature(const_fn_floating_point_arithmetic)]
 use std::{f32::consts::PI, time::Duration};
 
-pub use direction::*;
-
-mod spline;
 use itertools::Itertools;
-pub use spline::*;
-
-mod noise;
-pub use noise::*;
-
-pub mod l_system;
 
 mod numerical_traits;
 pub use numerical_traits::*;
 
 pub mod bevy_utils;
 pub mod controls;
+pub mod direction;
+pub mod image;
 pub mod iterators;
+pub mod l_system;
+pub mod noise;
 pub mod palette;
 pub mod physics;
 pub mod plugin;
+pub mod spline;
 pub mod string;
-pub mod image;
 
 use bevy::{
-    prelude::{Deref, DerefMut, Vec3}, time::Timer
+    prelude::{Deref, DerefMut, Vec3},
+    time::Timer,
 };
 
 use rand::prelude::*;
@@ -34,8 +30,8 @@ use rand_distr::StandardNormal;
 #[cfg(test)]
 mod test;
 
-pub const DEG_TO_RAD: f32 = (2.0*PI)/360.0;
-pub const RAD_TO_DEG: f32 = 1.0/DEG_TO_RAD;
+pub const DEG_TO_RAD: f32 = (2.0 * PI) / 360.0;
+pub const RAD_TO_DEG: f32 = 1.0 / DEG_TO_RAD;
 
 pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a * (1.0 - t) + b * t
@@ -43,7 +39,7 @@ pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
 
 // lerp(a,b,inverse_lerp(a,b,v)) = v
 pub fn inverse_lerp(a: f32, b: f32, v: f32) -> f32 {
-    (v-a)/(b-a)
+    (v - a) / (b - a)
 }
 
 pub fn trilerp<const X: usize, const Y: usize, const Z: usize>(
@@ -190,7 +186,7 @@ pub fn ease_in_out_quad(t: f32) -> f32 {
 }
 
 pub fn ease_out_quad(t: f32) -> f32 {
-    return 1.0 - (1.0 - t)*(1.0 - t);
+    return 1.0 - (1.0 - t) * (1.0 - t);
 }
 
 //this is used to make a continuous distribution discrete

@@ -29,7 +29,7 @@ pub enum RaycastHit {
 
 pub struct RayCastHitEntity {
     pub hit_pos: Vec3,
-    pub normal: crate::util::Direction,
+    pub normal: util::direction::Direction,
     pub entity: Entity,
 }
 
@@ -63,7 +63,7 @@ pub fn raycast(
                             RayCastHitEntity {
                                 hit_pos: test_point,
                                 entity: block_entity,
-                                normal: crate::util::Direction::PosY,
+                                normal: util::direction::Direction::PosY,
                             },
                         ));
                     }
@@ -79,7 +79,7 @@ pub fn raycast(
                 //our point intersects an entity
                 return Some(RaycastHit::Object(RayCastHitEntity {
                     hit_pos: test_point,
-                    normal: crate::util::Direction::PosY,
+                    normal: util::direction::Direction::PosY,
                     entity,
                 }));
             }

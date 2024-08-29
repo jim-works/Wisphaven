@@ -1,14 +1,15 @@
 use bevy::prelude::*;
 
-use crate::{
-    util::iterators::{BlockVolumeIterator, BlockVolume},
-    world::{
-        events::{BlockHitEvent, ChunkUpdatedEvent},
-        BlockCoord, BlockId, BlockType, Level, BlockName,
-    },
+use util::iterators::*;
+
+use crate::world::{
+    events::{BlockHitEvent, ChunkUpdatedEvent},
+    BlockCoord, BlockId, BlockName, BlockType, Level,
 };
 
-use super::{CraftingSystemSet, RecipeCandidateEvent, RecipeCraftedEvent, RecipeId, CraftingHammer};
+use super::{
+    CraftingHammer, CraftingSystemSet, RecipeCandidateEvent, RecipeCraftedEvent, RecipeId,
+};
 
 pub struct RecipesPlugin;
 
@@ -42,9 +43,7 @@ impl RecipeList {
         for (idx, recipe) in basic.iter_mut().enumerate() {
             recipe.id = RecipeId(idx);
         }
-        Self {
-            basic
-        }
+        Self { basic }
     }
 }
 
@@ -53,7 +52,7 @@ impl RecipeList {
 #[reflect(Component)]
 pub struct NamedBasicBlockRecipe {
     pub recipe: Vec<Vec<Vec<Option<BlockName>>>>,
-    pub products: Vec<(BlockCoord, BlockName)>
+    pub products: Vec<(BlockCoord, BlockName)>,
 }
 
 #[derive(Debug)]
@@ -97,7 +96,7 @@ impl BasicBlockRecipe {
             size,
             recipe: flat_recipe,
             products,
-            id: RecipeId(0)
+            id: RecipeId(0),
         })
     }
 
@@ -113,8 +112,13 @@ impl BasicBlockRecipe {
 
     pub fn verify_exact(&self, origin: BlockCoord, level: &Level) -> bool {
         //todo - optimize: it would be faster to get all block entities up front to reduce hashmap queries
-        BlockVolumeIterator::new(self.size.0 as u32, self.size.1 as u32, self.size.2 as u32)
-            .map(|offset| (offset + origin, self.get_recipe_entry(offset)))
+        VolumeIterator::new(self.size.0 as u32, self.size.1 as u32, self.size.2 as u32)
+            .map(|offset| {
+                (
+                    BlockCoord::from(offset) + origin,
+                    self.get_recipe_entry(BlockCoord::from(offset)),
+                )
+            })
             .all(|(world_pos, expected)| level.get_block_entity(world_pos) == expected)
     }
 
@@ -127,8 +131,8 @@ impl BasicBlockRecipe {
         commands: &mut Commands,
     ) {
         level.batch_set_block_entities(
-            BlockVolumeIterator::new(self.size.0 as u32, self.size.1 as u32, self.size.2 as u32) //clear area
-                .map(|offset| (offset + pos, BlockType::Empty))
+            VolumeIterator::new(self.size.0 as u32, self.size.1 as u32, self.size.2 as u32) //clear area
+                .map(|offset| (BlockCoord::from(offset) + pos, BlockType::Empty))
                 .chain(
                     //spawn products
                     self.products
@@ -141,8 +145,12 @@ impl BasicBlockRecipe {
         );
     }
 
-    pub fn get_volume(&self, origin: BlockCoord) -> BlockVolume {
-        BlockVolume::new(origin, origin+BlockCoord::new(self.size.0 as i32, self.size.1 as i32, self.size.2 as i32))
+    pub fn get_volume(&self, origin: BlockCoord) -> Volume {
+        Volume::new(
+            origin.into(),
+            (origin + BlockCoord::new(self.size.0 as i32, self.size.1 as i32, self.size.2 as i32))
+                .into(),
+        )
     }
 }
 
@@ -177,7 +185,10 @@ fn basic_recipe_checker(
             info!("testing recipe {:?}", recipe);
             if recipe.verify_exact(*block_position, &level) {
                 info!("true");
-                recipe_writer.send(RecipeCandidateEvent(RecipeCraftedEvent { volume: recipe.get_volume(*block_position), id: recipe.id }))
+                recipe_writer.send(RecipeCandidateEvent(RecipeCraftedEvent {
+                    volume: recipe.get_volume(*block_position),
+                    id: recipe.id,
+                }))
             }
         }
     }
@@ -193,7 +204,13 @@ fn basic_recipe_actor(
 ) {
     for RecipeCraftedEvent { volume, id } in reader.read() {
         if let Some(recipe) = recipes.basic.get(id.0) {
-            recipe.spawn_products(volume.min_corner, &level, &id_query, &mut update_writer, &mut commands);
+            recipe.spawn_products(
+                volume.min_corner.into(),
+                &level,
+                &id_query,
+                &mut update_writer,
+                &mut commands,
+            );
             info!("crafted recipe with id: {}", id.0);
         }
     }

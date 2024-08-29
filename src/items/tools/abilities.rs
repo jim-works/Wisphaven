@@ -1,12 +1,11 @@
 use bevy::{prelude::*, utils::HashSet};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    util::Direction,
-    world::{
-        events::{BlockDamageSetEvent, BlockHitEvent, ChunkUpdatedEvent},
-        BlockCoord, BlockId, Level, LevelSystemSet,
-    },
+use util::direction::Direction;
+
+use crate::world::{
+    events::{BlockDamageSetEvent, BlockHitEvent, ChunkUpdatedEvent},
+    BlockCoord, BlockId, Level, LevelSystemSet,
 };
 
 use super::{calc_block_damage, Tool, ToolResistance};
@@ -247,7 +246,7 @@ fn shovel_ability_system(
                 info!("axis: {:?}", axis);
                 for len in 0..(*length as i32) {
                     direction.for_each_in_plane(*radius as i32, |offset| {
-                        let coord = axis * len + offset + *block_position;
+                        let coord = axis * len + offset.into() + *block_position;
                         if let Some(block) = level.get_block_entity(coord) {
                             if coord == *block_position || !target_query.contains(block) {
                                 return;

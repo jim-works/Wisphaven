@@ -1,12 +1,14 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use util::{
+    direction::{Direction, DirectionFlags},
+    iterators::{Volume, VolumeContainer},
+    *,
+};
+
 use crate::{
     ui::{debug::DebugBlockHitboxes, state::DebugUIState},
-    util::{
-        iterators::{BlockVolume, VolumeContainer},
-        DirectionFlags,
-    },
     world::{BlockCoord, BlockPhysics, Level},
     BlockType,
 };
@@ -21,7 +23,6 @@ impl Plugin for CollisionPlugin {
             FixedUpdate,
             move_and_slide.in_set(PhysicsSystemSet::UpdatePosition),
         )
-        .register_type::<Aabb>()
         .register_type::<Aabb>();
     }
 }
@@ -46,17 +47,14 @@ pub struct CollidingBlocks {
 }
 
 impl CollidingBlocks {
-    pub fn get(
-        &self,
-        direction: crate::util::Direction,
-    ) -> &Vec<(BlockCoord, Entity, BlockPhysics)> {
+    pub fn get(&self, direction: Direction) -> &Vec<(BlockCoord, Entity, BlockPhysics)> {
         match direction {
-            crate::util::Direction::PosX => &self.pos_x,
-            crate::util::Direction::PosY => &self.pos_y,
-            crate::util::Direction::PosZ => &self.pos_z,
-            crate::util::Direction::NegX => &self.neg_x,
-            crate::util::Direction::NegY => &self.neg_y,
-            crate::util::Direction::NegZ => &self.neg_z,
+            Direction::PosX => &self.pos_x,
+            Direction::PosY => &self.pos_y,
+            Direction::PosZ => &self.pos_z,
+            Direction::NegX => &self.neg_x,
+            Direction::NegY => &self.neg_y,
+            Direction::NegZ => &self.neg_z,
         }
     }
     pub fn is_empty(&self) -> bool {
@@ -69,15 +67,15 @@ impl CollidingBlocks {
     }
     pub fn get_mut(
         &mut self,
-        direction: crate::util::Direction,
+        direction: Direction,
     ) -> &mut Vec<(BlockCoord, Entity, BlockPhysics)> {
         match direction {
-            crate::util::Direction::PosX => &mut self.pos_x,
-            crate::util::Direction::PosY => &mut self.pos_y,
-            crate::util::Direction::PosZ => &mut self.pos_z,
-            crate::util::Direction::NegX => &mut self.neg_x,
-            crate::util::Direction::NegY => &mut self.neg_y,
-            crate::util::Direction::NegZ => &mut self.neg_z,
+            Direction::PosX => &mut self.pos_x,
+            Direction::PosY => &mut self.pos_y,
+            Direction::PosZ => &mut self.pos_z,
+            Direction::NegX => &mut self.neg_x,
+            Direction::NegY => &mut self.neg_y,
+            Direction::NegZ => &mut self.neg_z,
         }
     }
     pub fn clear(&mut self) {
@@ -90,14 +88,14 @@ impl CollidingBlocks {
     }
     pub fn for_each_dir(
         &self,
-        mut f: impl FnMut(crate::util::Direction, &Vec<(BlockCoord, Entity, BlockPhysics)>),
+        mut f: impl FnMut(Direction, &Vec<(BlockCoord, Entity, BlockPhysics)>),
     ) {
-        f(crate::util::Direction::PosX, &self.pos_x);
-        f(crate::util::Direction::PosY, &self.pos_y);
-        f(crate::util::Direction::PosZ, &self.pos_z);
-        f(crate::util::Direction::NegX, &self.neg_x);
-        f(crate::util::Direction::NegY, &self.neg_y);
-        f(crate::util::Direction::NegZ, &self.neg_z);
+        f(Direction::PosX, &self.pos_x);
+        f(Direction::PosY, &self.pos_y);
+        f(Direction::PosZ, &self.pos_z);
+        f(Direction::NegX, &self.neg_x);
+        f(Direction::NegY, &self.neg_y);
+        f(Direction::NegZ, &self.neg_z);
     }
     pub fn iter(&self) -> impl Iterator<Item = &(BlockCoord, Entity, BlockPhysics)> {
         self.pos_x
@@ -108,11 +106,7 @@ impl CollidingBlocks {
             .chain(self.neg_y.iter())
             .chain(self.neg_z.iter())
     }
-    pub fn push(
-        &mut self,
-        direction: crate::util::Direction,
-        elem: (BlockCoord, Entity, BlockPhysics),
-    ) {
+    pub fn push(&mut self, direction: Direction, elem: (BlockCoord, Entity, BlockPhysics)) {
         self.get_mut(direction).push(elem);
     }
 }
@@ -142,7 +136,7 @@ impl Aabb {
         Self::new(self.size, self.offset + offset)
     }
     pub fn add_size(self, size: Vec3) -> Self {
-        Self::new(self.size+size, self.offset)
+        Self::new(self.size + size, self.offset)
     }
     //maintains center of mass, scale by factor
     pub fn scale(self, scale: Vec3) -> Self {
@@ -181,8 +175,19 @@ impl Aabb {
     pub fn world_center(self, pos: Vec3) -> Vec3 {
         self.world_min(pos) + self.size / 2.0
     }
-    pub fn to_block_volume(self, pos: Vec3) -> BlockVolume {
-        BlockVolume::new_inclusive(self.world_min(pos).into(), self.world_max(pos).into())
+    pub fn to_volume(self, offset: Vec3) -> Volume {
+        let max_corner = self.world_max(offset);
+        Volume::new_inclusive(
+            IVec3::my_from(self.world_min(offset)),
+            IVec3::new(
+                max_corner.x.floor() as i32,
+                max_corner.y.floor() as i32,
+                max_corner.z.floor() as i32,
+            ),
+        )
+    }
+    pub fn to_block_volume(self, pos: Vec3) -> Volume {
+        Volume::new_inclusive(self.world_min(pos).my_into(), self.world_max(pos).my_into())
     }
     pub fn from_block(physics: &BlockPhysics) -> Option<Self> {
         match physics {
@@ -230,7 +235,7 @@ impl Aabb {
         my_pos: Vec3,
         ray_start: Vec3,
         ray_delta: Vec3,
-    ) -> Option<(f32, Vec3, crate::util::Direction)> {
+    ) -> Option<(f32, Vec3, Direction)> {
         //assume start isn't inside for now
         let my_min = self.world_min(my_pos);
         let my_max = self.world_max(my_pos);
@@ -276,23 +281,23 @@ impl Aabb {
             if t_near.x > t_near.y && t_near.x > t_near.z {
                 //hit on x axis
                 if ray_delta.x < 0.0 {
-                    crate::util::Direction::PosX
+                    Direction::PosX
                 } else {
-                    crate::util::Direction::NegX
+                    Direction::NegX
                 }
             } else if t_near.y > t_near.x && t_near.y > t_near.z {
                 //hit on y axis
                 if ray_delta.y < 0.0 {
-                    crate::util::Direction::PosY
+                    Direction::PosY
                 } else {
-                    crate::util::Direction::NegY
+                    Direction::NegY
                 }
             } else {
                 //hit on z axis
                 if ray_delta.z < 0.0 {
-                    crate::util::Direction::PosZ
+                    Direction::PosZ
                 } else {
-                    crate::util::Direction::NegZ
+                    Direction::NegZ
                 }
             },
         ))
@@ -306,7 +311,7 @@ impl Aabb {
         my_v: Vec3,
         other: Aabb,
         other_pos: Vec3,
-    ) -> Option<(f32, Vec3, crate::util::Direction)> {
+    ) -> Option<(f32, Vec3, Direction)> {
         //assume not already in contact for now
         if my_v == Vec3::ZERO {
             return None;
@@ -361,9 +366,9 @@ fn move_and_slide(
         let bounding_max = tf.translation.max(target_pos);
         //all the blocks we can overlap with are in the bounding rectangle of current position and target position
         //add 1 in each direction to avoid issues with "precision"
-        let overlaps = level.get_blocks_in_volume(BlockVolume::new_inclusive(
-            BlockCoord::from(col.world_min(bounding_min)) - BlockCoord::new(1, 1, 1),
-            BlockCoord::from(col.world_max(bounding_max)) + BlockCoord::new(1, 1, 1),
+        let overlaps = level.get_blocks_in_volume(Volume::new_inclusive(
+            (BlockCoord::from(col.world_min(bounding_min)) - BlockCoord::new(1, 1, 1)).into(),
+            (BlockCoord::from(col.world_max(bounding_max)) + BlockCoord::new(1, 1, 1)).into(),
         ));
         let overlaps_iter = overlaps.iter().filter_map(|(coord, block)| {
             block
@@ -373,7 +378,7 @@ fn move_and_slide(
         if *debug_state == DebugUIState::Shown {
             let gizmos_iter = overlaps.iter().map(|(coord, block)| {
                 (
-                    coord,
+                    BlockCoord::from(coord),
                     block
                         .and_then(|b| b.entity())
                         .and_then(|e| block_physics.get(e).ok())
@@ -387,17 +392,17 @@ fn move_and_slide(
         for (c, p, e) in overlaps_iter {
             if let Some(block_aabb) = Aabb::from_block(p) {
                 if let Some((t, _, normal)) =
-                    col.sweep_rect(tf.translation, v.0, block_aabb, c.to_vec3())
+                    col.sweep_rect(tf.translation, v.0, block_aabb, c.as_vec3())
                 {
                     //do on collision events here, we won't actually resolve all these collisions
                     //  (resolving some will make the object not collide with others)
                     if *debug_state == DebugUIState::Shown {
-                        block_gizmos.hit_blocks.insert(c);
+                        block_gizmos.hit_blocks.insert(c.into());
                     }
                     if let Some(ref mut col_blocks) = opt_col_blocks {
-                        col_blocks.push(normal, (c, e, p.clone()));
+                        col_blocks.push(normal, (c.into(), e, p.clone()));
                     }
-                    resolution_buffer.push((t, c, block_aabb));
+                    resolution_buffer.push((t, c.into(), block_aabb));
                     directions.0.set(normal.opposite().into(), true);
                 }
             }
@@ -431,8 +436,8 @@ pub fn get_volume_from_collider(
     collider: Aabb,
     level: &Level,
 ) -> VolumeContainer<BlockType> {
-    level.get_blocks_in_volume(BlockVolume::new_inclusive(
-        BlockCoord::from(collider.world_min(position)) - BlockCoord::new(1, 1, 1),
-        BlockCoord::from(collider.world_max(position)) + BlockCoord::new(1, 1, 1),
+    level.get_blocks_in_volume(Volume::new_inclusive(
+        (BlockCoord::from(collider.world_min(position)) - BlockCoord::new(1, 1, 1)).into(),
+        (BlockCoord::from(collider.world_max(position)) + BlockCoord::new(1, 1, 1)).into(),
     ))
 }

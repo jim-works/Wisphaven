@@ -11,6 +11,7 @@
 #![feature(const_fn_floating_point_arithmetic)]
 #![feature(assert_matches)]
 
+use ::util;
 use std::{env, net::Ipv4Addr};
 
 use actors::ActorPlugin;
@@ -24,7 +25,6 @@ use items::ItemsPlugin;
 use mesher::MesherPlugin;
 use net::client::ClientConfig;
 use physics::PhysicsPlugin;
-use util::plugin::UtilPlugin;
 use world::*;
 use worldgen::WorldGenPlugin;
 
@@ -41,7 +41,6 @@ mod net;
 mod physics;
 mod serialization;
 mod ui;
-mod util;
 mod world;
 mod worldgen;
 
@@ -83,7 +82,7 @@ fn main() {
     .add_plugins(HanabiPlugin)
     // .add_plugins(WorldInspectorPlugin::new())
     .add_plugins((
-        UtilPlugin,
+        util::plugin::UtilPlugin,
         serialization::SerializationPlugin,
         LevelPlugin,
         MesherPlugin,
@@ -95,7 +94,6 @@ fn main() {
         ItemsPlugin,
         ui::UIPlugin,
         net::NetPlugin,
-        util::bevy_utils::BevyUtilsPlugin,
         gameplay::GameplayPlugin,
         effects::EffectsPlugin,
     ))

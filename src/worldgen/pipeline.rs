@@ -4,11 +4,12 @@ use std::time::{Duration, Instant};
 
 use crate::{
     mesher::NeedsMesh,
-    util::{get_next_prng, SplineNoise},
+    util::{noise::get_next_prng, noise::SplineNoise},
     world::{
-        chunk::*, BlockBuffer, BlockId, BlockName, BlockResources, Id, Level, LevelData,
-        SavedBlockId, events::ChunkUpdatedEvent,
-    }, worldgen::generator,
+        chunk::*, events::ChunkUpdatedEvent, BlockBuffer, BlockId, BlockName, BlockResources, Id,
+        Level, LevelData, SavedBlockId,
+    },
+    worldgen::generator,
 };
 use bevy::{
     prelude::*,
@@ -16,9 +17,8 @@ use bevy::{
 };
 
 use super::{
-    structures,
-    DecorationResources, GenerationPhase, UsedShaperResources,
-    ADD_TIME_BUDGET_MS, QUEUE_GEN_TIME_BUDGET_MS,
+    structures, DecorationResources, GenerationPhase, UsedShaperResources, ADD_TIME_BUDGET_MS,
+    QUEUE_GEN_TIME_BUDGET_MS,
 };
 
 #[derive(Component)]
@@ -249,7 +249,7 @@ pub fn poll_decoration_waiters(
                                 heightmap,
                                 biome_map,
                                 structure_id: 0,
-                            }
+                            };
                         }
                         unreachable!()
                     }),
@@ -269,11 +269,10 @@ fn can_decorate(
     dashmap::mapref::one::RefMut<'_, ChunkCoord, ChunkType, ahash::RandomState>,
     ChunkType,
 )> {
-    //can only hold one mutable reference into level without deadlocking, so we must clone the top_chunk 
+    //can only hold one mutable reference into level without deadlocking, so we must clone the top_chunk
     let top_chunk;
     match level.get_chunk(chunk + ChunkCoord::new(0, 1, 0)) {
-        Some(top) => 
-        match top.value() {
+        Some(top) => match top.value() {
             ChunkType::Ungenerated(_) => return None,
             ChunkType::Generating(phase, _) => {
                 if *phase >= GenerationPhase::Shaped {
@@ -284,7 +283,7 @@ fn can_decorate(
             }
             ChunkType::Full(_) => top_chunk = top.value().clone(),
         },
-        None => return None
+        None => return None,
     }
     if let Some(c) = level.get_chunk_mut(chunk) {
         if let ChunkType::Generating(phase, _) = c.value() {
@@ -300,7 +299,7 @@ fn can_decorate(
 pub fn poll_decoration_task(
     mut commands: Commands,
     mut decoration_query: Query<(Entity, &mut DecorationTask)>,
-    level: Res<Level>
+    level: Res<Level>,
 ) {
     let _my_span = info_span!("poll_structure_waiters", name = "poll_structure_waiters").entered();
     let now = Instant::now();
@@ -339,26 +338,30 @@ pub fn poll_structure_waiters(
                 .entity(entity)
                 .remove::<WaitingForStructures>()
                 .insert(StructureTask {
-                    task: pool
-                        .spawn(async move { 
-                            let mut structure_requirements;
-                            loop {
-                                //if the chu
-                                structure_requirements = can_structure(pos, &level);
-                                if structure_requirements.is_some() {
-                                    break;
-                                }
-                                //haven't had this happen, but if we hold this reference and then await it may cause a deadlock
-                                drop(structure_requirements);
-                                Delay::new(POLL_INTERVAL).await;
+                    task: pool.spawn(async move {
+                        let mut structure_requirements;
+                        loop {
+                            //if the chu
+                            structure_requirements = can_structure(pos, &level);
+                            if structure_requirements.is_some() {
+                                break;
                             }
-                            let mut c = structure_requirements.unwrap();
-                            if let ChunkType::Generating(_, ref mut chunk) = c.value_mut() {
-                                let buf = structures::gen_structures(chunk, level.seed, biomes, &decor_settings.biomes);
-                                return (pos, buf)
-                            }
-                            unreachable!()
-                     }),
+                            //haven't had this happen, but if we hold this reference and then await it may cause a deadlock
+                            drop(structure_requirements);
+                            Delay::new(POLL_INTERVAL).await;
+                        }
+                        let mut c = structure_requirements.unwrap();
+                        if let ChunkType::Generating(_, ref mut chunk) = c.value_mut() {
+                            let buf = structures::gen_structures(
+                                chunk,
+                                level.seed,
+                                biomes,
+                                &decor_settings.biomes,
+                            );
+                            return (pos, buf);
+                        }
+                        unreachable!()
+                    }),
                 });
             let duration = Instant::now().duration_since(now).as_millis();
             if duration > ADD_TIME_BUDGET_MS {
@@ -398,7 +401,7 @@ pub fn poll_structure_task(
             level.add_buffer(
                 buf.into_block_type(&resources.registry, &mut commands),
                 &mut commands,
-                &mut update_writer
+                &mut update_writer,
             );
             level.promote_generating_to_full(pos, &resources.registry, &mut commands);
             commands
@@ -441,4 +444,3 @@ pub fn poll_gen_lod_queue(
         }
     }
 }
-

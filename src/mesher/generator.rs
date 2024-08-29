@@ -3,13 +3,11 @@ use futures_lite::future;
 use std::ops::Index;
 use std::time::Instant;
 
-use crate::util::{Corner, Edge};
+use ::util::direction::{Direction, *};
+
 use crate::world::chunk::*;
+use crate::world::{util::*, Level, *};
 use crate::worldgen::GeneratedChunk;
-use crate::{
-    util::Direction,
-    world::{Level, *},
-};
 use bevy::{
     prelude::*,
     render::{mesh, render_resource::PrimitiveTopology},
@@ -69,7 +67,7 @@ impl MeshData {
         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, self.uvs);
         mesh.insert_attribute(ATTRIBUTE_TEXLAYER, self.layer_idx);
         mesh.insert_attribute(ATTRIBUTE_AO, self.ao_level);
-    
+
         mesh.set_indices(Some(mesh::Indices::U32(self.tris)));
         meshes.add(mesh)
     }
@@ -278,7 +276,10 @@ pub fn spawn_mesh<T: Bundle>(
     });
 }
 
-pub fn mesh_chunk<T: ChunkStorage<BlockMesh>>(fat_chunk: &Chunk<T, BlockMesh>, data: &mut ChunkMesh) {
+pub fn mesh_chunk<T: ChunkStorage<BlockMesh>>(
+    fat_chunk: &Chunk<T, BlockMesh>,
+    data: &mut ChunkMesh,
+) {
     let _my_span = info_span!("mesh_chunk", name = "mesh_chunk").entered();
     for x in 0..CHUNK_SIZE_I8 {
         for y in 0..CHUNK_SIZE_I8 {

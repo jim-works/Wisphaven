@@ -7,10 +7,10 @@ use bevy::{prelude::*, utils::HashMap};
 
 use crate::{
     net::NetworkType,
-    util::palette::BlockPalette,
     world::{
         chunk::{ArrayChunk, ChunkCoord, ChunkTrait, BLOCKS_PER_CHUNK},
         events::CreateLevelEvent,
+        util::BlockPalette,
         BlockId, BlockRegistry, BlockType, Id, LevelSystemSet,
     },
 };

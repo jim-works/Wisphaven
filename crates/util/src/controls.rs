@@ -1,23 +1,14 @@
-use std::marker::PhantomData;
-
 use bevy::prelude::*;
-
-pub struct ControlsPlugin;
-
-impl Plugin for ControlsPlugin {
-    fn build(&self, _app: &mut App) {
-        
-    }
-}
+use std::marker::PhantomData;
 
 //updates in fixed update, add implementation for each component you want to use on it
 #[derive(Component, Copy, Clone)]
 pub struct PIController<T> {
-    pub kp: f32,  // Proportional gain
-    pub ki: f32,  // Integral gain
+    pub kp: f32, // Proportional gain
+    pub ki: f32, // Integral gain
     pub target_value: f32,
     integral: f32,
-    _marker: PhantomData<T>
+    _marker: PhantomData<T>,
 }
 
 impl<T> PIController<T> {
@@ -27,7 +18,7 @@ impl<T> PIController<T> {
             ki,
             target_value: setpoint,
             integral: 0.0,
-            _marker: PhantomData
+            _marker: PhantomData,
         }
     }
 

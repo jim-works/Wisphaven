@@ -4,7 +4,7 @@ use bevy::prelude::{Vec2, Vec3};
 use bracket_noise::prelude::*;
 
 use crate::{
-    util::{Buckets, Spline, SplineNoise, prng_3d},
+    util::{noise::prng_3d, noise::SplineNoise, spline::Spline, Buckets},
     world::{
         chunk::{ChunkIdx, GeneratingChunk},
         BlockCoord, BlockId, BlockName, BlockRegistry,
@@ -14,8 +14,9 @@ use crate::{
 use super::{
     get_next_seed,
     structures::{
+        fauna::FauanaGenerator,
         trees::{get_cactus, get_short_tree},
-        LargeStructureGenerator, StructureGenerator, fauna::FauanaGenerator,
+        LargeStructureGenerator, StructureGenerator,
     },
 };
 
@@ -112,20 +113,25 @@ impl UsedBiomeMap {
             midsoil: registry.get_id(&BlockName::core("dirt")),
             soil_depth: 4,
             fallback_generator: Some(BiomeStructureGenerator {
-                structures: vec![BiomeStructure {
-                    gen: get_short_tree(
-                        get_next_seed(&mut seed),
-                        Range { start: 4, end: 8 },
-                        Range { start: 8, end: 15 },
-                        0.5,
-                        registry,
-                    ),
-                    rolls_per_chunk: 5,
-                },
-                BiomeStructure {
-                    gen: Box::new(FauanaGenerator {to_spawn: registry.get_id(&BlockName::core("lily")), spawn_on: registry.get_id(&BlockName::core("grass"))}),
-                    rolls_per_chunk: 100,
-                }]
+                structures: vec![
+                    BiomeStructure {
+                        gen: get_short_tree(
+                            get_next_seed(&mut seed),
+                            Range { start: 4, end: 8 },
+                            Range { start: 8, end: 15 },
+                            0.5,
+                            registry,
+                        ),
+                        rolls_per_chunk: 5,
+                    },
+                    BiomeStructure {
+                        gen: Box::new(FauanaGenerator {
+                            to_spawn: registry.get_id(&BlockName::core("lily")),
+                            spawn_on: registry.get_id(&BlockName::core("grass")),
+                        }),
+                        rolls_per_chunk: 100,
+                    },
+                ],
             }),
         };
         let desert = Biome {
@@ -143,7 +149,7 @@ impl UsedBiomeMap {
                         registry,
                     ),
                     rolls_per_chunk: 5,
-                }]
+                }],
             }),
         };
         let rocks = Biome {
@@ -184,9 +190,7 @@ impl UsedBiomeMap {
                 ),
                 (
                     300.0,
-                    Buckets::new(vec![
-                        (0.0, Buckets::new(vec![(0.0, 2)])),
-                    ]),
+                    Buckets::new(vec![(0.0, Buckets::new(vec![(0.0, 2)]))]),
                 ),
             ]),
             default_biome: 0,
@@ -203,7 +207,7 @@ pub struct BiomeStructure {
 }
 
 pub struct BiomeStructureGenerator {
-    pub structures: Vec<BiomeStructure>
+    pub structures: Vec<BiomeStructure>,
 }
 
 impl StructureGenerator for BiomeStructureGenerator {
@@ -221,8 +225,8 @@ impl StructureGenerator for BiomeStructureGenerator {
     ) -> bool {
         for structure in &self.structures {
             for _ in 0..structure.rolls_per_chunk {
-                let coord = prng_3d(world_seed, world_pos);
-                let pos = ChunkIdx::from(coord);
+                let coord = prng_3d(world_seed, world_pos.into());
+                let pos = ChunkIdx::from(BlockCoord::from(coord));
                 structure.gen.generate(
                     buffer,
                     world_seed,

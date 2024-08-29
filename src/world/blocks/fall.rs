@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 
+use util::direction::DirectionFlags;
+
 use crate::{
-    actors::block_actors::{SpawnFallingBlockEvent, FallingBlock},
+    actors::block_actors::{FallingBlock, SpawnFallingBlockEvent},
     world::{
         events::{BlockUsedEvent, ChunkUpdatedEvent},
         BlockId, BlockType, Level, LevelSystemSet,
-    }, util::DirectionFlags,
+    },
 };
 
 pub struct FallPlugin;
@@ -46,7 +48,7 @@ pub fn process_fall(
                     block: used.block_used,
                     place_on_landing: true,
                     impact_direcitons: DirectionFlags::all(),
-                }
+                },
             })
         }
     }

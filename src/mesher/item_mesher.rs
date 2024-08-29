@@ -1,12 +1,11 @@
 use bevy::{pbr::ExtendedMaterial, prelude::*};
 
+use util::{image::ImageExtension, palette::Palette};
+
 use crate::{
     chunk::{Chunk, ChunkCoord, FatChunkIdx, BLOCKS_PER_FAT_CHUNK},
     items::{inventory::Inventory, ItemIcon},
-    util::{
-        image::ImageExtension,
-        palette::{BlockPalette, Palette},
-    },
+    world::util::BlockPalette,
     BlockMesh, BlockMeshShape,
 };
 
@@ -212,7 +211,11 @@ pub fn generate_item_meshes(
                                 }
                                 let layer = color.as_rgba_u32();
                                 fat_chunk.blocks.set(
-                                    Into::<usize>::into(FatChunkIdx::new(0, (height-y) as i8, x as i8)),
+                                    Into::<usize>::into(FatChunkIdx::new(
+                                        0,
+                                        (height - y) as i8,
+                                        x as i8,
+                                    )),
                                     BlockMesh {
                                         use_transparent_shader: true,
                                         shape: BlockMeshShape::Uniform(layer),

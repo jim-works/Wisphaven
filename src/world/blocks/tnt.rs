@@ -1,19 +1,24 @@
 use bevy::prelude::*;
 
+use util::direction::DirectionFlags;
+
 use crate::{
-    actors::block_actors::{SpawnFallingBlockEvent, LandedFallingBlockEvent, FallingBlock},
+    actors::block_actors::{FallingBlock, LandedFallingBlockEvent, SpawnFallingBlockEvent},
     world::{
-        events::{BlockUsedEvent, ExplosionEvent, ChunkUpdatedEvent},
+        events::{BlockUsedEvent, ChunkUpdatedEvent, ExplosionEvent},
         BlockId, BlockType, Level, LevelSystemSet,
-    }, util::DirectionFlags,
+    },
 };
 
 pub struct TNTPlugin;
 
 impl Plugin for TNTPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (process_tnt,tnt_landed).in_set(LevelSystemSet::Main))
-            .register_type::<TNTBlock>();
+        app.add_systems(
+            Update,
+            (process_tnt, tnt_landed).in_set(LevelSystemSet::Main),
+        )
+        .register_type::<TNTBlock>();
     }
 }
 
@@ -48,7 +53,7 @@ pub fn process_tnt(
                     block: used.block_used,
                     place_on_landing: false,
                     impact_direcitons: DirectionFlags::all(),
-                }
+                },
             })
         }
     }
@@ -57,11 +62,14 @@ pub fn process_tnt(
 pub fn tnt_landed(
     mut explosions: EventWriter<ExplosionEvent>,
     tnt_query: Query<&TNTBlock>,
-    mut reader: EventReader<LandedFallingBlockEvent>
+    mut reader: EventReader<LandedFallingBlockEvent>,
 ) {
     for event in reader.read() {
         if let Ok(tnt) = tnt_query.get(event.falling_block.block) {
-            explosions.send(ExplosionEvent { radius: tnt.explosion_strength, origin: event.position });
+            explosions.send(ExplosionEvent {
+                radius: tnt.explosion_strength,
+                origin: event.position,
+            });
         }
     }
 }

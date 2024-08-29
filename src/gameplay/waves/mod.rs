@@ -8,7 +8,7 @@ use crate::{
     actors::world_anchor::WorldAnchor,
     util::{
         get_wrapping,
-        iterators::{BlockVolume, VolumeContainer},
+        iterators::{Volume, VolumeContainer},
     },
     world::{
         atmosphere::{Calendar, NightStartedEvent},
@@ -219,9 +219,9 @@ fn trigger_assault(
                             (i as f32 * DELTA_ANGLE).sin(),
                         ),
             );
-            let mut container = VolumeContainer::new(BlockVolume::new(
-                BlockCoord::new(0, 0, 0),
-                BlockCoord::new(0, 0, 0),
+            let mut container = VolumeContainer::new(Volume::new(
+                BlockCoord::new(0, 0, 0).into(),
+                BlockCoord::new(0, 0, 0).into(),
             ));
             //try searching up or down to find a potential spawn point
             let potential_spawn_spot = search_for_spawn_volume(
@@ -384,9 +384,9 @@ fn search_for_spawn_volume(
     let mut offset = BlockCoord::new(0, 0, 0);
 
     loop {
-        let check_volume = BlockVolume::new(
-            search_origin - volume_half_extents + offset,
-            search_origin + volume_half_extents + offset,
+        let check_volume = Volume::new(
+            (search_origin - volume_half_extents + offset).into(),
+            (search_origin + volume_half_extents + offset).into(),
         );
         container.recycle(check_volume);
         level.fill_volume_container(container);

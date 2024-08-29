@@ -1,5 +1,6 @@
 pub mod chunk;
 mod level;
+pub mod util;
 
 pub use level::*;
 
@@ -91,10 +92,13 @@ impl Plugin for LevelPlugin {
                 .before(LevelSystemSet::AfterLoadingAndMain),
         )
         .add_systems(Update, check_chunk_boundary)
-        .add_plugins(atmosphere::AtmospherePlugin)
-        .add_plugins(blocks::BlocksPlugin)
-        .add_plugins(events::WorldEventsPlugin)
-        .add_plugins(effects::EffectsPlugin)
+        .add_plugins((
+            effects::EffectsPlugin,
+            events::WorldEventsPlugin,
+            blocks::BlocksPlugin,
+            util::LevelUtilsPlugin,
+            atmosphere::AtmospherePlugin,
+        ))
         .add_state::<LevelLoadState>()
         .add_event::<ChunkBoundaryCrossedEvent>()
         //needed for NamedBlockMesh

@@ -1,3 +1,6 @@
+use bevy::prelude::*;
+
+use crate::world::{block::*, chunk::*, util::BlockPalette};
 // use crate::serialization::ChunkSaveFormat;
 
 // use super::{chunk::*, *};
@@ -75,3 +78,86 @@
 //     }
 //     counter.0 += 1;
 // }
+
+#[test]
+fn test_create_fat_palette() {
+    let mut app = App::new();
+
+    app.add_systems(Update, |query: Query<&ChunkCoord>| {
+        //make face, edges, and corner non-zero on a specific coordinate so we can easily verify that they were set properly
+        let face_neighbor_entities: [ChunkCoord; 6] =
+            core::array::from_fn(|i| ChunkCoord::new((i + 1) as i32, 0, 0));
+        let edge_neighbor_entities: [ChunkCoord; 12] =
+            core::array::from_fn(|i| ChunkCoord::new(0, (i + 1) as i32, 0));
+        let corner_neighbors: [Option<ChunkCoord>; 8] =
+            core::array::from_fn(|i| Some(ChunkCoord::new(0, 0, (i + 1) as i32)));
+        //main body will use default value (0 in all coordinates)
+        let chunk: BlockPalette<BlockType, { BLOCKS_PER_CHUNK }> =
+            BlockPalette::new(BlockType::Empty);
+        let face_neighbors =
+            core::array::from_fn(|i| Some([face_neighbor_entities[i]; BLOCKS_PER_CHUNK]));
+        let edge_neighbors = core::array::from_fn(|i| Some([edge_neighbor_entities[i]; 16]));
+        let palette =
+            chunk.create_fat_palette(&query, face_neighbors, edge_neighbors, corner_neighbors);
+
+        //corners
+        assert!(
+            palette[FatChunkIdx::new(-1, -1, -1).into()].z != 0,
+            "was {:?}",
+            palette[FatChunkIdx::new(-1, -1, -1).into()]
+        );
+        assert!(
+            palette[FatChunkIdx::new(-1, -1, CHUNK_SIZE_I8).into()].z != 0,
+            "was {:?}",
+            palette[FatChunkIdx::new(-1, -1, CHUNK_SIZE_I8).into()]
+        );
+        assert!(
+            palette[FatChunkIdx::new(-1, CHUNK_SIZE_I8, -1).into()].z != 0,
+            "was {:?}",
+            palette[FatChunkIdx::new(-1, CHUNK_SIZE_I8, -1).into()]
+        );
+        assert!(
+            palette[FatChunkIdx::new(-1, CHUNK_SIZE_I8, CHUNK_SIZE_I8).into()].z != 0,
+            "was {:?}",
+            palette[FatChunkIdx::new(-1, CHUNK_SIZE_I8, CHUNK_SIZE_I8).into()]
+        );
+        assert!(
+            palette[FatChunkIdx::new(CHUNK_SIZE_I8, -1, -1).into()].z != 0,
+            "was {:?}",
+            palette[FatChunkIdx::new(CHUNK_SIZE_I8, -1, -1).into()]
+        );
+        assert!(
+            palette[FatChunkIdx::new(CHUNK_SIZE_I8, -1, CHUNK_SIZE_I8).into()].z != 0,
+            "was {:?}",
+            palette[FatChunkIdx::new(CHUNK_SIZE_I8, -1, CHUNK_SIZE_I8).into()]
+        );
+        assert!(
+            palette[FatChunkIdx::new(CHUNK_SIZE_I8, CHUNK_SIZE_I8, -1).into()].z != 0,
+            "was {:?}",
+            palette[FatChunkIdx::new(CHUNK_SIZE_I8, CHUNK_SIZE_I8, -1).into()]
+        );
+        assert!(
+            palette[FatChunkIdx::new(CHUNK_SIZE_I8, CHUNK_SIZE_I8, CHUNK_SIZE_I8).into()].z != 0,
+            "was {:?}",
+            palette[FatChunkIdx::new(CHUNK_SIZE_I8, CHUNK_SIZE_I8, CHUNK_SIZE_I8).into()]
+        );
+
+        //main chunk
+        for x in 0..CHUNK_SIZE {
+            for y in 0..CHUNK_SIZE {
+                for z in 0..CHUNK_SIZE {
+                    assert_eq!(
+                        ChunkCoord::default(),
+                        palette[FatChunkIdx::new(x as i8, y as i8, z as i8).into()],
+                        "index ({}, {}, {})",
+                        x,
+                        y,
+                        z
+                    );
+                }
+            }
+        }
+    });
+
+    app.update();
+}

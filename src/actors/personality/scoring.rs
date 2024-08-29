@@ -1,6 +1,6 @@
 use bevy::prelude::Vec2;
 
-use crate::util::{MeanExt, Spline};
+use util::{spline::Spline, *};
 
 use super::components::*;
 
@@ -48,7 +48,7 @@ impl RawTaskScore {
 impl TaskScore {
     //returns the average of all scores
     pub fn overall(&self) -> f32 {
-        (self.safety+self.ease + self.enjoyment + self.goals+self.loot) / 5.0
+        (self.safety + self.ease + self.enjoyment + self.goals + self.loot) / 5.0
     }
 }
 
@@ -96,8 +96,7 @@ fn physical_attribute_adjustment(to_adjust: &mut Task, physical: &PhysicalAttrib
         STRENGTH_DIFFICULTY_REDUCTION.map(physical.strength.mean());
     to_adjust.risks.coordination_difficulty *=
         AGILITY_DIFFICULTY_REDUCTION.map(physical.agility.mean());
-    to_adjust.risks.physical_danger *=
-        FORTITUDE_DANGER_REDUCTION.map(physical.fortitude.mean());
+    to_adjust.risks.physical_danger *= FORTITUDE_DANGER_REDUCTION.map(physical.fortitude.mean());
 }
 
 fn mental_attribute_adjustment(to_adjust: &mut Task, mental: &MentalAttributes) {
@@ -144,8 +143,12 @@ fn mental_attribute_adjustment(to_adjust: &mut Task, mental: &MentalAttributes) 
     ]);
 
     //calculation
-    to_adjust.risks.mental_difficulty *=
-        [CREATIVITY_MENTAL_DIFFICULTY_REDUCTION.map(mental.creativity.mean()), INTELLIGENCE_DIFFICULTY_REDUCTION.map(mental.intelligence.mean())].iter().mean::<f32>();
+    to_adjust.risks.mental_difficulty *= [
+        CREATIVITY_MENTAL_DIFFICULTY_REDUCTION.map(mental.creativity.mean()),
+        INTELLIGENCE_DIFFICULTY_REDUCTION.map(mental.intelligence.mean()),
+    ]
+    .iter()
+    .mean::<f32>();
     to_adjust.risks.pain *= WILLPOWER_PAIN_REDUCTION.map(mental.willpower.mean());
     to_adjust.risks.monotony *= CREATIVITY_MONOTONY_INCREMENT.map(mental.creativity.mean());
     to_adjust.risks.social_danger *=
@@ -227,21 +230,46 @@ fn personality_score(task: &Task, values: &PersonalityValues) -> RawTaskScore {
         mental_difficulty: -task.risks.mental_difficulty,
         strength_difficulty: -task.risks.strength_difficulty,
         coordination_difficulty: -task.risks.coordination_difficulty,
-        social_danger: -task.risks.social_danger*STATUS_SOCIAL_DANGER_MULT.map(values.status.mean()),
+        social_danger: -task.risks.social_danger
+            * STATUS_SOCIAL_DANGER_MULT.map(values.status.mean()),
         physical_danger: -task.risks.physical_danger,
         legal_danger: -task.risks.legal_danger,
-        thrill: -task.risks.thrill*[TRADIATION_THRILL_MULT.map(values.tradition.mean()),EXCITEMENT_THRILL_MULT.map(values.excitement.mean())].iter().mean::<f32>(),
-        pain: -task.risks.pain*HEDONISM_PAIN_MULT.map(values.hedonism.mean()),
+        thrill: -task.risks.thrill
+            * [
+                TRADIATION_THRILL_MULT.map(values.tradition.mean()),
+                EXCITEMENT_THRILL_MULT.map(values.excitement.mean()),
+            ]
+            .iter()
+            .mean::<f32>(),
+        pain: -task.risks.pain * HEDONISM_PAIN_MULT.map(values.hedonism.mean()),
         monotony: -task.risks.monotony,
-        shallowness: -task.risks.shallowness*HEDONISM_DEEPNESS_MULT.map(values.hedonism.mean()),
+        shallowness: -task.risks.shallowness * HEDONISM_DEEPNESS_MULT.map(values.hedonism.mean()),
     };
     let outscore = TaskOutcomeScores {
-        wealth: task.outcomes.wealth*WEALTH_WEALTH_MULT.map(values.wealth.mean()),
-        status: task.outcomes.status*[POWER_STATUS_MULT.map(values.power.mean()),STATUS_STATUS_MULT.map(values.status.mean())].iter().mean::<f32>(),
-        health: task.outcomes.health*[POWER_HEALTH_MULT.map(values.power.mean()),WEALTH_HEALTH_MULT.map(values.wealth.mean())].iter().mean::<f32>(),
-        violence: task.outcomes.violence*PACIFISM_VIOLENCE_MULT.map(values.pacifism.mean()),
-        adventure: task.outcomes.adventure*[TRADIATION_ADVENTURE_MULT.map(values.tradition.mean()),EXCITEMENT_ADVENTURE_MULT.map(values.excitement.mean())].iter().mean::<f32>(),
-        approval: task.outcomes.approval
+        wealth: task.outcomes.wealth * WEALTH_WEALTH_MULT.map(values.wealth.mean()),
+        status: task.outcomes.status
+            * [
+                POWER_STATUS_MULT.map(values.power.mean()),
+                STATUS_STATUS_MULT.map(values.status.mean()),
+            ]
+            .iter()
+            .mean::<f32>(),
+        health: task.outcomes.health
+            * [
+                POWER_HEALTH_MULT.map(values.power.mean()),
+                WEALTH_HEALTH_MULT.map(values.wealth.mean()),
+            ]
+            .iter()
+            .mean::<f32>(),
+        violence: task.outcomes.violence * PACIFISM_VIOLENCE_MULT.map(values.pacifism.mean()),
+        adventure: task.outcomes.adventure
+            * [
+                TRADIATION_ADVENTURE_MULT.map(values.tradition.mean()),
+                EXCITEMENT_ADVENTURE_MULT.map(values.excitement.mean()),
+            ]
+            .iter()
+            .mean::<f32>(),
+        approval: task.outcomes.approval,
     };
     //average across each category, but set negative weight on detrimental categories (i.e. those from riskscore)
     RawTaskScore(TaskScore {
@@ -258,7 +286,7 @@ fn personality_score(task: &Task, values: &PersonalityValues) -> RawTaskScore {
             riskscore.monotony,
             riskscore.shallowness,
             outscore.violence,
-            outscore.adventure
+            outscore.adventure,
         ]
         .iter()
         .mean(),

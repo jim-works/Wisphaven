@@ -1,6 +1,7 @@
 use std::{array, f32::consts::PI};
 
 use bevy::prelude::*;
+use util::{iterators::*, plugin::SmoothLookTo, *};
 
 use crate::{
     items::{
@@ -17,12 +18,8 @@ use crate::{
     },
     settings::GraphicsSettings,
     ui::debug::FixedUpdateBlockGizmos,
-    util::{
-        ease_in_back, ease_in_out_quad, iterators::even_distribution_on_sphere, lerp,
-        plugin::SmoothLookTo, SendEventCommand,
-    },
     world::LevelLoadState,
-    BlockCoord, BlockPhysics, Level, LevelSystemSet,
+    BlockPhysics, Level, LevelSystemSet,
 };
 
 use super::{
@@ -806,7 +803,7 @@ fn update_floater(
                 block
                     .and_then(|b| b.entity())
                     .and_then(|e| physics_query.get(e).ok().and_then(|p| Aabb::from_block(p)))
-                    .and_then(|b| Some((coord.to_vec3(), coord, b)))
+                    .and_then(|b| Some((coord.as_vec3(), coord, b)))
             })
             .filter(move |(pos, _, b)| ground_area.intersects_aabb(tf.translation, *b, *pos));
         //now for ceiling blocks
@@ -818,7 +815,7 @@ fn update_floater(
                 block
                     .and_then(|b| b.entity())
                     .and_then(|e| physics_query.get(e).ok().and_then(|p| Aabb::from_block(p)))
-                    .and_then(|b| Some((coord.to_vec3(), b)))
+                    .and_then(|b| Some((coord.as_vec3(), b)))
             })
             .filter(move |(coord, b)| ceiling_area.intersects_aabb(tf.translation, *b, *coord));
         let collider_top = aabb.world_max(tf.translation).y;
@@ -843,13 +840,13 @@ fn update_floater(
             let block_top = block_col.world_max(pos).y;
             if collider_bot >= block_top
                 && ground_overlaps
-                    .get(coord + BlockCoord::new(0, 1, 0))
+                    .get(coord + IVec3::new(0, 1, 0))
                     .and_then(|t| t.entity())
                     .and_then(|e| physics_query.get(e).ok().map(|p| !p.is_solid()))
                     .unwrap_or(true)
             {
                 //possible ground
-                block_gizmos.blocks.insert(coord);
+                block_gizmos.blocks.insert(coord.into());
                 ground_y = Some(if let Some(y) = ground_y {
                     block_top.max(y)
                 } else {

@@ -1,0 +1,12 @@
+[package]
+name = "util"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bitflags = { workspace = true }
+bevy = { workspace = true }
+itertools = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+bracket-noise = { workspace = true }

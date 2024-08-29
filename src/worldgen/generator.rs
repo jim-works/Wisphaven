@@ -1,15 +1,13 @@
 use std::sync::Arc;
 
 use crate::{
-
-    util::{get_next_prng, trilerp, ClampedSpline, ToSeed},
-    world::{
-        chunk::*, BlockId, BlockType, Id
-    }, worldgen::pipeline::ColumnBiomes,
+    util::{noise::get_next_prng, noise::ToSeed, spline::ClampedSpline, trilerp},
+    world::{chunk::*, BlockId, BlockType, Id},
+    worldgen::pipeline::ColumnBiomes,
 };
 use bevy::prelude::*;
 
-use super::{DecorationSettings, ShaperSettings, pipeline::Heightmap};
+use super::{pipeline::Heightmap, DecorationSettings, ShaperSettings};
 
 #[allow(clippy::needless_range_loop)] //more readable with range
 pub fn shape_chunk<
@@ -89,27 +87,26 @@ pub fn gen_decoration(
     heightmap: &Heightmap<CHUNK_SIZE>,
     settings: &DecorationSettings,
 ) -> ColumnBiomes<CHUNK_SIZE> {
-
     let mut biome_map = ColumnBiomes([[None; CHUNK_SIZE]; CHUNK_SIZE]);
 
     for x in 0..CHUNK_SIZE_U8 {
         for z in 0..CHUNK_SIZE_U8 {
             let column_pos = chunk.get_block_pos(ChunkIdx::new(x, 0, z));
             let target_height = heightmap.0[x as usize][z as usize];
-            
+
             let biome = settings.biomes.sample_id(target_height, column_pos);
             biome_map.0[x as usize][z as usize] = biome;
             let biome = settings.biomes.get(biome);
-            
+
             let mut top_coord = None;
             let soil_depth = biome.soil_depth;
-            let soil_bottom = target_height-soil_depth as f32;
+            let soil_bottom = target_height - soil_depth as f32;
             //guarantee we only need to look one chunk up
-            assert!(soil_depth<CHUNK_SIZE_U8);
+            assert!(soil_depth < CHUNK_SIZE_U8);
             const MID_DEPTH: i32 = 5;
 
             // find lowest air block in chunk above (add 1 because we want to look past the topsoil layer)
-            for y in 0..soil_depth+1 {
+            for y in 0..soil_depth + 1 {
                 let block_idx = ChunkIdx::new(x, y, z);
                 let air = match chunk_above {
                     ChunkType::Ungenerated(_) => unreachable!(),
@@ -128,13 +125,13 @@ pub fn gen_decoration(
                 };
                 if air {
                     //found air block in chunk above
-                    top_coord = Some(block_idx+ChunkIdx::new(0,CHUNK_SIZE_U8,0));
+                    top_coord = Some(block_idx + ChunkIdx::new(0, CHUNK_SIZE_U8, 0));
                     break;
                 }
             }
             //loop down through the column, resetting top_coord whenever we find an empty block
             for y in (0..CHUNK_SIZE_U8).rev() {
-                let block_idx = ChunkIdx::new(x,y,z);
+                let block_idx = ChunkIdx::new(x, y, z);
                 if chunk.get_block_pos(block_idx).y < soil_bottom {
                     break;
                 }
@@ -145,9 +142,9 @@ pub fn gen_decoration(
                 //we only replace stone
                 if chunk[block_idx.to_usize()] == settings.stone {
                     if let Some(top) = top_coord {
-                        if y+1 == top.y {
+                        if y + 1 == top.y {
                             chunk.set_block(block_idx.into(), biome.topsoil);
-                        } else if y+soil_depth+1 > top.y {
+                        } else if y + soil_depth + 1 > top.y {
                             chunk.set_block(block_idx.into(), biome.midsoil);
                         }
                     }
@@ -167,7 +164,7 @@ pub fn gen_decoration(
                     chunk.set_block(idx.into(), generator.ore_block);
                 }
                 rng = get_next_prng(rng);
-                idx = idx.offset(crate::util::Direction::from(rng));
+                idx = idx.offset(util::direction::Direction::from(rng));
             }
         }
     }

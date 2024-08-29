@@ -8,10 +8,11 @@ mod pi_controllers;
 
 use bevy::prelude::*;
 
+use util::direction::DirectionFlags;
+
 use crate::{
     actors::{abilities::dash::CurrentlyDashing, ghost::FloatBoost, Jump, MoveSpeed},
     physics::{collision::CollidingDirections, PhysicsSystemSet},
-    util::DirectionFlags,
     world::LevelSystemSet,
 };
 

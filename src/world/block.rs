@@ -6,10 +6,14 @@ use crate::{
         item_attributes::ConsumeItemOnHit,
         loot::{LootTable, LootTableDrop},
         CreatorItem, ItemBundle, ItemName, MaxStackSize,
-    }, mesher::item_mesher::ItemMesh, physics::collision::Aabb, serialization::BlockTextureMap, util::Direction
+    },
+    mesher::item_mesher::ItemMesh,
+    physics::collision::Aabb,
+    serialization::BlockTextureMap,
 };
 use bevy::{prelude::*, utils::HashMap};
 use serde::{Deserialize, Serialize};
+use util::direction::Direction;
 
 use super::{
     chunk::{ChunkCoord, ChunkIdx, CHUNK_SIZE_I32},
@@ -210,7 +214,7 @@ pub enum BlockPhysics {
 }
 
 impl BlockPhysics {
-    pub fn is_solid(&self) -> bool { 
+    pub fn is_solid(&self) -> bool {
         match self {
             BlockPhysics::Empty => false,
             BlockPhysics::Solid | BlockPhysics::Aabb(_) => true,
@@ -267,7 +271,13 @@ pub struct BlockRegistry {
 
 impl BlockRegistry {
     //inserts the corresponding BlockId component on the block
-    pub fn add_basic(&mut self, name: BlockName, item_mesh: Option<Handle<Mesh>>, entity: Entity, commands: &mut Commands) {
+    pub fn add_basic(
+        &mut self,
+        name: BlockName,
+        item_mesh: Option<Handle<Mesh>>,
+        entity: Entity,
+        commands: &mut Commands,
+    ) {
         info!("added block {:?}", name);
         let id = BlockId(Id::Basic(self.basic_entities.len() as u32));
         let item_name = ItemName::core(name.name.clone());
@@ -285,8 +295,8 @@ impl BlockRegistry {
             info!("added item mesh for {:?}", name);
             commands.entity(item).insert(ItemMesh {
                 mesh,
-                material: crate::mesher::item_mesher::ItemMeshMaterial::TextureArray
-            }); 
+                material: crate::mesher::item_mesher::ItemMeshMaterial::TextureArray,
+            });
         }
         commands.entity(entity).insert((
             id,
@@ -427,7 +437,7 @@ impl BlockCoord {
     }
 
     pub fn square_magnitude(self) -> i32 {
-        self.x*self.x + self.y*self.y + self.z*self.z
+        self.x * self.x + self.y * self.y + self.z * self.z
     }
 
     pub fn abs(self) -> BlockCoord {
@@ -495,6 +505,18 @@ impl From<ChunkIdx> for BlockCoord {
     }
 }
 
+impl From<IVec3> for BlockCoord {
+    fn from(v: IVec3) -> Self {
+        BlockCoord::new(v.x, v.y, v.z)
+    }
+}
+
+impl Into<IVec3> for BlockCoord {
+    fn into(self) -> IVec3 {
+        IVec3::new(self.x, self.y, self.z)
+    }
+}
+
 impl From<Direction> for BlockCoord {
     fn from(value: Direction) -> Self {
         match value {
@@ -505,5 +527,13 @@ impl From<Direction> for BlockCoord {
             Direction::NegY => BlockCoord::new(0, -1, 0),
             Direction::NegZ => BlockCoord::new(0, 0, -1),
         }
+    }
+}
+
+impl util::noise::ToSeed for BlockCoord {
+    fn to_seed(&self) -> u64 {
+        1400305337_u64.wrapping_mul(self.x as u64).rotate_left(32)
+            ^ 10570841_u64.wrapping_mul(self.y as u64).rotate_right(32)
+            ^ 122949823_u64.wrapping_mul(self.z as u64).rotate_right(16)
     }
 }

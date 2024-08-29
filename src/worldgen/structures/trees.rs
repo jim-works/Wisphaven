@@ -3,9 +3,10 @@ use std::{f32::consts::PI, ops::Range};
 use super::StructureGenerator;
 use crate::{
     util::{
-        get_next_prng,
         l_system::{LSystem, TreeAlphabet},
-        ToSeed, prng_sample_range,
+        noise::get_next_prng,
+        noise::prng_sample_range,
+        noise::ToSeed,
     },
     world::{chunk::*, BlockBuffer, BlockChange, BlockCoord, BlockId, BlockName, BlockRegistry},
 };
@@ -59,7 +60,7 @@ impl<
         }
         let _my_span = info_span!("tree_generate", name = "tree_generate").entered();
         //generate tree
-        let seed = world_seed^pos.to_seed();
+        let seed = world_seed ^ pos.to_seed();
         let tree = self
             .l_system
             .iterate(&(self.initial_sentence)(pos), self.iterations, seed);
@@ -204,9 +205,10 @@ pub fn get_short_tree(
                 }
             };
             match x {
-                TreeAlphabet::Replace(x) => {
-                    Some(get_moves(get_next_prng(idx.wrapping_add(seed)) as usize % OPTIONS, *x))
-                }
+                TreeAlphabet::Replace(x) => Some(get_moves(
+                    get_next_prng(idx.wrapping_add(seed)) as usize % OPTIONS,
+                    *x,
+                )),
                 _ => None,
             }
         }),
@@ -217,7 +219,9 @@ pub fn get_short_tree(
             vec![
                 TreeAlphabet::Rotate(Quat::from_euler(EulerRot::XYZ, PI * 0.5, 0.0, 0.0)),
                 TreeAlphabet::Move(prng_sample_range(trunk_height.clone(), seed) as f32),
-                TreeAlphabet::Replace(prng_sample_range(initial_branch_size.clone(), branch_seed) as f32),
+                TreeAlphabet::Replace(
+                    prng_sample_range(initial_branch_size.clone(), branch_seed) as f32
+                ),
             ]
         },
         move |p, a, b| p.place_descending(BlockChange::Set(wood), a.into(), b.into()),
@@ -309,9 +313,10 @@ pub fn get_cactus(
                 }
             };
             match x {
-                TreeAlphabet::Replace(x) => {
-                    Some(get_moves(get_next_prng(idx.wrapping_add(seed)) as usize % OPTIONS, *x))
-                }
+                TreeAlphabet::Replace(x) => Some(get_moves(
+                    get_next_prng(idx.wrapping_add(seed)) as usize % OPTIONS,
+                    *x,
+                )),
                 _ => None,
             }
         }),
@@ -322,8 +327,8 @@ pub fn get_cactus(
             vec![
                 TreeAlphabet::Rotate(Quat::from_euler(EulerRot::XYZ, PI * 0.5, 0.0, 0.0)),
                 TreeAlphabet::Move(height),
-                TreeAlphabet::Replace(height*branch_factor),
-                TreeAlphabet::Move(height*branch_factor+1.0) //want at least one block on top of the cactus
+                TreeAlphabet::Replace(height * branch_factor),
+                TreeAlphabet::Move(height * branch_factor + 1.0), //want at least one block on top of the cactus
             ]
         },
         move |p, a, b| {

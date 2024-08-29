@@ -4,23 +4,18 @@ use bevy::prelude::*;
 use bracket_noise::prelude::*;
 
 use crate::{
-    util::{get_next_prng, Spline, SplineNoise},
-    world::{BlockName, BlockResources, Level, LevelLoadState, LevelSystemSet, BlockId},
+    util::{noise::get_next_prng, noise::SplineNoise, spline::Spline},
+    world::{BlockId, BlockName, BlockResources, Level, LevelLoadState, LevelSystemSet},
 };
 
-mod pipeline;
 mod generator;
-pub use pipeline::{
-    ChunkNeedsGenerated, GeneratedChunk, ShaperSettings
-};
+mod pipeline;
+pub use pipeline::{ChunkNeedsGenerated, GeneratedChunk, ShaperSettings};
 
-use self::{
-    pipeline::OreGenerator,
-    biomes::UsedBiomeMap,
-};
+use self::{biomes::UsedBiomeMap, pipeline::OreGenerator};
 
-pub mod structures;
 pub mod biomes;
+pub mod structures;
 
 const QUEUE_GEN_TIME_BUDGET_MS: u128 = 10;
 const ADD_TIME_BUDGET_MS: u128 = 10;
@@ -52,19 +47,16 @@ impl Plugin for WorldGenPlugin {
         )
         .add_systems(
             OnEnter(LevelLoadState::Loading),
-            (
-                create_shaper_settings,
-                create_decoration_settings,
-            )
+            (create_shaper_settings, create_decoration_settings),
         );
     }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
 pub enum GenerationPhase {
-    Shaped=0,
-    Decorated=1,
-    Structured=2,
+    Shaped = 0,
+    Decorated = 1,
+    Structured = 2,
 }
 
 #[derive(Resource)]
@@ -73,9 +65,7 @@ pub struct ShaperResources<const D: usize, const H: usize, const L: usize, const
 );
 
 #[derive(Resource)]
-pub struct DecorationResources(
-    pub Arc<DecorationSettings>,
-);
+pub struct DecorationResources(pub Arc<DecorationSettings>);
 
 pub struct DecorationSettings {
     pub biomes: UsedBiomeMap,
@@ -188,25 +178,22 @@ fn create_decoration_settings(
 ) {
     let mut seed = level.seed ^ 0x6287192746;
 
-
     let mut ore_noise = FastNoise::seeded(get_next_seed(&mut seed));
     ore_noise.set_noise_type(NoiseType::Value);
     ore_noise.set_frequency(132671324.0);
 
-    commands.insert_resource(DecorationResources(
-        Arc::new(DecorationSettings {
-            biomes: UsedBiomeMap::default(&resources.registry, seed),
-            ore_noise,
-            stone: resources.registry.get_id(&BlockName::core("stone")),
-            ores: vec![OreGenerator {
-                ore_block: resources.registry.get_id(&BlockName::core("ruby_ore")),
-                can_replace: vec![resources.registry.get_id(&BlockName::core("stone"))],
-                rarity: (0,1),
-                vein_min: 10,
-                vein_max: 20,
-            }],
-        }),
-    ))
+    commands.insert_resource(DecorationResources(Arc::new(DecorationSettings {
+        biomes: UsedBiomeMap::default(&resources.registry, seed),
+        ore_noise,
+        stone: resources.registry.get_id(&BlockName::core("stone")),
+        ores: vec![OreGenerator {
+            ore_block: resources.registry.get_id(&BlockName::core("ruby_ore")),
+            can_replace: vec![resources.registry.get_id(&BlockName::core("stone"))],
+            rarity: (0, 1),
+            vein_min: 10,
+            vein_max: 20,
+        }],
+    })))
 }
 
 fn get_next_seed(seed: &mut u64) -> u64 {

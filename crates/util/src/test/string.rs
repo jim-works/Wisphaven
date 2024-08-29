@@ -1,9 +1,17 @@
-use crate::util::string::Version;
+use crate::string::Version;
 
 #[test]
 pub fn create_version() {
     let version = "1.2.3.asdfasdf";
-    assert_eq!(Version::from(version), Version { major: Some(1), minor: Some(2), patch: Some(3), cruft: Some("asdfasdf".to_string()) });
+    assert_eq!(
+        Version::from(version),
+        Version {
+            major: Some(1),
+            minor: Some(2),
+            patch: Some(3),
+            cruft: Some("asdfasdf".to_string())
+        }
+    );
 }
 
 #[test]

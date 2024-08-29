@@ -4,8 +4,9 @@ use crate::{
     mesher::NeedsMesh,
     serialization::{ChunkSaveFormat, NeedsLoading, NeedsSaving},
     util::{
-        iterators::{BlockVolume, VolumeContainer},
-        max_component_norm, Direction,
+        direction::Direction,
+        iterators::{Volume, VolumeContainer},
+        max_component_norm,
     },
     world::BlockcastHit,
     worldgen::{ChunkNeedsGenerated, GeneratedChunk, GenerationPhase},
@@ -79,7 +80,7 @@ impl LevelData {
             None => None,
         }
     }
-    pub fn get_blocks_in_volume(&self, volume: BlockVolume) -> VolumeContainer<BlockType> {
+    pub fn get_blocks_in_volume(&self, volume: Volume) -> VolumeContainer<BlockType> {
         let mut container = VolumeContainer::new(volume);
         self.fill_volume_container(&mut container);
         container
@@ -87,7 +88,7 @@ impl LevelData {
     pub fn fill_volume_container(&self, container: &mut VolumeContainer<BlockType>) {
         //todo - optimize to get needed chunks all at once
         for pos in container.volume().iter() {
-            container.set(pos, self.get_block(pos));
+            container.set(pos, self.get_block(pos.into()));
         }
     }
     //adds damage to the block at `key`. damage ranges from 0-1, with 1 destroying the block
@@ -248,7 +249,7 @@ impl LevelData {
         if SAVE {
             if let Some(mut ec) = commands.get_entity(chunk_entity) {
                 ec.insert((NeedsMesh::default(), NeedsSaving));
-            }    
+            }
         } else {
             if let Some(mut ec) = commands.get_entity(chunk_entity) {
                 ec.insert(NeedsMesh::default());
@@ -446,9 +447,13 @@ impl LevelData {
             }
         };
         if should_mesh {
-            if let Some(mut ec) = commands.get_entity(id) { ec.remove::<DontMeshChunk>(); }
+            if let Some(mut ec) = commands.get_entity(id) {
+                ec.remove::<DontMeshChunk>();
+            }
         } else {
-            if let Some(mut ec) = commands.get_entity(id) { ec.insert(DontMeshChunk); }
+            if let Some(mut ec) = commands.get_entity(id) {
+                ec.insert(DontMeshChunk);
+            }
         }
         id
     }
@@ -740,9 +745,9 @@ impl LevelData {
         for _ in 0..MAX_CHECK_RANGE {
             match self.get_block(calculated_spawn_point.into()) {
                 Some(BlockType::Empty) => {
-                    if let Some(BlockType::Empty) =
-                        self.get_block(BlockCoord::from(calculated_spawn_point) + BlockCoord::new(0, -1, 0))
-                    {
+                    if let Some(BlockType::Empty) = self.get_block(
+                        BlockCoord::from(calculated_spawn_point) + BlockCoord::new(0, -1, 0),
+                    ) {
                         break;
                     }
                 }

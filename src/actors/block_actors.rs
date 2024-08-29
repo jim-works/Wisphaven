@@ -1,13 +1,14 @@
-use bevy::{prelude::*, pbr::ExtendedMaterial};
+use bevy::{pbr::ExtendedMaterial, prelude::*};
+
+use util::direction::DirectionFlags;
 
 use crate::{
-    mesher::{ChunkMaterial, extended_materials::TextureArrayExtension},
+    mesher::{extended_materials::TextureArrayExtension, ChunkMaterial},
     physics::{
         collision::{Aabb, CollidingDirections},
         movement::Velocity,
         PhysicsBundle,
     },
-    util::DirectionFlags,
     world::{
         events::ChunkUpdatedEvent, BlockCoord, BlockId, BlockMesh, BlockPhysics, BlockType, Level,
         LevelSystemSet,
@@ -61,18 +62,17 @@ fn falling_block_spawner(
     const COLLIDER_SQUISH_FACTOR: f32 = 0.9; //squish the collider a bit so the collider can fall down 1x1 tunnels
     for event in reader.read() {
         if let Ok((block_mesh, opt_physics)) = mesh_query.get(event.falling_block.block) {
-            if let Some(collider) =
-                Aabb::from_block(opt_physics.unwrap_or(&BlockPhysics::Solid))
-            {
+            if let Some(collider) = Aabb::from_block(opt_physics.unwrap_or(&BlockPhysics::Solid)) {
                 if let Some(mesh) = block_mesh.single_mesh.clone() {
                     commands.spawn((
                         PhysicsBundle {
                             velocity: Velocity(event.initial_velocity),
-                            collider: collider
-                                .scale(Vec3::ONE*COLLIDER_SQUISH_FACTOR),
+                            collider: collider.scale(Vec3::ONE * COLLIDER_SQUISH_FACTOR),
                             ..default()
                         },
-                        MaterialMeshBundle::<ExtendedMaterial<StandardMaterial, TextureArrayExtension>> {
+                        MaterialMeshBundle::<
+                            ExtendedMaterial<StandardMaterial, TextureArrayExtension>,
+                        > {
                             transform: Transform::from_translation(event.position),
                             mesh,
                             material: if block_mesh.use_transparent_shader {
