@@ -68,24 +68,7 @@ fn main() {
     )
     .add_plugins(HanabiPlugin)
     // .add_plugins(WorldInspectorPlugin::new())
-    .add_plugins((
-        util::plugin::UtilPlugin,
-        serialization::SerializationPlugin,
-        LevelPlugin,
-        MesherPlugin,
-        WorldGenPlugin,
-        ChunkLoaderPlugin,
-        PhysicsPlugin,
-        ControllersPlugin,
-        ActorPlugin,
-        ItemsPlugin,
-        ui::UIPlugin,
-        net::NetPlugin,
-        gameplay::GameplayPlugin,
-        engine::debug::DebugUIPlugin,
-        engine::effects::EffectsPlugin,
-    ))
-    .add_state::<GameState>();
+    .add_plugins((engine::EnginePlugin, ui::UIPlugin));
 
     if let Some(port) = server_port {
         app.add_systems(

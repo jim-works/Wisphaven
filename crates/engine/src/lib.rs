@@ -35,3 +35,27 @@ pub enum GameState {
     Menu,
     Game,
 }
+
+pub struct EnginePlugin;
+
+impl Plugin for EnginePlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins((
+            util::plugin::UtilPlugin,
+            serialization::SerializationPlugin,
+            world::LevelPlugin,
+            mesher::MesherPlugin,
+            worldgen::WorldGenPlugin,
+            chunk_loading::ChunkLoaderPlugin,
+            physics::PhysicsPlugin,
+            controllers::ControllersPlugin,
+            actors::ActorPlugin,
+            items::ItemsPlugin,
+            net::NetPlugin,
+            gameplay::GameplayPlugin,
+            debug::DebugUIPlugin,
+            effects::EffectsPlugin,
+        ))
+        .add_state::<GameState>();
+    }
+}
