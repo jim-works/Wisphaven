@@ -2,8 +2,11 @@ use bevy::{
     app::AppExit, core_pipeline::clear_color::ClearColorConfig, ecs::system::SystemId, prelude::*,
 };
 
-use engine::GameState;
-use util::LocalRepeatingTimer;
+use engine::{
+    actors::ghost::{GhostResources, Hand, HandState, Handed, OrbitParticle, SwingHand, UseHand},
+    GameState,
+};
+use util::{iterators::even_distribution_on_sphere, lerp, LocalRepeatingTimer};
 
 use super::{
     styles::{get_large_text_style, get_text_style},
@@ -21,6 +24,7 @@ impl Plugin for MainMenuPlugin {
         };
         app.add_state::<MenuState>()
             .add_state::<SplashScreenState>()
+            .add_event::<SpawnMainMenuGhostEvent>()
             .insert_resource(system_ids)
             .add_systems(OnEnter(GameState::Menu), menu_entered)
             .add_systems(OnExit(GameState::Menu), menu_exited)
@@ -47,7 +51,8 @@ impl Plugin for MainMenuPlugin {
             )
             .add_systems(OnEnter(MenuState::Main), show_main_screen)
             .add_systems(OnExit(MenuState::Main), hide_main_screen)
-            .add_systems(OnEnter(MenuState::WorldSelect), show_world_select_screen);
+            .add_systems(OnEnter(MenuState::WorldSelect), show_world_select_screen)
+            .add_systems(Update, spawn_ghost.run_if(in_state(GameState::Menu)));
     }
 }
 
@@ -85,6 +90,15 @@ struct MainMenuContainer;
 #[derive(Component, Clone, Copy)]
 struct MainMenuElement;
 
+#[derive(Component, Clone, Copy)]
+struct MainMenuGhost;
+
+#[derive(Event)]
+struct SpawnMainMenuGhostEvent {
+    transform: Transform,
+    handed: Handed,
+}
+
 #[derive(Resource)]
 struct MainMenuSystemIds {
     play_click: SystemId,
@@ -120,6 +134,7 @@ fn menu_exited(
     mut commands: Commands,
     camera_query: Query<Entity, With<MenuCamera>>,
     menu_query: Query<Entity, With<MenuRoot>>,
+    ghost_query: Query<(Entity, &SwingHand, &UseHand), With<MainMenuGhost>>,
 ) {
     for entity in camera_query.iter() {
         if let Some(ec) = commands.get_entity(entity) {
@@ -129,6 +144,14 @@ fn menu_exited(
     for entity in menu_query.iter() {
         if let Some(ec) = commands.get_entity(entity) {
             ec.despawn_recursive();
+        }
+    }
+    for (entity, hand1, hand2) in ghost_query.iter() {
+        let entities = [entity, hand1.hand, hand2.hand];
+        for e in entities {
+            if let Some(ec) = commands.get_entity(e) {
+                ec.despawn_recursive();
+            }
         }
     }
 }
@@ -377,9 +400,20 @@ fn go_to_main_screen(mut next_state: ResMut<NextState<MenuState>>) {
     next_state.set(MenuState::Main);
 }
 
-fn show_main_screen(mut container_query: Query<&mut Visibility, With<MainMenuContainer>>) {
+fn show_main_screen(
+    mut container_query: Query<&mut Visibility, With<MainMenuContainer>>,
+    ghost_query: Query<(), With<MainMenuGhost>>,
+    mut ghost_spawner: EventWriter<SpawnMainMenuGhostEvent>,
+) {
     for mut vis in container_query.iter_mut() {
         *vis = Visibility::Visible;
+    }
+    if ghost_query.is_empty() {
+        ghost_spawner.send(SpawnMainMenuGhostEvent {
+            transform: Transform::from_translation(Vec3::new(100.7, 99.6, 97.))
+                .with_rotation(Quat::from_euler(EulerRot::XYZ, -0.7, 2.5, 0.3)),
+            handed: Handed::Right,
+        });
     }
 }
 
@@ -405,4 +439,175 @@ fn settings_clicked() {
 
 fn quit_clicked(mut exit: EventWriter<AppExit>) {
     exit.send(AppExit);
+}
+
+fn spawn_ghost(
+    mut commands: Commands,
+    res: Res<GhostResources>,
+    mut spawn_requests: EventReader<SpawnMainMenuGhostEvent>,
+) {
+    const MIN_PARTICLE_SIZE: f32 = 0.225;
+    const MAX_PARTICLE_SIZE: f32 = 0.5;
+    const MIN_PARTICLE_DIST: f32 = 0.15;
+    const MAX_PARTICLE_DIST: f32 = 0.25;
+    const MIN_PARTICLE_SPEED: f32 = 0.05;
+    const MAX_PARTICLE_SPEED: f32 = 0.15;
+    const GHOST_PARTICLE_COUNT: u32 = 7;
+    for spawn in spawn_requests.read() {
+        let ghost_entity = commands
+            .spawn((
+                PbrBundle {
+                    material: res.material.clone(),
+                    transform: spawn.transform,
+                    ..default()
+                },
+                Name::new("ghost"),
+                MainMenuGhost,
+            ))
+            .with_children(|children| {
+                //orbit particles
+                for (i, point) in
+                    (0..GHOST_PARTICLE_COUNT).zip(even_distribution_on_sphere(GHOST_PARTICLE_COUNT))
+                {
+                    //size and distance are inversely correlated
+                    let size = lerp(
+                        MAX_PARTICLE_SIZE,
+                        MIN_PARTICLE_SIZE,
+                        i as f32 / GHOST_PARTICLE_COUNT as f32,
+                    );
+                    let dist = lerp(
+                        MIN_PARTICLE_DIST,
+                        MAX_PARTICLE_DIST,
+                        i as f32 / GHOST_PARTICLE_COUNT as f32,
+                    );
+                    let speed = lerp(
+                        MIN_PARTICLE_SPEED,
+                        MAX_PARTICLE_SPEED,
+                        i as f32 / GHOST_PARTICLE_COUNT as f32,
+                    );
+                    let material = (&res.particle_materials[i as usize]).clone();
+                    let angle_inc = 2.0 * std::f32::consts::PI / GHOST_PARTICLE_COUNT as f32;
+                    let angle = i as f32 * angle_inc;
+                    children.spawn((
+                        PbrBundle {
+                            material,
+                            mesh: res.particle_mesh.clone(),
+                            transform: Transform::from_translation(point * dist)
+                                .with_scale(Vec3::splat(size)),
+                            ..default()
+                        },
+                        OrbitParticle::stable(
+                            dist,
+                            Vec3::new(speed * angle.sin(), 0.0, speed * angle.cos()),
+                        ),
+                    ));
+                }
+            })
+            .id();
+        //right hand
+        let right_hand_entity = spawn_ghost_hand(
+            ghost_entity,
+            spawn.transform,
+            Vec3::new(0.45, 0.2, -0.9),
+            Vec3::new(0.6, 0.2, -0.5),
+            0.15,
+            Quat::default(),
+            &res,
+            &mut commands,
+        );
+        //left hand
+        let left_hand_entity = spawn_ghost_hand(
+            ghost_entity,
+            spawn.transform,
+            Vec3::new(-0.75, 0.2, -0.9),
+            Vec3::new(-0.6, 0.2, -0.5),
+            0.15,
+            Quat::default(),
+            &res,
+            &mut commands,
+        );
+        spawn.handed.assign_hands(
+            ghost_entity,
+            left_hand_entity,
+            right_hand_entity,
+            &mut commands,
+        );
+    }
+}
+
+pub fn spawn_ghost_hand(
+    owner: Entity,
+    owner_pos: Transform,
+    offset: Vec3,
+    windup_offset: Vec3,
+    hand_size: f32,
+    hand_rot: Quat,
+    res: &GhostResources,
+    commands: &mut Commands,
+) -> Entity {
+    const HAND_PARTICLE_COUNT: u32 = 3;
+    let min_particle_size: f32 = 0.1 / hand_size;
+    let max_particle_size: f32 = 0.15 / hand_size;
+    let min_particle_speed: f32 = 0.05 / hand_size;
+    let max_particle_speed: f32 = 0.1 / hand_size;
+    let min_particle_dist: f32 = 0.15 / hand_size;
+    let max_particle_dist: f32 = 0.2 / hand_size;
+    commands
+        .spawn((
+            PbrBundle {
+                mesh: res.particle_mesh.clone(),
+                material: res.hand_particle_material.clone(),
+                transform: Transform::from_translation(owner_pos.transform_point(offset))
+                    .with_scale(Vec3::splat(hand_size)),
+                ..default()
+            },
+            Hand {
+                owner,
+                offset,
+                windup_offset,
+                scale: hand_size,
+                rotation: hand_rot,
+                state: HandState::Following,
+            },
+        ))
+        .with_children(|children| {
+            //orbit particles
+            for (i, point) in
+                (0..HAND_PARTICLE_COUNT).zip(even_distribution_on_sphere(HAND_PARTICLE_COUNT))
+            {
+                //size and distance are inversely correlated
+                let size = lerp(
+                    max_particle_size,
+                    min_particle_size,
+                    i as f32 / HAND_PARTICLE_COUNT as f32,
+                );
+                let dist = lerp(
+                    min_particle_dist,
+                    max_particle_dist,
+                    i as f32 / HAND_PARTICLE_COUNT as f32,
+                );
+                let speed = lerp(
+                    min_particle_speed,
+                    max_particle_speed,
+                    i as f32 / HAND_PARTICLE_COUNT as f32,
+                );
+                let material = res.hand_particle_material.clone();
+                let angle_inc = 2.0 * std::f32::consts::PI / HAND_PARTICLE_COUNT as f32;
+                let angle = i as f32 * angle_inc;
+                children.spawn((
+                    PbrBundle {
+                        material,
+                        mesh: res.particle_mesh.clone(),
+                        transform: Transform::from_translation(point * dist)
+                            .with_scale(Vec3::splat(size)),
+                        ..default()
+                    },
+                    OrbitParticle::stable(
+                        dist,
+                        Vec3::new(speed * angle.sin(), 0.0, speed * angle.cos()),
+                    ),
+                ));
+            }
+        })
+        .id()
 }
