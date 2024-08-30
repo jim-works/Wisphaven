@@ -82,6 +82,7 @@ fn main() {
         ui::UIPlugin,
         net::NetPlugin,
         gameplay::GameplayPlugin,
+        engine::debug::DebugUIPlugin,
         engine::effects::EffectsPlugin,
     ))
     .add_state::<GameState>();

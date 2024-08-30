@@ -2,7 +2,7 @@ use abilities::{
     dash::{CurrentlyDashing, Dash},
     stamina::Stamina,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, window::CursorGrabMode};
 use ghost::FloatBoost;
 use leafwing_input_manager::prelude::ActionState;
 
@@ -15,15 +15,38 @@ use crate::{
         movement::{GravityMult, Velocity},
         query::{self, Raycast, RaycastHit},
     },
-    ui::{state::UIState, world_mouse_active},
-    world::settings::Settings,
     world::{
         events::{BlockHitEvent, BlockUsedEvent},
-        BlockCoord, BlockPhysics, Level, UsableBlock,
+        settings::Settings,
+        BlockCoord, BlockPhysics, Level, LevelSystemSet, UsableBlock,
     },
 };
 
 use super::{Action, MovementMode, TickMovement};
+
+pub struct PlayerControllerPlugin;
+
+impl Plugin for PlayerControllerPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            (
+                rotate_mouse,
+                boost_float_player,
+                move_player,
+                dash_player,
+                follow_local_player,
+                player_punch,
+                player_use,
+                player_scroll_inventory,
+                toggle_player_flight,
+            )
+                .in_set(LevelSystemSet::Main),
+        )
+        .add_systems(Update, update_window_focused)
+        .insert_resource(WindowFocused(false));
+    }
+}
 
 #[derive(Component, Default)]
 pub struct RotateWithMouse {
@@ -38,6 +61,16 @@ pub struct RotateWithMouse {
 #[derive(Component)]
 pub struct FollowPlayer {
     pub offset: Vec3,
+}
+
+#[derive(Resource)]
+pub struct WindowFocused(pub bool);
+
+fn update_window_focused(mut focused: ResMut<WindowFocused>, query: Query<&Window>) {
+    focused.0 = query
+        .get_single()
+        .map(|w| w.cursor.grab_mode != CursorGrabMode::None)
+        .unwrap_or(false);
 }
 
 pub fn toggle_player_flight(
@@ -147,10 +180,10 @@ pub fn dash_player(
 
 pub fn rotate_mouse(
     mut query: Query<(&mut Transform, &mut RotateWithMouse, &ActionState<Action>)>,
-    ui_state: Res<State<UIState>>,
+    focused: Res<WindowFocused>,
     settings: Res<Settings>,
 ) {
-    if !world_mouse_active(ui_state.get()) {
+    if !focused.0 {
         return;
     }
     let sensitivity = settings.mouse_sensitivity;
@@ -207,10 +240,10 @@ pub fn player_punch(
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
     mut attack_punch_writer: EventWriter<AttackEvent>,
     mut block_hit_writer: EventWriter<BlockHitEvent>,
-    ui_state: Res<State<UIState>>,
+    focused: Res<WindowFocused>,
     level: Res<Level>,
 ) {
-    if !world_mouse_active(ui_state.get()) {
+    if !focused.0 {
         return;
     }
     if let Ok((player_entity, tf, act, player, mut inv)) = player_query.get_single_mut() {
@@ -267,14 +300,14 @@ pub fn player_use(
         ),
         With<LocalPlayer>,
     >,
-    ui_state: Res<State<UIState>>,
+    focused: Res<WindowFocused>,
     level: Res<Level>,
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
     usable_block_query: Query<&UsableBlock>,
     mut block_use_writer: EventWriter<BlockUsedEvent>,
 ) {
-    if !world_mouse_active(ui_state.get()) {
+    if !focused.0 {
         return;
     }
     if let Ok((mut inv, entity, tf, act)) = player_query.get_single_mut() {
@@ -312,9 +345,9 @@ pub fn player_scroll_inventory(
     mut query: Query<(&mut Inventory, &ActionState<Action>), With<LocalPlayer>>,
     mut equip_writer: EventWriter<EquipItemEvent>,
     mut unequip_writer: EventWriter<UnequipItemEvent>,
-    ui_state: Res<State<UIState>>,
+    focused: Res<WindowFocused>,
 ) {
-    if !world_mouse_active(ui_state.get()) {
+    if !focused.0 {
         return;
     }
     const SCROLL_SENSITIVITY: f32 = 0.05;

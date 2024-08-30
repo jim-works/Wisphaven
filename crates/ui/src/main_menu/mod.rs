@@ -2,7 +2,8 @@ use bevy::{
     app::AppExit, core_pipeline::clear_color::ClearColorConfig, ecs::system::SystemId, prelude::*,
 };
 
-use crate::{util::LocalRepeatingTimer, GameState};
+use engine::GameState;
+use util::LocalRepeatingTimer;
 
 use super::{
     styles::{get_large_text_style, get_text_style},

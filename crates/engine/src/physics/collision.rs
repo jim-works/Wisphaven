@@ -8,7 +8,7 @@ use util::{
 };
 
 use crate::{
-    ui::{debug::DebugBlockHitboxes, state::DebugUIState},
+    debug::{DebugBlockHitboxes, DebugUIState},
     world::{BlockCoord, BlockPhysics, BlockType, Level},
 };
 

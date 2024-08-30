@@ -1,7 +1,6 @@
 use crate::{
     chunk_loading::ChunkLoader,
     physics::{collision::Aabb, PhysicsBundle},
-    ui::healthbar::spawn_billboard_healthbar,
     util::SendEventCommand,
     world::settings::Settings,
     world::Level,
@@ -96,7 +95,5 @@ pub fn spawn_world_anchor(
             ))
             .id();
         commands.insert_resource(WorldAnchor);
-        //add healthbar
-        spawn_billboard_healthbar(&mut commands, id, Vec3::new(0.0, 2.0, 0.0));
     }
 }

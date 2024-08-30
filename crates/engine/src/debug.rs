@@ -10,11 +10,6 @@ use crate::{
     worldgen::UsedShaperResources,
 };
 
-use super::{
-    state::{DebugUIDetailState, DebugUIState},
-    styles::get_text_style,
-};
-
 pub struct DebugUIPlugin;
 
 impl Plugin for DebugUIPlugin {
@@ -26,6 +21,7 @@ impl Plugin for DebugUIPlugin {
             .add_systems(Startup, init)
             .add_systems(OnEnter(DebugUIState::Shown), spawn_debug)
             .add_systems(OnEnter(DebugUIState::Hidden), despawn_debug)
+            .add_systems(Update, toggle_debug)
             .add_systems(
                 Update,
                 (
@@ -36,7 +32,10 @@ impl Plugin for DebugUIPlugin {
                 )
                     .run_if(in_state(DebugUIState::Shown)),
             )
-            .add_systems(FixedUpdate, clear_fixed_update_gizmos.before(PhysicsSystemSet::Main));
+            .add_systems(
+                FixedUpdate,
+                clear_fixed_update_gizmos.before(PhysicsSystemSet::Main),
+            );
     }
 }
 
@@ -67,8 +66,55 @@ pub struct FixedUpdateBlockGizmos {
     pub blocks: HashSet<BlockCoord>,
 }
 
+#[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone)]
+pub enum DebugUIState {
+    #[default]
+    Hidden,
+    Shown,
+}
+
+#[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone)]
+pub enum DebugUIDetailState {
+    #[default]
+    Minimal,
+    Most,
+}
+
 fn init(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(DebugResources(get_text_style(&assets)));
+}
+
+fn get_text_style(asset_server: &Res<AssetServer>) -> TextStyle {
+    TextStyle {
+        font: asset_server.load("fonts/AvenuePixel1.1/TTF/AvenuePixel-Regular.ttf"),
+        font_size: 32.0,
+        color: Color::WHITE,
+    }
+}
+
+pub fn toggle_debug(
+    mut next_state: ResMut<NextState<DebugUIState>>,
+    curr_state: Res<State<DebugUIState>>,
+    mut detail_next_state: ResMut<NextState<DebugUIDetailState>>,
+    detail_curr_state: Res<State<DebugUIDetailState>>,
+    query: Query<&ActionState<Action>, With<LocalPlayer>>,
+) {
+    if let Ok(action) = query.get_single() {
+        if action.just_pressed(Action::ToggleDebugUIHidden) {
+            match curr_state.get() {
+                DebugUIState::Hidden => next_state.set(DebugUIState::Shown),
+                _ => next_state.set(DebugUIState::Hidden),
+            }
+        }
+        if action.just_pressed(Action::ToggleDebugUIDetail) {
+            let next = match detail_curr_state.get() {
+                DebugUIDetailState::Minimal => DebugUIDetailState::Most,
+                _ => DebugUIDetailState::Minimal,
+            };
+            info!("Debug detail set to {:?}", next);
+            detail_next_state.set(next);
+        }
+    }
 }
 
 fn spawn_debug(mut commands: Commands, query: Query<&DebugUI>, resources: Res<DebugResources>) {
@@ -215,9 +261,7 @@ fn update_noises(
     }
 }
 
-fn clear_fixed_update_gizmos(
-    mut fixed_update_blocks: ResMut<FixedUpdateBlockGizmos>
-) {
+fn clear_fixed_update_gizmos(mut fixed_update_blocks: ResMut<FixedUpdateBlockGizmos>) {
     fixed_update_blocks.blocks.clear();
 }
 
@@ -250,8 +294,7 @@ fn update_gizmos(
         gizmo.cuboid(cuboid_tf, Color::BLUE)
     }
     for coord in fixed_update_blocks.blocks.iter() {
-        let cuboid_tf = Transform::from_translation(coord.center())
-            .with_scale(Vec3::ONE);
+        let cuboid_tf = Transform::from_translation(coord.center()).with_scale(Vec3::ONE);
         gizmo.cuboid(cuboid_tf, Color::GOLD)
     }
     for (coord, physics) in blocks.blocks.iter() {
@@ -273,5 +316,4 @@ fn update_gizmos(
             }
         }
     }
-    
 }

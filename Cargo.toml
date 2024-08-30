@@ -77,3 +77,4 @@ bitflags = { workspace = true }
 #internal crates
 util = { path = "crates/util" }
 engine = { path = "crates/engine" }
+ui = { path = "crates/ui" }

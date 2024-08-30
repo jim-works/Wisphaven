@@ -5,7 +5,6 @@ use big_brain::prelude::*;
 
 use crate::{
     physics::{collision::Aabb, movement::GravityMult, PhysicsBundle},
-    ui::healthbar::spawn_billboard_healthbar,
     util::{plugin::SmoothLookTo, SendEventCommand},
 };
 
@@ -138,8 +137,6 @@ pub fn spawn_glowjelly(
                     ),
             ))
             .id();
-        //add healthbar
-        spawn_billboard_healthbar(&mut commands, id, Vec3::new(0.0, 2.0, 0.0));
     }
 }
 

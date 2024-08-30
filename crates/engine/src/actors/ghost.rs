@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use util::{iterators::*, plugin::SmoothLookTo, *};
 
 use crate::{
+    debug::FixedUpdateBlockGizmos,
     items::{
         inventory::Inventory,
         item_attributes::{ItemSwingSpeed, ItemUseSpeed},
@@ -16,7 +17,6 @@ use crate::{
         movement::{GravityMult, Velocity},
         PhysicsBundle, PhysicsSystemSet,
     },
-    ui::debug::FixedUpdateBlockGizmos,
     world::settings::GraphicsSettings,
     world::BlockPhysics,
     world::Level,

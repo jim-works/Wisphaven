@@ -1,6 +1,6 @@
 use bevy::prelude::{shape::Quad, *};
 
-use crate::actors::{CombatInfo, LocalPlayer};
+use engine::actors::{CombatInfo, LocalPlayer};
 
 pub struct HealthbarPlugin;
 
@@ -32,11 +32,7 @@ pub struct HealthbarResources {
     billboard_mesh: Handle<Mesh>,
 }
 
-fn init(
-    mut commands: Commands,
-    assets: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
-) {
+fn init(mut commands: Commands, assets: Res<AssetServer>, mut meshes: ResMut<Assets<Mesh>>) {
     let fg: Handle<Image> = assets.load("textures/HealthbarForeground.png");
     let bg: Handle<Image> = assets.load("textures/HealthbarBackground.png");
     commands.insert_resource(HealthbarResources {
@@ -60,12 +56,8 @@ pub fn spawn_billboard_healthbar(
         ))
         .with_children(|children| {
             //foreground
-            children.spawn((
-                Healthbar { tracking },
-            ));
-            children.spawn((
-                HealthbarBackground,
-            ));
+            children.spawn((Healthbar { tracking },));
+            children.spawn((HealthbarBackground,));
         })
         .id()
 }

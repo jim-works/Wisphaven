@@ -13,7 +13,7 @@ use bevy::{
 };
 use leafwing_input_manager::prelude::ActionState;
 
-use crate::{
+use engine::{
     actors::{LocalPlayer, LocalPlayerSpawnedEvent},
     controllers::Action,
     items::{
@@ -133,7 +133,7 @@ fn spawn_inventory_system(
     mut commands: Commands,
     resources: Res<InventoryResources>,
     state: Res<State<UIState>>,
-    system_ids: Res<InventorySystemIds>
+    system_ids: Res<InventorySystemIds>,
 ) {
     if !inventory_ui_query.is_empty() {
         return;

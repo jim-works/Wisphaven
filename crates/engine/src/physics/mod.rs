@@ -1,14 +1,14 @@
 use bevy::{prelude::*, transform::TransformSystem};
 
-use crate::{ui::debug::DebugDrawTransform, world::LevelLoadState};
+use crate::{debug::DebugDrawTransform, world::LevelLoadState};
 
 use self::{collision::IgnoreTerrainCollision, movement::Drag};
 
 pub mod collision;
+pub mod grapple;
 pub mod movement;
 pub mod query;
 mod test;
-pub mod grapple;
 
 const SPAWN_CHUNK_TIME_BUDGET_COUNT: u32 = 1000;
 pub const GRAVITY: Vec3 = Vec3::new(0., -10.0, 0.);
@@ -32,7 +32,7 @@ impl Plugin for PhysicsPlugin {
         app.add_plugins((
             movement::MovementPlugin,
             collision::CollisionPlugin,
-            grapple::GrapplePlugin
+            grapple::GrapplePlugin,
         ))
         .insert_resource(Time::<Fixed>::from_hz(TPS))
         .configure_sets(
@@ -44,9 +44,13 @@ impl Plugin for PhysicsPlugin {
                 PhysicsSystemSet::UpdatePosition,
                 PhysicsSystemSet::UpdateDerivatives,
             )
-                .chain().run_if(in_state(LevelLoadState::Loaded)),
+                .chain()
+                .run_if(in_state(LevelLoadState::Loaded)),
         )
-        .configure_sets(FixedUpdate, TransformSystem::TransformPropagate.after(PhysicsSystemSet::UpdatePosition));
+        .configure_sets(
+            FixedUpdate,
+            TransformSystem::TransformPropagate.after(PhysicsSystemSet::UpdatePosition),
+        );
     }
 }
 #[derive(Bundle, Default)]
@@ -59,7 +63,7 @@ pub struct PhysicsBundle {
     pub colliding_directions: collision::CollidingDirections,
     pub debug_draw_transform: DebugDrawTransform,
     pub friction: FrictionBundle,
-    pub drag: Drag
+    pub drag: Drag,
 }
 
 #[derive(Bundle, Default)]
@@ -71,7 +75,7 @@ pub struct NoTerrainPhysicsBundle {
     pub collider: collision::Aabb,
     pub colliding_directions: collision::CollidingDirections,
     pub debug_draw_transform: DebugDrawTransform,
-    pub ignore_terrain_collision: IgnoreTerrainCollision
+    pub ignore_terrain_collision: IgnoreTerrainCollision,
 }
 
 #[derive(Bundle, Default)]

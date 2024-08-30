@@ -1,6 +1,5 @@
 pub mod player_controller;
 use leafwing_input_manager::prelude::*;
-use player_controller::*;
 
 mod input;
 pub use input::*;
@@ -13,7 +12,6 @@ use util::direction::DirectionFlags;
 use crate::{
     actors::{abilities::dash::CurrentlyDashing, ghost::FloatBoost, Jump, MoveSpeed},
     physics::{collision::CollidingDirections, PhysicsSystemSet},
-    world::LevelSystemSet,
 };
 
 pub struct ControllersPlugin;
@@ -23,23 +21,8 @@ impl Plugin for ControllersPlugin {
         app.add_plugins((
             InputManagerPlugin::<Action>::default(),
             pi_controllers::PIControllersPlugin,
+            player_controller::PlayerControllerPlugin,
         ))
-        //player
-        .add_systems(
-            Update,
-            (
-                rotate_mouse,
-                boost_float_player,
-                move_player,
-                dash_player,
-                follow_local_player,
-                player_punch,
-                player_use,
-                player_scroll_inventory,
-                toggle_player_flight,
-            )
-                .in_set(LevelSystemSet::Main),
-        )
         //common
         .add_systems(
             FixedUpdate,

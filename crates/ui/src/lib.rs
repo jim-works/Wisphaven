@@ -1,5 +1,17 @@
+//disable console window from popping up on windows in release builds
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+//have to enable this because it's a nursery feature
+#![warn(clippy::disallowed_types)]
+//bevy system signatures often violate these rules
+#![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
+//TODO: remove this before release. annoying as balls during development
+#![allow(dead_code)]
+//don't care too much about precision here, so I'll allow this
+#![feature(const_fn_floating_point_arithmetic)]
+#![feature(assert_matches)]
+
 pub mod crosshair;
-pub mod debug;
 pub mod healthbar;
 pub mod inventory;
 pub mod main_menu;
@@ -13,10 +25,10 @@ use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
 use leafwing_input_manager::action_state::ActionState;
 
-use crate::actors::LocalPlayer;
-use crate::controllers::Action;
-use crate::world::LevelSystemSet;
-use crate::GameState;
+use engine::actors::LocalPlayer;
+use engine::controllers::Action;
+use engine::world::LevelSystemSet;
+use engine::GameState;
 
 pub struct UIPlugin;
 
@@ -32,14 +44,10 @@ impl Plugin for UIPlugin {
                 waves::WavesPlugin,
                 main_menu::MainMenuPlugin,
             ))
-            .add_plugins(debug::DebugUIPlugin)
             .add_systems(OnEnter(GameState::Game), state::on_load)
             .add_systems(OnEnter(state::UIState::Default), capture_mouse)
             .add_systems(OnEnter(state::UIState::Inventory), release_mouse)
-            .add_systems(
-                Update,
-                (state::toggle_hidden, state::toggle_debug).in_set(LevelSystemSet::Main),
-            )
+            .add_systems(Update, state::toggle_hidden.in_set(LevelSystemSet::Main))
             .add_systems(
                 Update,
                 (toggle_fullscreen, change_button_colors, do_button_action),

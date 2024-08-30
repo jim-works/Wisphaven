@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{
+use engine::{
     gameplay::waves::{Assault, AssaultStartedEvent},
     world::atmosphere::Calendar,
 };
