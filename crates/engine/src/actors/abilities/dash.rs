@@ -6,7 +6,7 @@ use crate::{
     actors::MoveSpeed,
     physics::movement::Velocity,
     util::{ease_out_quad, inverse_lerp, lerp},
-    LevelSystemSet,
+    world::LevelSystemSet,
 };
 
 use super::stamina::StaminaCost;

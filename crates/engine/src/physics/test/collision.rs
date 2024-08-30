@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 mod aabb {
     use crate::physics::collision::Aabb;
-    use crate::BlockCoord;
+    use crate::world::BlockCoord;
     use bevy::prelude::*;
     use util::iterators::Volume;
 

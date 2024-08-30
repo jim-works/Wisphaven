@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use crate::{
-    atmosphere::Calendar,
     gameplay::waves::{Assault, AssaultStartedEvent},
+    world::atmosphere::Calendar,
 };
 
 pub struct WavesPlugin;

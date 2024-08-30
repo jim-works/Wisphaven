@@ -1,6 +1,6 @@
 use bevy::{math::UVec2, prelude::*};
 
-use crate::ChunkLoader;
+use crate::chunk_loading::ChunkLoader;
 
 use super::chunk::ChunkCoord;
 

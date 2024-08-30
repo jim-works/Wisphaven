@@ -16,10 +16,12 @@ use crate::{
         movement::{GravityMult, Velocity},
         PhysicsBundle, PhysicsSystemSet,
     },
-    settings::GraphicsSettings,
     ui::debug::FixedUpdateBlockGizmos,
+    world::settings::GraphicsSettings,
+    world::BlockPhysics,
+    world::Level,
     world::LevelLoadState,
-    BlockPhysics, Level, LevelSystemSet,
+    world::LevelSystemSet,
 };
 
 use super::{

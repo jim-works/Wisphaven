@@ -18,8 +18,8 @@ use crate::serialization::queries::{
     CREATE_CHUNK_TABLE, CREATE_WORLD_INFO_TABLE, INSERT_WORLD_INFO, LOAD_WORLD_INFO,
 };
 use crate::serialization::{LoadingBlocks, LoadingItems, LoadingRecipes};
-use crate::settings::GraphicsSettings;
 use crate::util::string::Version;
+use crate::world::settings::GraphicsSettings;
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
 use crate::world::{
     BlockId, BlockName, BlockNameIdMap, BlockRegistry, BlockResources, Id, LevelData,

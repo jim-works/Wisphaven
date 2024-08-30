@@ -3,19 +3,19 @@
   entities: {
     3: (
       components: {
-        "wisphaven::items::ItemName": (
+        "engine::items::ItemName": (
           namespace: "core",
           name: "dagger",
         ),
-        "wisphaven::items::NamedItemIcon": (
+        "engine::items::NamedItemIcon": (
             path: "dagger.png"
         ),
-        "wisphaven::items::weapons::MeleeWeaponItem": (
+        "engine::items::weapons::MeleeWeaponItem": (
             damage: Damage (amount: 5.0),
             knockback: 5.0,
         ),
-        "wisphaven::items::tools::DontHitBlocks": (),
-        "wisphaven::items::item_attributes::ItemSwingSpeed": (
+        "engine::items::tools::DontHitBlocks": (),
+        "engine::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 0,
                 nanos: 0,
@@ -29,50 +29,50 @@
     ),
     4: (
       components: {
-        "wisphaven::items::ItemName": (
+        "engine::items::ItemName": (
           namespace: "core",
           name: "personality_tester",
         ),
-        "wisphaven::items::NamedItemIcon": (
+        "engine::items::NamedItemIcon": (
             path: "personality_tester.png"
         ),
-        "wisphaven::items::debug_items::PersonalityTester": (),
+        "engine::items::debug_items::PersonalityTester": (),
       },
     ),
     5: (
       components: {
-        "wisphaven::items::ItemName": (
+        "engine::items::ItemName": (
           namespace: "core",
           name: "mega_air",
         ),
-        "wisphaven::items::NamedItemIcon": (
+        "engine::items::NamedItemIcon": (
             path: "vacuum.png"
         ),
-        "wisphaven::items::block_item::MegaBlockItem": (
+        "engine::items::block_item::MegaBlockItem": (
           BlockName(
             namespace: "core",
             name: "empty"
           ),
           10
         ),
-        "wisphaven::items::item_attributes::ConsumeItemOnHit": (),
+        "engine::items::item_attributes::ConsumeItemOnHit": (),
       },
     ),
     6: (
       components: {
-        "wisphaven::items::ItemName": (
+        "engine::items::ItemName": (
           namespace: "core",
           name: "ruby_pickaxe",
         ),
-        "wisphaven::items::NamedItemIcon": (
+        "engine::items::NamedItemIcon": (
             path: "ruby_pickaxe.png"
         ),
-        "wisphaven::items::tools::Tool": (
+        "engine::items::tools::Tool": (
             pickaxe: 3,
             shovel: 2,
             axe: 2,
         ),
-        "wisphaven::items::item_attributes::ItemSwingSpeed": (
+        "engine::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 0,
                 nanos: 0,
@@ -86,17 +86,17 @@
     ),
     7: (
       components: {
-        "wisphaven::items::ItemName": (
+        "engine::items::ItemName": (
           namespace: "core",
           name: "ruby_axe",
         ),
-        "wisphaven::items::NamedItemIcon": (
+        "engine::items::NamedItemIcon": (
             path: "ruby_axe.png"
         ),
-        "wisphaven::items::tools::Tool": (
+        "engine::items::tools::Tool": (
             axe: 3
         ),
-        "wisphaven::items::item_attributes::ItemSwingSpeed": (
+        "engine::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 0,
                 nanos: 0,
@@ -106,7 +106,7 @@
                 nanos: 500000000,
             )
         ),
-        "wisphaven::items::tools::abilities::AxeAbility": (
+        "engine::items::tools::abilities::AxeAbility": (
             max_blocks: 10,
             search_radius: 2,
             damage_mult: 1.0
@@ -115,17 +115,17 @@
     ),
     8: (
       components: {
-        "wisphaven::items::ItemName": (
+        "engine::items::ItemName": (
           namespace: "core",
           name: "ruby_shovel",
         ),
-        "wisphaven::items::NamedItemIcon": (
+        "engine::items::NamedItemIcon": (
             path: "ruby_shovel.png"
         ),
-        "wisphaven::items::tools::Tool": (
+        "engine::items::tools::Tool": (
             shovel: 3
         ),
-        "wisphaven::items::item_attributes::ItemSwingSpeed": (
+        "engine::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 0,
                 nanos: 0,
@@ -135,7 +135,7 @@
                 nanos: 500000000,
             )
         ),
-        "wisphaven::items::tools::abilities::ShovelAbility": (
+        "engine::items::tools::abilities::ShovelAbility": (
             radius: 2,
             length: 10,
             damage_mult: 1.0
@@ -144,19 +144,19 @@
     ),
     9: (
       components: {
-        "wisphaven::items::ItemName": (
+        "engine::items::ItemName": (
           namespace: "core",
           name: "glowjelly_jar",
         ),
-        "wisphaven::items::NamedItemIcon": (
+        "engine::items::NamedItemIcon": (
             path: "glowjelly_jar.png"
         ),
-        "wisphaven::items::actor_items::SpawnActorItem": (ActorName(
+        "engine::items::actor_items::SpawnActorItem": (ActorName(
           namespace: "core",
           name: "glowjelly",
         )),
-        "wisphaven::items::item_attributes::ConsumeItemOnHit": (),
-        "wisphaven::items::item_attributes::ItemUseSpeed": (
+        "engine::items::item_attributes::ConsumeItemOnHit": (),
+        "engine::items::item_attributes::ItemUseSpeed": (
             windup: (
                 secs: 0,
                 nanos: 250000000,
@@ -170,19 +170,19 @@
     ),
     10: (
       components: {
-        "wisphaven::items::ItemName": (
+        "engine::items::ItemName": (
           namespace: "core",
           name: "world_anchor",
         ),
-        "wisphaven::items::NamedItemIcon": (
+        "engine::items::NamedItemIcon": (
             path: "world_anchor.png"
         ),
-        "wisphaven::items::actor_items::SpawnActorItem": (ActorName(
+        "engine::items::actor_items::SpawnActorItem": (ActorName(
           namespace: "core",
           name: "world_anchor",
         )),
-        "wisphaven::items::item_attributes::ConsumeItemOnHit": (),
-        "wisphaven::items::item_attributes::ItemUseSpeed": (
+        "engine::items::item_attributes::ConsumeItemOnHit": (),
+        "engine::items::item_attributes::ItemUseSpeed": (
             windup: (
                 secs: 1,
                 nanos: 0,
@@ -196,15 +196,15 @@
     ),
     11: (
       components: {
-        "wisphaven::items::ItemName": (
+        "engine::items::ItemName": (
           namespace: "core",
           name: "moon",
         ),
-        "wisphaven::items::NamedItemIcon": (
+        "engine::items::NamedItemIcon": (
             path: "moon.png"
         ),
-        "wisphaven::items::time_items::SkipToNightItem": (),
-        "wisphaven::items::item_attributes::ItemUseSpeed": (
+        "engine::items::time_items::SkipToNightItem": (),
+        "engine::items::item_attributes::ItemUseSpeed": (
             windup: (
                 secs: 0,
                 nanos: 250000000,
@@ -218,18 +218,18 @@
     ),
     12: (
       components: {
-        "wisphaven::items::ItemName": (
+        "engine::items::ItemName": (
           namespace: "core",
           name: "coin_launcher",
         ),
-        "wisphaven::items::NamedItemIcon": (
+        "engine::items::NamedItemIcon": (
             path: "coin.png"
         ),
-        "wisphaven::items::weapons::CoinLauncherItem": (
+        "engine::items::weapons::CoinLauncherItem": (
           speed: 1,
           damage: Damage (amount: 3.0)
         ),
-        "wisphaven::items::item_attributes::ItemUseSpeed": (
+        "engine::items::item_attributes::ItemUseSpeed": (
             windup: (
                 secs: 0,
                 nanos: 0,
@@ -239,20 +239,20 @@
                 nanos: 0
             )
         ),
-        "wisphaven::items::item_attributes::ConsumeItemOnHit": ()
+        "engine::items::item_attributes::ConsumeItemOnHit": ()
       },
     ),
     13: (
       components: {
-        "wisphaven::items::ItemName": (
+        "engine::items::ItemName": (
           namespace: "core",
           name: "ruby_hammer",
         ),
-        "wisphaven::items::NamedItemIcon": (
+        "engine::items::NamedItemIcon": (
             path: "ruby_hammer.png"
         ),
-        "wisphaven::items::crafting::CraftingHammer": (),
-        "wisphaven::items::item_attributes::ItemSwingSpeed": (
+        "engine::items::crafting::CraftingHammer": (),
+        "engine::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 1,
                 nanos: 0,
@@ -262,25 +262,25 @@
                 nanos: 500000000,
             )
         ),
-        "wisphaven::items::tools::Tool": (),
+        "engine::items::tools::Tool": (),
       },
     ),
     14: (
       components: {
-        "wisphaven::items::ItemName": (
+        "engine::items::ItemName": (
           namespace: "core",
           name: "grapple",
         ),
-        "wisphaven::items::NamedItemIcon": (
+        "engine::items::NamedItemIcon": (
             path: "grapple.png"
         ),
-        "wisphaven::items::grapple_item::GrappleItem": (
+        "engine::items::grapple_item::GrappleItem": (
           max_speed: 0.5,
           strength: 0.1,
           length: 25.0,
           remove_distance: Some(2.0)
         ),
-        "wisphaven::items::item_attributes::ItemUseSpeed": (
+        "engine::items::item_attributes::ItemUseSpeed": (
             windup: (
                 secs: 0,
                 nanos: 0

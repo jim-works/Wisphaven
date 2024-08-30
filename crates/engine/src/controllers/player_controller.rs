@@ -15,8 +15,8 @@ use crate::{
         movement::{GravityMult, Velocity},
         query::{self, Raycast, RaycastHit},
     },
-    settings::Settings,
     ui::{state::UIState, world_mouse_active},
+    world::settings::Settings,
     world::{
         events::{BlockHitEvent, BlockUsedEvent},
         BlockCoord, BlockPhysics, Level, UsableBlock,

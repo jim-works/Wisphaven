@@ -3,75 +3,75 @@
   entities: {
     1: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "grass",
         ),
-        "wisphaven::world::block::BlockPhysics": Solid,
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::BlockPhysics": Solid,
+        "engine::world::block::NamedBlockMesh": (
             shape: MultiTexture(("grass_side.png", "grass_top.png", "grass_side.png", "grass_side.png", "dirt.png", "grass_side.png")),
         ),
-        "wisphaven::items::tools::ToolResistance": Pickaxe(0),
-        "wisphaven::items::tools::abilities::ShovelAbilityTarget": (),
+        "engine::items::tools::ToolResistance": Pickaxe(0),
+        "engine::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     2: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "dirt",
         ),
-        "wisphaven::world::block::BlockPhysics": Solid,
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::BlockPhysics": Solid,
+        "engine::world::block::NamedBlockMesh": (
             shape: Uniform("dirt.png"),
         ),
-        "wisphaven::items::tools::abilities::ShovelAbilityTarget": (),
+        "engine::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     3: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "stone",
         ),
-        "wisphaven::world::block::BlockPhysics": Solid,
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::BlockPhysics": Solid,
+        "engine::world::block::NamedBlockMesh": (
             shape: Uniform("stone.png"),
         )
       },
     ),
     4: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "log",
         ),
-        "wisphaven::world::block::BlockPhysics": Solid,
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::BlockPhysics": Solid,
+        "engine::world::block::NamedBlockMesh": (
             shape: MultiTexture(("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
         ),
-        "wisphaven::items::tools::abilities::AxeAbilityTarget": (),
+        "engine::items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
     5: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "leaves",
         ),
-        "wisphaven::world::block::BlockPhysics": Solid,
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::BlockPhysics": Solid,
+        "engine::world::block::NamedBlockMesh": (
             shape: Uniform("leaves.png"),
         )
       },
     ),
     6: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "log_slab",
         ),
-        "wisphaven::world::block::BlockPhysics": Aabb(Aabb (
+        "engine::world::block::BlockPhysics": Aabb(Aabb (
           size: (
             x: 1.0,
             y: 0.5,
@@ -83,50 +83,50 @@
             z: 0.0,
           ),
         )),
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::NamedBlockMesh": (
             shape: BottomSlab(0.5, ("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
         )
       },
     ),
     7: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "tnt",
         ),
-        "wisphaven::world::block::BlockPhysics": Solid,
-        "wisphaven::world::blocks::tnt::TNTBlock": (
+        "engine::world::block::BlockPhysics": Solid,
+        "engine::world::blocks::tnt::TNTBlock": (
           explosion_strength: 10.0,
         ),
-        "wisphaven::world::block::UsableBlock": (),
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::UsableBlock": (),
+        "engine::world::block::NamedBlockMesh": (
             shape: MultiTexture(("tnt_side.png", "tnt_top.png", "tnt_side.png", "tnt_side.png", "tnt_top.png", "tnt_side.png")),
         )
       },
     ),
     8: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "snow",
         ),
-        "wisphaven::world::block::BlockPhysics": Solid,
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::BlockPhysics": Solid,
+        "engine::world::block::NamedBlockMesh": (
             shape: Uniform("snow.png"),
         ),
-        "wisphaven::items::tools::abilities::ShovelAbilityTarget": (),
+        "engine::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     9: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "snow_sheet",
         ),
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::NamedBlockMesh": (
             shape: BottomSlab(0.25, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
         ),
-        "wisphaven::world::block::BlockPhysics": Aabb(Aabb (
+        "engine::world::block::BlockPhysics": Aabb(Aabb (
           size: (
             x: 1.0,
             y: 0.25,
@@ -138,80 +138,80 @@
             z: 0.0,
           ),
         )),
-        "wisphaven::items::tools::abilities::ShovelAbilityTarget": (),
+        "engine::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     10: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "ruby_ore",
         ),
-        "wisphaven::world::block::BlockPhysics": Solid,
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::BlockPhysics": Solid,
+        "engine::world::block::NamedBlockMesh": (
             shape: Uniform("ruby_ore.png"),
         )
       },
     ),
     11: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "moldavite_ore",
         ),
-        "wisphaven::world::block::BlockPhysics": Solid,
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::BlockPhysics": Solid,
+        "engine::world::block::NamedBlockMesh": (
             shape: Uniform("moldavite_ore.png"),
         )
       },
     ),
     12: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "sand",
         ),
-        "wisphaven::world::block::BlockPhysics": Solid,
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::BlockPhysics": Solid,
+        "engine::world::block::NamedBlockMesh": (
             shape: Uniform("sand.png"),
         ),
-        "wisphaven::items::tools::abilities::ShovelAbilityTarget": (),
+        "engine::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     13: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "cactus",
         ),
-        "wisphaven::world::block::BlockPhysics": Solid,
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::BlockPhysics": Solid,
+        "engine::world::block::NamedBlockMesh": (
             shape: Uniform("cactus.png"),
         ),
-        "wisphaven::items::tools::abilities::AxeAbilityTarget": (),
+        "engine::items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
     14: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "cactus_flower",
         ),
-        "wisphaven::world::block::BlockPhysics": Solid,
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::BlockPhysics": Solid,
+        "engine::world::block::NamedBlockMesh": (
             shape: Uniform("cactus_flower.png"),
         ),
-        "wisphaven::items::tools::abilities::AxeAbilityTarget": (),
+        "engine::items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
     15: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "water",
         ),
-        "wisphaven::world::block::BlockPhysics": Solid,
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::BlockPhysics": Solid,
+        "engine::world::block::NamedBlockMesh": (
             shape: Uniform("water.png"),
             use_transparent_shader: true
         )
@@ -219,16 +219,16 @@
     ),
     16: (
       components: {
-        "wisphaven::world::block::BlockName": (
+        "engine::world::block::BlockName": (
           namespace: "core",
           name: "lily",
         ),
-        "wisphaven::world::block::NamedBlockMesh": (
+        "engine::world::block::NamedBlockMesh": (
             shape: Cross(("lily.png","lily.png")),
             use_transparent_shader: true
         ),
-        "wisphaven::items::tools::ToolResistance": Instant,
-        "wisphaven::items::tools::abilities::ShovelAbilityTarget": (),
+        "engine::items::tools::ToolResistance": Instant,
+        "engine::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
   },

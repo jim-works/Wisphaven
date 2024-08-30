@@ -11,7 +11,7 @@ use crate::{
         CombatInfo, DamageTakenEvent, LocalPlayer, LocalPlayerSpawnedEvent,
     },
     util::inverse_lerp,
-    LevelLoadState,
+    world::LevelLoadState,
 };
 
 use super::state::UIState;

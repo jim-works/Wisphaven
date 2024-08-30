@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::atmosphere::Calendar;
+use crate::world::atmosphere::Calendar;
 
 pub struct StaminaPlugin;
 

@@ -2,9 +2,9 @@ mod generator;
 pub use generator::*;
 
 pub mod extended_materials;
+pub mod item_mesher;
 pub mod materials;
 pub mod order;
-pub mod item_mesher;
 pub use materials::ChunkMaterial;
 
 use bevy::{asset::load_internal_asset, pbr::*, prelude::*};
@@ -12,7 +12,10 @@ use bevy::{asset::load_internal_asset, pbr::*, prelude::*};
 use crate::{
     mesher::extended_materials::TextureArrayExtension,
     serialization::state::GameLoadState,
-    world::{chunk::{ChunkCoord, ChunkType}, Level, LevelSystemSet},
+    world::{
+        chunk::{ChunkCoord, ChunkType},
+        Level, LevelSystemSet,
+    },
 };
 
 pub struct MesherPlugin;
@@ -25,7 +28,7 @@ impl Plugin for MesherPlugin {
         load_internal_asset!(
             app,
             Handle::weak_from_u128(21908015359337029746),
-            "../../assets/shaders/texture_array.wgsl",
+            "../../../../assets/shaders/texture_array.wgsl",
             Shader::from_wgsl
         );
         app.add_plugins(MaterialPlugin::<

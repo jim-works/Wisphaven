@@ -1,5 +1,5 @@
 pub mod blockcast_checkers {
-    use crate::{BlockPhysics, BlockType};
+    use crate::world::{BlockPhysics, BlockType};
     use bevy::prelude::*;
 
     pub fn non_empty(opt_block: Option<BlockType>) -> bool {

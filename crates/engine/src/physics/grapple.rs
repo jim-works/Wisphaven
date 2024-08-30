@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use crate::{actors::ghost::UseHand, items::ItemSystemSet, BlockCoord, Level, LevelSystemSet};
+use crate::{
+    actors::ghost::UseHand, items::ItemSystemSet, world::BlockCoord, world::Level,
+    world::LevelSystemSet,
+};
 
 use super::{
     movement::{Acceleration, Mass, Velocity},
@@ -96,7 +99,7 @@ fn shoot_grapple(
     mut event_reader: EventReader<ShootGrappleEvent>,
     level: Res<Level>,
     hand_query: Query<&UseHand>,
-    physics_query: Query<&crate::BlockPhysics>,
+    physics_query: Query<&crate::world::BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &super::collision::Aabb)>,
     mut commands: Commands,
 ) {

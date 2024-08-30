@@ -11,6 +11,7 @@
 #![feature(const_fn_floating_point_arithmetic)]
 #![feature(assert_matches)]
 
+use ::engine::*;
 use ::util;
 use std::{env, net::Ipv4Addr};
 
@@ -18,7 +19,7 @@ use actors::ActorPlugin;
 use bevy::{prelude::*, window::WindowResolution};
 use bevy_hanabi::HanabiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use chunk_loading::{ChunkLoader, ChunkLoaderPlugin};
+use chunk_loading::ChunkLoaderPlugin;
 use controllers::ControllersPlugin;
 use items::ItemsPlugin;
 
@@ -29,20 +30,6 @@ use world::*;
 use worldgen::WorldGenPlugin;
 
 use crate::net::{server::ServerConfig, NetworkType};
-
-mod actors;
-mod chunk_loading;
-mod controllers;
-mod effects;
-mod gameplay;
-mod items;
-mod mesher;
-mod net;
-mod physics;
-mod serialization;
-mod ui;
-mod world;
-mod worldgen;
 
 fn main() {
     //todo - this should be in GUI
@@ -95,7 +82,7 @@ fn main() {
         ui::UIPlugin,
         net::NetPlugin,
         gameplay::GameplayPlugin,
-        effects::EffectsPlugin,
+        engine::effects::EffectsPlugin,
     ))
     .add_state::<GameState>();
 
@@ -145,14 +132,5 @@ fn main() {
             },
         );
     }
-
     app.run();
-}
-
-#[derive(States, Default, Debug, Hash, Eq, PartialEq, Clone)]
-pub enum GameState {
-    #[default]
-    Setup,
-    Menu,
-    Game,
 }

@@ -1,10 +1,11 @@
 use crate::{
     chunk_loading::ChunkLoader,
     physics::{collision::Aabb, PhysicsBundle},
-    settings::Settings,
     ui::healthbar::spawn_billboard_healthbar,
     util::SendEventCommand,
-    Level, LevelLoadState,
+    world::settings::Settings,
+    world::Level,
+    world::LevelLoadState,
 };
 use bevy::prelude::*;
 

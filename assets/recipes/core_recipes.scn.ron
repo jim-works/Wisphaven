@@ -3,7 +3,7 @@
   entities: {
     1: (
       components: {
-        "wisphaven::items::crafting::recipes::NamedBasicBlockRecipe": (
+        "engine::items::crafting::recipes::NamedBasicBlockRecipe": (
            recipe: [
                 [
                     [
@@ -19,7 +19,7 @@
     ),
     2: (
       components: {
-        "wisphaven::items::crafting::recipes::NamedBasicBlockRecipe": (
+        "engine::items::crafting::recipes::NamedBasicBlockRecipe": (
            recipe: [
                 [
                     [

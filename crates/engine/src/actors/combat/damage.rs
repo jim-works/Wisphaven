@@ -3,8 +3,8 @@ use core::f32;
 use bevy::prelude::*;
 
 use crate::{
-    atmosphere::DayStartedEvent,
     physics::movement::{Mass, Velocity},
+    world::atmosphere::DayStartedEvent,
 };
 
 use super::*;

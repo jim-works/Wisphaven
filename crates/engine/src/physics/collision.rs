@@ -9,8 +9,7 @@ use util::{
 
 use crate::{
     ui::{debug::DebugBlockHitboxes, state::DebugUIState},
-    world::{BlockCoord, BlockPhysics, Level},
-    BlockType,
+    world::{BlockCoord, BlockPhysics, BlockType, Level},
 };
 
 use super::{movement::*, PhysicsSystemSet};

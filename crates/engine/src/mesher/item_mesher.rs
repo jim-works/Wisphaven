@@ -3,10 +3,11 @@ use bevy::{pbr::ExtendedMaterial, prelude::*};
 use util::{image::ImageExtension, palette::Palette};
 
 use crate::{
-    chunk::{Chunk, ChunkCoord, FatChunkIdx, BLOCKS_PER_FAT_CHUNK},
     items::{inventory::Inventory, ItemIcon},
+    world::chunk::{Chunk, ChunkCoord, FatChunkIdx, BLOCKS_PER_FAT_CHUNK},
     world::util::BlockPalette,
-    BlockMesh, BlockMeshShape,
+    world::BlockMesh,
+    world::BlockMeshShape,
 };
 
 use super::{
