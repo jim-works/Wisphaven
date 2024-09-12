@@ -1,9 +1,13 @@
+use std::time::Duration;
+
 use bevy::{
     app::AppExit, core_pipeline::clear_color::ClearColorConfig, ecs::system::SystemId, prelude::*,
 };
 
 use engine::{
     actors::ghost::{GhostResources, Hand, HandState, Handed, OrbitParticle, SwingHand, UseHand},
+    effects::mesh_particles::MeshParticleEmitter,
+    physics::movement::{Drag, GravityMult},
     GameState,
 };
 use util::{iterators::even_distribution_on_sphere, lerp, LocalRepeatingTimer};
@@ -532,6 +536,29 @@ fn spawn_ghost(
             right_hand_entity,
             &mut commands,
         );
+
+        //falling particles
+        commands.spawn((
+            Name::new("emitter"),
+            SpatialBundle {
+                transform: Transform::from_translation(spawn.transform.translation),
+                ..default()
+            },
+            MeshParticleEmitter {
+                shape: engine::effects::mesh_particles::MeshParticleShape::Cube,
+                min_scale: Vec3::new(1., 1., 1.),
+                max_scale: 5. * Vec3::ONE,
+                emit_radius: 1.,
+                speed: 0.,
+                gravity_mult: -1.,
+                drag: 0.,
+                lifetime: Duration::from_secs(5),
+                spawn_count_min: 1,
+                spawn_count_max: 3,
+                repeat_time: Some(Duration::from_secs_f32(1.)),
+                ..default()
+            },
+        ));
     }
 }
 

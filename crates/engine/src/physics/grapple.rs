@@ -1,14 +1,15 @@
 use bevy::prelude::*;
 
 use crate::{
-    actors::ghost::UseHand, items::ItemSystemSet, world::BlockCoord, world::Level,
-    world::LevelSystemSet,
+    actors::ghost::UseHand,
+    items::ItemSystemSet,
+    world::{BlockCoord, Level, LevelSystemSet},
 };
 
 use super::{
     movement::{Acceleration, Mass, Velocity},
     query::{raycast, Raycast},
-    PhysicsSystemSet,
+    PhysicsLevelSet,
 };
 
 //springy grapple
@@ -21,7 +22,7 @@ impl Plugin for GrapplePlugin {
                 FixedUpdate,
                 (update_grapple, update_force)
                     .chain()
-                    .in_set(PhysicsSystemSet::Main),
+                    .in_set(PhysicsLevelSet::Main),
             )
             .add_systems(
                 Update,

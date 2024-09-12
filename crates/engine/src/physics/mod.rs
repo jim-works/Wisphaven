@@ -25,6 +25,12 @@ pub enum PhysicsSystemSet {
     UpdateDerivatives,
 }
 
+//run in fixed update
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub enum PhysicsLevelSet {
+    Main,
+}
+
 pub struct PhysicsPlugin;
 
 impl Plugin for PhysicsPlugin {
@@ -44,7 +50,12 @@ impl Plugin for PhysicsPlugin {
                 PhysicsSystemSet::UpdatePosition,
                 PhysicsSystemSet::UpdateDerivatives,
             )
-                .chain()
+                .chain(),
+        )
+        .configure_sets(
+            FixedUpdate,
+            PhysicsLevelSet::Main
+                .in_set(PhysicsSystemSet::Main)
                 .run_if(in_state(LevelLoadState::Loaded)),
         )
         .configure_sets(

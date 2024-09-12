@@ -12,22 +12,11 @@
 #![feature(assert_matches)]
 
 use ::engine::*;
-use ::util;
 use std::{env, net::Ipv4Addr};
 
-use actors::ActorPlugin;
 use bevy::{prelude::*, window::WindowResolution};
 use bevy_hanabi::HanabiPlugin;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use chunk_loading::ChunkLoaderPlugin;
-use controllers::ControllersPlugin;
-use items::ItemsPlugin;
-
-use mesher::MesherPlugin;
 use net::client::ClientConfig;
-use physics::PhysicsPlugin;
-use world::*;
-use worldgen::WorldGenPlugin;
 
 use crate::net::{server::ServerConfig, NetworkType};
 
@@ -67,7 +56,7 @@ fn main() {
             }),
     )
     .add_plugins(HanabiPlugin)
-    // .add_plugins(WorldInspectorPlugin::new())
+    .add_plugins(bevy_inspector_egui::quick::WorldInspectorPlugin::new())
     .add_plugins((engine::EnginePlugin, ui::UIPlugin));
 
     if let Some(port) = server_port {

@@ -12,17 +12,14 @@ use crate::{
     world::{BlockCoord, BlockPhysics, BlockType, Level},
 };
 
-use super::{movement::*, PhysicsSystemSet};
+use super::{movement::*, PhysicsLevelSet};
 
 pub struct CollisionPlugin;
 
 impl Plugin for CollisionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            FixedUpdate,
-            move_and_slide.in_set(PhysicsSystemSet::UpdatePosition),
-        )
-        .register_type::<Aabb>();
+        app.add_systems(FixedUpdate, move_and_slide.in_set(PhysicsLevelSet::Main))
+            .register_type::<Aabb>();
     }
 }
 

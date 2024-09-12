@@ -25,7 +25,7 @@ use bevy::{
 };
 
 use rand::prelude::*;
-use rand_distr::StandardNormal;
+use rand_distr::{StandardNormal, Uniform};
 
 #[cfg(test)]
 mod test;
@@ -156,6 +156,14 @@ pub fn sample_sphere_surface(rng: &mut impl Rng) -> Vec3 {
     .try_normalize()
     //should almost never fail, but provide a point in S^2 just in case
     .unwrap_or(Vec3::new(0.0, 1.0, 0.0))
+}
+
+pub fn random_vector(a: Vec3, b: Vec3, rng: &mut impl Rng) -> Vec3 {
+    Vec3::new(
+        rng.sample(Uniform::new_inclusive(a.x, b.x)),
+        rng.sample(Uniform::new_inclusive(a.y, b.y)),
+        rng.sample(Uniform::new_inclusive(a.z, b.z)),
+    )
 }
 
 //use in lerp(x,b,t) where x is current position, b is target dest

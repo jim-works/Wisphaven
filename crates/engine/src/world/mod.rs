@@ -76,10 +76,6 @@ impl Plugin for LevelPlugin {
         )
         .configure_sets(
             Update,
-            LevelSystemSet::Despawn.run_if(in_state(LevelLoadState::Loaded)),
-        )
-        .configure_sets(
-            Update,
             LevelSystemSet::LoadingAndMain.run_if(
                 in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded)),
             ),

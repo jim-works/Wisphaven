@@ -15,13 +15,9 @@ use crate::{
     physics::{
         collision::Aabb,
         movement::{GravityMult, Velocity},
-        PhysicsBundle, PhysicsSystemSet,
+        PhysicsBundle, PhysicsLevelSet,
     },
-    world::settings::GraphicsSettings,
-    world::BlockPhysics,
-    world::Level,
-    world::LevelLoadState,
-    world::LevelSystemSet,
+    world::{settings::GraphicsSettings, BlockPhysics, Level, LevelLoadState, LevelSystemSet},
 };
 
 use super::{
@@ -248,7 +244,7 @@ impl Plugin for GhostPlugin {
                 FixedUpdate,
                 (float_boost, update_floater)
                     .chain()
-                    .in_set(PhysicsSystemSet::Main),
+                    .in_set(PhysicsLevelSet::Main),
             )
             .add_event::<SpawnGhostEvent>();
     }
