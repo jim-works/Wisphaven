@@ -17,8 +17,8 @@
 
 #import bevy_pbr::mesh_functions
 
-@group(1) @binding(100) var array_texture: texture_2d_array<f32>;
-@group(1) @binding(101) var texture_sampler: sampler;
+@group(2) @binding(100) var array_texture: texture_2d_array<f32>;
+@group(2) @binding(101) var texture_sampler: sampler;
 
 struct ChunkVertex {
     @builtin(instance_index) instance_index: u32,
@@ -41,7 +41,7 @@ struct ChunkVertexOutput {
 @vertex
 fn vertex(vertex: ChunkVertex) -> ChunkVertexOutput {
     var out: ChunkVertexOutput;
-    var model = mesh_functions::get_model_matrix(vertex.instance_index);
+    var model = mesh_functions::get_world_from_local(vertex.instance_index);
     out.clip_position = mesh_functions::mesh_position_local_to_clip(
         model,
         vec4<f32>(vertex.position, 1.0),

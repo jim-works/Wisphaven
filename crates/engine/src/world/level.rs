@@ -181,7 +181,7 @@ impl LevelData {
         &self,
         key: BlockCoord,
         user: Entity,
-        use_forward: Vec3,
+        use_forward: Dir3,
         query: &Query<&UsableBlock>,
         writer: &mut EventWriter<BlockUsedEvent>,
     ) -> bool {

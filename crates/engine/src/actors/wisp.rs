@@ -39,7 +39,7 @@ pub fn load_resources(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     commands.insert_resource(WispResources {
-        mesh: meshes.add(shape::Box::new(1.0, 1.0, 1.0).into()),
+        mesh: meshes.add(Cuboid::from_length(1.0)),
         material: materials.add(StandardMaterial::from(Color::WHITE)),
     });
 }

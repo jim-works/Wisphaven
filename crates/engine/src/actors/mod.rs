@@ -151,7 +151,7 @@ impl Jump {
 
 #[derive(Component)]
 pub struct DefaultAnimation {
-    anim: Handle<AnimationClip>,
+    anim: AnimationNodeIndex,
     player: Entity,
     action_time: f32,
     duration: f32,
@@ -191,7 +191,7 @@ impl DefaultAnimation {
         self.just_acted
     }
     pub fn new(
-        anim: Handle<AnimationClip>,
+        anim: AnimationNodeIndex,
         player: Entity,
         action_time: f32,
         duration_seconds: f32,
@@ -227,9 +227,9 @@ pub fn setup_animation_with_speed(
             anim.animation_speed = speed;
         }
         if let Ok(mut anim_player) = animation_player.get_mut(anim.player) {
-            anim_player.start(anim.anim.clone_weak());
+            let active_anim = anim_player.start(anim.anim);
             if let Some(speed) = speed {
-                anim_player.set_speed(speed);
+                active_anim.set_speed(speed);
             }
         }
     }
@@ -279,7 +279,7 @@ fn idle_action_system(
 #[derive(
     Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize,
 )]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct ActorName {
     pub namespace: String,
     pub name: String,

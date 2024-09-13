@@ -140,7 +140,7 @@ impl Plugin for AtmospherePlugin {
         app.add_systems(Startup, setup_environment)
             .add_systems(
                 Update,
-                load_skybox.run_if(resource_exists::<LoadingSkyboxCubemap>()),
+                load_skybox.run_if(resource_exists::<LoadingSkyboxCubemap>),
             )
             .add_systems(
                 PreUpdate,

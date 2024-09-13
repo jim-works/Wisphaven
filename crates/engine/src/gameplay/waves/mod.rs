@@ -32,11 +32,11 @@ impl Plugin for WavesPlugin {
         app.add_systems(
             Update,
             (
-                trigger_assault.run_if(resource_exists::<WorldAnchor>()),
-                spawn_wave.run_if(resource_exists::<Assault>()),
+                trigger_assault.run_if(resource_exists::<WorldAnchor>),
+                spawn_wave.run_if(resource_exists::<Assault>),
                 send_wave_started_event
                     .after(trigger_assault)
-                    .run_if(resource_exists::<Assault>()),
+                    .run_if(resource_exists::<Assault>),
             ),
         )
         .insert_resource(Assault {

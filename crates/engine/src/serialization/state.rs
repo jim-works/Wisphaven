@@ -25,7 +25,7 @@ pub struct SerializationStatePlugin;
 
 impl Plugin for SerializationStatePlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<GameLoadState>()
+        app.init_state::<GameLoadState>()
             .insert_resource(TexturesLoaded::default())
             .add_systems(
                 Update,

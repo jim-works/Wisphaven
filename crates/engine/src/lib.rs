@@ -56,6 +56,6 @@ impl Plugin for EnginePlugin {
             debug::DebugUIPlugin,
             effects::EffectsPlugin,
         ))
-        .add_state::<GameState>();
+        .init_state::<GameState>();
     }
 }

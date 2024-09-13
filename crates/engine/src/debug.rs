@@ -14,8 +14,8 @@ pub struct DebugUIPlugin;
 
 impl Plugin for DebugUIPlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<DebugUIState>()
-            .add_state::<DebugUIDetailState>()
+        app.init_state::<DebugUIState>()
+            .init_state::<DebugUIDetailState>()
             .insert_resource(DebugBlockHitboxes::default())
             .insert_resource(FixedUpdateBlockGizmos::default())
             .add_systems(Startup, init)
@@ -29,6 +29,7 @@ impl Plugin for DebugUIPlugin {
                     update_chunk_coords,
                     update_noises,
                     update_gizmos,
+                    toggle_gizmo_depth,
                 )
                     .run_if(in_state(DebugUIState::Shown)),
             )
@@ -100,13 +101,13 @@ pub fn toggle_debug(
     query: Query<&ActionState<Action>, With<LocalPlayer>>,
 ) {
     if let Ok(action) = query.get_single() {
-        if action.just_pressed(Action::ToggleDebugUIHidden) {
+        if action.just_pressed(&Action::ToggleDebugUIHidden) {
             match curr_state.get() {
                 DebugUIState::Hidden => next_state.set(DebugUIState::Shown),
                 _ => next_state.set(DebugUIState::Hidden),
             }
         }
-        if action.just_pressed(Action::ToggleDebugUIDetail) {
+        if action.just_pressed(&Action::ToggleDebugUIDetail) {
             let next = match detail_curr_state.get() {
                 DebugUIDetailState::Minimal => DebugUIDetailState::Most,
                 _ => DebugUIDetailState::Minimal,
@@ -143,7 +144,7 @@ fn spawn_debug(mut commands: Commands, query: Query<&DebugUI>, resources: Res<De
                                 "test coordinates",
                                 resources.0.clone(),
                             )],
-                            alignment: TextAlignment::Left,
+                            justify: JustifyText::Left,
                             ..default()
                         },
                         ..default()
@@ -157,7 +158,7 @@ fn spawn_debug(mut commands: Commands, query: Query<&DebugUI>, resources: Res<De
                                 "test chunk coordinates",
                                 resources.0.clone(),
                             )],
-                            alignment: TextAlignment::Left,
+                            justify: JustifyText::Left,
                             ..default()
                         },
                         ..default()
@@ -168,7 +169,7 @@ fn spawn_debug(mut commands: Commands, query: Query<&DebugUI>, resources: Res<De
                     TextBundle {
                         text: Text {
                             sections: vec![TextSection::new("test noises", resources.0.clone())],
-                            alignment: TextAlignment::Left,
+                            justify: JustifyText::Left,
                             ..default()
                         },
                         ..default()
@@ -265,37 +266,37 @@ fn clear_fixed_update_gizmos(mut fixed_update_blocks: ResMut<FixedUpdateBlockGiz
     fixed_update_blocks.blocks.clear();
 }
 
+fn toggle_gizmo_depth(
+    mut gizmo_config: ResMut<GizmoConfigStore>,
+    input_query: Query<&ActionState<Action>, With<LocalPlayer>>,
+) {
+    if let Ok(input) = input_query.get_single() {
+        let (config, _) = gizmo_config.config_mut::<DefaultGizmoConfigGroup>();
+        if input.just_pressed(&Action::ToggleGizmoOverlap) {
+            config.depth_bias = if config.depth_bias == 0.0 { -1.0 } else { 0.0 };
+        }
+    }
+}
+
 fn update_gizmos(
     mut gizmo: Gizmos,
-    mut gizmo_config: ResMut<GizmoConfig>,
-    input_query: Query<&ActionState<Action>, With<LocalPlayer>>,
     tf_query: Query<&GlobalTransform, With<DebugDrawTransform>>,
     collider_query: Query<(&Transform, &Aabb)>,
     blocks: Res<DebugBlockHitboxes>,
     fixed_update_blocks: Res<FixedUpdateBlockGizmos>,
     detail: Res<State<DebugUIDetailState>>,
 ) {
-    if let Ok(input) = input_query.get_single() {
-        if input.just_pressed(Action::ToggleGizmoOverlap) {
-            gizmo_config.depth_bias = if gizmo_config.depth_bias == 0.0 {
-                -1.0
-            } else {
-                0.0
-            };
-        }
-    }
-
     for tf in tf_query.iter() {
-        gizmo.ray(tf.translation(), tf.forward(), Color::RED);
+        gizmo.ray(tf.translation(), *tf.forward(), Color::srgb(1., 0., 0.));
     }
     for (tf, collider) in collider_query.iter() {
         let cuboid_tf = Transform::from_translation(collider.world_center(tf.translation))
             .with_scale(collider.size);
-        gizmo.cuboid(cuboid_tf, Color::BLUE)
+        gizmo.cuboid(cuboid_tf, Color::srgb(0., 0., 1.))
     }
     for coord in fixed_update_blocks.blocks.iter() {
         let cuboid_tf = Transform::from_translation(coord.center()).with_scale(Vec3::ONE);
-        gizmo.cuboid(cuboid_tf, Color::GOLD)
+        gizmo.cuboid(cuboid_tf, Color::srgb(0.7, 0.7, 0.1))
     }
     for (coord, physics) in blocks.blocks.iter() {
         let collider_opt = physics.clone().and_then(|p| Aabb::from_block(&p));
@@ -306,13 +307,13 @@ fn update_gizmos(
                 gizmo.cuboid(
                     cuboid_tf,
                     if blocks.hit_blocks.contains(coord) {
-                        Color::ORANGE_RED
+                        Color::srgb(0.8, 0.2, 0.)
                     } else {
-                        Color::GREEN
+                        Color::srgb(0., 1., 0.)
                     },
                 )
             } else if blocks.hit_blocks.contains(coord) {
-                gizmo.cuboid(cuboid_tf, Color::ORANGE_RED);
+                gizmo.cuboid(cuboid_tf, Color::srgb(0.8, 0.2, 0.));
             }
         }
     }

@@ -107,7 +107,7 @@ fn spawn_particles(
                 .min_color
                 .lerp(emitter.max_color, util::random_proportion(&mut rng));
             let material = materials.add(StandardMaterial {
-                base_color: Color::rgb(color.x, color.y, color.z),
+                base_color: Color::srgb(color.x, color.y, color.z),
                 ..resources.material.clone()
             });
             let mesh = match emitter.shape {

@@ -35,7 +35,7 @@ impl Plugin for ToolsPlugin {
 //denotes required power if attached to a block
 //is used in `Tool` to give power of said tool
 #[derive(Copy, Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Serialize, Deserialize)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub enum ToolResistance {
     Instant, //instantly broken
     Axe(u32),
@@ -52,7 +52,7 @@ impl Default for ToolResistance {
 #[derive(
     Copy, Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize,
 )]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct Tool {
     pub axe: u32,
     pub pickaxe: u32,
@@ -62,7 +62,7 @@ pub struct Tool {
 #[derive(
     Copy, Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize,
 )]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct DontHitBlocks;
 
 pub fn on_swing(
@@ -102,14 +102,14 @@ pub fn on_swing(
                 inventory_slot: *inventory_slot,
                 stack: *stack,
                 result: HitResult::Hit(hit.hit_pos),
-            })
+            });
         } else {
             swing_hit_writer.send(SwingEndEvent {
                 user: *user,
                 inventory_slot: *inventory_slot,
                 stack: *stack,
                 result: HitResult::Miss,
-            })
+            });
         }
     }
 }

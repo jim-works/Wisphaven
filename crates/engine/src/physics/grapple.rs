@@ -89,7 +89,7 @@ fn init(
 ) {
     commands.insert_resource(VisualResources {
         material: materials.add(StandardMaterial {
-            base_color: Color::DARK_GRAY,
+            base_color: Color::srgb(0.33, 0.33, 0.33),
             ..Default::default()
         }),
         mesh: meshes.add(crate::util::bevy_utils::cuboid(Vec3::splat(0.5))),

@@ -1,7 +1,7 @@
 (
   resources: {},
   entities: {
-    1: (
+    4294967296: (
       components: {
         "engine::items::crafting::recipes::NamedBasicBlockRecipe": (
            recipe: [
@@ -17,7 +17,7 @@
         ),
       },
     ),
-    2: (
+    4294967297: (
       components: {
         "engine::items::crafting::recipes::NamedBasicBlockRecipe": (
            recipe: [

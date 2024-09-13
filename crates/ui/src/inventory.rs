@@ -1,5 +1,4 @@
 use bevy::{
-    core_pipeline::clear_color::ClearColorConfig,
     ecs::system::SystemId,
     pbr::ExtendedMaterial,
     prelude::*,
@@ -27,12 +26,7 @@ use super::{state::UIState, styles::get_small_text_style};
 
 pub const SLOTS_PER_ROW: usize = 10;
 pub const HOTBAR_SLOTS: usize = SLOTS_PER_ROW;
-pub const BACKGROUND_COLOR: BackgroundColor = BackgroundColor(Color::Rgba {
-    red: 0.15,
-    green: 0.15,
-    blue: 0.15,
-    alpha: 0.25,
-});
+pub const BACKGROUND_COLOR: Color = Color::srgba(0.15, 0.15, 0.15, 0.25);
 
 const MARGIN_PX: f32 = 1.0;
 const SLOT_PX: f32 = 32.0;
@@ -64,9 +58,9 @@ impl Plugin for InventoryPlugin {
         .add_systems(OnEnter(UIState::Hidden), hide_inventory::<true>)
         .add_systems(Startup, init);
 
-        let show_inventory_id = app.world.register_system(show_inventory);
-        let hide_inventory_id = app.world.register_system(hide_inventory::<false>);
-        let hide_inventory_and_hotbar_id = app.world.register_system(hide_inventory::<true>);
+        let show_inventory_id = app.world_mut().register_system(show_inventory);
+        let hide_inventory_id = app.world_mut().register_system(hide_inventory::<false>);
+        let hide_inventory_and_hotbar_id = app.world_mut().register_system(hide_inventory::<true>);
         app.insert_resource(InventorySystemIds {
             show_inventory: show_inventory_id,
             hide_inventory: hide_inventory_id,
@@ -116,7 +110,7 @@ fn toggle_inventory(
     query: Query<&ActionState<Action>, With<LocalPlayer>>,
 ) {
     if let Ok(action) = query.get_single() {
-        if action.just_pressed(Action::ToggleInventory) {
+        if action.just_pressed(&Action::ToggleInventory) {
             next_state.set(if *state.get() == UIState::Inventory {
                 UIState::Default
             } else {
@@ -268,7 +262,7 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                                                 "0",
                                                 resources.item_counts.clone(),
                                             )],
-                                            alignment: TextAlignment::Right,
+                                            justify: JustifyText::Right,
                                             ..default()
                                         },
                                         visibility: Visibility::Hidden,
@@ -470,14 +464,12 @@ fn spawn_block_preview(
             const CAMERA_OFFSET: Vec3 = Vec3::new(1.0, 1.0, 1.0);
             children
                 .spawn(Camera3dBundle {
-                    camera_3d: Camera3d {
-                        clear_color: ClearColorConfig::Custom(Color::NONE),
-                        ..default()
-                    },
+                    camera_3d: Camera3d { ..default() },
                     camera: Camera {
                         // render before the main camera
                         order: -1,
                         target: RenderTarget::Image(image_handle.clone()),
+                        clear_color: ClearColorConfig::Custom(Color::NONE),
                         ..default()
                     },
                     projection: Projection::Orthographic(OrthographicProjection {
@@ -489,9 +481,7 @@ fn spawn_block_preview(
                     ..default()
                 })
                 // only render the block previews
-                .insert(BLOCK_PREVIEW_LAYER)
-                //don't render ui (doesn't respect render layer)
-                .insert(UiCameraConfig { show_ui: false });
+                .insert(BLOCK_PREVIEW_LAYER);
         })
         .id();
 

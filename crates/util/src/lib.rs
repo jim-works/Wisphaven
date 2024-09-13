@@ -20,6 +20,8 @@ pub mod spline;
 pub mod string;
 
 use bevy::{
+    ecs::world::Command,
+    math::Dir3,
     prelude::{Deref, DerefMut, Vec3},
     time::Timer,
 };
@@ -99,6 +101,16 @@ pub fn max_component_norm(v: Vec3) -> Vec3 {
         Vec3::new(0.0, v.y.signum(), 0.0)
     } else {
         Vec3::new(0.0, 0.0, v.z.signum())
+    }
+}
+pub fn max_component(v: Dir3) -> Dir3 {
+    let abs = v.abs();
+    if abs.x > abs.y && abs.x > abs.z {
+        Dir3::new_unchecked(Vec3::new(v.x.signum(), 0.0, 0.0))
+    } else if abs.y > abs.z {
+        Dir3::new_unchecked(Vec3::new(0.0, v.y.signum(), 0.0))
+    } else {
+        Dir3::new_unchecked(Vec3::new(0.0, 0.0, v.z.signum()))
     }
 }
 
@@ -252,7 +264,7 @@ impl<T> ExtraOptions<T> for Option<T> {
 
 pub struct SendEventCommand<T: bevy::prelude::Event>(pub T);
 
-impl<T: bevy::prelude::Event> bevy::ecs::system::Command for SendEventCommand<T> {
+impl<T: bevy::prelude::Event> Command for SendEventCommand<T> {
     fn apply(self, world: &mut bevy::prelude::World) {
         world.send_event(self.0);
     }

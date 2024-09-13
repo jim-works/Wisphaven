@@ -95,7 +95,7 @@ impl ItemStack {
 #[derive(
     Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize,
 )]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct ItemName {
     pub namespace: String,
     pub name: String,
@@ -104,7 +104,7 @@ pub struct ItemName {
 #[derive(
     Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize,
 )]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct NamedItemIcon {
     pub path: PathBuf,
 }
@@ -145,7 +145,7 @@ impl From<ItemId> for Id {
 }
 
 #[derive(Clone, Hash, Eq, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct MaxStackSize(pub u32);
 
 pub fn create_item<T: Bundle>(

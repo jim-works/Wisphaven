@@ -1,5 +1,10 @@
-use bevy::prelude::{IVec3, Vec3};
+use bevy::{
+    math::Dir3,
+    prelude::{IVec3, Vec3},
+};
 use bitflags::bitflags;
+
+use crate::max_component;
 
 use super::{max_component_norm, min_component_norm};
 
@@ -159,6 +164,25 @@ impl From<usize> for Direction {
 impl From<Vec3> for Direction {
     fn from(value: Vec3) -> Self {
         let max = max_component_norm(value);
+        if max.x > 0.0 {
+            Direction::PosX
+        } else if max.x < 0.0 {
+            Direction::NegX
+        } else if max.y > 0.0 {
+            Direction::PosY
+        } else if max.y < 0.0 {
+            Direction::NegY
+        } else if max.z > 0.0 {
+            Direction::PosZ
+        } else {
+            Direction::NegZ
+        }
+    }
+}
+
+impl From<Dir3> for Direction {
+    fn from(value: Dir3) -> Self {
+        let max = max_component(value);
         if max.x > 0.0 {
             Direction::PosX
         } else if max.x < 0.0 {

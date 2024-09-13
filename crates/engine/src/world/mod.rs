@@ -95,7 +95,7 @@ impl Plugin for LevelPlugin {
             util::LevelUtilsPlugin,
             atmosphere::AtmospherePlugin,
         ))
-        .add_state::<LevelLoadState>()
+        .init_state::<LevelLoadState>()
         .add_event::<ChunkBoundaryCrossedEvent>()
         //needed for NamedBlockMesh
         .register_type::<[std::path::PathBuf; 6]>()

@@ -48,7 +48,7 @@ impl BlockType {
 #[derive(
     Default, Clone, Debug, PartialEq, Eq, Hash, Component, Reflect, Serialize, Deserialize,
 )]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct BlockName {
     pub namespace: String,
     pub name: String,
@@ -91,7 +91,7 @@ impl From<BlockId> for Id {
 pub struct SavedBlockId(pub BlockId);
 
 #[derive(Component, Reflect, Default)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct UsableBlock;
 
 //used in world generation
@@ -113,7 +113,7 @@ pub struct BlockEntity(Vec<BlockData>);
 #[derive(Component, Clone, PartialEq, Default, Reflect)]
 //controls visuals
 //loaded from file, converted to BlockMesh for use in game
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct NamedBlockMesh {
     pub use_transparent_shader: bool,
     pub shape: NamedBlockMeshShape,
@@ -202,7 +202,7 @@ impl BlockMeshShape {
 }
 
 #[derive(Component, Clone, PartialEq, Default, Reflect, Debug, Serialize, Deserialize)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 //controls collider
 pub enum BlockPhysics {
     //no collision
@@ -391,7 +391,7 @@ impl BlockRegistry {
 #[derive(
     Default, Clone, Copy, Debug, PartialEq, Eq, Hash, Component, Reflect, Serialize, Deserialize,
 )]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct BlockCoord {
     pub x: i32,
     pub y: i32,

@@ -20,7 +20,7 @@ impl Plugin for FallPlugin {
 }
 
 #[derive(Component, Clone, Copy, Reflect, Default)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct FallOnUse;
 
 pub fn process_fall(
@@ -49,7 +49,7 @@ pub fn process_fall(
                     place_on_landing: true,
                     impact_direcitons: DirectionFlags::all(),
                 },
-            })
+            });
         }
     }
 }

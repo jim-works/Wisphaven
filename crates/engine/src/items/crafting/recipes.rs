@@ -49,7 +49,7 @@ impl RecipeList {
 
 #[derive(Component, Clone, PartialEq, Default, Reflect)]
 //loaded from file, converted to BasicBlockRecipe for use in game
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct NamedBasicBlockRecipe {
     pub recipe: Vec<Vec<Vec<Option<BlockName>>>>,
     pub products: Vec<(BlockCoord, BlockName)>,
@@ -188,7 +188,7 @@ fn basic_recipe_checker(
                 recipe_writer.send(RecipeCandidateEvent(RecipeCraftedEvent {
                     volume: recipe.get_volume(*block_position),
                     id: recipe.id,
-                }))
+                }));
             }
         }
     }

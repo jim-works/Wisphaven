@@ -1,4 +1,5 @@
 use bevy::pbr::{ExtendedMaterial, NotShadowCaster};
+use bevy::render::render_asset::RenderAssetUsages;
 use futures_lite::future;
 use std::ops::Index;
 use std::time::Instant;
@@ -61,14 +62,17 @@ impl MeshData {
     }
 
     pub fn create_mesh(self, meshes: &mut ResMut<Assets<Mesh>>) -> Handle<Mesh> {
-        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+        let mut mesh = Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::default(),
+        );
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, self.verts);
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, self.norms);
         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, self.uvs);
         mesh.insert_attribute(ATTRIBUTE_TEXLAYER, self.layer_idx);
         mesh.insert_attribute(ATTRIBUTE_AO, self.ao_level);
 
-        mesh.set_indices(Some(mesh::Indices::U32(self.tris)));
+        mesh.insert_indices(mesh::Indices::U32(self.tris));
         meshes.add(mesh)
     }
 }

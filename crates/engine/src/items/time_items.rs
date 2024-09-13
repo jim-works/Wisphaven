@@ -14,14 +14,14 @@ impl Plugin for TimeItemsPlugin {
 }
 
 #[derive(Component, Reflect, Default)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct SkipToNightItem;
 
 fn use_skip_to_night_item(
     mut reader: EventReader<UseItemEvent>,
     mut hit_writer: EventWriter<UseEndEvent>,
     mut writer: EventWriter<SpeedupCalendarEvent>,
-    query: Query<With<SkipToNightItem>>,
+    query: Query<Entity, With<SkipToNightItem>>,
     cal: Res<Calendar>
 ) {
     for UseItemEvent { user, inventory_slot, stack, tf: _ } in reader.read() {
@@ -33,7 +33,7 @@ fn use_skip_to_night_item(
                 inventory_slot: *inventory_slot,
                 stack: *stack,
                 result: HitResult::Miss
-            })
+            });
         }
     }
 }

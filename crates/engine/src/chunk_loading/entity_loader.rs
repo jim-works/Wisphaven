@@ -121,7 +121,7 @@ pub fn do_loading(
     }
     for (coord, entity) in to_unload {
         if level.remove_chunk(coord).is_some() {
-            despawn_writer.send(DespawnChunkEvent(entity))
+            despawn_writer.send(DespawnChunkEvent(entity));
         }
     }
     //unload lods (i=lod-1)
@@ -142,7 +142,7 @@ pub fn do_loading(
             match lodtype {
                 LODChunkType::Ungenerated(id, _) => despawn_writer.send(DespawnChunkEvent(id)),
                 LODChunkType::Full(c) => despawn_writer.send(DespawnChunkEvent(c.entity)),
-            }
+            };
         }
     }
 }

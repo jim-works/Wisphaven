@@ -18,18 +18,18 @@ impl Plugin for ItemAttributesPlugin {
 
 //item that gets consumed on use
 #[derive(Clone, Hash, Eq, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct ConsumeItemOnHit;
 
 #[derive(Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct ItemSwingSpeed {
     pub windup: Duration,
     pub backswing: Duration,
 }
 
 #[derive(Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct ItemUseSpeed {
     pub windup: Duration,
     pub backswing: Duration,

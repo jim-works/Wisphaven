@@ -168,7 +168,7 @@ pub fn tick_db(mut db: ResMut<LevelDB>, mut load_writer: EventWriter<DataFromDBE
                     LevelDBResult::Save(count) => info!("Saved {} chunks.", count),
                     LevelDBResult::Load(events) => {
                         info!("Loaded {} chunks.", events.len());
-                        load_writer.send_batch(events)
+                        load_writer.send_batch(events);
                     }
                 },
                 Err(e) => error!("DB Error: {:?}", e),

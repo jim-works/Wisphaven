@@ -19,6 +19,8 @@ use super::{
 pub struct GlowjellyResources {
     pub scene: Handle<Scene>,
     pub anim: Handle<AnimationClip>,
+    pub graph: Handle<AnimationGraph>,
+    pub default_index: AnimationNodeIndex,
 }
 
 #[derive(Component, Default)]
@@ -46,10 +48,18 @@ impl Plugin for GlowjellyPlugin {
     }
 }
 
-pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
+pub fn load_resources(
+    mut commands: Commands,
+    assets: Res<AssetServer>,
+    mut graphs: ResMut<Assets<AnimationGraph>>,
+) {
+    let anim = assets.load("glowjelly/glowjelly.gltf#Animation0");
+    let (graph, animation_index) = AnimationGraph::from_clip(anim.clone());
     commands.insert_resource(GlowjellyResources {
         scene: assets.load("glowjelly/glowjelly.gltf#Scene0"),
-        anim: assets.load("glowjelly/glowjelly.gltf#Animation0"),
+        anim,
+        graph: graphs.add(graph),
+        default_index: animation_index,
     });
 }
 
@@ -57,7 +67,7 @@ fn trigger_spawning(mut writer: EventWriter<SpawnGlowjellyEvent>) {
     for i in 0..5 {
         writer.send(SpawnGlowjellyEvent {
             location: Transform::from_xyz(i as f32 * 5.0, -45.0, 0.0),
-            color: Color::rgb(i as f32, 1.0, 1.0),
+            color: Color::srgb(i as f32, 1.0, 1.0),
         });
     }
 }
@@ -68,7 +78,7 @@ fn add_to_registry(mut res: ResMut<ActorResources>) {
         Box::new(|commands, tf| {
             commands.add(SendEventCommand(SpawnGlowjellyEvent {
                 location: tf,
-                color: Color::RED,
+                color: Color::srgb(1., 0., 0.),
             }))
         }),
     );
@@ -165,15 +175,18 @@ pub fn setup_glowjelly(
                             commands
                                 .entity(parent_id)
                                 .remove::<UninitializedActor>()
-                                .insert(DefaultAnimation::new(
-                                    jelly_res.anim.clone(),
-                                    *candidate_anim_player,
-                                    1.1,
-                                    if let Some(clip) = animations.get(&jelly_res.anim) {
-                                        clip.duration()
-                                    } else {
-                                        0.0
-                                    },
+                                .insert((
+                                    DefaultAnimation::new(
+                                        jelly_res.default_index,
+                                        *candidate_anim_player,
+                                        1.1,
+                                        if let Some(clip) = animations.get(&jelly_res.anim) {
+                                            clip.duration()
+                                        } else {
+                                            0.0
+                                        },
+                                    ),
+                                    jelly_res.graph.clone(),
                                 ))
                                 .with_children(|cb| {
                                     cb.spawn(PointLightBundle {

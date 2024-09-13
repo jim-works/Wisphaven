@@ -16,8 +16,8 @@ impl Plugin for WavesPlugin {
                 update_ui_visibility,
                 update_progress_bar,
             )
-                .run_if(resource_exists::<Assault>())
-                .run_if(resource_exists::<Calendar>()),
+                .run_if(resource_exists::<Assault>)
+                .run_if(resource_exists::<Calendar>),
         );
     }
 }
@@ -103,7 +103,9 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
                                     align_items: AlignItems::FlexEnd,
                                     ..default()
                                 },
-                                background_color: BackgroundColor(Color::hex("202e37").unwrap()),
+                                background_color: BackgroundColor(Color::Srgba(
+                                    Srgba::hex("202e37").unwrap(),
+                                )),
                                 ..default()
                             },
                         ))
@@ -117,9 +119,9 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
                                         position_type: PositionType::Absolute,
                                         ..default()
                                     },
-                                    background_color: BackgroundColor(
-                                        Color::hex("4f8fba").unwrap(),
-                                    ),
+                                    background_color: BackgroundColor(Color::Srgba(
+                                        Srgba::hex("4f8fba").unwrap(),
+                                    )),
                                     ..default()
                                 },
                             ));

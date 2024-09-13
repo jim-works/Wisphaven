@@ -1,7 +1,7 @@
 (
   resources: {},
   entities: {
-    3: (
+    4294967296: (
       components: {
         "engine::items::ItemName": (
           namespace: "core",
@@ -27,7 +27,7 @@
         ),
       },
     ),
-    4: (
+    4294967297: (
       components: {
         "engine::items::ItemName": (
           namespace: "core",
@@ -39,7 +39,7 @@
         "engine::items::debug_items::PersonalityTester": (),
       },
     ),
-    5: (
+    4294967298: (
       components: {
         "engine::items::ItemName": (
           namespace: "core",
@@ -58,7 +58,7 @@
         "engine::items::item_attributes::ConsumeItemOnHit": (),
       },
     ),
-    6: (
+    4294967299: (
       components: {
         "engine::items::ItemName": (
           namespace: "core",
@@ -84,7 +84,7 @@
         ),
       },
     ),
-    7: (
+    4294967300: (
       components: {
         "engine::items::ItemName": (
           namespace: "core",
@@ -113,7 +113,7 @@
         ),
       },
     ),
-    8: (
+    4294967301: (
       components: {
         "engine::items::ItemName": (
           namespace: "core",
@@ -142,7 +142,7 @@
         )
       },
     ),
-    9: (
+    4294967302: (
       components: {
         "engine::items::ItemName": (
           namespace: "core",
@@ -168,7 +168,7 @@
         ),
       },
     ),
-    10: (
+    4294967303: (
       components: {
         "engine::items::ItemName": (
           namespace: "core",
@@ -194,7 +194,7 @@
         ),
       },
     ),
-    11: (
+    4294967304: (
       components: {
         "engine::items::ItemName": (
           namespace: "core",
@@ -216,7 +216,7 @@
         ),
       },
     ),
-    12: (
+    4294967305: (
       components: {
         "engine::items::ItemName": (
           namespace: "core",
@@ -242,7 +242,7 @@
         "engine::items::item_attributes::ConsumeItemOnHit": ()
       },
     ),
-    13: (
+    4294967306: (
       components: {
         "engine::items::ItemName": (
           namespace: "core",
@@ -265,7 +265,7 @@
         "engine::items::tools::Tool": (),
       },
     ),
-    14: (
+    4294967307: (
       components: {
         "engine::items::ItemName": (
           namespace: "core",

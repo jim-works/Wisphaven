@@ -4,8 +4,8 @@ use bevy::{app::AppExit, prelude::*, utils::HashMap};
 use bevy_quinnet::{
     client::{
         certificate::CertificateVerificationMode,
-        connection::{ConnectionConfiguration, ConnectionEvent},
-        Client, QuinnetClientPlugin,
+        connection::{ClientEndpointConfiguration, ConnectionEvent},
+        QuinnetClient, QuinnetClientPlugin,
     },
     shared::ClientId,
 };
@@ -20,8 +20,8 @@ use crate::{
 };
 
 use super::{
-    ClientMessage, DisconnectedClient, PlayerInfo, PlayerList, RemoteClient, ServerMessage,
-    UpdateEntityTransform, UpdateEntityVelocity,
+    ChannelsConfig, ClientMessage, DisconnectedClient, PlayerInfo, PlayerList, RemoteClient,
+    ServerMessage, UpdateEntityTransform, UpdateEntityVelocity,
 };
 
 pub struct NetClientPlugin;
@@ -31,18 +31,18 @@ impl Plugin for NetClientPlugin {
         app.add_plugins(QuinnetClientPlugin {
             initialize_later: true,
         })
-        .add_state::<ClientState>()
+        .init_state::<ClientState>()
         .add_systems(
             Update,
             create_client.run_if(
-                resource_exists::<ClientConfig>()
+                resource_exists::<ClientConfig>
                     .and_then(in_state(ClientState::NotStarted))
-                    .and_then(resource_exists::<Level>()),
+                    .and_then(resource_exists::<Level>),
             ),
         )
         .add_systems(
             OnEnter(ClientState::Starting),
-            start_listening.run_if(resource_exists::<Client>()),
+            start_listening.run_if(resource_exists::<QuinnetClient>),
         )
         .add_systems(
             Update,
@@ -52,8 +52,8 @@ impl Plugin for NetClientPlugin {
                 map_local_player,
             )
                 .run_if(
-                    resource_exists::<Client>()
-                        .and_then(resource_exists::<LocalClient>())
+                    resource_exists::<QuinnetClient>
+                        .and_then(resource_exists::<LocalClient>)
                         .and_then(
                             in_state(ClientState::Started).or_else(in_state(ClientState::Ready)),
                         )
@@ -64,7 +64,10 @@ impl Plugin for NetClientPlugin {
                 ),
         )
         // CoreSet::PostUpdate so that AppExit events generated in the previous stage are available
-        .add_systems(PostUpdate, on_app_exit.run_if(resource_exists::<Client>()));
+        .add_systems(
+            PostUpdate,
+            on_app_exit.run_if(resource_exists::<QuinnetClient>),
+        );
     }
 }
 
@@ -155,7 +158,7 @@ pub enum ClientState {
     Ready,
 }
 
-pub fn on_app_exit(app_exit_events: EventReader<AppExit>, client: Res<Client>) {
+pub fn on_app_exit(app_exit_events: EventReader<AppExit>, client: Res<QuinnetClient>) {
     if !app_exit_events.is_empty() {
         client
             .connection()
@@ -169,7 +172,7 @@ pub fn on_app_exit(app_exit_events: EventReader<AppExit>, client: Res<Client>) {
 
 fn handle_server_messages(
     mut users: ResMut<PlayerList>,
-    mut client: ResMut<Client>,
+    mut client: ResMut<QuinnetClient>,
     mut state: ResMut<NextState<ClientState>>,
     mut local_client: ResMut<LocalClient>,
     mut entity_map: ResMut<LocalEntityMap>,
@@ -182,7 +185,7 @@ fn handle_server_messages(
     level: Option<Res<Level>>,
     mut chunk_update_writer: EventWriter<ChunkUpdatedEvent>,
 ) {
-    while let Some(message) = client
+    while let Some((_, message)) = client
         .connection_mut()
         .try_receive_message::<ServerMessage>()
     {
@@ -287,7 +290,7 @@ fn handle_server_messages(
                                 coord,
                                 chunk,
                                 &mut commands,
-                                &block_resources.registry
+                                &block_resources.registry,
                             );
                             LevelData::update_chunk_only::<false>(
                                 id,
@@ -353,7 +356,7 @@ fn handle_disconnect(
 
 fn handle_client_events(
     mut connection_events: EventReader<ConnectionEvent>,
-    client: ResMut<Client>,
+    client: ResMut<QuinnetClient>,
 ) {
     if !connection_events.is_empty() {
         // We are connected
@@ -374,19 +377,21 @@ fn handle_client_events(
     }
 }
 fn start_listening(
-    mut client: ResMut<Client>,
+    mut client: ResMut<QuinnetClient>,
     mut state: ResMut<NextState<ClientState>>,
     local_client: Res<LocalClient>,
+    channels: Res<ChannelsConfig>,
 ) {
     client
         .open_connection(
-            ConnectionConfiguration::from_ips(
+            ClientEndpointConfiguration::from_ips(
                 local_client.server_ip,
                 local_client.server_port,
                 local_client.local_ip,
                 local_client.local_port,
             ),
             CertificateVerificationMode::SkipVerification,
+            channels.config.clone(),
         )
         .unwrap();
     state.set(ClientState::Started);
@@ -398,7 +403,7 @@ fn create_client(
     config: Res<ClientConfig>,
     mut state: ResMut<NextState<ClientState>>,
 ) {
-    commands.init_resource::<Client>();
+    commands.init_resource::<QuinnetClient>();
     commands.insert_resource(LocalClient {
         id: None,
         server_entity: None,

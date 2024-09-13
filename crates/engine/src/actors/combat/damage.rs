@@ -69,7 +69,7 @@ pub fn process_attacks(
                 death_writer.send(DeathEvent {
                     final_blow: *attack,
                     damage_taken,
-                })
+                });
             }
         }
     }
@@ -115,6 +115,6 @@ fn kill_on_sunrise(
                 dtype: DamageType::HPRemoval,
             },
             knockback: Vec3::ZERO,
-        })
+        });
     }
 }

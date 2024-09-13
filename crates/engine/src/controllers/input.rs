@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
 
-#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
+#[derive(PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
 pub enum Action {
     MoveForward,
     MoveBack,
@@ -24,31 +24,35 @@ pub enum Action {
     ToggleFullscreen,
 }
 
+impl Actionlike for Action {
+    fn input_control_kind(&self) -> InputControlKind {
+        match self {
+            Action::Look => InputControlKind::DualAxis,
+            Action::Scroll => InputControlKind::Axis,
+            _ => InputControlKind::Button,
+        }
+    }
+}
+
 pub fn get_input_map() -> InputMap<Action> {
-    let mut map = InputMap::default();
-
-    map.insert(KeyCode::W, Action::MoveForward);
-    map.insert(KeyCode::A, Action::MoveLeft);
-    map.insert(KeyCode::S, Action::MoveBack);
-    map.insert(KeyCode::D, Action::MoveRight);
-    map.insert(KeyCode::Space, Action::MoveUp);
-    map.insert(KeyCode::ShiftLeft, Action::Dash);
-    map.insert(KeyCode::ControlLeft, Action::MoveDown);
-    map.insert(KeyCode::Space, Action::Float);
-    map.insert(KeyCode::F, Action::ToggleFlight);
-
-    map.insert(MouseButton::Left, Action::Punch);
-    map.insert(MouseButton::Right, Action::Use);
-
-    map.insert(DualAxis::mouse_motion(), Action::Look);
-
-    map.insert(SingleAxis::mouse_wheel_y(), Action::Scroll);
-    map.insert(KeyCode::Escape, Action::ToggleInventory);
-    map.insert(KeyCode::F1, Action::ToggleUIHidden);
-    map.insert(KeyCode::F3, Action::ToggleDebugUIHidden);
-    map.insert(KeyCode::F4, Action::ToggleGizmoOverlap);
-    map.insert(KeyCode::F5, Action::ToggleDebugUIDetail);
-    map.insert(KeyCode::F11, Action::ToggleFullscreen);
-
-    map
+    InputMap::default()
+        .with(Action::MoveForward, KeyCode::KeyW)
+        .with(Action::MoveLeft, KeyCode::KeyA)
+        .with(Action::MoveBack, KeyCode::KeyS)
+        .with(Action::MoveRight, KeyCode::KeyD)
+        .with(Action::MoveUp, KeyCode::Space)
+        .with(Action::Dash, KeyCode::ShiftLeft)
+        .with(Action::MoveDown, KeyCode::ControlLeft)
+        .with(Action::Float, KeyCode::Space)
+        .with(Action::ToggleFlight, KeyCode::KeyF)
+        .with(Action::Punch, MouseButton::Left)
+        .with(Action::Use, MouseButton::Right)
+        .with_dual_axis(Action::Look, MouseMove::default())
+        .with_axis(Action::Scroll, MouseScrollAxis::Y)
+        .with(Action::ToggleInventory, KeyCode::Escape)
+        .with(Action::ToggleUIHidden, KeyCode::F1)
+        .with(Action::ToggleDebugUIHidden, KeyCode::F3)
+        .with(Action::ToggleGizmoOverlap, KeyCode::F4)
+        .with(Action::ToggleDebugUIDetail, KeyCode::F5)
+        .with(Action::ToggleFullscreen, KeyCode::F11)
 }

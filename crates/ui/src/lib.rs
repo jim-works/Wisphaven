@@ -12,7 +12,6 @@
 #![feature(assert_matches)]
 
 pub mod crosshair;
-pub mod healthbar;
 pub mod inventory;
 pub mod main_menu;
 pub mod player_stats;
@@ -34,12 +33,11 @@ pub struct UIPlugin;
 
 impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<state::UIState>()
+        app.init_state::<state::UIState>()
             .add_systems(Startup, styles::init)
             .add_plugins((
                 inventory::InventoryPlugin,
                 crosshair::CrosshairPlugin,
-                healthbar::HealthbarPlugin,
                 player_stats::PlayerStatsUiPlugin,
                 waves::WavesPlugin,
                 main_menu::MainMenuPlugin,
@@ -84,12 +82,12 @@ pub struct ButtonColors {
 impl Default for ButtonColors {
     fn default() -> Self {
         Self {
-            default_background: Color::rgb_u8(70, 130, 50),
-            default_border: Color::rgb_u8(37, 86, 46),
-            hovered_background: Color::rgb_u8(37, 86, 46),
-            hovered_border: Color::rgb_u8(25, 51, 45),
-            pressed_background: Color::rgb_u8(23, 32, 56),
-            pressed_border: Color::rgb_u8(37, 58, 94),
+            default_background: Color::srgb_u8(70, 130, 50),
+            default_border: Color::srgb_u8(37, 86, 46),
+            hovered_background: Color::srgb_u8(37, 86, 46),
+            hovered_border: Color::srgb_u8(25, 51, 45),
+            pressed_background: Color::srgb_u8(23, 32, 56),
+            pressed_border: Color::srgb_u8(37, 58, 94),
         }
     }
 }
@@ -99,23 +97,27 @@ fn change_button_colors(
         (
             &Interaction,
             &ButtonColors,
+            &mut UiImage,
             &mut BackgroundColor,
             &mut BorderColor,
         ),
         (Changed<Interaction>, With<Button>),
     >,
 ) {
-    for (interaction, color, mut background, mut border) in &mut interaction_query {
+    for (interaction, color, mut image, mut background, mut border) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
+                image.color = color.pressed_background;
                 background.0 = color.pressed_background;
                 border.0 = color.pressed_border;
             }
             Interaction::Hovered => {
+                image.color = color.hovered_background;
                 background.0 = color.hovered_background;
                 border.0 = color.hovered_border;
             }
             Interaction::None => {
+                image.color = color.default_background;
                 background.0 = color.default_background;
                 border.0 = color.default_border;
             }
@@ -163,7 +165,7 @@ fn toggle_fullscreen(
     input_query: Query<&ActionState<Action>, With<LocalPlayer>>,
 ) {
     if let Ok(input) = input_query.get_single() {
-        if input.just_pressed(Action::ToggleFullscreen) {
+        if input.just_pressed(&Action::ToggleFullscreen) {
             let mut window = window_query.get_single_mut().unwrap();
             window.mode = match window.mode {
                 bevy::window::WindowMode::Windowed => {

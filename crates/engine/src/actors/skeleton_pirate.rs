@@ -21,6 +21,8 @@ use super::{
 pub struct SkeletonPirateResources {
     pub scene: Handle<Scene>,
     pub anim: Handle<AnimationClip>,
+    pub graph: Handle<AnimationGraph>,
+    pub default_index: AnimationNodeIndex,
 }
 
 #[derive(Component, Default)]
@@ -47,10 +49,18 @@ impl Plugin for SkeletonPiratePlugin {
     }
 }
 
-pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
+pub fn load_resources(
+    mut commands: Commands,
+    assets: Res<AssetServer>,
+    mut graphs: ResMut<Assets<AnimationGraph>>,
+) {
+    let anim = assets.load("skeletons/skeleton_pirate.gltf#Animation0");
+    let (graph, animation_index) = AnimationGraph::from_clip(anim.clone());
     commands.insert_resource(SkeletonPirateResources {
         scene: assets.load("skeletons/skeleton_pirate.gltf#Scene0"),
-        anim: assets.load("skeletons/skeleton_pirate.gltf#Animation0"),
+        anim,
+        graph: graphs.add(graph),
+        default_index: animation_index,
     });
 }
 
@@ -104,7 +114,7 @@ pub fn spawn_skeleton_pirate(
                 priority: 0,
             },
             AggroTargets::new(vec![(anchor_entity, i32::MIN)]),
-            DefaultAnimation::new(Handle::default(), Entity::PLACEHOLDER, 0.5, 1.0),
+            DefaultAnimation::new(0.into(), Entity::PLACEHOLDER, 0.5, 1.0),
             UninitializedActor,
             Thinker::build()
                 .label("skeleton thinker")
@@ -151,15 +161,18 @@ pub fn setup_skeleton_pirate(
                             commands
                                 .entity(parent_id)
                                 .remove::<UninitializedActor>()
-                                .insert(DefaultAnimation::new(
-                                    skele_res.anim.clone(),
-                                    *candidate_anim_player,
-                                    1.1,
-                                    if let Some(clip) = animations.get(&skele_res.anim) {
-                                        clip.duration()
-                                    } else {
-                                        0.0
-                                    },
+                                .insert((
+                                    DefaultAnimation::new(
+                                        skele_res.default_index,
+                                        *candidate_anim_player,
+                                        1.1,
+                                        if let Some(clip) = animations.get(&skele_res.anim) {
+                                            clip.duration()
+                                        } else {
+                                            0.0
+                                        },
+                                    ),
+                                    skele_res.graph.clone(),
                                 ));
                             skele.scene = Some(*candidate_anim_player);
 

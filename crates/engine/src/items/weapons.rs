@@ -25,14 +25,14 @@ impl Plugin for WeaponItemPlugin {
 }
 
 #[derive(Component, Reflect, Default)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct MeleeWeaponItem {
     pub damage: Damage,
     pub knockback: f32,
 }
 
 #[derive(Component, Reflect, Default)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct CoinLauncherItem {
     pub damage: Damage,
     pub speed: f32,
@@ -117,7 +117,7 @@ pub fn launch_coin(
                 inventory_slot: *inventory_slot,
                 stack: *stack,
                 result: super::HitResult::Miss,
-            })
+            });
         }
     }
 }

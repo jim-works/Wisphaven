@@ -5,7 +5,7 @@ use bevy::{
     prelude::*,
     render::{camera::CameraProjection, primitives::Frustum},
 };
-use bevy_quinnet::client::Client;
+use bevy_quinnet::{client::QuinnetClient, shared::channels::ChannelId};
 use leafwing_input_manager::InputManagerBundle;
 use player_controller::RotateWithMouse;
 
@@ -56,12 +56,12 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(LevelLoadState::Loaded),
-            spawn_local_player.run_if(resource_exists::<HeldItemResources>()),
+            spawn_local_player.run_if(resource_exists::<HeldItemResources>),
         )
         .add_systems(
             Update,
             (
-                spawn_remote_player.run_if(resource_exists::<HeldItemResources>()),
+                spawn_remote_player.run_if(resource_exists::<HeldItemResources>),
                 handle_disconnect,
             ),
         )
@@ -92,9 +92,9 @@ fn spawn_remote_player(
         commands.entity(entity).insert((
             Name::new(clients.get(*client_id).cloned().unwrap().username),
             PbrBundle {
-                mesh: meshes.add(shape::Capsule::default().into()),
+                mesh: meshes.add(Capsule3d::default()),
                 material: materials.add(StandardMaterial {
-                    base_color: Color::RED,
+                    base_color: Color::srgb(1.0, 0.0, 0.0),
                     ..default()
                 }),
                 ..default()
@@ -164,13 +164,13 @@ pub fn spawn_local_player(
             Camera3dBundle {
                 transform: Transform::from_xyz(0.0, 0.3, 0.0),
                 projection: Projection::Perspective(projection.clone()),
-                frustum: Frustum::from_view_projection(&projection.get_projection_matrix()),
+                frustum: Frustum::from_clip_from_world(&projection.get_clip_from_view()),
                 ..default()
             },
             CameraEffectsBundle::default(),
             FogSettings {
-                color: Color::rgba(0.56, 0.824, 1.0, 1.0),
-                // directional_light_color: Color::rgba(1.0, 0.95, 0.85, 0.5),
+                color: Color::srgba(0.56, 0.824, 1.0, 1.0),
+                // directional_light_color: Color::srgba(1.0, 0.95, 0.85, 0.5),
                 directional_light_exponent: 0.8,
                 falloff: FogFalloff::Linear {
                     start: 100.0,
@@ -178,7 +178,10 @@ pub fn spawn_local_player(
                 },
                 ..default()
             },
-            Skybox(skybox.0.clone()),
+            Skybox {
+                image: skybox.0.clone(),
+                brightness: 1.,
+            },
         ))
         .id();
     populate_player_entity(
@@ -360,14 +363,14 @@ fn populate_player_entity(
 }
 
 fn send_updated_position_client(
-    client: Res<Client>,
+    client: Res<QuinnetClient>,
     query: Query<(&Transform, &Velocity), With<LocalPlayer>>,
 ) {
     for (tf, v) in query.iter() {
         client
             .connection()
             .send_message_on(
-                bevy_quinnet::shared::channel::ChannelId::Unreliable,
+                0,
                 ClientMessage::UpdatePosition {
                     transform: *tf,
                     velocity: v.0,

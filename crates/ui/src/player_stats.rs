@@ -36,11 +36,11 @@ impl Plugin for PlayerStatsUiPlugin {
                 (spawn_heart, spawn_stamina).run_if(in_state(LevelLoadState::Loaded)),
             );
 
-        let update_hearts_id = app.world.register_system(update_hearts);
+        let update_hearts_id = app.world_mut().register_system(update_hearts);
         app.insert_resource(HeartSystems {
             update_hearts: update_hearts_id,
         });
-        let update_stamina_id = app.world.register_system(update_stamina);
+        let update_stamina_id = app.world_mut().register_system(update_stamina);
         app.insert_resource(StaminaSystems {
             update_stamina: update_stamina_id,
         });
@@ -256,7 +256,7 @@ fn flash_hearts(
                 state.1 = flashes;
                 state.2 = true;
                 for mut heart in heart_query.iter_mut() {
-                    heart.0 = Color::rgba(1.0, 1.0, 1.0, 1.0);
+                    heart.0 = Color::srgba(1.0, 1.0, 1.0, 1.0);
                 }
                 commands.run_system(systems.update_hearts);
             }
@@ -271,14 +271,14 @@ fn flash_hearts(
             state.1 -= 1;
             state.2 = false;
             for mut heart in heart_query.iter_mut() {
-                heart.0 = Color::rgba(1.0, 1.0, 1.0, 0.0);
+                heart.0 = Color::srgba(1.0, 1.0, 1.0, 0.0);
             }
         } else {
             //inactive, switch to active
             state.0 = flash_duration;
             state.2 = true;
             for mut heart in heart_query.iter_mut() {
-                heart.0 = Color::rgba(1.0, 1.0, 1.0, 1.0);
+                heart.0 = Color::srgba(1.0, 1.0, 1.0, 1.0);
             }
         }
     }
@@ -312,7 +312,7 @@ fn flash_stamina(
                     state.1 = flashes;
                     state.2 = true;
                     for mut heart in bolt_query.iter_mut() {
-                        heart.0 = Color::rgba(1.0, 1.0, 1.0, 1.0);
+                        heart.0 = Color::srgba(1.0, 1.0, 1.0, 1.0);
                     }
                 }
                 //update stats on display
@@ -329,14 +329,14 @@ fn flash_stamina(
             state.1 -= 1;
             state.2 = false;
             for mut heart in bolt_query.iter_mut() {
-                heart.0 = Color::rgba(1.0, 1.0, 1.0, 0.0);
+                heart.0 = Color::srgba(1.0, 1.0, 1.0, 0.0);
             }
         } else {
             //inactive, switch to active
             state.0 = flash_duration;
             state.2 = true;
             for mut heart in bolt_query.iter_mut() {
-                heart.0 = Color::rgba(1.0, 1.0, 1.0, 1.0);
+                heart.0 = Color::srgba(1.0, 1.0, 1.0, 1.0);
             }
         }
     }
@@ -359,7 +359,7 @@ fn update_hearts(
     {
         let progress = inverse_lerp(*max_health, *min_health, curr_health);
         let alpha = progress.clamp(0.0, 1.0);
-        color.0 = color.0.with_a(alpha);
+        color.0 = color.0.with_alpha(alpha);
     }
 }
 
@@ -378,7 +378,7 @@ fn update_stamina(
     {
         let progress = inverse_lerp(*max_stamina, *min_stamina, curr_stamina);
         let alpha = progress.clamp(0.0, 1.0);
-        color.0 = color.0.with_a(alpha);
+        color.0 = color.0.with_alpha(alpha);
     }
 }
 
@@ -410,7 +410,7 @@ fn spawn_heart(
                                     ImageBundle {
                                         style: res.heart_overlay_style.clone(),
                                         image: res.empty_heart.clone(),
-                                        background_color: BackgroundColor(Color::rgba(
+                                        background_color: BackgroundColor(Color::srgba(
                                             1.0, 1.0, 1.0, 0.0,
                                         )),
                                         ..default()
@@ -425,7 +425,7 @@ fn spawn_heart(
                                         ImageBundle {
                                             style: res.heart_overlay_style.clone(),
                                             image: res.flash_heart.clone(),
-                                            background_color: BackgroundColor(Color::rgba(
+                                            background_color: BackgroundColor(Color::srgba(
                                                 1.0, 1.0, 1.0, 0.0,
                                             )),
                                             ..default()
@@ -468,7 +468,7 @@ fn spawn_stamina(
                                     ImageBundle {
                                         style: res.overlay_style.clone(),
                                         image: res.empty_bolt.clone(),
-                                        background_color: BackgroundColor(Color::rgba(
+                                        background_color: BackgroundColor(Color::srgba(
                                             1.0, 1.0, 1.0, 0.0,
                                         )),
                                         ..default()
@@ -483,7 +483,7 @@ fn spawn_stamina(
                                         ImageBundle {
                                             style: res.overlay_style.clone(),
                                             image: res.flash_bolt.clone(),
-                                            background_color: BackgroundColor(Color::rgba(
+                                            background_color: BackgroundColor(Color::srgba(
                                                 1.0, 1.0, 1.0, 0.0,
                                             )),
                                             ..default()

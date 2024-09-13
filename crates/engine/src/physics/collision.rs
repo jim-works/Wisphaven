@@ -109,7 +109,7 @@ impl CollidingBlocks {
 
 //from offset to offset + size
 #[derive(Component, Clone, Copy, PartialEq, Default, Reflect, Debug, Serialize, Deserialize)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct Aabb {
     pub size: Vec3,
     pub offset: Vec3,

@@ -1,7 +1,7 @@
 (
   resources: {},
   entities: {
-    1: (
+    4294967296: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -15,7 +15,7 @@
         "engine::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
-    2: (
+    4294967297: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -28,7 +28,7 @@
         "engine::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
-    3: (
+    4294967298: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -40,7 +40,7 @@
         )
       },
     ),
-    4: (
+    4294967299: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -53,7 +53,7 @@
         "engine::items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
-    5: (
+    4294967300: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -65,7 +65,7 @@
         )
       },
     ),
-    6: (
+    4294967301: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -88,7 +88,7 @@
         )
       },
     ),
-    7: (
+    4294967302: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -104,7 +104,7 @@
         )
       },
     ),
-    8: (
+    4294967303: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -117,7 +117,7 @@
         "engine::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
-    9: (
+    4294967304: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -141,7 +141,7 @@
         "engine::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
-    10: (
+    4294967305: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -153,7 +153,7 @@
         )
       },
     ),
-    11: (
+    4294967306: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -165,7 +165,7 @@
         )
       },
     ),
-    12: (
+    4294967307: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -178,7 +178,7 @@
         "engine::items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
-    13: (
+  4294967308: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -191,7 +191,7 @@
         "engine::items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
-    14: (
+    4294967309: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -204,7 +204,7 @@
         "engine::items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
-    15: (
+    4294967310: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",
@@ -217,7 +217,7 @@
         )
       },
     ),
-    16: (
+    4294967311: (
       components: {
         "engine::world::block::BlockName": (
           namespace: "core",

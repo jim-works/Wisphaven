@@ -77,7 +77,7 @@ pub fn toggle_player_flight(
     mut query: Query<(&ActionState<Action>, &mut MovementMode, &mut GravityMult), With<Player>>,
 ) {
     for (act, mut mode, mut gravity) in query.iter_mut() {
-        if act.just_pressed(Action::ToggleFlight) {
+        if act.just_pressed(&Action::ToggleFlight) {
             match *mode {
                 MovementMode::Flying => {
                     *mode = MovementMode::Normal;
@@ -107,22 +107,22 @@ pub fn move_player(
 ) {
     for (act, tf, mut fm, mode) in query.iter_mut() {
         let mut dv = Vec3::ZERO;
-        dv.z -= if act.pressed(Action::MoveForward) {
+        dv.z -= if act.pressed(&Action::MoveForward) {
             1.0
         } else {
             0.0
         };
-        dv.z += if act.pressed(Action::MoveBack) {
+        dv.z += if act.pressed(&Action::MoveBack) {
             1.0
         } else {
             0.0
         };
-        dv.x += if act.pressed(Action::MoveRight) {
+        dv.x += if act.pressed(&Action::MoveRight) {
             1.0
         } else {
             0.0
         };
-        dv.x -= if act.pressed(Action::MoveLeft) {
+        dv.x -= if act.pressed(&Action::MoveLeft) {
             1.0
         } else {
             0.0
@@ -132,12 +132,12 @@ pub fn move_player(
         fm.0 = Quat::from_axis_angle(Vec3::Y, y_rot) * dv;
 
         if *mode == MovementMode::Flying {
-            fm.0.y += if act.pressed(Action::MoveUp) {
+            fm.0.y += if act.pressed(&Action::MoveUp) {
                 1.0
             } else {
                 0.0
             };
-            fm.0.y -= if act.pressed(Action::MoveDown) {
+            fm.0.y -= if act.pressed(&Action::MoveDown) {
                 1.0
             } else {
                 0.0
@@ -151,8 +151,8 @@ pub fn boost_float_player(
     mut commands: Commands,
 ) {
     for (entity, mut fb, act, mode) in query.iter_mut() {
-        fb.enabled = *mode != MovementMode::Flying && act.pressed(Action::Float);
-        if act.just_pressed(Action::Float) {
+        fb.enabled = *mode != MovementMode::Flying && act.pressed(&Action::Float);
+        if act.just_pressed(&Action::Float) {
             if let Some(mut ec) = commands.get_entity(entity) {
                 ec.remove::<Grappled>();
             }
@@ -170,7 +170,7 @@ pub fn dash_player(
 ) {
     let current_time = time.elapsed();
     for (entity, act, dash, mut stamina, v) in query.iter_mut() {
-        if act.just_pressed(Action::Dash) && dash.stamina_cost.apply(&mut stamina) {
+        if act.just_pressed(&Action::Dash) && dash.stamina_cost.apply(&mut stamina) {
             if let Some(mut ec) = commands.get_entity(entity) {
                 ec.insert(CurrentlyDashing::new(*dash, current_time, v.0));
             }
@@ -188,22 +188,21 @@ pub fn rotate_mouse(
     }
     let sensitivity = settings.mouse_sensitivity;
     for (mut tf, mut rotation, action) in query.iter_mut() {
-        if let Some(delta) = action.axis_pair(Action::Look) {
-            if !rotation.lock_yaw {
-                rotation.yaw -= delta.x() * sensitivity;
-            }
-            if !rotation.lock_pitch {
-                rotation.pitch -= delta.y() * sensitivity;
-            }
-
-            rotation.pitch = rotation
-                .pitch
-                .clamp(-rotation.pitch_bound, rotation.pitch_bound);
-
-            tf.rotation = Quat::from_axis_angle(Vec3::Y, rotation.yaw)
-                * Quat::from_axis_angle(Vec3::X, rotation.pitch)
-                * Quat::from_axis_angle(Vec3::Z, rotation.roll);
+        let delta = action.axis_pair(&Action::Look);
+        if !rotation.lock_yaw {
+            rotation.yaw -= delta.x * sensitivity;
         }
+        if !rotation.lock_pitch {
+            rotation.pitch -= delta.y * sensitivity;
+        }
+
+        rotation.pitch = rotation
+            .pitch
+            .clamp(-rotation.pitch_bound, rotation.pitch_bound);
+
+        tf.rotation = Quat::from_axis_angle(Vec3::Y, rotation.yaw)
+            * Quat::from_axis_angle(Vec3::X, rotation.pitch)
+            * Quat::from_axis_angle(Vec3::Z, rotation.roll);
     }
 }
 
@@ -247,7 +246,7 @@ pub fn player_punch(
         return;
     }
     if let Ok((player_entity, tf, act, player, mut inv)) = player_query.get_single_mut() {
-        if act.pressed(Action::Punch) {
+        if act.pressed(&Action::Punch) {
             //first test if we punched a combatant
             let slot = inv.selected_slot();
             match inv.get(slot) {
@@ -278,7 +277,7 @@ pub fn player_punch(
                                     attacker: player_entity,
                                     target: hit.entity,
                                     damage: player.hit_damage,
-                                    knockback: tf.forward(),
+                                    knockback: *tf.forward(),
                                 });
                             }
                         }
@@ -311,7 +310,7 @@ pub fn player_use(
         return;
     }
     if let Ok((mut inv, entity, tf, act)) = player_query.get_single_mut() {
-        if act.just_pressed(Action::Use) {
+        if act.just_pressed(&Action::Use) {
             //first test if we used a block
             if let Some(RaycastHit::Block(coord, _)) = query::raycast(
                 Raycast::new(tf.translation(), tf.forward(), 10.0),
@@ -352,7 +351,7 @@ pub fn player_scroll_inventory(
     }
     const SCROLL_SENSITIVITY: f32 = 0.05;
     if let Ok((mut inv, act)) = query.get_single_mut() {
-        let delta = act.value(Action::Scroll);
+        let delta = act.value(&Action::Scroll);
         let slot_diff = if delta > SCROLL_SENSITIVITY {
             -1
         } else if delta < -SCROLL_SENSITIVITY {

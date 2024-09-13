@@ -73,15 +73,16 @@ fn setup_damage_particles(mut commands: Commands, mut effects: ResMut<Assets<Eff
 
     let orientation = OrientModifier {
         mode: OrientMode::FaceCameraPosition,
+        rotation: None,
     };
 
     let color = ColorOverLifetimeModifier {
-        gradient: Gradient::constant(Color::hex("8c1529").unwrap().into()),
+        gradient: Gradient::constant(Srgba::hex("8c1529").unwrap().to_vec4()),
     };
 
     let effect = effects.add(
         EffectAsset::new(
-            MAX_DAMAGE_PARTICLES,
+            vec![MAX_DAMAGE_PARTICLES],
             Spawner::once(DAMAGE_PARTICLES_PER_HIT.into(), true),
             writer.finish(),
         )
@@ -126,6 +127,6 @@ fn spawn_particles_on_attack(
     for event in attack_reader.read() {
         particles_writer.send(SpawnDamageParticles {
             origin: event.hit_location,
-        })
+        });
     }
 }

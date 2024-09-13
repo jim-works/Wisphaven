@@ -17,7 +17,7 @@ impl Plugin for GrappleItemPlugin {
 }
 
 #[derive(Component, Reflect)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct GrappleItem {
     pub length: f32,
     pub strength: f32,
@@ -62,7 +62,7 @@ pub fn launch_grapple(
                 inventory_slot: *inventory_slot,
                 stack: *stack,
                 result: super::HitResult::Miss,
-            })
+            });
         }
     }
 }

@@ -2,17 +2,18 @@ use bevy::{
     pbr::*,
     prelude::*,
     render::{
+        mesh::MeshVertexAttribute,
+        render_asset::RenderAssetUsages,
         render_resource::{
-            Extent3d, TextureFormat,
-            TextureViewDescriptor, TextureViewDimension, VertexFormat,
+            Extent3d, TextureFormat, TextureViewDescriptor, TextureViewDimension, VertexFormat,
         },
-        texture::{ImageAddressMode, ImageSampler, ImageSamplerDescriptor, TextureFormatPixelInfo}, mesh::MeshVertexAttribute,
+        texture::{ImageAddressMode, ImageSampler, ImageSamplerDescriptor, TextureFormatPixelInfo},
     },
 };
 
 use crate::world::settings::Settings;
 
-use super::{TerrainTexture, extended_materials::TextureArrayExtension};
+use super::{extended_materials::TextureArrayExtension, TerrainTexture};
 
 pub const PIXELS_PER_BLOCK: u32 = 16;
 //random high id to not conflict
@@ -21,12 +22,13 @@ pub const ATTRIBUTE_TEXLAYER: MeshVertexAttribute =
     MeshVertexAttribute::new("TexLayer", 970540917, VertexFormat::Sint32);
 pub const ATTRIBUTE_AO: MeshVertexAttribute =
     MeshVertexAttribute::new("AOLevel", 970540918, VertexFormat::Float32);
-    
+
 #[derive(Resource)]
 pub struct ChunkMaterial {
     tex_handle: Option<Handle<Image>>,
     pub opaque_material: Option<Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>>,
-    pub transparent_material: Option<Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>>,
+    pub transparent_material:
+        Option<Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>>,
     pub loaded: bool,
 }
 
@@ -78,6 +80,7 @@ fn create_chunk_texture(
         bevy::render::render_resource::TextureDimension::D2,
         image_data,
         format,
+        RenderAssetUsages::default(),
     );
     image.texture_view_descriptor = Some(TextureViewDescriptor {
         dimension: Some(TextureViewDimension::D2Array),
@@ -126,7 +129,7 @@ pub fn create_chunk_material(
         base: base.clone(),
         extension: TextureArrayExtension {
             base_color_texture: Some(chunk_material.tex_handle.clone().unwrap()),
-        }
+        },
     }));
     chunk_material.transparent_material = Some(materials.add(ExtendedMaterial {
         base: StandardMaterial {
@@ -135,7 +138,7 @@ pub fn create_chunk_material(
         },
         extension: TextureArrayExtension {
             base_color_texture: Some(chunk_material.tex_handle.clone().unwrap()),
-        }
+        },
     }));
     chunk_material.loaded = true;
     info!("Loaded chunk material");

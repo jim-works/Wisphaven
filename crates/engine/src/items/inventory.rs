@@ -140,7 +140,7 @@ impl Inventory {
                     user: self.owner,
                     inventory_slot: self.selected_slot,
                     stack: *stack,
-                })
+                });
             }
             self.selected_slot = new_slot;
         }

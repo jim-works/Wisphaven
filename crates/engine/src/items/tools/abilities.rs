@@ -26,11 +26,11 @@ impl Plugin for ToolAbilitiesPlugin {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct AxeAbilityTarget;
 
 #[derive(Copy, Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct AxeAbility {
     pub max_blocks: usize,
     pub search_radius: i32,
@@ -38,11 +38,11 @@ pub struct AxeAbility {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct ShovelAbilityTarget;
 
 #[derive(Copy, Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct ShovelAbility {
     pub radius: usize,
     pub length: usize,

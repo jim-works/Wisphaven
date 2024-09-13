@@ -17,7 +17,7 @@ pub fn toggle_hidden(
     query: Query<&ActionState<Action>, With<LocalPlayer>>,
 ) {
     if let Ok(action) = query.get_single() {
-        if action.just_pressed(Action::ToggleUIHidden) {
+        if action.just_pressed(&Action::ToggleUIHidden) {
             match curr_state.get() {
                 UIState::Hidden => next_state.set(UIState::Default),
                 _ => next_state.set(UIState::Hidden),

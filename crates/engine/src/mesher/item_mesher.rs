@@ -23,17 +23,17 @@ impl Plugin for ItemMesherPlugin {
         app.add_event::<GenerateItemMeshEvent>()
             .add_systems(
                 PreUpdate,
-                generate_item_meshes.run_if(resource_exists::<HeldItemResources>()),
+                generate_item_meshes.run_if(resource_exists::<HeldItemResources>),
             )
             .add_systems(
                 Update,
-                visualize_held_item.run_if(resource_exists::<HeldItemResources>()),
+                visualize_held_item.run_if(resource_exists::<HeldItemResources>),
             )
             .add_systems(
                 Update,
                 setup_held_item
-                    .run_if(resource_exists::<ChunkMaterial>())
-                    .run_if(not(resource_exists::<HeldItemResources>())),
+                    .run_if(resource_exists::<ChunkMaterial>)
+                    .run_if(not(resource_exists::<HeldItemResources>)),
             );
         app.add_plugins(
             MaterialPlugin::<ExtendedMaterial<StandardMaterial, ColorArrayExtension>> {
@@ -207,10 +207,10 @@ pub fn generate_item_meshes(
                     for y in 0..height {
                         match item_icon.get_color_at(x, y) {
                             Ok(color) => {
-                                if color.a() <= ALPHA_CUTOFF {
+                                if color.alpha() <= ALPHA_CUTOFF {
                                     continue;
                                 }
-                                let layer = color.as_rgba_u32();
+                                let layer = u32::from_le_bytes(color.to_srgba().to_u8_array());
                                 fat_chunk.blocks.set(
                                     Into::<usize>::into(FatChunkIdx::new(
                                         0,

@@ -17,7 +17,7 @@ use super::{HitResult, UseEndEvent, UseItemEvent};
 pub struct BlockItem(pub Entity);
 
 #[derive(Component, Reflect, Default)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct MegaBlockItem(pub BlockName, pub i32);
 
 pub fn use_block_entity_item(
@@ -59,14 +59,14 @@ pub fn use_block_entity_item(
                     inventory_slot: *inventory_slot,
                     stack: *stack,
                     result: HitResult::Hit(hit.hit_pos),
-                })
+                });
             } else {
                 hit_writer.send(UseEndEvent {
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
                     result: HitResult::Miss,
-                })
+                });
             }
         }
     }
@@ -121,14 +121,14 @@ pub fn use_mega_block_item(
                     inventory_slot: *inventory_slot,
                     stack: *stack,
                     result: HitResult::Hit(hit.hit_pos),
-                })
+                });
             } else {
                 hit_writer.send(UseEndEvent {
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
                     result: HitResult::Miss,
-                })
+                });
             }
         }
     }

@@ -56,7 +56,7 @@ pub struct RecipeCraftedEvent {
 #[derive(
     Copy, Clone, Hash, Eq, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize,
 )]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct CraftingHammer;
 
 fn recipe_picker(

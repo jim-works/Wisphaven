@@ -24,7 +24,7 @@ impl Plugin for DebugItems {
 }
 
 #[derive(Component, Reflect, Default)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct PersonalityTester;
 
 pub fn use_personality_item(
@@ -71,14 +71,14 @@ pub fn use_personality_item(
                     inventory_slot: *inventory_slot,
                     stack: *stack,
                     result: HitResult::Hit(hit.hit_pos),
-                })
+                });
             } else {
                 hit_writer.send(UseEndEvent {
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
                     result: HitResult::Miss,
-                })
+                });
             }
         }
     }

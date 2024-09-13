@@ -40,26 +40,26 @@ impl Plugin for SetupPlugin {
             .add_systems(
                 Update,
                 (
-                    load_block_textures.run_if(resource_exists::<LoadingBlockTextures>()),
-                    load_item_textures.run_if(resource_exists::<LoadingItemTextures>()),
+                    load_block_textures.run_if(resource_exists::<LoadingBlockTextures>),
+                    load_item_textures.run_if(resource_exists::<LoadingItemTextures>),
                     (|| (LoadingBlocks, "blocks"))
                         .pipe(start_loading_scene::<LoadingBlockScenes>)
-                        .run_if(resource_exists::<LoadingBlockScenes>()),
+                        .run_if(resource_exists::<LoadingBlockScenes>),
                     (|| (LoadingRecipes, "recipes"))
                         .pipe(start_loading_scene::<LoadingRecipeScenes>)
-                        .run_if(resource_exists::<LoadingRecipeScenes>()),
+                        .run_if(resource_exists::<LoadingRecipeScenes>),
                     (|| (LoadingItems, "items"))
                         .pipe(start_loading_scene::<LoadingItemScenes>)
-                        .run_if(resource_exists::<LoadingItemScenes>()),
+                        .run_if(resource_exists::<LoadingItemScenes>),
                     (|mut n: ResMut<NextState<state::GameLoadState>>| {
                         info!("finished preloading, loading assets now!");
                         n.set(state::GameLoadState::LoadingAssets)
                     })
-                    .run_if(not(resource_exists::<LoadingBlockTextures>()))
-                    .run_if(not(resource_exists::<LoadingItemTextures>()))
-                    .run_if(not(resource_exists::<LoadingBlockScenes>()))
-                    .run_if(not(resource_exists::<LoadingRecipeScenes>()))
-                    .run_if(not(resource_exists::<LoadingItemScenes>())),
+                    .run_if(not(resource_exists::<LoadingBlockTextures>))
+                    .run_if(not(resource_exists::<LoadingItemTextures>))
+                    .run_if(not(resource_exists::<LoadingBlockScenes>))
+                    .run_if(not(resource_exists::<LoadingRecipeScenes>))
+                    .run_if(not(resource_exists::<LoadingItemScenes>)),
                 )
                     .run_if(in_state(state::GameLoadState::Preloading)),
             )
@@ -69,7 +69,7 @@ impl Plugin for SetupPlugin {
                 (
                     load_block_registry,
                     load_item_registry,
-                    load_recipe_list.run_if(resource_exists::<BlockResources>()),
+                    load_recipe_list.run_if(resource_exists::<BlockResources>),
                 )
                     .run_if(in_state(state::GameLoadState::LoadingAssets)),
             )
@@ -138,7 +138,7 @@ pub fn load_block_textures(
             if *id == loading_blocks.0.id() {
                 commands.remove_resource::<LoadingBlockTextures>();
                 let textures: Vec<Handle<Image>> = assets
-                    .get(loading_blocks.0.clone())
+                    .get(loading_blocks.0.id())
                     .unwrap()
                     .handles
                     .iter()
@@ -187,7 +187,7 @@ pub fn load_item_textures(
             if *id == loading_blocks.0.id() {
                 commands.remove_resource::<LoadingItemTextures>();
                 let textures: Vec<Handle<Image>> = assets
-                    .get(loading_blocks.0.clone())
+                    .get(loading_blocks.0.id())
                     .unwrap()
                     .handles
                     .iter()
@@ -236,7 +236,7 @@ pub fn start_loading_scene<Scene: Resource + std::ops::Deref<Target = Handle<Loa
             if *id == loading_scenes.id() {
                 commands.remove_resource::<Scene>();
                 let scenes: Vec<Handle<DynamicScene>> = assets
-                    .get(loading_scenes.deref().clone())
+                    .get(&loading_scenes.deref().clone())
                     .unwrap()
                     .handles
                     .iter()

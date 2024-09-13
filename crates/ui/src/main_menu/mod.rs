@@ -1,8 +1,6 @@
 use std::time::Duration;
 
-use bevy::{
-    app::AppExit, core_pipeline::clear_color::ClearColorConfig, ecs::system::SystemId, prelude::*,
-};
+use bevy::{app::AppExit, ecs::system::SystemId, prelude::*};
 
 use engine::{
     actors::ghost::{GhostResources, Hand, HandState, Handed, OrbitParticle, SwingHand, UseHand},
@@ -21,27 +19,27 @@ pub struct MainMenuPlugin;
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
         let system_ids = MainMenuSystemIds {
-            play_click: app.world.register_system(play_clicked),
-            settings_click: app.world.register_system(settings_clicked),
-            quit_click: app.world.register_system(quit_clicked),
+            play_click: app.world_mut().register_system(play_clicked),
+            settings_click: app.world_mut().register_system(settings_clicked),
+            quit_click: app.world_mut().register_system(quit_clicked),
         };
-        app.add_state::<MenuState>()
-            .add_state::<SplashScreenState>()
+        app.init_state::<MenuState>()
+            .init_state::<SplashScreenState>()
             .add_event::<SpawnMainMenuGhostEvent>()
             .insert_resource(system_ids)
             .add_systems(OnEnter(GameState::Menu), menu_entered)
             .add_systems(OnExit(GameState::Menu), menu_exited)
             .add_systems(
                 OnTransition {
-                    from: GameState::Setup,
-                    to: GameState::Menu,
+                    exited: GameState::Setup,
+                    entered: GameState::Menu,
                 },
                 go_to_splash_screen,
             )
             .add_systems(
                 OnTransition {
-                    from: GameState::Game,
-                    to: GameState::Menu,
+                    exited: GameState::Game,
+                    entered: GameState::Menu,
                 },
                 go_to_main_screen,
             )
@@ -117,11 +115,11 @@ fn menu_entered(
     commands.spawn((
         MenuCamera,
         Camera3dBundle {
-            camera_3d: Camera3d {
+            transform: CAMERA_TF.clone(),
+            camera: Camera {
                 clear_color: ClearColorConfig::Custom(Color::BLACK),
                 ..default()
             },
-            transform: CAMERA_TF.clone(),
             ..default()
         },
     ));
@@ -259,7 +257,7 @@ fn setup_main_screen(
                         MainMenuElement,
                         TextBundle {
                             text: Text {
-                                alignment: TextAlignment::Center,
+                                justify: JustifyText::Center,
                                 sections: vec![TextSection {
                                     value: "Wisphaven".into(),
                                     style: get_large_text_style(asset_server),
@@ -441,7 +439,7 @@ fn settings_clicked() {
 }
 
 fn quit_clicked(mut exit: EventWriter<AppExit>) {
-    exit.send(AppExit);
+    exit.send(AppExit::Success);
 }
 
 fn spawn_ghost(

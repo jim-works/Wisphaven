@@ -34,7 +34,7 @@ struct SpawnItemResources {
 struct SpawnParticles;
 
 #[derive(Component, Reflect, Default)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct SpawnActorItem(pub ActorName);
 
 fn setup(mut commands: Commands, mut effects: ResMut<Assets<EffectAsset>>) {
@@ -80,7 +80,7 @@ fn setup(mut commands: Commands, mut effects: ResMut<Assets<EffectAsset>>) {
         speed: (writer.rand(ScalarType::Float) * writer.lit(5.) + writer.lit(5.)).expr(),
     };
 
-    let effect = EffectAsset::new(50, Spawner::once(50.0.into(), true), writer.finish())
+    let effect = EffectAsset::new(vec![50], Spawner::once(50.0.into(), true), writer.finish())
         .with_name("spawn particles")
         .init(init_pos)
         .init(init_vel)
@@ -97,6 +97,7 @@ fn setup(mut commands: Commands, mut effects: ResMut<Assets<EffectAsset>>) {
         })
         .render(OrientModifier {
             mode: OrientMode::FaceCameraPosition,
+            rotation: None,
         });
     let id = commands
         .spawn((
@@ -167,7 +168,7 @@ fn do_spawn_actors(
                     inventory_slot: *inventory_slot,
                     stack: *stack,
                     result: crate::items::HitResult::Miss,
-                })
+                });
             }
         }
     }

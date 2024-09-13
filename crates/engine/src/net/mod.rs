@@ -1,9 +1,15 @@
 use bevy::{prelude::*, utils::HashMap};
 
-use bevy_quinnet::shared::ClientId;
+use bevy_quinnet::shared::{
+    channels::{ChannelType, ChannelsConfiguration},
+    ClientId,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::{items::ItemNameIdMap, world::BlockNameIdMap, actors::LocalPlayer, serialization::ChunkSaveFormat, physics::movement::Velocity};
+use crate::{
+    actors::LocalPlayer, items::ItemNameIdMap, physics::movement::Velocity,
+    serialization::ChunkSaveFormat, world::BlockNameIdMap,
+};
 
 use self::{client::ClientState, server::ServerState};
 
@@ -21,8 +27,9 @@ impl Plugin for NetPlugin {
             )
             .add_event::<UpdateEntityTransform>()
             .add_event::<UpdateEntityVelocity>()
-            .add_state::<NetworkType>()
-            .insert_resource(PlayerList::default());
+            .init_state::<NetworkType>()
+            .insert_resource(PlayerList::default())
+            .insert_resource(ChannelsConfig::default());
     }
 }
 
@@ -65,6 +72,27 @@ pub enum NetworkType {
     Client,
 }
 
+#[derive(Resource, Clone)]
+pub struct ChannelsConfig {
+    pub config: ChannelsConfiguration,
+}
+
+impl Default for ChannelsConfig {
+    fn default() -> Self {
+        Self {
+            config: ChannelsConfiguration::from_types(vec![
+                ChannelType::Unreliable,
+                ChannelType::UnorderedReliable,
+                ChannelType::OrderedReliable,
+            ])
+            .unwrap(),
+        }
+    }
+}
+pub const UNRELIABLE: u8 = 0;
+pub const UNORDERED_RELIABLE: u8 = 1;
+pub const ORDERED_RELIABLE: u8 = 2;
+
 // Messages from clients
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ClientMessage {
@@ -86,7 +114,7 @@ pub enum ClientMessage {
     SwingItem {
         tf: GlobalTransform,
         slot: usize,
-    }
+    },
 }
 
 // Messages from the server
@@ -116,8 +144,8 @@ pub enum ServerMessage {
         velocities: Vec<UpdateEntityVelocity>,
     },
     Chunk {
-        chunk: ChunkSaveFormat
-    }
+        chunk: ChunkSaveFormat,
+    },
 }
 
 pub fn network_ready() -> impl Condition<()> {
@@ -143,17 +171,19 @@ pub struct UpdateEntityVelocity {
 fn process_transform_updates(
     mut reader: EventReader<UpdateEntityTransform>,
     mut query: Query<&mut Transform>,
-    local_player_query: Query<&LocalPlayer>
+    local_player_query: Query<&LocalPlayer>,
 ) {
     const LOCAL_PLAYER_UPDATE_SQR_DIST: f32 = 1.0; //only update our local position if there's a desync with the server to avoid
-                                                    //stuttery or frozen movement
+                                                   //stuttery or frozen movement
     for UpdateEntityTransform { entity, transform } in reader.read() {
         if let Ok(mut tf) = query.get_mut(*entity) {
-            if local_player_query.contains(*entity) && tf.translation.distance_squared(transform.translation) < LOCAL_PLAYER_UPDATE_SQR_DIST {
+            if local_player_query.contains(*entity)
+                && tf.translation.distance_squared(transform.translation)
+                    < LOCAL_PLAYER_UPDATE_SQR_DIST
+            {
                 continue;
             }
             *tf = *transform
-
         } else {
             warn!("Recv UpdateEntityTransform for entity that doesn't have a transform!");
         }
@@ -163,13 +193,15 @@ fn process_transform_updates(
 fn process_velocity_updates(
     mut reader: EventReader<UpdateEntityVelocity>,
     mut query: Query<&mut Velocity>,
-    local_player_query: Query<&LocalPlayer>
+    local_player_query: Query<&LocalPlayer>,
 ) {
     const LOCAL_PLAYER_UPDATE_SQR_DIST: f32 = 100.0; //only update our local position if there's a desync with the server to avoid
-                                                    //stuttery or frozen movement
+                                                     //stuttery or frozen movement
     for UpdateEntityVelocity { entity, velocity } in reader.read() {
         if let Ok(mut v) = query.get_mut(*entity) {
-            if local_player_query.contains(*entity) && v.0.distance_squared(*velocity) < LOCAL_PLAYER_UPDATE_SQR_DIST {
+            if local_player_query.contains(*entity)
+                && v.0.distance_squared(*velocity) < LOCAL_PLAYER_UPDATE_SQR_DIST
+            {
                 continue;
             }
             v.0 = *velocity

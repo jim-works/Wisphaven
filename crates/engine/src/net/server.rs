@@ -5,24 +5,31 @@ use std::net::IpAddr;
 use bevy::{prelude::*, utils::HashSet};
 use bevy_quinnet::{
     server::{
-        certificate::CertificateRetrievalMode, ConnectionLostEvent, Endpoint, QuinnetServerPlugin,
-        Server, ServerConfiguration,
+        certificate::CertificateRetrievalMode, ConnectionLostEvent, Endpoint, QuinnetServer,
+        QuinnetServerPlugin, ServerEndpointConfiguration,
     },
-    shared::{channel::ChannelId, ClientId},
+    shared::ClientId,
 };
 
 use crate::{
     actors::LocalPlayer,
-    items::{ItemRegistry, ItemResources, UseItemEvent, SwingItemEvent, inventory::Inventory},
-    net::{DisconnectedClient, PlayerInfo, PlayerList, RemoteClient},
+    items::{inventory::Inventory, ItemRegistry, ItemResources, SwingItemEvent, UseItemEvent},
+    net::{DisconnectedClient, PlayerInfo, PlayerList, RemoteClient, ORDERED_RELIABLE},
+    physics::movement::Velocity,
+    serialization::ChunkSaveFormat,
     util::LocalRepeatingTimer,
     world::{
-        chunk::{ChunkType, ChunkCoord}, events::ChunkUpdatedEvent, settings::Settings, BlockId, BlockRegistry,
-        BlockResources, ChunkBoundaryCrossedEvent, Level, LevelLoadState,
-    }, serialization::ChunkSaveFormat, physics::movement::Velocity,
+        chunk::{ChunkCoord, ChunkType},
+        events::ChunkUpdatedEvent,
+        settings::Settings,
+        BlockId, BlockRegistry, BlockResources, ChunkBoundaryCrossedEvent, Level, LevelLoadState,
+    },
 };
 
-use super::{ClientMessage, ServerMessage, UpdateEntityTransform, UpdateEntityVelocity};
+use super::{
+    ChannelsConfig, ClientMessage, ServerMessage, UpdateEntityTransform, UpdateEntityVelocity,
+    UNRELIABLE,
+};
 
 pub const TICK_MS: u64 = 10;
 
@@ -33,16 +40,16 @@ impl Plugin for NetServerPlugin {
         app.add_plugins(QuinnetServerPlugin {
             initialize_later: true,
         })
-        .add_state::<ServerState>()
+        .init_state::<ServerState>()
         .add_systems(
             Update,
-            create_server.run_if(resource_exists::<ServerConfig>().and_then(
+            create_server.run_if(resource_exists::<ServerConfig>.and_then(
                 in_state(ServerState::NotStarted).and_then(in_state(LevelLoadState::Loaded)),
             )),
         )
         .add_systems(
             OnEnter(ServerState::Starting),
-            start_listening.run_if(resource_exists::<ServerConfig>()),
+            start_listening.run_if(resource_exists::<ServerConfig>),
         )
         .add_systems(
             Update,
@@ -52,14 +59,14 @@ impl Plugin for NetServerPlugin {
                 sync_entity_updates,
                 push_chunks_chunk_updated,
                 push_chunks_chunk_boundary_crossed,
-                push_chunks_on_join
+                push_chunks_on_join,
             )
                 .run_if(in_state(ServerState::Started)),
         )
         .add_systems(
             Update,
             assign_server_player.run_if(
-                not(resource_exists::<ServerPlayer>()).and_then(in_state(ServerState::Started)),
+                not(resource_exists::<ServerPlayer>).and_then(in_state(ServerState::Started)),
             ),
         );
     }
@@ -91,7 +98,7 @@ pub struct SyncPosition;
 pub struct SyncVelocity;
 
 fn handle_client_messages(
-    mut server: ResMut<Server>,
+    mut server: ResMut<QuinnetServer>,
     mut users: ResMut<PlayerList>,
     server_player: Option<Res<ServerPlayer>>,
     mut commands: Commands,
@@ -106,7 +113,8 @@ fn handle_client_messages(
 ) {
     let endpoint = server.endpoint_mut();
     for client_id in endpoint.clients() {
-        while let Some(message) = endpoint.try_receive_message_from::<ClientMessage>(client_id) {
+        while let Some((_, message)) = endpoint.try_receive_message_from::<ClientMessage>(client_id)
+        {
             match message {
                 ClientMessage::Join { name } => {
                     handle_join(
@@ -134,7 +142,7 @@ fn handle_client_messages(
                     );
                     endpoint.try_send_group_message_on(
                         users.infos.keys(),
-                        ChannelId::UnorderedReliable,
+                        ORDERED_RELIABLE,
                         ServerMessage::ChatMessage { client_id, message },
                     );
                 }
@@ -162,23 +170,39 @@ fn handle_client_messages(
                 ClientMessage::UseItem { tf, slot } => {
                     if let Some(PlayerInfo {
                         username: _,
-                        entity
-                    }) = users.infos.get(&client_id) {
-                        if let Ok(Some(stack)) = inventory_query.get(*entity).map(|inv| inv.get(slot)) {
-                            use_item_writer.send(UseItemEvent{ user: *entity, inventory_slot: Some(slot), stack, tf: tf.into()})
+                        entity,
+                    }) = users.infos.get(&client_id)
+                    {
+                        if let Ok(Some(stack)) =
+                            inventory_query.get(*entity).map(|inv| inv.get(slot))
+                        {
+                            use_item_writer.send(UseItemEvent {
+                                user: *entity,
+                                inventory_slot: Some(slot),
+                                stack,
+                                tf: tf.into(),
+                            });
                         }
                     }
-                },
+                }
                 ClientMessage::SwingItem { tf, slot } => {
                     if let Some(PlayerInfo {
                         username: _,
-                        entity
-                    }) = users.infos.get(&client_id) {
-                        if let Ok(Some(stack)) = inventory_query.get(*entity).map(|inv| inv.get(slot)) {
-                            swing_item_writer.send(SwingItemEvent { user: *entity, inventory_slot: Some(slot), stack, tf: tf.into()})
+                        entity,
+                    }) = users.infos.get(&client_id)
+                    {
+                        if let Ok(Some(stack)) =
+                            inventory_query.get(*entity).map(|inv| inv.get(slot))
+                        {
+                            swing_item_writer.send(SwingItemEvent {
+                                user: *entity,
+                                inventory_slot: Some(slot),
+                                stack,
+                                tf: tf.into(),
+                            });
                         }
                     }
-                },
+                }
             }
         }
     }
@@ -202,7 +226,7 @@ fn handle_join(
         );
     } else {
         info!("{} connected", &username);
-        info!("Server player: {:?}", server_player);
+        info!("QuinnetServer player: {:?}", server_player);
         let player_entity = commands.spawn(RemoteClient(Some(client_id))).id();
         let info = PlayerInfo {
             username,
@@ -229,10 +253,7 @@ fn handle_join(
         // Broadcast the connection event
         endpoint
             .send_group_message(
-                users
-                    .infos
-                    .keys()
-                    .filter(|id| **id != client_id),
+                users.infos.keys().filter(|id| **id != client_id),
                 ServerMessage::ClientConnected { client_id, info },
             )
             .unwrap();
@@ -241,7 +262,7 @@ fn handle_join(
 
 fn handle_server_events(
     mut connection_lost_events: EventReader<ConnectionLostEvent>,
-    mut server: ResMut<Server>,
+    mut server: ResMut<QuinnetServer>,
     mut users: ResMut<PlayerList>,
     mut commands: Commands,
 ) {
@@ -285,16 +306,18 @@ fn handle_disconnect(
 }
 
 fn start_listening(
-    mut server: ResMut<Server>,
+    mut server: ResMut<QuinnetServer>,
     mut state: ResMut<NextState<ServerState>>,
     config: Res<ServerConfig>,
+    channels: Res<ChannelsConfig>,
 ) {
     server
         .start_endpoint(
-            ServerConfiguration::from_ip(config.bind_addr, config.bind_port),
+            ServerEndpointConfiguration::from_ip(config.bind_addr, config.bind_port),
             CertificateRetrievalMode::GenerateSelfSigned {
                 server_hostname: "127.0.0.1".to_string(),
             },
+            channels.config.clone(),
         )
         .unwrap();
     state.set(ServerState::Started);
@@ -305,7 +328,7 @@ fn start_listening(
 }
 
 fn create_server(mut commands: Commands, mut state: ResMut<NextState<ServerState>>) {
-    commands.init_resource::<Server>();
+    commands.init_resource::<QuinnetServer>();
     state.set(ServerState::Starting);
     info!("Created server!");
 }
@@ -313,7 +336,7 @@ fn create_server(mut commands: Commands, mut state: ResMut<NextState<ServerState
 fn sync_entity_updates(
     mut timer: Local<LocalRepeatingTimer<TICK_MS>>,
     time: Res<Time>,
-    server: Res<Server>,
+    server: Res<QuinnetServer>,
     clients: Res<PlayerList>,
     tfs: Query<(Entity, &Transform), With<SyncPosition>>,
     vs: Query<(Entity, &Velocity), With<SyncVelocity>>,
@@ -340,7 +363,7 @@ fn sync_entity_updates(
         .collect();
     if let Err(e) = server.endpoint().send_group_message_on(
         clients.infos.keys(),
-        ChannelId::Unreliable,
+        UNRELIABLE,
         ServerMessage::UpdateEntities {
             transforms,
             velocities,
@@ -369,15 +392,18 @@ fn send_chunk(
     coord: ChunkCoord,
     client_id: ClientId,
     level: &Level,
-    server: &Server,
-    id_query: &Query<&BlockId>
+    server: &QuinnetServer,
+    id_query: &Query<&BlockId>,
 ) {
     if let Some(r) = level.get_chunk(coord) {
         if let ChunkType::Full(c) = r.value() {
             if let Err(e) = server.endpoint().send_message(
                 client_id,
                 ServerMessage::Chunk {
-                    chunk: ChunkSaveFormat::palette_ids_only_no_map((c.position, &c.blocks), id_query),
+                    chunk: ChunkSaveFormat::palette_ids_only_no_map(
+                        (c.position, &c.blocks),
+                        id_query,
+                    ),
                 },
             ) {
                 error!("{}", e);
@@ -388,7 +414,7 @@ fn send_chunk(
 
 fn push_chunks_on_join(
     remotes: Query<(&RemoteClient, &GlobalTransform), Added<GlobalTransform>>,
-    server: Res<Server>,
+    server: Res<QuinnetServer>,
     level: Res<Level>,
     settings: Res<Settings>,
     id_query: Query<&BlockId>,
@@ -397,8 +423,8 @@ fn push_chunks_on_join(
         if let Some(id) = id_opt {
             let coord: ChunkCoord = tf.translation().into();
             settings.player_loader.for_each_chunk(|offset| {
-                info!("sending (join) chunk {:?}", offset+coord);
-                send_chunk(offset+coord, *id, &level, &server, &id_query);
+                info!("sending (join) chunk {:?}", offset + coord);
+                send_chunk(offset + coord, *id, &level, &server, &id_query);
             })
         }
     }
@@ -408,7 +434,7 @@ fn push_chunks_on_join(
 fn push_chunks_chunk_boundary_crossed(
     remotes: Query<&RemoteClient>,
     mut crossed_reader: EventReader<ChunkBoundaryCrossedEvent>,
-    server: Res<Server>,
+    server: Res<QuinnetServer>,
     level: Res<Level>,
     settings: Res<Settings>,
     id_query: Query<&BlockId>,
@@ -439,7 +465,7 @@ fn push_chunks_chunk_boundary_crossed(
 fn push_chunks_chunk_updated(
     mut reader: EventReader<ChunkUpdatedEvent>,
     remotes: Query<(&GlobalTransform, &RemoteClient)>,
-    server: Res<Server>,
+    server: Res<QuinnetServer>,
     level: Res<Level>,
     settings: Res<Settings>,
     id_query: Query<&BlockId>,

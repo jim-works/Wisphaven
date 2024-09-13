@@ -23,7 +23,7 @@ impl Plugin for TNTPlugin {
 }
 
 #[derive(Component, Clone, Copy, Reflect, Default)]
-#[reflect(Component)]
+#[reflect(Component, FromWorld)]
 pub struct TNTBlock {
     pub explosion_strength: f32,
 }
@@ -54,7 +54,7 @@ pub fn process_tnt(
                     place_on_landing: false,
                     impact_direcitons: DirectionFlags::all(),
                 },
-            })
+            });
         }
     }
 }

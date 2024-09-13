@@ -8,12 +8,12 @@ use crate::{
 #[derive(Copy, Clone)]
 pub struct Raycast {
     pub origin: Vec3,
-    pub direction: Vec3,
+    pub direction: Dir3,
     pub length: f32,
 }
 
 impl Raycast {
-    pub fn new(origin: Vec3, direction: Vec3, length: f32) -> Raycast {
+    pub fn new(origin: Vec3, direction: Dir3, length: f32) -> Raycast {
         Self {
             origin,
             direction,

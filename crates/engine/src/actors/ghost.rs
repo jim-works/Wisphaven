@@ -1,6 +1,6 @@
 use std::{array, f32::consts::PI};
 
-use bevy::prelude::*;
+use bevy::{math::primitives, prelude::*};
 use util::{iterators::*, plugin::SmoothLookTo, *};
 
 use crate::{
@@ -255,38 +255,22 @@ pub fn load_resources(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    const CENTER_PARTICLE_COLOR: Color = Color::rgb(0.95, 0.95, 0.95);
-    const OUTER_PARTICLE_COLOR: Color = Color::rgb(0.96, 0.90, 1.0);
+    const CENTER_PARTICLE_COLOR: Color = Color::srgb(0.95, 0.95, 0.95);
+    const OUTER_PARTICLE_COLOR: Color = Color::srgb(0.96, 0.90, 1.0);
     let particle_materials: [Handle<StandardMaterial>; GHOST_PARTICLE_COUNT as usize] =
         array::from_fn(|n| {
             let progress = (n + 1) as f32 / (GHOST_PARTICLE_COUNT + 1) as f32;
             materials.add(StandardMaterial {
-                base_color: Color::hsl(
-                    lerp(
-                        CENTER_PARTICLE_COLOR.h(),
-                        OUTER_PARTICLE_COLOR.h(),
-                        progress,
-                    ),
-                    lerp(
-                        CENTER_PARTICLE_COLOR.s(),
-                        OUTER_PARTICLE_COLOR.s(),
-                        progress,
-                    ),
-                    lerp(
-                        CENTER_PARTICLE_COLOR.l(),
-                        OUTER_PARTICLE_COLOR.l(),
-                        progress,
-                    ),
-                ),
+                base_color: Color::mix(&CENTER_PARTICLE_COLOR, &OUTER_PARTICLE_COLOR, progress),
                 ..default()
             })
         });
     commands.insert_resource(GhostResources {
-        center_mesh: meshes.add(Mesh::from(shape::Box::from_corners(
+        center_mesh: meshes.add(Mesh::from(primitives::Cuboid::from_corners(
             Vec3::new(-0.3, -0.5, -0.3),
             Vec3::new(0.3, 0.5, 0.3),
         ))),
-        particle_mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+        particle_mesh: meshes.add(Mesh::from(primitives::Cuboid::from_length(1.0))),
         material: materials.add(StandardMaterial {
             base_color: CENTER_PARTICLE_COLOR,
             ..default()
