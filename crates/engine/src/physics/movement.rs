@@ -88,6 +88,7 @@ impl Mass {
     }
 }
 
+//TODO - FIX THESE - not working after upgrade or adding physicslevelset for some reason
 #[derive(Component)]
 pub struct InterpolatedAttribute<T: Component> {
     pub old: T,
@@ -206,6 +207,7 @@ fn translate(mut query: Query<(&mut Transform, &Velocity), With<IgnoreTerrainCol
     }
 }
 
+//TODO - FIX THESE - not working after upgrade or adding physicslevelset for some reason
 fn set_tf_interpolation_target(
     mut query: Query<(&mut Transform, &mut InterpolatedAttribute<Transform>)>,
 ) {

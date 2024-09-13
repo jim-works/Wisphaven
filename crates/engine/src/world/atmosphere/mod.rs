@@ -160,7 +160,7 @@ impl Plugin for AtmospherePlugin {
                 time: GameTime::new(0, Duration::from_secs(100)),
             })
             .insert_resource(AmbientLight {
-                brightness: 0.15,
+                brightness: 100.,
                 ..default()
             });
     }
