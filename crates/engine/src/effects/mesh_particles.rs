@@ -4,7 +4,11 @@ use bevy::prelude::*;
 use rand::{thread_rng, Rng};
 use util::bevy_utils::TimedDespawner;
 
-use crate::physics::movement::{Drag, GravityMult, Velocity};
+use crate::physics::{
+    collision::IgnoreTerrainCollision,
+    movement::{Drag, GravityMult, Velocity},
+    PhysicsBundle,
+};
 
 pub(super) struct MeshParticlesPlugin;
 
@@ -96,8 +100,12 @@ fn spawn_particles(
         ));
         for _ in 0..count {
             let offset = util::sample_sphere_surface(&mut rng) * emitter.emit_radius;
-            let scale = util::random_vector(emitter.min_scale, emitter.max_scale, &mut rng);
-            let color = util::random_vector(emitter.min_color, emitter.max_color, &mut rng);
+            let scale = emitter
+                .min_scale
+                .lerp(emitter.max_scale, util::random_proportion(&mut rng));
+            let color = emitter
+                .min_color
+                .lerp(emitter.max_color, util::random_proportion(&mut rng));
             let material = materials.add(StandardMaterial {
                 base_color: Color::rgb(color.x, color.y, color.z),
                 ..resources.material.clone()
@@ -114,9 +122,13 @@ fn spawn_particles(
                     ..default()
                 },
                 TimedDespawner(Timer::new(emitter.lifetime, TimerMode::Once)),
-                Velocity(offset * emitter.speed),
-                GravityMult::new(emitter.gravity_mult),
-                Drag(emitter.drag),
+                PhysicsBundle {
+                    velocity: Velocity(offset * emitter.speed),
+                    gravity: GravityMult::new(emitter.gravity_mult),
+                    drag: Drag(emitter.drag),
+                    ..default()
+                },
+                IgnoreTerrainCollision,
             ));
         }
     }

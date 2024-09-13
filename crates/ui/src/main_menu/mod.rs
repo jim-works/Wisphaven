@@ -7,7 +7,6 @@ use bevy::{
 use engine::{
     actors::ghost::{GhostResources, Hand, HandState, Handed, OrbitParticle, SwingHand, UseHand},
     effects::mesh_particles::MeshParticleEmitter,
-    physics::movement::{Drag, GravityMult},
     GameState,
 };
 use util::{iterators::even_distribution_on_sphere, lerp, LocalRepeatingTimer};
@@ -541,21 +540,25 @@ fn spawn_ghost(
         commands.spawn((
             Name::new("emitter"),
             SpatialBundle {
-                transform: Transform::from_translation(spawn.transform.translation),
+                transform: Transform::from_translation(
+                    spawn.transform.translation - spawn.transform.scale.y * 3. * Vec3::Y,
+                ),
                 ..default()
             },
             MeshParticleEmitter {
                 shape: engine::effects::mesh_particles::MeshParticleShape::Cube,
-                min_scale: Vec3::new(1., 1., 1.),
-                max_scale: 5. * Vec3::ONE,
+                min_scale: 0.08 * Vec3::ONE,
+                max_scale: 0.125 * Vec3::ONE,
                 emit_radius: 1.,
-                speed: 0.,
-                gravity_mult: -1.,
-                drag: 0.,
-                lifetime: Duration::from_secs(5),
-                spawn_count_min: 1,
-                spawn_count_max: 3,
-                repeat_time: Some(Duration::from_secs_f32(1.)),
+                speed: 0.05,
+                gravity_mult: -0.0625,
+                drag: 0.025,
+                lifetime: Duration::from_secs(10),
+                spawn_count_min: 3,
+                spawn_count_max: 6,
+                repeat_time: Some(Duration::from_secs_f32(0.2)),
+                min_color: Vec3::new(57., 42., 84.) / 255.,
+                max_color: Vec3::new(73., 74., 117.) / 255.,
                 ..default()
             },
         ));

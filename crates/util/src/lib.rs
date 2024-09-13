@@ -166,6 +166,10 @@ pub fn random_vector(a: Vec3, b: Vec3, rng: &mut impl Rng) -> Vec3 {
     )
 }
 
+pub fn random_proportion(rng: &mut impl Rng) -> f32 {
+    rng.sample(Uniform::new_inclusive(0., 1.))
+}
+
 //use in lerp(x,b,t) where x is current position, b is target dest
 //lerps are exponential functions, so we have to correct the t
 //speed is proportion that we should travel in 1 second
