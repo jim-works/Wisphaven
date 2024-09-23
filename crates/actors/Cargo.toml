@@ -1,0 +1,11 @@
+[package]
+name = "actors"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { workspace = true }
+ahash = { workspace = true }
+
+engine = { path = "../engine" }
+util = { path = "../util" }

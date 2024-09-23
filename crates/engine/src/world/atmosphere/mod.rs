@@ -6,8 +6,10 @@ use bevy::{
     render::render_resource::{TextureViewDescriptor, TextureViewDimension},
 };
 
-#[derive(Component)]
-struct Sun;
+#[derive(Component, Reflect)]
+struct Sun {
+    strength: f32,
+}
 
 pub struct AtmospherePlugin;
 
@@ -162,7 +164,8 @@ impl Plugin for AtmospherePlugin {
             .insert_resource(AmbientLight {
                 brightness: 100.,
                 ..default()
-            });
+            })
+            .register_type::<Sun>();
     }
 }
 
@@ -188,17 +191,17 @@ fn load_skybox(
 }
 
 fn update_sun_position(
-    mut query: Query<(&mut Transform, &mut DirectionalLight), With<Sun>>,
+    mut query: Query<(&mut Transform, &mut DirectionalLight, &Sun)>,
     calendar: Res<Calendar>,
 ) {
     let _my_span = info_span!("daylight_cycle", name = "daylight_cycle").entered();
 
     let t = calendar.get_sun_progress() * 2.0 * PI;
 
-    if let Some((mut light_trans, mut directional)) = query.single_mut().into() {
+    if let Some((mut light_trans, mut directional, sun)) = query.single_mut().into() {
         let sun_rot = Quat::from_rotation_x(-t);
         light_trans.rotation = sun_rot;
-        directional.illuminance = t.sin().max(0.0).powf(2.0) * 100000.0;
+        directional.illuminance = t.sin().max(0.0).powf(2.0) * sun.strength;
     }
 }
 
@@ -239,7 +242,7 @@ fn setup_environment(mut commands: Commands, asset_server: Res<AssetServer>) {
             },
             ..default()
         },
-        Sun, // Marks the light as Sun
+        Sun { strength: 7500.0 }, // Marks the light as Sun
         Name::new("Sun"),
     ));
 

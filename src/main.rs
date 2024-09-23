@@ -57,7 +57,7 @@ fn main() {
     )
     .add_plugins(HanabiPlugin)
     .add_plugins(bevy_inspector_egui::quick::WorldInspectorPlugin::new())
-    .add_plugins((engine::EnginePlugin, ui::UIPlugin));
+    .add_plugins((engine::EnginePlugin, ui::UIPlugin, ::actors::ActorsPlugin));
 
     if let Some(port) = server_port {
         app.add_systems(

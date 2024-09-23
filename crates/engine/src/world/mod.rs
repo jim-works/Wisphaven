@@ -38,6 +38,10 @@ pub enum LevelSystemSet {
     //Update, runs after main/loading in main, in LevelLoadState::Loaded and Loading
     //system buffers from main and loading and main applied beforehand
     AfterLoadingAndMain,
+    //fixedupdate
+    PreTick,
+    Tick,
+    PostTick,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, States, Default)]
@@ -79,6 +83,16 @@ impl Plugin for LevelPlugin {
             LevelSystemSet::LoadingAndMain.run_if(
                 in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded)),
             ),
+        )
+        .configure_sets(
+            FixedUpdate,
+            (
+                LevelSystemSet::PreTick,
+                LevelSystemSet::Tick,
+                LevelSystemSet::PostTick,
+            )
+                .chain()
+                .run_if(in_state(LevelLoadState::Loaded)),
         )
         .add_systems(
             Update,
