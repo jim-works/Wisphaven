@@ -9,9 +9,9 @@ pub struct SpawningPlugin;
 
 impl Plugin for SpawningPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(FixedUpdate, spawn_handler.in_set(LevelSystemSet::PostTick))
-            .add_event::<DefaultSpawnEvent>()
+        app.add_event::<DefaultSpawnEvent>()
             .add_event::<SpawnActorEvent>();
+        //add_systems(FixedUpdate, spawn_handler.in_set(LevelSystemSet::PostTick))
     }
 }
 

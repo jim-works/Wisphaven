@@ -8,6 +8,7 @@ pub mod collision;
 pub mod grapple;
 pub mod movement;
 pub mod query;
+pub mod spring;
 mod test;
 
 const SPAWN_CHUNK_TIME_BUDGET_COUNT: u32 = 1000;
@@ -39,6 +40,7 @@ impl Plugin for PhysicsPlugin {
             movement::MovementPlugin,
             collision::CollisionPlugin,
             grapple::GrapplePlugin,
+            spring::SpringPlugin,
         ))
         .insert_resource(Time::<Fixed>::from_hz(TPS))
         .configure_sets(

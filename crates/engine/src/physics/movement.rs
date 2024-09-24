@@ -33,6 +33,9 @@ pub struct Gravity(pub Vec3);
 #[derive(Component, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct GravityMult(f32);
 
+#[derive(Component, Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct LookInMovementDirection(pub Quat);
+
 impl Default for GravityMult {
     fn default() -> Self {
         Self(1.0)
@@ -115,7 +118,9 @@ impl Plugin for MovementPlugin {
             )
             .add_systems(
                 FixedUpdate,
-                translate.in_set(PhysicsSystemSet::UpdatePosition),
+                (look_in_movement_direction, translate)
+                    .chain()
+                    .in_set(PhysicsSystemSet::UpdatePosition),
             )
             .add_systems(
                 FixedUpdate,
@@ -236,5 +241,14 @@ fn interpolate_tf_translation(
         tf.translation = tf
             .translation
             .lerp(interpolator.target.translation, lerp_time);
+    }
+}
+
+fn look_in_movement_direction(
+    mut query: Query<(&mut Transform, &Velocity, &LookInMovementDirection)>,
+) {
+    for (mut tf, v, dir) in query.iter_mut() {
+        tf.look_to(v.0, Dir3::Y);
+        tf.rotate(dir.0);
     }
 }
