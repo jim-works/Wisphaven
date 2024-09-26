@@ -31,7 +31,7 @@ pub struct Gravity(pub Vec3);
 //children of a parent should not typically have separate GravityMults unless the parent will not rotate
 //gravity is taken in local space without local rotation, so parent's rotation will affect the gravity direction
 #[derive(Component, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct GravityMult(f32);
+pub struct GravityMult(pub f32);
 
 #[derive(Component, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct LookInMovementDirection(pub Quat);

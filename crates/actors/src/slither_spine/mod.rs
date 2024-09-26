@@ -3,11 +3,14 @@ use std::f32::consts::PI;
 use super::spawning::*;
 use bevy::prelude::*;
 use engine::{
+    actors::{LocalPlayer, MoveSpeed},
+    controllers::{ControllableBundle, TickMovement},
     physics::{
-        movement::{GravityMult, LookInMovementDirection},
-        PhysicsBundle,
+        collision::{CollidingDirections, IgnoreTerrainCollision, TerrainQueryPoint},
+        movement::{Acceleration, GravityMult, LookInMovementDirection, Velocity},
+        PhysicsBundle, PhysicsLevelSet, GRAVITY,
     },
-    world::LevelSystemSet,
+    world::{Level, LevelSystemSet},
 };
 
 pub struct SlitherSpinePlugin;
@@ -21,6 +24,7 @@ impl Plugin for SlitherSpinePlugin {
                     .chain()
                     .in_set(LevelSystemSet::PostTick),
             )
+            .add_systems(FixedUpdate, move_head.in_set(PhysicsLevelSet::Main))
             .add_event::<SpawnSlitherSpineEvent>()
             .add_actor::<SpawnSlitherSpineEvent>("slither_spine".to_string());
     }
@@ -65,7 +69,12 @@ struct SlitherSpineSegment {
 }
 
 #[derive(Component)]
-struct SlitherSpineHead;
+struct SlitherSpineHead {
+    in_ground_gravity_mult: f32,
+    in_air_gravity_mult: f32,
+    exit_ground_speed: f32,
+    was_in_ground: bool,
+}
 
 fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(SlitherSpineResources {
@@ -84,7 +93,7 @@ fn trigger_spawn(
                 transform: Transform::from_translation(Vec3::new(0., 15., 0.)),
             },
             segment_count: 15,
-            segment_offset: Vec3::new(1., 1., 0.),
+            segment_offset: Vec3::new(0., 0., -1.),
         });
     }
 }
@@ -107,7 +116,7 @@ fn update_segments(
                 new_translations.push((
                     entity,
                     delta - delta.normalize_or_zero() * segment.target_dist,
-                    attach_tf.translation,
+                    attach_tf.clone(),
                 ));
             }
         }
@@ -116,7 +125,7 @@ fn update_segments(
     for (entity, dx, target) in new_translations.into_iter() {
         if let Ok(mut tf) = tf_query.get_mut(entity) {
             tf.translation += dx;
-            tf.look_at(target, Vec3::Y);
+            tf.look_at(target.translation, target.up());
         }
     }
 }
@@ -150,6 +159,7 @@ fn spawn_handler(
                             target_dist: segment_length,
                             parent: prev_segment,
                         },
+                        IgnoreTerrainCollision,
                     ))
                     .id()
             } else {
@@ -163,15 +173,58 @@ fn spawn_handler(
                             ..default()
                         },
                         PhysicsBundle {
-                            gravity: GravityMult::new(0.05),
+                            gravity: GravityMult::new(1.0),
                             ..default()
                         },
                         Name::new("slither_spine_head"),
-                        SlitherSpineHead,
+                        SlitherSpineHead {
+                            in_ground_gravity_mult: -1.5,
+                            in_air_gravity_mult: 1.0,
+                            exit_ground_speed: 1.0,
+                            was_in_ground: false,
+                        },
                         LookInMovementDirection(Quat::from_euler(EulerRot::XYZ, PI, PI, PI)),
+                        ControllableBundle {
+                            move_speed: MoveSpeed::new(0.01, 0.01, 0.5),
+                            ..default()
+                        },
+                        IgnoreTerrainCollision,
+                        TerrainQueryPoint,
                     ))
                     .id()
             });
         }
+    }
+}
+
+fn move_head(
+    level: Res<Level>,
+    mut head_query: Query<(
+        &mut GravityMult,
+        &mut Velocity,
+        &mut TickMovement,
+        &Transform,
+        &mut SlitherSpineHead,
+    )>,
+    local_player_query: Query<&Transform, With<LocalPlayer>>,
+) {
+    let Ok(player_tf) = local_player_query.get_single() else {
+        return;
+    };
+    for (mut g, mut v, mut movement, tf, mut head) in head_query.iter_mut() {
+        let in_ground = level.get_block_entity(tf.translation.into()).is_some();
+        if in_ground {
+            g.0 = head.in_ground_gravity_mult;
+        } else {
+            g.0 = head.in_air_gravity_mult;
+        }
+        if head.was_in_ground && !in_ground {
+            //exited ground, add burst of speed
+            v.0.y = head.exit_ground_speed;
+        }
+        head.was_in_ground = in_ground;
+        let mut delta = player_tf.translation - tf.translation;
+        delta.y = 0.;
+        movement.0 = delta.normalize_or_zero();
     }
 }

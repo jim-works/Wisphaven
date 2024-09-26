@@ -18,8 +18,11 @@ pub struct CollisionPlugin;
 
 impl Plugin for CollisionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(FixedUpdate, move_and_slide.in_set(PhysicsLevelSet::Main))
-            .register_type::<Aabb>();
+        app.add_systems(
+            FixedUpdate,
+            (move_and_slide, update_terrain_query_point).in_set(PhysicsLevelSet::Main),
+        )
+        .register_type::<Aabb>();
     }
 }
 
@@ -332,6 +335,11 @@ impl Aabb {
 #[derive(Component, Copy, Clone, Default)]
 pub struct IgnoreTerrainCollision;
 
+// updates CollidingDirections and optionally colliding blocks only off the entities translation without doing collision logic.
+// when the translation is inside a collidable block, all directions will be colliding with that one block.
+#[derive(Component, Copy, Clone, Default)]
+pub struct TerrainQueryPoint;
+
 fn move_and_slide(
     mut objects: Query<
         (
@@ -424,6 +432,43 @@ fn move_and_slide(
             }
         }
         tf.translation += v.0;
+    }
+}
+
+fn update_terrain_query_point(
+    mut objects: Query<
+        (
+            &GlobalTransform,
+            &mut CollidingDirections,
+            Option<&mut CollidingBlocks>,
+        ),
+        With<TerrainQueryPoint>,
+    >,
+    block_physics: Query<&BlockPhysics>,
+    level: Res<Level>,
+) {
+    for (gtf, mut dir, mut opt_col_blocks) in objects.iter_mut() {
+        if let Some(ref mut col_blocks) = opt_col_blocks {
+            col_blocks.clear();
+        }
+        dir.0 = DirectionFlags::empty();
+        let coord = gtf.translation().into();
+        let Some(block) = level.get_block_entity(coord) else {
+            continue;
+        };
+        let Ok(physics) = block_physics.get(block) else {
+            continue;
+        };
+        dir.0 = DirectionFlags::all();
+        if let Some(ref mut col_blocks) = opt_col_blocks {
+            let elem = (coord, block, physics.clone());
+            col_blocks.push(Direction::NegX, elem.clone());
+            col_blocks.push(Direction::NegY, elem.clone());
+            col_blocks.push(Direction::NegZ, elem.clone());
+            col_blocks.push(Direction::PosX, elem.clone());
+            col_blocks.push(Direction::PosY, elem.clone());
+            col_blocks.push(Direction::PosZ, elem);
+        }
     }
 }
 
