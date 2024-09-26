@@ -21,7 +21,8 @@ impl Plugin for SlitherSpinePlugin {
                     .chain()
                     .in_set(LevelSystemSet::PostTick),
             )
-            .add_event::<SpawnSlitherSpineEvent>();
+            .add_event::<SpawnSlitherSpineEvent>()
+            .add_actor::<SpawnSlitherSpineEvent>("slither_spine".to_string());
     }
 }
 
@@ -30,6 +31,25 @@ pub struct SpawnSlitherSpineEvent {
     default: DefaultSpawnEvent,
     segment_count: usize,
     segment_offset: Vec3,
+}
+
+impl Default for SpawnSlitherSpineEvent {
+    fn default() -> Self {
+        Self {
+            default: Default::default(),
+            segment_count: 5,
+            segment_offset: Vec3::Z,
+        }
+    }
+}
+
+impl From<DefaultSpawnEvent> for SpawnSlitherSpineEvent {
+    fn from(value: DefaultSpawnEvent) -> Self {
+        Self {
+            default: value,
+            ..default()
+        }
+    }
 }
 
 #[derive(Resource)]
