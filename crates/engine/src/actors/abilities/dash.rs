@@ -1,9 +1,10 @@
-use std::time::Duration;
+use std::{f32::EPSILON, time::Duration};
 
 use bevy::prelude::*;
 
 use crate::{
     actors::MoveSpeed,
+    controllers::TickMovement,
     physics::movement::Velocity,
     util::{ease_out_quad, inverse_lerp, lerp},
     world::LevelSystemSet,
@@ -80,11 +81,21 @@ fn do_dash(
         &mut Velocity,
         &CurrentlyDashing,
         Option<&MoveSpeed>,
+        Option<&TickMovement>,
     )>,
     time: Res<Time>,
 ) {
     let curr_time = time.elapsed();
-    for (entity, tf, mut v, dash, ms_opt) in dashing_query.iter_mut() {
+    for (entity, tf, mut v, dash, ms_opt, tm_opt) in dashing_query.iter_mut() {
+        let dash_direction = tm_opt
+            .map(|dir| {
+                if dir.0.length_squared() < EPSILON {
+                    tf.forward().as_vec3()
+                } else {
+                    dir.0
+                }
+            })
+            .unwrap_or(tf.forward().as_vec3());
         if curr_time >= dash.end_time {
             if let Some(mut ec) = commands.get_entity(entity) {
                 ec.remove::<CurrentlyDashing>();
@@ -113,9 +124,9 @@ fn do_dash(
                 ms.max(initial_speed),
                 ease_out_quad(fade_amount),
             );
-            v.0 = tf.forward() * speed;
+            v.0 = dash_direction * speed;
         } else {
-            v.0 = tf.forward() * dash.speed;
+            v.0 = dash_direction * dash.speed;
         }
     }
 }
