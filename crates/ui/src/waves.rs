@@ -5,6 +5,8 @@ use engine::{
     world::atmosphere::Calendar,
 };
 
+use crate::MainCameraUIRoot;
+
 pub struct WavesPlugin;
 
 impl Plugin for WavesPlugin {
@@ -59,6 +61,7 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn((
             WaveUIScreen,
+            MainCameraUIRoot,
             NodeBundle {
                 style: Style {
                     width: Val::Percent(100.0),

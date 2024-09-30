@@ -22,6 +22,8 @@ use engine::{
     world::{BlockMesh, LevelSystemSet},
 };
 
+use crate::MainCameraUIRoot;
+
 use super::{state::UIState, styles::get_small_text_style};
 
 pub const SLOTS_PER_ROW: usize = 10;
@@ -184,6 +186,7 @@ fn hide_inventory<const HIDE_HOTBAR: bool>(
 fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryResources) {
     commands
         .spawn((
+            MainCameraUIRoot,
             InventoryUI,
             NodeBundle {
                 style: Style {

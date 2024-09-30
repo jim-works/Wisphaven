@@ -24,7 +24,7 @@ use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
 use leafwing_input_manager::action_state::ActionState;
 
-use engine::actors::LocalPlayer;
+use engine::actors::{LocalPlayer, LocalPlayerCamera};
 use engine::controllers::Action;
 use engine::world::LevelSystemSet;
 use engine::GameState;
@@ -48,7 +48,12 @@ impl Plugin for UIPlugin {
             .add_systems(Update, state::toggle_hidden.in_set(LevelSystemSet::Main))
             .add_systems(
                 Update,
-                (toggle_fullscreen, change_button_colors, do_button_action),
+                (
+                    toggle_fullscreen,
+                    change_button_colors,
+                    do_button_action,
+                    update_main_camera_ui,
+                ),
             )
             .insert_resource(UiScale(2.0));
     }
@@ -173,6 +178,24 @@ fn toggle_fullscreen(
                 }
                 _ => bevy::window::WindowMode::Windowed,
             };
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct MainCameraUIRoot;
+
+fn update_main_camera_ui(
+    mut commands: Commands,
+    camera_query: Query<Entity, With<LocalPlayerCamera>>,
+    ui_query: Query<Entity, With<MainCameraUIRoot>>,
+) {
+    let Ok(camera_entity) = camera_query.get_single() else {
+        return;
+    };
+    for ui_element in ui_query.iter() {
+        if let Some(mut ec) = commands.get_entity(ui_element) {
+            ec.insert(TargetCamera(camera_entity));
         }
     }
 }

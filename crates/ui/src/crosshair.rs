@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::MainCameraUIRoot;
+
 use super::state::UIState;
 
 pub struct CrosshairPlugin;
@@ -41,6 +43,7 @@ fn spawn_crosshair(
         commands
             .spawn((
                 Crosshair,
+                MainCameraUIRoot,
                 NodeBundle {
                     style: Style {
                         width: Val::Percent(100.0),

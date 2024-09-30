@@ -15,6 +15,8 @@ use engine::{
 
 use util::inverse_lerp;
 
+use crate::MainCameraUIRoot;
+
 use super::state::UIState;
 
 pub struct PlayerStatsUiPlugin;
@@ -33,7 +35,8 @@ impl Plugin for PlayerStatsUiPlugin {
             .add_systems(OnExit(UIState::Default), hide_player_stat_ui)
             .add_systems(
                 Update,
-                (spawn_heart, spawn_stamina).run_if(in_state(LevelLoadState::Loaded)),
+                (spawn_heart, spawn_stamina, layout_bug_workaround)
+                    .run_if(in_state(LevelLoadState::Loaded)),
             );
 
         let update_hearts_id = app.world_mut().register_system(update_hearts);
@@ -178,18 +181,19 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
     commands
         .spawn((
             PlayerStatContainer,
+            MainCameraUIRoot,
             NodeBundle {
                 style: Style {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
+                    min_width: Val::Percent(100.0),
+                    min_height: Val::Percent(100.0),
                     flex_direction: FlexDirection::ColumnReverse,
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::FlexStart,
-                    position_type: PositionType::Absolute,
                     ..default()
                 },
                 ..default()
             },
+            Name::new("UI stat container"),
         ))
         .with_children(|children| {
             children.spawn((
@@ -201,11 +205,11 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
                         flex_direction: FlexDirection::Row,
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,
-                        position_type: PositionType::Relative,
                         ..default()
                     },
                     ..default()
                 },
+                Name::new("UI heart container"),
             ));
             children.spawn((
                 PlayerStaminaContainer,
@@ -216,11 +220,11 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
                         flex_direction: FlexDirection::Row,
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,
-                        position_type: PositionType::Relative,
                         ..default()
                     },
                     ..default()
                 },
+                Name::new("UI stamina container"),
             ));
         });
 }
@@ -237,9 +241,21 @@ fn hide_player_stat_ui(mut query: Query<&mut Visibility, With<PlayerStatContaine
     }
 }
 
+fn layout_bug_workaround(
+    mut query: Query<&mut Style, With<PlayerStatContainer>>,
+    player_query: Query<(), Added<LocalPlayer>>,
+) {
+    if player_query.is_empty() {
+        return;
+    }
+    //bug where this node's layout won't apply until I make a change -- guessing it's because it's spawned before the camera.
+    let mut style = query.get_single_mut().unwrap();
+    style.display = Display::Flex;
+}
+
 fn flash_hearts(
     player_query: Query<Entity, With<LocalPlayer>>,
-    mut heart_query: Query<&mut BackgroundColor, With<PlayerFlashHeart>>,
+    mut heart_query: Query<&mut UiImage, With<PlayerFlashHeart>>,
     mut reader: EventReader<DamageTakenEvent>,
     mut state: Local<(Duration, i32, bool)>,
     time: Res<Time>,
@@ -256,7 +272,7 @@ fn flash_hearts(
                 state.1 = flashes;
                 state.2 = true;
                 for mut heart in heart_query.iter_mut() {
-                    heart.0 = Color::srgba(1.0, 1.0, 1.0, 1.0);
+                    heart.color = Color::srgba(1.0, 1.0, 1.0, 1.0);
                 }
                 commands.run_system(systems.update_hearts);
             }
@@ -271,14 +287,14 @@ fn flash_hearts(
             state.1 -= 1;
             state.2 = false;
             for mut heart in heart_query.iter_mut() {
-                heart.0 = Color::srgba(1.0, 1.0, 1.0, 0.0);
+                heart.color = Color::srgba(1.0, 1.0, 1.0, 0.0);
             }
         } else {
             //inactive, switch to active
             state.0 = flash_duration;
             state.2 = true;
             for mut heart in heart_query.iter_mut() {
-                heart.0 = Color::srgba(1.0, 1.0, 1.0, 1.0);
+                heart.color = Color::srgba(1.0, 1.0, 1.0, 1.0);
             }
         }
     }
@@ -286,7 +302,7 @@ fn flash_hearts(
 
 fn flash_stamina(
     player_query: Query<Entity, With<LocalPlayer>>,
-    mut bolt_query: Query<&mut BackgroundColor, With<PlayerFlashBolt>>,
+    mut bolt_query: Query<&mut UiImage, With<PlayerFlashBolt>>,
     mut reader: EventReader<StaminaUpdatedEvent>,
     mut state: Local<(Duration, i32, bool)>,
     time: Res<Time>,
@@ -311,8 +327,8 @@ fn flash_stamina(
                     state.0 = flash_duration;
                     state.1 = flashes;
                     state.2 = true;
-                    for mut heart in bolt_query.iter_mut() {
-                        heart.0 = Color::srgba(1.0, 1.0, 1.0, 1.0);
+                    for mut bolt in bolt_query.iter_mut() {
+                        bolt.color = Color::srgba(1.0, 1.0, 1.0, 1.0);
                     }
                 }
                 //update stats on display
@@ -328,15 +344,15 @@ fn flash_stamina(
             state.0 = flash_duration;
             state.1 -= 1;
             state.2 = false;
-            for mut heart in bolt_query.iter_mut() {
-                heart.0 = Color::srgba(1.0, 1.0, 1.0, 0.0);
+            for mut bolt in bolt_query.iter_mut() {
+                bolt.color = Color::srgba(1.0, 1.0, 1.0, 0.0);
             }
         } else {
             //inactive, switch to active
             state.0 = flash_duration;
             state.2 = true;
-            for mut heart in bolt_query.iter_mut() {
-                heart.0 = Color::srgba(1.0, 1.0, 1.0, 1.0);
+            for mut bolt in bolt_query.iter_mut() {
+                bolt.color = Color::srgba(1.0, 1.0, 1.0, 1.0);
             }
         }
     }
@@ -344,7 +360,7 @@ fn flash_stamina(
 
 fn update_hearts(
     player_query: Query<&CombatInfo, With<LocalPlayer>>,
-    mut heart_query: Query<(&PlayerBrokenHeart, &mut BackgroundColor)>,
+    mut heart_query: Query<(&PlayerBrokenHeart, &mut UiImage)>,
 ) {
     let curr_health = player_query
         .get_single()
@@ -354,18 +370,18 @@ fn update_hearts(
             min_health,
             max_health,
         },
-        mut color,
+        mut image,
     ) in heart_query.iter_mut()
     {
         let progress = inverse_lerp(*max_health, *min_health, curr_health);
         let alpha = progress.clamp(0.0, 1.0);
-        color.0 = color.0.with_alpha(alpha);
+        image.color = image.color.with_alpha(alpha);
     }
 }
 
 fn update_stamina(
     player_query: Query<&Stamina, With<LocalPlayer>>,
-    mut bolt_query: Query<(&PlayerEmptyBolt, &mut BackgroundColor)>,
+    mut bolt_query: Query<(&PlayerEmptyBolt, &mut UiImage)>,
 ) {
     let curr_stamina = player_query.get_single().map_or(0.0, |info| info.current);
     for (
@@ -373,12 +389,12 @@ fn update_stamina(
             min_stamina,
             max_stamina,
         },
-        mut color,
+        mut image,
     ) in bolt_query.iter_mut()
     {
         let progress = inverse_lerp(*max_stamina, *min_stamina, curr_stamina);
         let alpha = progress.clamp(0.0, 1.0);
-        color.0 = color.0.with_alpha(alpha);
+        image.color = image.color.with_alpha(alpha);
     }
 }
 
@@ -409,10 +425,10 @@ fn spawn_heart(
                                 .spawn((
                                     ImageBundle {
                                         style: res.heart_overlay_style.clone(),
-                                        image: res.empty_heart.clone(),
-                                        background_color: BackgroundColor(Color::srgba(
-                                            1.0, 1.0, 1.0, 0.0,
-                                        )),
+                                        image: res
+                                            .empty_heart
+                                            .clone()
+                                            .with_color(Color::srgba(1.0, 1.0, 1.0, 0.0)),
                                         ..default()
                                     },
                                     PlayerBrokenHeart {
@@ -424,10 +440,10 @@ fn spawn_heart(
                                     flash_overlay.spawn((
                                         ImageBundle {
                                             style: res.heart_overlay_style.clone(),
-                                            image: res.flash_heart.clone(),
-                                            background_color: BackgroundColor(Color::srgba(
-                                                1.0, 1.0, 1.0, 0.0,
-                                            )),
+                                            image: res
+                                                .flash_heart
+                                                .clone()
+                                                .with_color(Color::srgba(1.0, 1.0, 1.0, 0.0)),
                                             ..default()
                                         },
                                         PlayerFlashHeart,
@@ -467,10 +483,10 @@ fn spawn_stamina(
                                 .spawn((
                                     ImageBundle {
                                         style: res.overlay_style.clone(),
-                                        image: res.empty_bolt.clone(),
-                                        background_color: BackgroundColor(Color::srgba(
-                                            1.0, 1.0, 1.0, 0.0,
-                                        )),
+                                        image: res
+                                            .empty_bolt
+                                            .clone()
+                                            .with_color(Color::srgba(1.0, 1.0, 1.0, 0.0)),
                                         ..default()
                                     },
                                     PlayerEmptyBolt {
@@ -482,10 +498,10 @@ fn spawn_stamina(
                                     flash_overlay.spawn((
                                         ImageBundle {
                                             style: res.overlay_style.clone(),
-                                            image: res.flash_bolt.clone(),
-                                            background_color: BackgroundColor(Color::srgba(
-                                                1.0, 1.0, 1.0, 0.0,
-                                            )),
+                                            image: res
+                                                .flash_bolt
+                                                .clone()
+                                                .with_color(Color::srgba(1.0, 1.0, 1.0, 0.0)),
                                             ..default()
                                         },
                                         PlayerFlashBolt,

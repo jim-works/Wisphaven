@@ -47,6 +47,9 @@ pub struct Player {
 #[derive(Component)]
 pub struct LocalPlayer;
 
+#[derive(Component)]
+pub struct LocalPlayerCamera;
+
 #[derive(Event)]
 pub struct LocalPlayerSpawnedEvent(pub Entity);
 
@@ -167,6 +170,7 @@ pub fn spawn_local_player(
                 frustum: Frustum::from_clip_from_world(&projection.get_clip_from_view()),
                 ..default()
             },
+            LocalPlayerCamera,
             CameraEffectsBundle::default(),
             FogSettings {
                 color: Color::srgba(0.56, 0.824, 1.0, 1.0),
