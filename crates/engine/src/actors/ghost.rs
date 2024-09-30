@@ -230,7 +230,7 @@ pub struct GhostPlugin;
 impl Plugin for GhostPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (load_resources, add_to_registry))
-            .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
+            // .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
             .add_systems(
                 Update,
                 (

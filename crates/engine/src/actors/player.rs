@@ -5,7 +5,7 @@ use bevy::{
     prelude::*,
     render::{camera::CameraProjection, primitives::Frustum},
 };
-use bevy_quinnet::{client::QuinnetClient, shared::channels::ChannelId};
+use bevy_quinnet::client::QuinnetClient;
 use leafwing_input_manager::InputManagerBundle;
 use player_controller::RotateWithMouse;
 

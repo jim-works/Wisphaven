@@ -3,11 +3,12 @@ use bevy::{pbr::ExtendedMaterial, prelude::*};
 use util::{image::ImageExtension, palette::Palette};
 
 use crate::{
-    items::{inventory::Inventory, ItemIcon},
-    world::chunk::{Chunk, ChunkCoord, FatChunkIdx, BLOCKS_PER_FAT_CHUNK},
-    world::util::BlockPalette,
-    world::BlockMesh,
-    world::BlockMeshShape,
+    items::{inventory::Inventory, ItemIcon, ItemName},
+    world::{
+        chunk::{Chunk, ChunkCoord, FatChunkIdx, BLOCKS_PER_FAT_CHUNK},
+        util::BlockPalette,
+        BlockMesh, BlockMeshShape,
+    },
 };
 
 use super::{
@@ -20,7 +21,8 @@ pub struct ItemMesherPlugin;
 
 impl Plugin for ItemMesherPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<GenerateItemMeshEvent>()
+        //only want to clear these once the meshes are generated
+        app.init_resource::<Events<GenerateItemMeshEvent>>()
             .add_systems(
                 PreUpdate,
                 generate_item_meshes.run_if(resource_exists::<HeldItemResources>),
@@ -111,6 +113,7 @@ fn visualize_held_item(
         if let Ok(inv) = inv_query.get(held.inventory) {
             if let Some(item) = inv.selected_item_entity() {
                 if let Ok(item_mesh) = item_query.get(item) {
+                    info!("set hand item mesh to color {:?}", item_mesh.mesh);
                     *mesh = item_mesh.mesh.clone();
                     if item_mesh.material == ItemMeshMaterial::TextureArray {
                         //we have color material attached, need to switch to texture
@@ -135,6 +138,7 @@ fn visualize_held_item(
             if let Some(item) = inv.selected_item_entity() {
                 if let Ok(item_mesh) = item_query.get(item) {
                     *mesh = item_mesh.mesh.clone();
+                    info!("set hand item mesh to texture {:?}", item_mesh.mesh);
                     if item_mesh.material == ItemMeshMaterial::ColorArray {
                         //we have texture material attached, need to switch to color
                         commands.entity(entity).remove::<Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>>()
@@ -172,17 +176,18 @@ pub fn create_held_item_visualizer(
 }
 
 pub fn generate_item_meshes(
-    mut item_meshes: EventReader<GenerateItemMeshEvent>,
-    item_query: Query<&ItemIcon>,
+    mut events: ResMut<Events<GenerateItemMeshEvent>>,
+    item_query: Query<(&ItemIcon, Option<&ItemName>)>,
     images: Res<Assets<Image>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut commands: Commands,
 ) {
     const ALPHA_CUTOFF: f32 = 0.05;
-    for GenerateItemMeshEvent(item) in item_meshes.read() {
+    for GenerateItemMeshEvent(item) in events.drain() {
+        info!("received generate item mesh event");
         //use the cnunk meshing code so we get AO, whatever for free
         //and less work
-        if let Ok(item_icon_handle) = item_query.get(*item) {
+        if let Ok((item_icon_handle, opt_name)) = item_query.get(item) {
             if let Some(item_icon) = images.get(&item_icon_handle.0) {
                 let mut fat_chunk =
                     Chunk::<BlockPalette<BlockMesh, BLOCKS_PER_FAT_CHUNK>, BlockMesh> {
@@ -234,10 +239,11 @@ pub fn generate_item_meshes(
                     *vert = *vert / 16.0;
                 }
                 let item_mesh = chunk_mesh.transparent.create_mesh(&mut meshes);
-                commands.entity(*item).insert(ItemMesh {
+                commands.entity(item).insert(ItemMesh {
                     mesh: item_mesh,
                     material: ItemMeshMaterial::ColorArray,
                 });
+                info!("created item mesh for {:?}", opt_name);
             } else {
                 error!("tried to create item mesh when icon image isn't ready!");
             }

@@ -95,7 +95,7 @@ pub fn spawn_skeleton_pirate(
                 ..default()
             },
             PhysicsBundle {
-                collider: Aabb::new(Vec3::new(0.8, 1.6, 0.8), Vec3::ZERO),
+                collider: Aabb::new(Vec3::new(0.8, 1.6, 0.8), Vec3::new(-0.4, 0., -0.4)),
                 ..default()
             },
             ControllableBundle {
