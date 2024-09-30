@@ -2,6 +2,7 @@ use std::{f32::consts::PI, time::Duration};
 
 use bevy::{
     asset::LoadState,
+    core_pipeline::Skybox,
     prelude::*,
     render::render_resource::{TextureViewDescriptor, TextureViewDimension},
 };
@@ -124,6 +125,13 @@ pub struct LoadingSkyboxCubemap(Handle<Image>);
 #[derive(Resource)]
 pub struct SkyboxCubemap(pub Handle<Image>);
 
+#[derive(Resource)]
+pub struct Fog {
+    base_color: Color,
+    night_falloff: (f32, f32),
+    day_falloff: (f32, f32),
+}
+
 #[derive(Event)]
 pub struct SkipDays {
     days: u64,
@@ -146,7 +154,7 @@ impl Plugin for AtmospherePlugin {
             )
             .add_systems(
                 PreUpdate,
-                (speedup_time, update_calendar, update_sun_position).chain(),
+                (speedup_time, update_calendar, update_sky).chain(),
             )
             .add_event::<SkipDays>()
             .add_event::<DayStartedEvent>()
@@ -164,6 +172,11 @@ impl Plugin for AtmospherePlugin {
             .insert_resource(AmbientLight {
                 brightness: 100.,
                 ..default()
+            })
+            .insert_resource(Fog {
+                base_color: Color::srgba(0.56, 0.824, 1.0, 1.0),
+                day_falloff: (100.0, 200.0),
+                night_falloff: (75.0, 150.0),
             })
             .register_type::<Sun>();
     }
@@ -190,18 +203,41 @@ fn load_skybox(
     }
 }
 
-fn update_sun_position(
-    mut query: Query<(&mut Transform, &mut DirectionalLight, &Sun)>,
+fn update_sky(
+    mut sun_query: Query<(&mut Transform, &mut DirectionalLight, &Sun)>,
+    mut skybox_query: Query<&mut Skybox>,
+    mut fog_query: Query<&mut FogSettings>,
     calendar: Res<Calendar>,
+    fog_color: Res<Fog>,
 ) {
     let _my_span = info_span!("daylight_cycle", name = "daylight_cycle").entered();
 
     let t = calendar.get_sun_progress() * 2.0 * PI;
 
-    if let Some((mut light_trans, mut directional, sun)) = query.single_mut().into() {
+    if let Ok((mut light_trans, mut directional, sun)) = sun_query.get_single_mut() {
         let sun_rot = Quat::from_rotation_x(-t);
         light_trans.rotation = sun_rot;
-        directional.illuminance = t.sin().max(0.0).powf(2.0) * sun.strength;
+        let sun_strength_factor = t.sin().max(0.0).powf(2.0);
+        directional.illuminance = sun_strength_factor * sun.strength;
+        if let Ok(mut skybox) = skybox_query.get_single_mut() {
+            const SKYBOX_BRIGHTNESS_FACTOR: f32 = 0.15;
+            skybox.brightness = sun_strength_factor * SKYBOX_BRIGHTNESS_FACTOR * sun.strength;
+        }
+        if let Ok(mut fog) = fog_query.get_single_mut() {
+            fog.color = fog_color
+                .base_color
+                .mix(&Color::BLACK, 1.0 - sun_strength_factor);
+            fog.falloff = FogFalloff::Linear {
+                start: fog_color
+                    .night_falloff
+                    .0
+                    .lerp(fog_color.day_falloff.0, sun_strength_factor),
+                end: fog_color
+                    .night_falloff
+                    .1
+                    .lerp(fog_color.day_falloff.1, sun_strength_factor),
+            }
+        }
     }
 }
 

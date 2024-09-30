@@ -172,6 +172,7 @@ pub fn spawn_local_player(
             },
             LocalPlayerCamera,
             CameraEffectsBundle::default(),
+            // placeholder values - actually set by atmosphere
             FogSettings {
                 color: Color::srgba(0.56, 0.824, 1.0, 1.0),
                 // directional_light_color: Color::srgba(1.0, 0.95, 0.85, 0.5),
@@ -182,9 +183,10 @@ pub fn spawn_local_player(
                 },
                 ..default()
             },
+            // placeholder brightness - actually set by atmosphere
             Skybox {
                 image: skybox.0.clone(),
-                brightness: 1.,
+                brightness: 750.,
             },
         ))
         .id();
