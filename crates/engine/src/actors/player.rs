@@ -10,7 +10,7 @@ use leafwing_input_manager::InputManagerBundle;
 use player_controller::RotateWithMouse;
 
 use crate::{
-    actors::{ghost::FloatBoost, MoveSpeed},
+    actors::{ghost::FloatBoost, team::PlayerTeam, Invulnerability, MoveSpeed},
     chunk_loading::ChunkLoader,
     controllers::{self, *},
     effects::camera::CameraEffectsBundle,
@@ -144,11 +144,13 @@ pub fn spawn_local_player(
         .spawn((
             Name::new("local player"),
             LocalPlayer {},
-            CombatantBundle {
+            CombatantBundle::<PlayerTeam> {
                 combatant: Combatant::new(10.0, 0.0),
                 death_info: DeathInfo {
                     death_type: crate::actors::DeathType::LocalPlayer,
                 },
+                invulnerability: Invulnerability::new(Duration::from_secs(1)),
+                ..default()
             },
             RotateWithMouse {
                 pitch_bound: PI * 0.49,

@@ -6,7 +6,7 @@ use crate::{
     world::LevelLoadState,
 };
 
-use super::{ActorName, ActorResources, Combatant, CombatantBundle, Idler};
+use super::{team::PlayerTeam, ActorName, ActorResources, Combatant, CombatantBundle, Idler};
 
 #[derive(Resource)]
 pub struct WispResources {
@@ -77,7 +77,7 @@ fn spawn_wisp(
                 ..default()
             },
             Name::new("wisp"),
-            CombatantBundle {
+            CombatantBundle::<PlayerTeam> {
                 combatant: Combatant::new(10., 0.),
                 ..default()
             },

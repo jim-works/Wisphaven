@@ -4,6 +4,7 @@ use bevy::{math::primitives, prelude::*};
 use util::{iterators::*, plugin::SmoothLookTo, *};
 
 use crate::{
+    actors::team::PlayerTeam,
     debug::FixedUpdateBlockGizmos,
     items::{
         inventory::Inventory,
@@ -332,7 +333,7 @@ fn spawn_ghost(
                     ..default()
                 },
                 Name::new("ghost"),
-                CombatantBundle {
+                CombatantBundle::<PlayerTeam> {
                     combatant: Combatant::new(10.0, 0.),
                     ..default()
                 },

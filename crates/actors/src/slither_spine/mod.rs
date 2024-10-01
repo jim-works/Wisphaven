@@ -4,7 +4,10 @@ use std::f32::consts::PI;
 use super::spawning::*;
 use bevy::prelude::*;
 use engine::{
-    actors::{AggroPlayer, AggroTargets, Combatant, CombatantBundle, MoveSpeed},
+    actors::{
+        team::EnemyTeam, AggroPlayer, AggroTargets, Combatant, CombatantBundle, ContactDamage,
+        Damage, MoveSpeed,
+    },
     chunk_loading::ChunkLoader,
     controllers::{ControllableBundle, TickMovement},
     physics::{
@@ -212,10 +215,11 @@ fn spawn_head(commands: &mut Commands, scene: Handle<Scene>, transform: Transfor
                 lod_levels: 0,
                 mesh: false,
             },
-            CombatantBundle {
+            CombatantBundle::<EnemyTeam> {
                 combatant: Combatant::new(10., 1.),
                 ..default()
             },
+            ContactDamage::new(Damage::new(5.0)),
         ))
         .id()
 }
@@ -245,10 +249,11 @@ fn spawn_segement(
             Name::new("slither_spine_segment"),
             segment,
             IgnoreTerrainCollision,
-            CombatantBundle {
+            CombatantBundle::<EnemyTeam> {
                 combatant: Combatant::new_child(head, 0.),
                 ..default()
             },
+            ContactDamage::new(Damage::new(1.0)),
         ))
         .id()
 }

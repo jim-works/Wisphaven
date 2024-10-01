@@ -8,7 +8,7 @@ use crate::{
 };
 use bevy::prelude::*;
 
-use super::{ActorName, ActorResources, Combatant, CombatantBundle};
+use super::{team::PlayerTeam, ActorName, ActorResources, Combatant, CombatantBundle};
 
 #[derive(Resource)]
 pub struct WorldAnchorResources {
@@ -74,7 +74,7 @@ pub fn spawn_world_anchor(
                 ..default()
             },
             Name::new("world anchor"),
-            CombatantBundle {
+            CombatantBundle::<PlayerTeam> {
                 combatant: Combatant::new(10., 0.),
                 ..default()
             },

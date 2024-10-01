@@ -14,8 +14,15 @@ pub struct DamagePlugin;
 impl Plugin for DamagePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
+            //todo - move to posttick
             PostUpdate,
-            (kill_on_sunrise, damage::process_attacks, damage::do_death).chain(),
+            (
+                kill_on_sunrise,
+                process_attacks,
+                (update_health, apply_knockback),
+                do_death,
+            )
+                .chain(),
         );
     }
 }
@@ -25,23 +32,17 @@ pub struct KillOnSunrise;
 
 pub fn process_attacks(
     mut attack_reader: EventReader<AttackEvent>,
-    mut death_writer: EventWriter<DeathEvent>,
     mut damaged_writer: EventWriter<DamageTakenEvent>,
-    mut set: ParamSet<(
-        Query<(&Combatant, &GlobalTransform)>,
-        Query<(&mut Combatant, &mut Velocity, Option<&Mass>)>,
-    )>,
+    mut target_query: Query<(&Combatant, &GlobalTransform)>,
     name_query: Query<&Name>,
-    mut buffer: Local<Vec<(f32, Entity, AttackEvent)>>,
 ) {
     const BASE_KNOCKBACK: f32 = 0.01; //rescale knockback so that knockback mult = 1 is sensible
     for attack in attack_reader.read() {
-        let mut query = set.p0();
-        let Ok((target_info, gtf)) = query.get_inner(attack.target) else {
+        let Ok((target_info, gtf)) = target_query.get_inner(attack.target) else {
             warn!("attacking target without combatant and transform");
             continue;
         };
-        let mut lens = query.transmute_lens::<&Combatant>();
+        let mut lens = target_query.transmute_lens::<&Combatant>();
         let Some(damage_taken) = attack.damage.calc_recursive(&target_info, &lens.query()) else {
             error!("child combatant has no root!");
             continue;
@@ -70,31 +71,50 @@ pub fn process_attacks(
             damage_taken,
             attack.damage,
         );
-        buffer.push((damage_taken, root, attack.clone()));
     }
-    let mut update_query = set.p1();
-    for (damage_taken, target, attack) in buffer.drain(..) {
-        let Ok((mut target_combatant, mut v, opt_mass)) = update_query.get_mut(target) else {
-            warn!("combatant is missing velocity");
-            continue;
-        };
-        match target_combatant.as_mut() {
-            Combatant::Root { health, .. } => {
-                health.current = (health.current - damage_taken).max(0.0);
-                opt_mass
-                    .unwrap_or_default()
-                    .add_impulse(attack.knockback, &mut v);
+}
+
+fn update_health(
+    mut reader: EventReader<AttackEvent>,
+    mut writer: EventWriter<DeathEvent>,
+    mut query: Query<(&mut Combatant, &mut Invulnerability)>,
+    time: Res<Time<Fixed>>,
+) {
+    let current_time = time.elapsed();
+    for attack in reader.read() {
+        if let Ok((mut combatant, mut invulnerability)) = query.get_mut(attack.target) {
+            if invulnerability.is_active(current_time) {
+                continue;
+            }
+            invulnerability.on_hit(current_time);
+
+            if let Combatant::Root { health, .. } = combatant.as_mut() {
+                health.current = (health.current - attack.damage.amount).max(0.0);
                 if health.current == 0.0 {
                     //die
-                    death_writer.send(DeathEvent {
-                        final_blow: AttackEvent { target, ..attack },
-                        damage_taken,
+                    writer.send(DeathEvent {
+                        final_blow: AttackEvent {
+                            target: attack.target,
+                            ..*attack
+                        },
+                        damage_taken: attack.damage.amount,
                     });
                 }
             }
-            Combatant::Child { .. } => {
-                error!("root of combatant was a child");
-            }
+        }
+    }
+}
+
+fn apply_knockback(
+    mut reader: EventReader<AttackEvent>,
+    mut query: Query<(&mut Velocity, Option<&Mass>)>,
+) {
+    for AttackEvent {
+        target, knockback, ..
+    } in reader.read()
+    {
+        if let Ok((mut v, opt_mass)) = query.get_mut(*target) {
+            opt_mass.unwrap_or_default().add_impulse(*knockback, &mut v);
         }
     }
 }

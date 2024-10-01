@@ -15,6 +15,7 @@ use crate::{
 use super::{
     behaviors::{FloatAction, FloatHeight, FloatScorer, FloatWander, FloatWanderAction},
     personality::components::*,
+    team::FreeForAllTeam,
     ActorName, ActorResources, Combatant, CombatantBundle, DefaultAnimation, Idler,
     UninitializedActor,
 };
@@ -102,7 +103,7 @@ pub fn spawn_glowjelly(
                 ..default()
             },
             Name::new("glowjelly"),
-            CombatantBundle {
+            CombatantBundle::<FreeForAllTeam> {
                 combatant: Combatant::new(10., 0.),
                 ..default()
             },

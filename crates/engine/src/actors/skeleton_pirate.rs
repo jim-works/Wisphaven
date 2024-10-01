@@ -5,6 +5,7 @@ use crate::{
     actors::{
         ai::{scorers::AggroScorer, AttackAction, WalkToCurrentTargetAction},
         damage::KillOnSunrise,
+        team::EnemyTeam,
         AggroPlayer, AggroTargets,
     },
     controllers::{ControllableBundle, JumpBundle},
@@ -90,7 +91,7 @@ pub fn spawn_skeleton_pirate(
                 ..default()
             },
             Name::new("SkeletonPirate"),
-            CombatantBundle {
+            CombatantBundle::<EnemyTeam> {
                 combatant: Combatant::new(10.0, 0.0),
                 ..default()
             },

@@ -1,8 +1,15 @@
+use std::time::Duration;
+
 use bevy::{ecs::entity::EntityHashMap, prelude::*};
+use team::*;
 
 pub mod damage;
 pub mod death_effects;
 pub mod projectile;
+#[macro_use]
+pub mod team;
+
+use crate::{physics::collision::Aabb, world::LevelSystemSet};
 
 use super::Player;
 
@@ -20,7 +27,11 @@ impl Plugin for CombatPlugin {
         .add_event::<DamageTakenEvent>()
         .add_systems(Startup, create_level_entity)
         .add_systems(PreUpdate, purge_despawned_targets)
-        .add_systems(Update, update_aggro_on_player)
+        .add_systems(
+            FixedUpdate,
+            (update_aggro_on_player, all_teams_system!(do_contact_damage))
+                .in_set(LevelSystemSet::Tick),
+        )
         .add_systems(PostUpdate, update_combat_relationships)
         .insert_resource(CombatantRelationships::default())
         .register_type::<Damage>();
@@ -31,17 +42,66 @@ impl Plugin for CombatPlugin {
 pub struct LevelEntity(Entity);
 
 #[derive(Bundle, Clone)]
-pub struct CombatantBundle {
+pub struct CombatantBundle<T: team::Team> {
     pub combatant: Combatant,
     pub death_info: DeathInfo,
+    pub invulnerability: Invulnerability,
+    pub team: T,
 }
 
-impl Default for CombatantBundle {
+#[derive(Component, Clone)]
+pub struct ContactDamage {
+    pub damage: Damage,
+    pub knockback: f32,
+}
+
+impl ContactDamage {
+    pub fn new(damage: Damage) -> Self {
+        Self {
+            damage,
+            knockback: 1.0,
+        }
+    }
+}
+
+impl<T: team::Team> Default for CombatantBundle<T> {
     fn default() -> Self {
         Self {
             combatant: Combatant::new(10.0, 0.0),
             death_info: DeathInfo::default(),
+            invulnerability: Invulnerability::default(),
+            team: T::default(),
         }
+    }
+}
+
+#[derive(Component, Clone)]
+pub struct Invulnerability {
+    pub until: Duration,
+    pub time_after_hit: Duration,
+}
+
+impl Default for Invulnerability {
+    fn default() -> Self {
+        Self {
+            until: Default::default(),
+            time_after_hit: Duration::from_secs_f32(0.1),
+        }
+    }
+}
+
+impl Invulnerability {
+    pub fn new(time_after_hit: Duration) -> Self {
+        Self {
+            time_after_hit,
+            ..default()
+        }
+    }
+    pub fn on_hit(&mut self, current_time: Duration) {
+        self.until = current_time + self.time_after_hit;
+    }
+    pub fn is_active(&self, current_time: Duration) -> bool {
+        self.until >= current_time
     }
 }
 
@@ -413,4 +473,33 @@ fn update_aggro_on_player(
 fn create_level_entity(mut commands: Commands) {
     let entity = commands.spawn_empty().id();
     commands.insert_resource(LevelEntity(entity));
+}
+
+fn do_contact_damage<'a, T: Team>(
+    attacker_query: Query<(Entity, &ContactDamage, &GlobalTransform, &Aabb), With<T>>,
+    target_query: Query<(Entity, &GlobalTransform, &Aabb), T::Targets>,
+    mut attack_writer: EventWriter<AttackEvent>,
+) {
+    const AABB_SCALE: Vec3 = Vec3::splat(1.1);
+    for (entity, cd, gtf, aabb) in attacker_query.iter() {
+        for (target_entity, target_gtf, _) in
+            target_query
+                .iter()
+                .filter(move |(_, target_gtf, target_aabb)| {
+                    target_aabb.intersects_aabb(
+                        target_gtf.translation(),
+                        aabb.scale(AABB_SCALE),
+                        gtf.translation(),
+                    )
+                })
+        {
+            //they intersect
+            attack_writer.send(AttackEvent {
+                attacker: entity,
+                target: target_entity,
+                damage: cd.damage,
+                knockback: (target_gtf.translation() - gtf.translation()) * cd.knockback,
+            });
+        }
+    }
 }

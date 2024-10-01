@@ -1,9 +1,13 @@
 use std::time::Duration;
 
-use crate::physics::{PhysicsBundle, collision::Aabb, movement::Velocity};
+use crate::physics::{collision::Aabb, movement::Velocity, PhysicsBundle};
 use bevy::prelude::*;
 
-use super::{CombatantBundle, Damage, projectile::{ProjectileBundle, Projectile}};
+use super::{
+    projectile::{Projectile, ProjectileBundle},
+    team::PlayerTeam,
+    CombatantBundle, Damage,
+};
 
 #[derive(Resource)]
 pub struct CoinResources {
@@ -17,7 +21,7 @@ pub struct CoinScene;
 pub struct SpawnCoinEvent {
     pub location: Transform,
     pub velocity: Velocity,
-    pub combat: CombatantBundle,
+    pub combat: CombatantBundle<PlayerTeam>,
     pub owner: Entity,
     pub damage: Damage,
 }
@@ -43,7 +47,7 @@ pub fn spawn_coin(
     res: Res<CoinResources>,
     mut spawn_requests: EventReader<SpawnCoinEvent>,
     _children_query: Query<&Children>,
-    time: Res<Time>
+    time: Res<Time>,
 ) {
     const LIFETIME: Duration = Duration::from_secs(10);
     let curr_time = time.elapsed();
@@ -51,15 +55,13 @@ pub fn spawn_coin(
         commands.spawn((
             SceneBundle {
                 scene: res.scene.clone_weak(),
-                transform: spawn
-                    .location
-                    .with_scale(Vec3::new(0.5, 0.5, 0.5)),
+                transform: spawn.location.with_scale(Vec3::new(0.5, 0.5, 0.5)),
                 ..default()
             },
             Name::new("coin"),
             spawn.combat.clone(),
             PhysicsBundle {
-                collider: Aabb::centered(Vec3::new(0.125,0.0625,0.125)),
+                collider: Aabb::centered(Vec3::new(0.125, 0.0625, 0.125)),
                 velocity: spawn.velocity,
                 ..default()
             },
