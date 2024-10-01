@@ -8,7 +8,7 @@ use engine::{
             stamina::send_stamina_updated_events, stamina::Stamina, stamina::StaminaUpdatedEvent,
         },
         damage::process_attacks,
-        CombatInfo, DamageTakenEvent, LocalPlayer, LocalPlayerSpawnedEvent,
+        Combatant, DamageTakenEvent, LocalPlayer, LocalPlayerSpawnedEvent,
     },
     world::LevelLoadState,
 };
@@ -35,8 +35,7 @@ impl Plugin for PlayerStatsUiPlugin {
             .add_systems(OnExit(UIState::Default), hide_player_stat_ui)
             .add_systems(
                 Update,
-                (spawn_heart, spawn_stamina, layout_bug_workaround)
-                    .run_if(in_state(LevelLoadState::Loaded)),
+                (spawn_heart, spawn_stamina).run_if(in_state(LevelLoadState::Loaded)),
             );
 
         let update_hearts_id = app.world_mut().register_system(update_hearts);
@@ -241,18 +240,6 @@ fn hide_player_stat_ui(mut query: Query<&mut Visibility, With<PlayerStatContaine
     }
 }
 
-fn layout_bug_workaround(
-    mut query: Query<&mut Style, With<PlayerStatContainer>>,
-    player_query: Query<(), Added<LocalPlayer>>,
-) {
-    if player_query.is_empty() {
-        return;
-    }
-    //bug where this node's layout won't apply until I make a change -- guessing it's because it's spawned before the camera.
-    let mut style = query.get_single_mut().unwrap();
-    style.display = Display::Flex;
-}
-
 fn flash_hearts(
     player_query: Query<Entity, With<LocalPlayer>>,
     mut heart_query: Query<&mut UiImage, With<PlayerFlashHeart>>,
@@ -359,12 +346,14 @@ fn flash_stamina(
 }
 
 fn update_hearts(
-    player_query: Query<&CombatInfo, With<LocalPlayer>>,
+    player_query: Query<&Combatant, With<LocalPlayer>>,
     mut heart_query: Query<(&PlayerBrokenHeart, &mut UiImage)>,
+    combatant_query: Query<&Combatant>,
 ) {
-    let curr_health = player_query
-        .get_single()
-        .map_or(0.0, |info| info.curr_health);
+    let curr_health = player_query.get_single().map_or(0.0, |info| {
+        info.get_health(&combatant_query)
+            .map_or(0.0, |health| health.current)
+    });
     for (
         PlayerBrokenHeart {
             min_health,
@@ -401,7 +390,7 @@ fn update_stamina(
 fn spawn_heart(
     mut commands: Commands,
     mut reader: EventReader<LocalPlayerSpawnedEvent>,
-    combat_query: Query<&CombatInfo>,
+    combat_query: Query<&Combatant>,
     res: Res<PlayerHealthUiResources>,
     root_query: Query<Entity, With<PlayerHeartContainer>>,
     systems: Res<HeartSystems>,
@@ -410,7 +399,12 @@ fn spawn_heart(
         if let (Ok(root), Ok(player_combat)) = (root_query.get_single(), combat_query.get(*entity))
         {
             commands.entity(root).with_children(|children| {
-                for i in 0..player_combat.max_health.ceil() as i32 {
+                for i in 0..player_combat
+                    .get_health(&combat_query)
+                    .unwrap_or_default()
+                    .max
+                    .ceil() as i32
+                {
                     children
                         .spawn((
                             ImageBundle {

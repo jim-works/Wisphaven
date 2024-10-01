@@ -53,6 +53,7 @@ impl Plugin for UIPlugin {
                     change_button_colors,
                     do_button_action,
                     update_main_camera_ui,
+                    layout_bug_workaround,
                 ),
             )
             .insert_resource(UiScale(2.0));
@@ -197,5 +198,18 @@ fn update_main_camera_ui(
         if let Some(mut ec) = commands.get_entity(ui_element) {
             ec.insert(TargetCamera(camera_entity));
         }
+    }
+}
+
+fn layout_bug_workaround(
+    mut query: Query<&mut Style, With<MainCameraUIRoot>>,
+    player_query: Query<(), Added<LocalPlayer>>,
+) {
+    if player_query.is_empty() {
+        return;
+    }
+    //bug where this node's layout won't apply until I make a change -- guessing it's because it's spawned before the camera.
+    for mut style in query.iter_mut() {
+        style.display = style.display;
     }
 }

@@ -234,7 +234,7 @@ pub fn player_punch(
         ),
         With<LocalPlayer>,
     >,
-    combat_query: Query<&CombatInfo>,
+    combat_query: Query<&Combatant>,
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
     mut attack_punch_writer: EventWriter<AttackEvent>,

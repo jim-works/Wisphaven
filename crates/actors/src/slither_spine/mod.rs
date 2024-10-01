@@ -4,15 +4,15 @@ use std::f32::consts::PI;
 use super::spawning::*;
 use bevy::prelude::*;
 use engine::{
-    actors::{AggroPlayer, AggroTargets, CombatInfo, CombatantBundle, LocalPlayer, MoveSpeed},
+    actors::{AggroPlayer, AggroTargets, Combatant, CombatantBundle, MoveSpeed},
     chunk_loading::ChunkLoader,
     controllers::{ControllableBundle, TickMovement},
     physics::{
         collision::{Aabb, CollidingDirections, IgnoreTerrainCollision, TerrainQueryPoint},
-        movement::{Acceleration, Drag, GravityMult, LookInMovementDirection, Velocity},
-        PhysicsBundle, PhysicsLevelSet, GRAVITY,
+        movement::{Drag, GravityMult, LookInMovementDirection, Velocity},
+        PhysicsBundle, PhysicsLevelSet,
     },
-    world::{chunk::ChunkCoord, Level, LevelSystemSet},
+    world::{chunk::ChunkCoord, LevelLoadState, LevelSystemSet},
 };
 
 pub struct SlitherSpinePlugin;
@@ -22,10 +22,11 @@ impl Plugin for SlitherSpinePlugin {
         app.add_systems(Startup, load_resources)
             .add_systems(
                 FixedUpdate,
-                (trigger_spawn, spawn_handler, update_segments)
+                (spawn_handler, update_segments)
                     .chain()
                     .in_set(LevelSystemSet::PostTick),
             )
+            .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawn)
             .add_systems(FixedUpdate, move_head.in_set(PhysicsLevelSet::Main))
             .add_event::<SpawnSlitherSpineEvent>()
             .add_actor::<SpawnSlitherSpineEvent>("slither_spine".to_string());
@@ -85,20 +86,15 @@ fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     });
 }
 
-fn trigger_spawn(
-    query: Query<(), With<SlitherSpineSegment>>,
-    mut send_events: EventWriter<SpawnSlitherSpineEvent>,
-) {
-    if query.is_empty() {
-        send_events.send(SpawnSlitherSpineEvent {
-            default: DefaultSpawnEvent {
-                transform: Transform::from_translation(Vec3::new(0., 15., 0.))
-                    .with_scale(Vec3::ONE * 3.),
-            },
-            segment_count: 15,
-            segment_offset: Vec3::new(0., 0., -3.),
-        });
-    }
+fn trigger_spawn(mut send_events: EventWriter<SpawnSlitherSpineEvent>) {
+    send_events.send(SpawnSlitherSpineEvent {
+        default: DefaultSpawnEvent {
+            transform: Transform::from_translation(Vec3::new(0., 15., 0.))
+                .with_scale(Vec3::ONE * 3.),
+        },
+        segment_count: 15,
+        segment_offset: Vec3::new(0., 0., -3.),
+    });
 }
 
 fn update_segments(
@@ -140,31 +136,36 @@ fn spawn_handler(
 ) {
     for spawn_event in events.read() {
         let segment_length = spawn_event.segment_offset.length();
-        let mut prev: Option<Entity> = None;
+        let mut prev: Option<(Entity, Entity)> = None;
         for i in 0..spawn_event.segment_count {
             let offset = i as f32 * spawn_event.segment_offset;
-            prev = Some(if let Some(prev_segment) = prev {
-                spawn_segement(
-                    &mut commands,
-                    resources.spine_scene.clone(),
-                    spawn_event
-                        .default
-                        .transform
-                        .with_translation(spawn_event.default.transform.translation + offset),
-                    SlitherSpineSegment {
-                        target_dist: segment_length,
-                        parent: prev_segment,
-                    },
+            prev = Some(if let Some((prev_segment, head)) = prev {
+                (
+                    spawn_segement(
+                        &mut commands,
+                        resources.spine_scene.clone(),
+                        spawn_event
+                            .default
+                            .transform
+                            .with_translation(spawn_event.default.transform.translation + offset),
+                        SlitherSpineSegment {
+                            target_dist: segment_length,
+                            parent: prev_segment,
+                        },
+                        head,
+                    ),
+                    head,
                 )
             } else {
-                spawn_head(
+                let head = spawn_head(
                     &mut commands,
                     resources.head_scene.clone(),
                     spawn_event
                         .default
                         .transform
                         .with_translation(spawn_event.default.transform.translation + offset),
-                )
+                );
+                (head, head)
             });
         }
     }
@@ -212,7 +213,7 @@ fn spawn_head(commands: &mut Commands, scene: Handle<Scene>, transform: Transfor
                 mesh: false,
             },
             CombatantBundle {
-                combat_info: CombatInfo::new(100., 1.),
+                combatant: Combatant::new(10., 1.),
                 ..default()
             },
         ))
@@ -224,6 +225,7 @@ fn spawn_segement(
     scene: Handle<Scene>,
     transform: Transform,
     segment: SlitherSpineSegment,
+    head: Entity,
 ) -> Entity {
     commands
         .spawn((
@@ -243,6 +245,10 @@ fn spawn_segement(
             Name::new("slither_spine_segment"),
             segment,
             IgnoreTerrainCollision,
+            CombatantBundle {
+                combatant: Combatant::new_child(head, 0.),
+                ..default()
+            },
         ))
         .id()
 }

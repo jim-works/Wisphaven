@@ -27,49 +27,73 @@ pub fn process_attacks(
     mut attack_reader: EventReader<AttackEvent>,
     mut death_writer: EventWriter<DeathEvent>,
     mut damaged_writer: EventWriter<DamageTakenEvent>,
-    mut combat_query: Query<(
-        &mut CombatInfo,
-        &GlobalTransform,
-        Option<(&Mass, &mut Velocity)>,
+    mut set: ParamSet<(
+        Query<(&Combatant, &GlobalTransform)>,
+        Query<(&mut Combatant, &mut Velocity, Option<&Mass>)>,
     )>,
     name_query: Query<&Name>,
+    mut buffer: Local<Vec<(f32, Entity, AttackEvent)>>,
 ) {
     const BASE_KNOCKBACK: f32 = 0.01; //rescale knockback so that knockback mult = 1 is sensible
     for attack in attack_reader.read() {
-        if let Ok((mut target_info, gtf, impulse)) = combat_query.get_mut(attack.target) {
-            let damage_taken = attack.damage.calc(&target_info);
-            let knockback_impulse =
-                attack.knockback * target_info.knockback_multiplier * BASE_KNOCKBACK;
-            damaged_writer.send(DamageTakenEvent {
-                attacker: attack.attacker,
-                target: attack.target,
-                damage_taken: Damage {
-                    amount: damage_taken,
-                    ..attack.damage
-                },
-                knockback_impulse: attack.knockback,
-                hit_location: gtf.translation(),
-            });
-            if let Some((mass, mut v)) = impulse {
-                mass.add_impulse(knockback_impulse, &mut v);
+        let mut query = set.p0();
+        let Ok((target_info, gtf)) = query.get_inner(attack.target) else {
+            warn!("attacking target without combatant and transform");
+            continue;
+        };
+        let mut lens = query.transmute_lens::<&Combatant>();
+        let Some(damage_taken) = attack.damage.calc_recursive(&target_info, &lens.query()) else {
+            error!("child combatant has no root!");
+            continue;
+        };
+
+        let root = target_info
+            .get_ancestor(&lens.query())
+            .unwrap_or(attack.target);
+        damaged_writer.send(DamageTakenEvent {
+            attacker: attack.attacker,
+            target: root,
+            damage_taken: Damage {
+                amount: damage_taken,
+                ..attack.damage
+            },
+            knockback_impulse: attack.knockback,
+            hit_location: gtf.translation(),
+        });
+
+        info!(
+            "{:?} ({:?}) attacked {:?} ({:?}) for {} damage (inital damage {:?})",
+            attack.attacker,
+            name_query.get(attack.attacker).ok(),
+            root,
+            name_query.get(root).ok(),
+            damage_taken,
+            attack.damage,
+        );
+        buffer.push((damage_taken, root, attack.clone()));
+    }
+    let mut update_query = set.p1();
+    for (damage_taken, target, attack) in buffer.drain(..) {
+        let Ok((mut target_combatant, mut v, opt_mass)) = update_query.get_mut(target) else {
+            warn!("combatant is missing velocity");
+            continue;
+        };
+        match target_combatant.as_mut() {
+            Combatant::Root { health, .. } => {
+                health.current = (health.current - damage_taken).max(0.0);
+                opt_mass
+                    .unwrap_or_default()
+                    .add_impulse(attack.knockback, &mut v);
+                if health.current == 0.0 {
+                    //die
+                    death_writer.send(DeathEvent {
+                        final_blow: AttackEvent { target, ..attack },
+                        damage_taken,
+                    });
+                }
             }
-            target_info.curr_health = (target_info.curr_health - damage_taken).max(0.0);
-            info!(
-                "{:?} ({:?}) attacked {:?} ({:?}) for {} damage (inital damage {:?}). health: {}",
-                attack.attacker,
-                name_query.get(attack.attacker).ok(),
-                attack.target,
-                name_query.get(attack.target).ok(),
-                damage_taken,
-                attack.damage,
-                target_info.curr_health
-            );
-            if target_info.curr_health == 0.0 {
-                //die
-                death_writer.send(DeathEvent {
-                    final_blow: *attack,
-                    damage_taken,
-                });
+            Combatant::Child { .. } => {
+                error!("root of combatant was a child");
             }
         }
     }

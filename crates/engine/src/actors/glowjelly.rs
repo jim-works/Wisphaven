@@ -4,14 +4,18 @@ use bevy::prelude::*;
 use big_brain::prelude::*;
 
 use crate::{
-    physics::{collision::Aabb, movement::GravityMult, PhysicsBundle},
+    physics::{
+        collision::Aabb,
+        movement::{GravityMult, Mass},
+        PhysicsBundle,
+    },
     util::{plugin::SmoothLookTo, SendEventCommand},
 };
 
 use super::{
     behaviors::{FloatAction, FloatHeight, FloatScorer, FloatWander, FloatWanderAction},
     personality::components::*,
-    ActorName, ActorResources, CombatInfo, CombatantBundle, DefaultAnimation, Idler,
+    ActorName, ActorResources, Combatant, CombatantBundle, DefaultAnimation, Idler,
     UninitializedActor,
 };
 
@@ -91,62 +95,58 @@ pub fn spawn_glowjelly(
     _children_query: Query<&Children>,
 ) {
     for spawn in spawn_requests.read() {
-        let id = commands
-            .spawn((
-                SceneBundle {
-                    scene: jelly_res.scene.clone_weak(),
-                    transform: spawn.location,
+        commands.spawn((
+            SceneBundle {
+                scene: jelly_res.scene.clone_weak(),
+                transform: spawn.location,
+                ..default()
+            },
+            Name::new("glowjelly"),
+            CombatantBundle {
+                combatant: Combatant::new(10., 0.),
+                ..default()
+            },
+            PhysicsBundle {
+                collider: Aabb::new(Vec3::ONE, -0.5 * Vec3::ONE),
+                gravity: GravityMult::new(0.1),
+                mass: Mass(0.1),
+                ..default()
+            },
+            PersonalityBundle {
+                personality: PersonalityValues {
+                    status: FacetValue::new(100.0, 1.0).unwrap(),
                     ..default()
                 },
-                Name::new("glowjelly"),
-                CombatantBundle {
-                    combat_info: CombatInfo {
-                        knockback_multiplier: 10.0,
-                        ..CombatInfo::new(10.0, 0.0)
+                ..default()
+            },
+            Glowjelly {
+                color: spawn.color,
+                ..default()
+            },
+            UninitializedActor,
+            FloatHeight::new(20.0),
+            Idler::default(),
+            FloatWander::default(),
+            SmoothLookTo::new(0.5),
+            Thinker::build()
+                .label("glowjelly thinker")
+                .picker(FirstToScore::new(0.005))
+                .when(
+                    FloatScorer,
+                    FloatAction {
+                        impulse: 5.0,
+                        turn_speed: 0.5,
                     },
-                    ..default()
-                },
-                PhysicsBundle {
-                    collider: Aabb::new(Vec3::ONE, -0.5 * Vec3::ONE),
-                    gravity: GravityMult::new(0.1),
-                    ..default()
-                },
-                PersonalityBundle {
-                    personality: PersonalityValues {
-                        status: FacetValue::new(100.0, 1.0).unwrap(),
-                        ..default()
+                )
+                .when(
+                    FixedScore::build(0.05),
+                    FloatWanderAction {
+                        impulse: 0.1,
+                        squish_factor: Vec3::new(1.0, 0.33, 1.0),
+                        anim_speed: 0.66,
                     },
-                    ..default()
-                },
-                Glowjelly {
-                    color: spawn.color,
-                    ..default()
-                },
-                UninitializedActor,
-                FloatHeight::new(20.0),
-                Idler::default(),
-                FloatWander::default(),
-                SmoothLookTo::new(0.5),
-                Thinker::build()
-                    .label("glowjelly thinker")
-                    .picker(FirstToScore::new(0.005))
-                    .when(
-                        FloatScorer,
-                        FloatAction {
-                            impulse: 5.0,
-                            turn_speed: 0.5,
-                        },
-                    )
-                    .when(
-                        FixedScore::build(0.05),
-                        FloatWanderAction {
-                            impulse: 0.1,
-                            squish_factor: Vec3::new(1.0, 0.33, 1.0),
-                            anim_speed: 0.66,
-                        },
-                    ),
-            ))
-            .id();
+                ),
+        ));
     }
 }
 

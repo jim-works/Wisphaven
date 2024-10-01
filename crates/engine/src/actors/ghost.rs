@@ -14,14 +14,14 @@ use crate::{
     mesher::item_mesher::HeldItemResources,
     physics::{
         collision::Aabb,
-        movement::{GravityMult, Velocity},
+        movement::{GravityMult, Mass, Velocity},
         PhysicsBundle, PhysicsLevelSet,
     },
-    world::{settings::GraphicsSettings, BlockPhysics, Level, LevelLoadState, LevelSystemSet},
+    world::{settings::GraphicsSettings, BlockPhysics, Level, LevelSystemSet},
 };
 
 use super::{
-    abilities::stamina::Stamina, ActorName, ActorResources, CombatInfo, CombatantBundle, Idler,
+    abilities::stamina::Stamina, ActorName, ActorResources, Combatant, CombatantBundle, Idler,
 };
 
 const GHOST_PARTICLE_COUNT: u32 = 7;
@@ -333,14 +333,12 @@ fn spawn_ghost(
                 },
                 Name::new("ghost"),
                 CombatantBundle {
-                    combat_info: CombatInfo {
-                        knockback_multiplier: 2.0,
-                        ..CombatInfo::new(10.0, 0.0)
-                    },
+                    combatant: Combatant::new(10.0, 0.),
                     ..default()
                 },
                 PhysicsBundle {
                     collider: Aabb::centered(Vec3::new(0.8, 1.0, 0.8)),
+                    mass: Mass(0.5),
                     ..default()
                 },
                 Float::default(),

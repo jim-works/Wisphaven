@@ -1,14 +1,14 @@
+use core::f32;
+
 use crate::{
     chunk_loading::ChunkLoader,
-    physics::{collision::Aabb, PhysicsBundle},
+    physics::{collision::Aabb, movement::Mass, PhysicsBundle},
     util::SendEventCommand,
-    world::settings::Settings,
-    world::Level,
-    world::LevelLoadState,
+    world::{settings::Settings, Level, LevelLoadState},
 };
 use bevy::prelude::*;
 
-use super::{ActorName, ActorResources, CombatInfo, CombatantBundle};
+use super::{ActorName, ActorResources, Combatant, CombatantBundle};
 
 #[derive(Resource)]
 pub struct WorldAnchorResources {
@@ -67,33 +67,29 @@ pub fn spawn_world_anchor(
     _children_query: Query<&Children>,
 ) {
     for spawn in spawn_requests.read() {
-        let id = commands
-            .spawn((
-                SceneBundle {
-                    scene: res.scene.clone_weak(),
-                    transform: spawn.location.with_scale(Vec3::new(2.0, 2.0, 2.0)),
-                    ..default()
-                },
-                Name::new("world anchor"),
-                CombatantBundle {
-                    combat_info: CombatInfo {
-                        knockback_multiplier: 0.0,
-                        ..CombatInfo::new(10.0, 0.0)
-                    },
-                    ..default()
-                },
-                PhysicsBundle {
-                    //center of anchor is at bottom of model, so spawn the collision box offset
-                    collider: Aabb::new(Vec3::new(2.0, 2.0, 2.0), Vec3::new(-1.0, 0.0, -1.0)),
-                    ..default()
-                },
-                WorldAnchor,
-                ChunkLoader {
-                    mesh: false,
-                    ..settings.init_loader.clone()
-                }, //no UninitializedActor b/c we don't have to do any setup
-            ))
-            .id();
+        commands.spawn((
+            SceneBundle {
+                scene: res.scene.clone_weak(),
+                transform: spawn.location.with_scale(Vec3::new(2.0, 2.0, 2.0)),
+                ..default()
+            },
+            Name::new("world anchor"),
+            CombatantBundle {
+                combatant: Combatant::new(10., 0.),
+                ..default()
+            },
+            PhysicsBundle {
+                //center of anchor is at bottom of model, so spawn the collision box offset
+                collider: Aabb::new(Vec3::new(2.0, 2.0, 2.0), Vec3::new(-1.0, 0.0, -1.0)),
+                mass: Mass(f32::INFINITY),
+                ..default()
+            },
+            WorldAnchor,
+            ChunkLoader {
+                mesh: false,
+                ..settings.init_loader.clone()
+            }, //no UninitializedActor b/c we don't have to do any setup
+        ));
         commands.insert_resource(WorldAnchor);
     }
 }

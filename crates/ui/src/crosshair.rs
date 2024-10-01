@@ -55,6 +55,7 @@ fn spawn_crosshair(
                     },
                     ..default()
                 },
+                Name::new("crosshair container"),
             ))
             .with_children(|children| {
                 children.spawn(ImageBundle {

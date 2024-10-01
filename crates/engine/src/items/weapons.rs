@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    actors::{coin::SpawnCoinEvent, AttackEvent, CombatInfo, CombatantBundle, Damage},
+    actors::{coin::SpawnCoinEvent, AttackEvent, Combatant, CombatantBundle, Damage},
     physics::{
         collision::Aabb,
         movement::Velocity,
@@ -106,7 +106,7 @@ pub fn launch_coin(
                 location: Transform::from_translation(tf.translation),
                 velocity: Velocity(tf.forward() * weapon.speed),
                 combat: CombatantBundle {
-                    combat_info: CombatInfo::new(1.0, 0.0),
+                    combatant: Combatant::new(1.0, 0.0),
                     ..default()
                 },
                 owner: *user,

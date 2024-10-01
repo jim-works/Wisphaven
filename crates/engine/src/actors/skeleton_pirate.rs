@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super::{
-    coin::SpawnCoinEvent, world_anchor::WorldAnchor, ActorName, ActorResources, CombatInfo,
+    coin::SpawnCoinEvent, world_anchor::WorldAnchor, ActorName, ActorResources, Combatant,
     CombatantBundle, Damage, DefaultAnimation, Jump, MoveSpeed, UninitializedActor,
 };
 
@@ -91,7 +91,7 @@ pub fn spawn_skeleton_pirate(
             },
             Name::new("SkeletonPirate"),
             CombatantBundle {
-                combat_info: CombatInfo::new(10.0, 0.0),
+                combatant: Combatant::new(10.0, 0.0),
                 ..default()
             },
             PhysicsBundle {

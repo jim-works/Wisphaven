@@ -12,7 +12,7 @@
         ),
         "engine::items::weapons::MeleeWeaponItem": (
             damage: Damage (amount: 5.0),
-            knockback: 5.0,
+            knockback: 1.0,
         ),
         "engine::items::tools::DontHitBlocks": (),
         "engine::items::item_attributes::ItemSwingSpeed": (

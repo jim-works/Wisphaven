@@ -36,7 +36,7 @@ use super::{
     },
     death_effects::RestoreStaminaOnKill,
     ghost::{spawn_ghost_hand, Float, GhostResources, Handed},
-    CombatInfo, CombatantBundle, Damage, DeathInfo,
+    Combatant, CombatantBundle, Damage, DeathInfo,
 };
 
 #[derive(Component)]
@@ -145,7 +145,7 @@ pub fn spawn_local_player(
             Name::new("local player"),
             LocalPlayer {},
             CombatantBundle {
-                combat_info: CombatInfo::new(10.0, 0.0),
+                combatant: Combatant::new(10.0, 0.0),
                 death_info: DeathInfo {
                     death_type: crate::actors::DeathType::LocalPlayer,
                 },

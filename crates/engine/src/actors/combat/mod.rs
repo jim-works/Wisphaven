@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs::entity::EntityHashMap, prelude::*};
 
 pub mod damage;
 pub mod death_effects;
@@ -21,6 +21,8 @@ impl Plugin for CombatPlugin {
         .add_systems(Startup, create_level_entity)
         .add_systems(PreUpdate, purge_despawned_targets)
         .add_systems(Update, update_aggro_on_player)
+        .add_systems(PostUpdate, update_combat_relationships)
+        .insert_resource(CombatantRelationships::default())
         .register_type::<Damage>();
     }
 }
@@ -30,36 +32,151 @@ pub struct LevelEntity(Entity);
 
 #[derive(Bundle, Clone)]
 pub struct CombatantBundle {
-    pub combat_info: CombatInfo,
+    pub combatant: Combatant,
     pub death_info: DeathInfo,
 }
 
 impl Default for CombatantBundle {
     fn default() -> Self {
         Self {
-            combat_info: CombatInfo::new(10.0, 0.0),
+            combatant: Combatant::new(10.0, 0.0),
             death_info: DeathInfo::default(),
         }
     }
 }
 
 #[derive(Component, Clone)]
-pub struct CombatInfo {
-    pub curr_health: f32,
-    pub max_health: f32,
-    pub curr_defense: f32,
-    pub base_defense: f32,
-    pub knockback_multiplier: f32,
+pub enum Combatant {
+    Root { health: Health, defense: Defense },
+    Child { parent: Entity, defense: Defense },
 }
 
-impl CombatInfo {
+impl Combatant {
     pub fn new(health: f32, defense: f32) -> Self {
+        Self::Root {
+            health: Health::new(health),
+            defense: Defense::new(defense),
+        }
+    }
+    pub fn new_child(parent: Entity, defense: f32) -> Self {
+        Self::Child {
+            parent,
+            defense: Defense::new(defense),
+        }
+    }
+
+    //returns farthest ancestor (other than me)
+    pub fn get_ancestor(&self, query: &Query<&Combatant>) -> Option<Entity> {
+        match self {
+            Combatant::Root { .. } => None,
+            Combatant::Child { parent, .. } => {
+                let Ok(parent_combatant) = query.get(*parent) else {
+                    return None;
+                };
+                return parent_combatant.get_ancestor(query).or(Some(*parent));
+            }
+        }
+    }
+
+    pub fn get_health(&self, query: &Query<&Combatant>) -> Option<Health> {
+        match self {
+            Combatant::Root { health, .. } => Some(*health),
+            Combatant::Child { .. } => {
+                let root = self
+                    .get_ancestor(query)
+                    .map(|root| query.get(root).ok())
+                    .flatten();
+                match root {
+                    Some(Combatant::Root { health, .. }) => Some(*health),
+                    _ => {
+                        warn!("combatant has no root");
+                        None
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct Health {
+    pub current: f32,
+    pub max: f32,
+}
+
+impl Health {
+    pub fn new(amount: f32) -> Self {
         Self {
-            curr_health: health,
-            max_health: health,
-            curr_defense: defense,
-            base_defense: defense,
-            knockback_multiplier: 1.0,
+            current: amount,
+            max: amount,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct Defense {
+    pub current: f32,
+    pub base: f32,
+}
+
+impl Defense {
+    pub fn new(amount: f32) -> Self {
+        Self {
+            current: amount,
+            base: amount,
+        }
+    }
+}
+
+#[derive(Resource, Default)]
+struct CombatantRelationships {
+    map: EntityHashMap<Vec<Entity>>,
+}
+
+impl CombatantRelationships {
+    // may contain entities that don't exist
+    fn get_children_unfiltered(&self, parent: Entity) -> Option<impl Iterator<Item = &Entity>> {
+        self.map.get(&parent).map(|vec| vec.iter())
+    }
+
+    fn insert(&mut self, entity: Entity, combatant: &Combatant) {
+        match combatant {
+            Combatant::Root { .. } => {
+                if !self.map.contains_key(&entity) {
+                    self.map.insert(entity, Vec::new());
+                }
+            }
+            Combatant::Child { parent, .. } => match self.map.get_mut(parent) {
+                Some(children) => children.push(entity),
+                None => {
+                    self.map.insert(*parent, vec![entity]);
+                }
+            },
+        }
+    }
+
+    // may contain entities that don't exist
+    fn remove_parent(&mut self, parent: Entity) -> Option<Vec<Entity>> {
+        self.map.remove(&parent)
+    }
+}
+
+fn update_combat_relationships(
+    mut commands: Commands,
+    added: Query<(Entity, &Combatant), Added<Combatant>>,
+    mut removed: RemovedComponents<Combatant>,
+    mut relationships: ResMut<CombatantRelationships>,
+) {
+    for (entity, combatant) in added.iter() {
+        relationships.insert(entity, combatant);
+    }
+    for entity in removed.read() {
+        if let Some(mut children) = relationships.remove_parent(entity) {
+            for child in children.drain(..) {
+                if let Some(ec) = commands.get_entity(child) {
+                    ec.despawn_recursive();
+                }
+            }
         }
     }
 }
@@ -101,18 +218,35 @@ impl Damage {
     }
 
     //calculates actual HP to remove
-    pub fn calc(self, info: &CombatInfo) -> f32 {
+    pub fn calc(self, defense: Defense) -> f32 {
         //curve sets damage multiplier between 0 and 2. infinite defense gives multiplier 0, -infinite defense gives multiplier 2
         //0 defense gives multiplier 1
         //TODO: maybe switch to sigmoid, I don't think I want armor to have this amount of diminishing returns.
         const DEFENSE_SCALE: f32 = 0.1;
         match self.dtype {
             DamageType::Normal => {
-                (1.0 - (DEFENSE_SCALE * info.curr_defense)
-                    / (1.0 + (DEFENSE_SCALE * info.curr_defense).abs()))
+                (1.0 - (DEFENSE_SCALE * defense.current)
+                    / (1.0 + (DEFENSE_SCALE * defense.current).abs()))
                     * self.amount
             }
             DamageType::HPRemoval => self.amount,
+        }
+    }
+
+    //calculates damage done to root, if root exists
+    pub fn calc_recursive(self, target: &Combatant, query: &Query<&Combatant>) -> Option<f32> {
+        match target {
+            Combatant::Root { defense, .. } => Some(self.calc(*defense)),
+            Combatant::Child { parent, defense } => {
+                let Ok(parent) = query.get(*parent) else {
+                    return None;
+                };
+                let parents_damage = Damage {
+                    amount: self.calc(*defense),
+                    dtype: self.dtype,
+                };
+                return parents_damage.calc_recursive(parent, query);
+            }
         }
     }
 }

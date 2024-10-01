@@ -76,6 +76,12 @@ impl Default for Mass {
     }
 }
 
+impl Default for &Mass {
+    fn default() -> Self {
+        &Mass(1.0)
+    }
+}
+
 impl Mass {
     pub fn add_force(self, f: Vec3, accel: &mut Acceleration) {
         accel.0 += self.get_force(f)

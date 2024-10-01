@@ -113,7 +113,6 @@ fn visualize_held_item(
         if let Ok(inv) = inv_query.get(held.inventory) {
             if let Some(item) = inv.selected_item_entity() {
                 if let Ok(item_mesh) = item_query.get(item) {
-                    info!("set hand item mesh to color {:?}", item_mesh.mesh);
                     *mesh = item_mesh.mesh.clone();
                     if item_mesh.material == ItemMeshMaterial::TextureArray {
                         //we have color material attached, need to switch to texture
@@ -138,7 +137,6 @@ fn visualize_held_item(
             if let Some(item) = inv.selected_item_entity() {
                 if let Ok(item_mesh) = item_query.get(item) {
                     *mesh = item_mesh.mesh.clone();
-                    info!("set hand item mesh to texture {:?}", item_mesh.mesh);
                     if item_mesh.material == ItemMeshMaterial::ColorArray {
                         //we have texture material attached, need to switch to color
                         commands.entity(entity).remove::<Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>>()
