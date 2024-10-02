@@ -74,10 +74,11 @@ fn update_window_focused(mut focused: ResMut<WindowFocused>, query: Query<&Windo
 }
 
 pub fn toggle_player_flight(
-    mut query: Query<(&ActionState<Action>, &mut MovementMode, &mut GravityMult), With<Player>>,
+    action: Res<ActionState<Action>>,
+    mut query: Query<(&mut MovementMode, &mut GravityMult), With<Player>>,
 ) {
-    for (act, mut mode, mut gravity) in query.iter_mut() {
-        if act.just_pressed(&Action::ToggleFlight) {
+    for (mut mode, mut gravity) in query.iter_mut() {
+        if action.just_pressed(&Action::ToggleFlight) {
             match *mode {
                 MovementMode::Flying => {
                     *mode = MovementMode::Normal;
@@ -95,34 +96,27 @@ pub fn toggle_player_flight(
 }
 
 pub fn move_player(
-    mut query: Query<
-        (
-            &ActionState<Action>,
-            &Transform,
-            &mut TickMovement,
-            &MovementMode,
-        ),
-        With<Player>,
-    >,
+    mut query: Query<(&Transform, &mut TickMovement, &MovementMode), With<Player>>,
+    action: Res<ActionState<Action>>,
 ) {
-    for (act, tf, mut fm, mode) in query.iter_mut() {
+    for (tf, mut fm, mode) in query.iter_mut() {
         let mut dv = Vec3::ZERO;
-        dv.z -= if act.pressed(&Action::MoveForward) {
+        dv.z -= if action.pressed(&Action::MoveForward) {
             1.0
         } else {
             0.0
         };
-        dv.z += if act.pressed(&Action::MoveBack) {
+        dv.z += if action.pressed(&Action::MoveBack) {
             1.0
         } else {
             0.0
         };
-        dv.x += if act.pressed(&Action::MoveRight) {
+        dv.x += if action.pressed(&Action::MoveRight) {
             1.0
         } else {
             0.0
         };
-        dv.x -= if act.pressed(&Action::MoveLeft) {
+        dv.x -= if action.pressed(&Action::MoveLeft) {
             1.0
         } else {
             0.0
@@ -132,12 +126,12 @@ pub fn move_player(
         fm.0 = Quat::from_axis_angle(Vec3::Y, y_rot) * dv;
 
         if *mode == MovementMode::Flying {
-            fm.0.y += if act.pressed(&Action::MoveUp) {
+            fm.0.y += if action.pressed(&Action::MoveUp) {
                 1.0
             } else {
                 0.0
             };
-            fm.0.y -= if act.pressed(&Action::MoveDown) {
+            fm.0.y -= if action.pressed(&Action::MoveDown) {
                 1.0
             } else {
                 0.0
@@ -147,12 +141,13 @@ pub fn move_player(
 }
 
 pub fn boost_float_player(
-    mut query: Query<(Entity, &mut FloatBoost, &ActionState<Action>, &MovementMode), With<Player>>,
+    mut query: Query<(Entity, &mut FloatBoost, &MovementMode), With<Player>>,
     mut commands: Commands,
+    action: Res<ActionState<Action>>,
 ) {
-    for (entity, mut fb, act, mode) in query.iter_mut() {
-        fb.enabled = *mode != MovementMode::Flying && act.pressed(&Action::Float);
-        if act.just_pressed(&Action::Float) {
+    for (entity, mut fb, mode) in query.iter_mut() {
+        fb.enabled = *mode != MovementMode::Flying && action.pressed(&Action::Float);
+        if action.just_pressed(&Action::Float) {
             if let Some(mut ec) = commands.get_entity(entity) {
                 ec.remove::<Grappled>();
             }
@@ -162,15 +157,16 @@ pub fn boost_float_player(
 
 pub fn dash_player(
     mut query: Query<
-        (Entity, &ActionState<Action>, &Dash, &mut Stamina, &Velocity),
+        (Entity, &Dash, &mut Stamina, &Velocity),
         (With<Player>, Without<CurrentlyDashing>),
     >,
     mut commands: Commands,
     time: Res<Time>,
+    action: Res<ActionState<Action>>,
 ) {
     let current_time = time.elapsed();
-    for (entity, act, dash, mut stamina, v) in query.iter_mut() {
-        if act.just_pressed(&Action::Dash) && dash.stamina_cost.apply(&mut stamina) {
+    for (entity, dash, mut stamina, v) in query.iter_mut() {
+        if action.just_pressed(&Action::Dash) && dash.stamina_cost.apply(&mut stamina) {
             if let Some(mut ec) = commands.get_entity(entity) {
                 ec.insert(CurrentlyDashing::new(*dash, current_time, v.0));
             }
@@ -179,15 +175,16 @@ pub fn dash_player(
 }
 
 pub fn rotate_mouse(
-    mut query: Query<(&mut Transform, &mut RotateWithMouse, &ActionState<Action>)>,
+    mut query: Query<(&mut Transform, &mut RotateWithMouse)>,
     focused: Res<WindowFocused>,
     settings: Res<Settings>,
+    action: Res<ActionState<Action>>,
 ) {
     if !focused.0 {
         return;
     }
     let sensitivity = settings.mouse_sensitivity;
-    for (mut tf, mut rotation, action) in query.iter_mut() {
+    for (mut tf, mut rotation) in query.iter_mut() {
         let delta = action.axis_pair(&Action::Look);
         if !rotation.lock_yaw {
             rotation.yaw -= delta.x * sensitivity;
@@ -224,16 +221,7 @@ pub fn follow_local_player(
 }
 
 pub fn player_punch(
-    mut player_query: Query<
-        (
-            Entity,
-            &GlobalTransform,
-            &ActionState<Action>,
-            &Player,
-            &mut Inventory,
-        ),
-        With<LocalPlayer>,
-    >,
+    mut player_query: Query<(Entity, &GlobalTransform, &Player, &mut Inventory), With<LocalPlayer>>,
     combat_query: Query<&Combatant>,
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
@@ -241,12 +229,13 @@ pub fn player_punch(
     mut block_hit_writer: EventWriter<BlockHitEvent>,
     focused: Res<WindowFocused>,
     level: Res<Level>,
+    action: Res<ActionState<Action>>,
 ) {
     if !focused.0 {
         return;
     }
-    if let Ok((player_entity, tf, act, player, mut inv)) = player_query.get_single_mut() {
-        if act.pressed(&Action::Punch) {
+    if let Ok((player_entity, tf, player, mut inv)) = player_query.get_single_mut() {
+        if action.pressed(&Action::Punch) {
             //first test if we punched a combatant
             let slot = inv.selected_slot();
             match inv.get(slot) {
@@ -290,27 +279,20 @@ pub fn player_punch(
 }
 
 pub fn player_use(
-    mut player_query: Query<
-        (
-            &mut Inventory,
-            Entity,
-            &GlobalTransform,
-            &ActionState<Action>,
-        ),
-        With<LocalPlayer>,
-    >,
+    mut player_query: Query<(&mut Inventory, Entity, &GlobalTransform), With<LocalPlayer>>,
     focused: Res<WindowFocused>,
     level: Res<Level>,
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
     usable_block_query: Query<&UsableBlock>,
     mut block_use_writer: EventWriter<BlockUsedEvent>,
+    action: Res<ActionState<Action>>,
 ) {
     if !focused.0 {
         return;
     }
-    if let Ok((mut inv, entity, tf, act)) = player_query.get_single_mut() {
-        if act.just_pressed(&Action::Use) {
+    if let Ok((mut inv, entity, tf)) = player_query.get_single_mut() {
+        if action.just_pressed(&Action::Use) {
             //first test if we used a block
             if let Some(RaycastHit::Block(coord, _)) = query::raycast(
                 Raycast::new(tf.translation(), tf.forward(), 10.0),
@@ -341,17 +323,18 @@ pub fn player_use(
 }
 
 pub fn player_scroll_inventory(
-    mut query: Query<(&mut Inventory, &ActionState<Action>), With<LocalPlayer>>,
+    mut query: Query<&mut Inventory, With<LocalPlayer>>,
     mut equip_writer: EventWriter<EquipItemEvent>,
     mut unequip_writer: EventWriter<UnequipItemEvent>,
     focused: Res<WindowFocused>,
+    action: Res<ActionState<Action>>,
 ) {
     if !focused.0 {
         return;
     }
     const SCROLL_SENSITIVITY: f32 = 0.05;
-    if let Ok((mut inv, act)) = query.get_single_mut() {
-        let delta = act.value(&Action::Scroll);
+    if let Ok(mut inv) = query.get_single_mut() {
+        let delta = action.value(&Action::Scroll);
         let slot_diff = if delta > SCROLL_SENSITIVITY {
             -1
         } else if delta < -SCROLL_SENSITIVITY {

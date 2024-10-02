@@ -166,20 +166,13 @@ fn release_mouse(mut window_query: Query<&mut Window>) {
     window.cursor.visible = true;
 }
 
-fn toggle_fullscreen(
-    mut window_query: Query<&mut Window>,
-    input_query: Query<&ActionState<Action>, With<LocalPlayer>>,
-) {
-    if let Ok(input) = input_query.get_single() {
-        if input.just_pressed(&Action::ToggleFullscreen) {
-            let mut window = window_query.get_single_mut().unwrap();
-            window.mode = match window.mode {
-                bevy::window::WindowMode::Windowed => {
-                    bevy::window::WindowMode::BorderlessFullscreen
-                }
-                _ => bevy::window::WindowMode::Windowed,
-            };
-        }
+fn toggle_fullscreen(mut window_query: Query<&mut Window>, action: Res<ActionState<Action>>) {
+    if action.just_pressed(&Action::ToggleFullscreen) {
+        let mut window = window_query.get_single_mut().unwrap();
+        window.mode = match window.mode {
+            bevy::window::WindowMode::Windowed => bevy::window::WindowMode::BorderlessFullscreen,
+            _ => bevy::window::WindowMode::Windowed,
+        };
     }
 }
 

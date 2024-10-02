@@ -109,16 +109,14 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 fn toggle_inventory(
     mut next_state: ResMut<NextState<UIState>>,
     state: Res<State<UIState>>,
-    query: Query<&ActionState<Action>, With<LocalPlayer>>,
+    action: Res<ActionState<Action>>,
 ) {
-    if let Ok(action) = query.get_single() {
-        if action.just_pressed(&Action::ToggleInventory) {
-            next_state.set(if *state.get() == UIState::Inventory {
-                UIState::Default
-            } else {
-                UIState::Inventory
-            });
-        }
+    if action.just_pressed(&Action::ToggleInventory) {
+        next_state.set(if *state.get() == UIState::Inventory {
+            UIState::Default
+        } else {
+            UIState::Inventory
+        });
     }
 }
 

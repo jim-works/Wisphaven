@@ -27,7 +27,9 @@ impl Plugin for ControllersPlugin {
         .add_systems(
             FixedUpdate,
             (do_jump, do_tick_movement).in_set(PhysicsSystemSet::Main),
-        );
+        )
+        .init_resource::<ActionState<Action>>()
+        .insert_resource(get_input_map());
     }
 }
 

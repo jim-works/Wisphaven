@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
-use engine::{actors::LocalPlayer, controllers::Action};
+use engine::controllers::Action;
 
 #[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum UIState {
@@ -14,14 +14,12 @@ pub enum UIState {
 pub fn toggle_hidden(
     mut next_state: ResMut<NextState<UIState>>,
     curr_state: Res<State<UIState>>,
-    query: Query<&ActionState<Action>, With<LocalPlayer>>,
+    action: Res<ActionState<Action>>,
 ) {
-    if let Ok(action) = query.get_single() {
-        if action.just_pressed(&Action::ToggleUIHidden) {
-            match curr_state.get() {
-                UIState::Hidden => next_state.set(UIState::Default),
-                _ => next_state.set(UIState::Hidden),
-            }
+    if action.just_pressed(&Action::ToggleUIHidden) {
+        match curr_state.get() {
+            UIState::Hidden => next_state.set(UIState::Default),
+            _ => next_state.set(UIState::Hidden),
         }
     }
 }

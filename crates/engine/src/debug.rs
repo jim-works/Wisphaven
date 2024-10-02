@@ -98,23 +98,21 @@ pub fn toggle_debug(
     curr_state: Res<State<DebugUIState>>,
     mut detail_next_state: ResMut<NextState<DebugUIDetailState>>,
     detail_curr_state: Res<State<DebugUIDetailState>>,
-    query: Query<&ActionState<Action>, With<LocalPlayer>>,
+    action: Res<ActionState<Action>>,
 ) {
-    if let Ok(action) = query.get_single() {
-        if action.just_pressed(&Action::ToggleDebugUIHidden) {
-            match curr_state.get() {
-                DebugUIState::Hidden => next_state.set(DebugUIState::Shown),
-                _ => next_state.set(DebugUIState::Hidden),
-            }
+    if action.just_pressed(&Action::ToggleDebugUIHidden) {
+        match curr_state.get() {
+            DebugUIState::Hidden => next_state.set(DebugUIState::Shown),
+            _ => next_state.set(DebugUIState::Hidden),
         }
-        if action.just_pressed(&Action::ToggleDebugUIDetail) {
-            let next = match detail_curr_state.get() {
-                DebugUIDetailState::Minimal => DebugUIDetailState::Most,
-                _ => DebugUIDetailState::Minimal,
-            };
-            info!("Debug detail set to {:?}", next);
-            detail_next_state.set(next);
-        }
+    }
+    if action.just_pressed(&Action::ToggleDebugUIDetail) {
+        let next = match detail_curr_state.get() {
+            DebugUIDetailState::Minimal => DebugUIDetailState::Most,
+            _ => DebugUIDetailState::Minimal,
+        };
+        info!("Debug detail set to {:?}", next);
+        detail_next_state.set(next);
     }
 }
 
@@ -268,13 +266,11 @@ fn clear_fixed_update_gizmos(mut fixed_update_blocks: ResMut<FixedUpdateBlockGiz
 
 fn toggle_gizmo_depth(
     mut gizmo_config: ResMut<GizmoConfigStore>,
-    input_query: Query<&ActionState<Action>, With<LocalPlayer>>,
+    action: Res<ActionState<Action>>,
 ) {
-    if let Ok(input) = input_query.get_single() {
-        let (config, _) = gizmo_config.config_mut::<DefaultGizmoConfigGroup>();
-        if input.just_pressed(&Action::ToggleGizmoOverlap) {
-            config.depth_bias = if config.depth_bias == 0.0 { -1.0 } else { 0.0 };
-        }
+    let (config, _) = gizmo_config.config_mut::<DefaultGizmoConfigGroup>();
+    if action.just_pressed(&Action::ToggleGizmoOverlap) {
+        config.depth_bias = if config.depth_bias == 0.0 { -1.0 } else { 0.0 };
     }
 }
 

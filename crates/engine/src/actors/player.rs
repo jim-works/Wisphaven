@@ -6,13 +6,12 @@ use bevy::{
     render::{camera::CameraProjection, primitives::Frustum},
 };
 use bevy_quinnet::client::QuinnetClient;
-use leafwing_input_manager::InputManagerBundle;
 use player_controller::RotateWithMouse;
 
 use crate::{
     actors::{ghost::FloatBoost, team::PlayerTeam, Invulnerability, MoveSpeed},
     chunk_loading::ChunkLoader,
-    controllers::{self, *},
+    controllers::*,
     effects::camera::CameraEffectsBundle,
     items::{
         inventory::Inventory,
@@ -162,10 +161,6 @@ pub fn spawn_local_player(
             },
             FloatBoost::default().with_extra_height(3.0),
             settings.player_loader.clone(),
-            InputManagerBundle {
-                input_map: controllers::get_input_map(),
-                ..default()
-            },
             Camera3dBundle {
                 transform: Transform::from_xyz(0.0, 0.3, 0.0),
                 projection: Projection::Perspective(projection.clone()),
