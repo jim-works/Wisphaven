@@ -24,17 +24,20 @@ impl Plugin for DamagePlugin {
             )
                 .chain(),
         );
+        app.add_event::<TriggerDamageEvent>();
     }
 }
 
 #[derive(Clone, Copy, Component)]
 pub struct KillOnSunrise;
 
-pub fn process_attacks(
+#[derive(Event)]
+struct TriggerDamageEvent(DamageTakenEvent);
+
+fn process_attacks(
     mut attack_reader: EventReader<AttackEvent>,
-    mut damaged_writer: EventWriter<DamageTakenEvent>,
+    mut damaged_writer: EventWriter<TriggerDamageEvent>,
     mut target_query: Query<(&Combatant, &GlobalTransform)>,
-    name_query: Query<&Name>,
 ) {
     const BASE_KNOCKBACK: f32 = 0.01; //rescale knockback so that knockback mult = 1 is sensible
     for attack in attack_reader.read() {
@@ -51,52 +54,55 @@ pub fn process_attacks(
         let root = target_info
             .get_ancestor(&lens.query())
             .unwrap_or(attack.target);
-        damaged_writer.send(DamageTakenEvent {
+        damaged_writer.send(TriggerDamageEvent(DamageTakenEvent {
             attacker: attack.attacker,
             target: root,
-            damage_taken: Damage {
+            damage: Damage {
                 amount: damage_taken,
                 ..attack.damage
             },
             knockback_impulse: attack.knockback,
             hit_location: gtf.translation(),
-        });
-
-        info!(
-            "{:?} ({:?}) attacked {:?} ({:?}) for {} damage (inital damage {:?})",
-            attack.attacker,
-            name_query.get(attack.attacker).ok(),
-            root,
-            name_query.get(root).ok(),
-            damage_taken,
-            attack.damage,
-        );
+        }));
     }
 }
 
 fn update_health(
-    mut reader: EventReader<AttackEvent>,
-    mut writer: EventWriter<DeathEvent>,
+    mut reader: EventReader<TriggerDamageEvent>,
+    mut damage_writer: EventWriter<DamageTakenEvent>,
+    mut death_writer: EventWriter<DeathEvent>,
     mut query: Query<(&mut Combatant, &mut Invulnerability)>,
+    name_query: Query<&Name>,
     time: Res<Time<Fixed>>,
 ) {
     let current_time = time.elapsed();
-    for attack in reader.read() {
+    for TriggerDamageEvent(attack) in reader.read() {
         if let Ok((mut combatant, mut invulnerability)) = query.get_mut(attack.target) {
             if invulnerability.is_active(current_time) {
+                info!(
+                    "{:?} tried to attack {:?} for {} damage, but they were invulnerable",
+                    name_query.get(attack.attacker).map_err(|_| attack.attacker),
+                    name_query.get(attack.attacker).map_err(|_| attack.target),
+                    attack.damage.amount,
+                );
                 continue;
             }
             invulnerability.on_hit(current_time);
 
             if let Combatant::Root { health, .. } = combatant.as_mut() {
                 health.current = (health.current - attack.damage.amount).max(0.0);
+                info!(
+                    "{:?} attacked {:?} for {} damage (new health={})",
+                    name_query.get(attack.attacker).map_err(|_| attack.attacker),
+                    name_query.get(attack.attacker).map_err(|_| attack.target),
+                    attack.damage.amount,
+                    health.current
+                );
+                damage_writer.send(*attack);
                 if health.current == 0.0 {
                     //die
-                    writer.send(DeathEvent {
-                        final_blow: AttackEvent {
-                            target: attack.target,
-                            ..*attack
-                        },
+                    death_writer.send(DeathEvent {
+                        final_blow: *attack,
                         damage_taken: attack.damage.amount,
                     });
                 }

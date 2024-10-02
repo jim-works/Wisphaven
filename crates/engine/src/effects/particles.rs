@@ -1,11 +1,7 @@
 use bevy::prelude::*;
 use bevy_hanabi::prelude::*;
 
-use crate::{
-    actors::{damage::process_attacks, DamageTakenEvent},
-    effects::EFFECT_GRAVITY,
-    util::bevy_utils::TimedDespawner,
-};
+use crate::{actors::DamageTakenEvent, effects::EFFECT_GRAVITY, util::bevy_utils::TimedDespawner};
 
 pub struct ParticlesPlugin;
 
@@ -16,7 +12,8 @@ impl Plugin for ParticlesPlugin {
                 Update,
                 (
                     spawn_damage_particles,
-                    spawn_particles_on_attack.after(process_attacks),
+                    //todo - create system set and move to post update to avoid 1 frame lag when spawning particles
+                    spawn_particles_on_attack,
                 ),
             )
             .add_event::<SpawnDamageParticles>();

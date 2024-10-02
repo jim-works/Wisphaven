@@ -15,7 +15,7 @@ use engine::{
         movement::{Drag, GravityMult, LookInMovementDirection, Velocity},
         PhysicsBundle, PhysicsLevelSet,
     },
-    world::{chunk::ChunkCoord, LevelLoadState, LevelSystemSet},
+    world::{chunk::ChunkCoord, LevelSystemSet},
 };
 
 pub struct SlitherSpinePlugin;
@@ -29,7 +29,6 @@ impl Plugin for SlitherSpinePlugin {
                     .chain()
                     .in_set(LevelSystemSet::PostTick),
             )
-            .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawn)
             .add_systems(FixedUpdate, move_head.in_set(PhysicsLevelSet::Main))
             .add_event::<SpawnSlitherSpineEvent>()
             .add_actor::<SpawnSlitherSpineEvent>("slither_spine".to_string());
@@ -38,7 +37,7 @@ impl Plugin for SlitherSpinePlugin {
 
 #[derive(Event)]
 pub struct SpawnSlitherSpineEvent {
-    default: DefaultSpawnEvent,
+    default: DefaultSpawnArgs,
     segment_count: usize,
     segment_offset: Vec3,
 }
@@ -46,17 +45,17 @@ pub struct SpawnSlitherSpineEvent {
 impl Default for SpawnSlitherSpineEvent {
     fn default() -> Self {
         Self {
-            default: DefaultSpawnEvent {
+            default: DefaultSpawnArgs {
                 transform: Transform::from_translation(Vec3::new(0., 10., -10.)),
             },
-            segment_count: 5,
+            segment_count: 15,
             segment_offset: Vec3::Z,
         }
     }
 }
 
-impl From<DefaultSpawnEvent> for SpawnSlitherSpineEvent {
-    fn from(value: DefaultSpawnEvent) -> Self {
+impl From<DefaultSpawnArgs> for SpawnSlitherSpineEvent {
+    fn from(value: DefaultSpawnArgs) -> Self {
         Self {
             default: value,
             ..default()
@@ -88,17 +87,6 @@ fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(SlitherSpineResources {
         spine_scene: assets.load("actors/slither_spine/spine_segment.glb#Scene0"),
         head_scene: assets.load("actors/slither_spine/spine_head.glb#Scene0"),
-    });
-}
-
-fn trigger_spawn(mut send_events: EventWriter<SpawnSlitherSpineEvent>) {
-    send_events.send(SpawnSlitherSpineEvent {
-        default: DefaultSpawnEvent {
-            transform: Transform::from_translation(Vec3::new(0., 15., 0.))
-                .with_scale(Vec3::ONE * 3.),
-        },
-        segment_count: 15,
-        segment_offset: Vec3::new(0., 0., -3.),
     });
 }
 

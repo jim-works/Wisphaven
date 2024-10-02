@@ -1,19 +1,21 @@
-use std::{f32::consts::PI, time::Duration};
+use std::{f32::consts::PI, sync::Arc, time::Duration};
 
 use bevy::prelude::*;
 use itertools::Itertools;
 use rand::{thread_rng, RngCore};
 
-use crate::{
+use engine::{
     actors::world_anchor::WorldAnchor,
-    util::{
-        get_wrapping,
-        iterators::{Volume, VolumeContainer},
-    },
     world::{
         atmosphere::{Calendar, NightStartedEvent},
         BlockCoord, BlockType, Level,
     },
+};
+
+use spawns::DefaultSpawn;
+use util::{
+    get_wrapping,
+    iterators::{Volume, VolumeContainer},
 };
 
 use self::spawns::SkeletonPirateSpawn;
@@ -24,11 +26,17 @@ pub struct WavesPlugin;
 
 impl Plugin for WavesPlugin {
     fn build(&self, app: &mut App) {
-        let mut spawns = vec![SpawnableEntity {
-            strength: 1.,
-            action: Box::new(SkeletonPirateSpawn),
-        }];
-        spawns.sort_by(|a, b| a.strength.total_cmp(&b.strength));
+        let mut spawns = vec![
+            SpawnableEntity {
+                strength: 1.,
+                action: Box::new(SkeletonPirateSpawn),
+            },
+            SpawnableEntity {
+                strength: 10.,
+                action: Box::new(DefaultSpawn(Arc::new("slither_spine".to_string()))),
+            },
+        ];
+        spawns.sort_by(|a, b| b.strength.total_cmp(&a.strength));
         app.add_systems(
             Update,
             (
@@ -54,7 +62,7 @@ impl Plugin for WavesPlugin {
 pub struct AssaultStartedEvent;
 
 #[derive(Event)]
-pub struct WaveStartedEvent(usize);
+pub struct WaveStartedEvent(pub usize);
 
 #[derive(Resource)]
 pub struct Assault {
@@ -271,7 +279,7 @@ fn trigger_assault(
     info!("Assault begins on night {}!", calendar.time.day);
     assault.to_spawn.clear();
     let strength_mult = get_wave_strength(&calendar);
-    let start_time = calendar.time.time + Duration::from_secs_f32(15.);
+    let start_time = calendar.time.time + Duration::from_secs_f32(5.);
     assault.to_spawn.push(WaveInfo {
         strength_mult,
         start_time,
@@ -279,7 +287,7 @@ fn trigger_assault(
         spawns: vec![
             WaveSpawn {
                 start_offset: Duration::ZERO,
-                spawn: WaveSpawnType::Strength(1.),
+                spawn: WaveSpawnType::Strength(10.),
                 strategy: SpawnStrategy::Burst { count: 5 },
             },
             WaveSpawn {
@@ -300,25 +308,11 @@ fn trigger_assault(
         strength_mult,
         start_time: start_time + Duration::from_secs(120),
         visible: true,
-        spawns: vec![
-            WaveSpawn {
-                start_offset: Duration::ZERO,
-                spawn: WaveSpawnType::Strength(1.),
-                strategy: SpawnStrategy::Burst { count: 5 },
-            },
-            WaveSpawn {
-                start_offset: Duration::ZERO,
-                spawn: WaveSpawnType::Recursive(Box::new(WaveSpawn {
-                    start_offset: Duration::from_secs(1),
-                    spawn: WaveSpawnType::Strength(1.),
-                    strategy: SpawnStrategy::Burst { count: 3 },
-                })),
-                strategy: SpawnStrategy::Stream {
-                    count: 3,
-                    delay: Duration::from_secs(10),
-                },
-            },
-        ],
+        spawns: vec![WaveSpawn {
+            start_offset: Duration::ZERO,
+            spawn: WaveSpawnType::Strength(10.),
+            strategy: SpawnStrategy::Burst { count: 1 },
+        }],
     });
     assault.to_spawn.push(WaveInfo {
         strength_mult,
@@ -327,8 +321,8 @@ fn trigger_assault(
         spawns: vec![
             WaveSpawn {
                 start_offset: Duration::ZERO,
-                spawn: WaveSpawnType::Strength(1.),
-                strategy: SpawnStrategy::Burst { count: 10 },
+                spawn: WaveSpawnType::Strength(10.),
+                strategy: SpawnStrategy::Burst { count: 1 },
             },
             WaveSpawn {
                 start_offset: Duration::ZERO,
@@ -436,6 +430,7 @@ fn spawn_wave(mut assault: ResMut<Assault>, mut commands: Commands, calendar: Re
         return;
     };
     if let Some(spawn) = assault.possible_spawns.get(spawn_info.spawn_index) {
+        info!("spawning entity with strength {}", spawn.strength);
         spawn.action.spawn(&mut commands, spawnpoint.location);
     }
 }

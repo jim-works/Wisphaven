@@ -75,3 +75,4 @@ util = { path = "crates/util" }
 engine = { path = "crates/engine" }
 ui = { path = "crates/ui" }
 actors = { path = "crates/actors" }
+waves = { path = "crates/waves" }

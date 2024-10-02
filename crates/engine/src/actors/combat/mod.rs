@@ -325,14 +325,14 @@ pub struct DamageTakenEvent {
     pub attacker: Entity,
     pub target: Entity,
     //after reductions
-    pub damage_taken: Damage,
+    pub damage: Damage,
     pub knockback_impulse: Vec3,
     pub hit_location: Vec3,
 }
 
 #[derive(Clone, Copy, Event)]
 pub struct DeathEvent {
-    pub final_blow: AttackEvent,
+    pub final_blow: DamageTakenEvent,
     pub damage_taken: f32,
 }
 

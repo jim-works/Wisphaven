@@ -16,7 +16,6 @@ pub mod chunk_loading;
 pub mod controllers;
 pub mod debug;
 pub mod effects;
-pub mod gameplay;
 pub mod items;
 pub mod mesher;
 pub mod net;
@@ -52,7 +51,6 @@ impl Plugin for EnginePlugin {
             actors::ActorPlugin,
             items::ItemsPlugin,
             net::NetPlugin,
-            gameplay::GameplayPlugin,
             debug::DebugUIPlugin,
             effects::EffectsPlugin,
         ))

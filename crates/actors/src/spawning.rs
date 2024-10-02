@@ -9,21 +9,20 @@ pub struct SpawningPlugin;
 
 impl Plugin for SpawningPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<DefaultSpawnEvent>()
-            .add_event::<SpawnActorEvent>()
+        app.add_event::<SpawnActorEvent>()
             .add_systems(FixedUpdate, spawn_handler.in_set(LevelSystemSet::PostTick));
     }
 }
 
-#[derive(Event, Clone, Copy, Default)]
-pub struct DefaultSpawnEvent {
+#[derive(Clone, Copy, Default)]
+pub struct DefaultSpawnArgs {
     pub transform: Transform,
 }
 
 #[derive(Event)]
 pub struct SpawnActorEvent {
     pub name: Arc<String>,
-    pub args: DefaultSpawnEvent,
+    pub args: DefaultSpawnArgs,
 }
 
 #[derive(Resource, Default)]
@@ -33,18 +32,18 @@ pub struct ActorRegistry {
 
 //todo - fix this
 //was trying to do something similar to app.add_event::<T>(), but can't figure out how to implement that on a trait
-trait ActorSpawner: Fn(DefaultSpawnEvent, &mut Commands) + Sync + Send {}
-impl<T: Fn(DefaultSpawnEvent, &mut Commands) + Sync + Send> ActorSpawner for T {}
+trait ActorSpawner: Fn(DefaultSpawnArgs, &mut Commands) + Sync + Send {}
+impl<T: Fn(DefaultSpawnArgs, &mut Commands) + Sync + Send> ActorSpawner for T {}
 
 pub trait BuildActorRegistry {
-    fn add_actor<Event: From<DefaultSpawnEvent> + bevy::prelude::Event>(
+    fn add_actor<Event: From<DefaultSpawnArgs> + bevy::prelude::Event>(
         &mut self,
         name: String,
     ) -> &mut Self;
 }
 
 impl BuildActorRegistry for App {
-    fn add_actor<Event: From<DefaultSpawnEvent> + bevy::prelude::Event>(
+    fn add_actor<Event: From<DefaultSpawnArgs> + bevy::prelude::Event>(
         &mut self,
         name: String,
     ) -> &mut App {
@@ -53,7 +52,7 @@ impl BuildActorRegistry for App {
             .get_resource_or_insert_with(|| ActorRegistry::default());
         registry.spawners.insert(
             name,
-            Box::new(|event: DefaultSpawnEvent, commands: &mut Commands| {
+            Box::new(|event: DefaultSpawnArgs, commands: &mut Commands| {
                 commands.add(SendEventCommand(Event::from(event)));
             }),
         );

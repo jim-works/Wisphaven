@@ -1,13 +1,13 @@
 [package]
-name = "ui"
+name = "waves"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ahash = { workspace = true }
 bevy = { workspace = true }
-leafwing-input-manager = { workspace = true }
+itertools = { workspace = true }
+rand = { workspace = true }
 
 engine = { path = "../engine" }
 util = { path = "../util" }
-waves = { path = "../waves" }
+actors = { path = "../actors" }

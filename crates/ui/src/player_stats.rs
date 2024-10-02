@@ -7,7 +7,6 @@ use engine::{
         abilities::{
             stamina::send_stamina_updated_events, stamina::Stamina, stamina::StaminaUpdatedEvent,
         },
-        damage::process_attacks,
         Combatant, DamageTakenEvent, LocalPlayer, LocalPlayerSpawnedEvent,
     },
     world::LevelLoadState,
@@ -27,7 +26,8 @@ impl Plugin for PlayerStatsUiPlugin {
             .add_systems(
                 PostUpdate,
                 (
-                    flash_hearts.after(process_attacks),
+                    // todo - create system set for stat updates and do this after to avoid 1 frame lag
+                    flash_hearts,
                     flash_stamina.after(send_stamina_updated_events),
                 ),
             )

@@ -1,9 +1,8 @@
 use bevy::prelude::*;
 
-use engine::{
-    gameplay::waves::{Assault, AssaultStartedEvent},
-    world::atmosphere::Calendar,
-};
+use engine::world::atmosphere::Calendar;
+
+use waves::waves::{Assault, AssaultStartedEvent};
 
 use crate::MainCameraUIRoot;
 
