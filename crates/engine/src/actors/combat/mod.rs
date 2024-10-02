@@ -59,7 +59,7 @@ impl ContactDamage {
     pub fn new(damage: Damage) -> Self {
         Self {
             damage,
-            knockback: 1.0,
+            knockback: 0.1,
         }
     }
 }

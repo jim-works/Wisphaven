@@ -91,7 +91,7 @@ pub fn attack_melee(
 pub fn launch_coin(
     mut attack_item_reader: EventReader<UseItemEvent>,
     mut hit_writer: EventWriter<UseEndEvent>,
-    mut writer: EventWriter<SpawnCoinEvent>,
+    mut writer: EventWriter<SpawnCoinEvent<crate::actors::team::PlayerTeam>>,
     weapon_query: Query<&CoinLauncherItem>,
 ) {
     for UseItemEvent {

@@ -1,11 +1,14 @@
 use std::time::Duration;
 
-use crate::physics::{collision::Aabb, movement::Velocity, PhysicsBundle};
+use crate::{
+    all_teams_event, all_teams_system,
+    physics::{collision::Aabb, movement::Velocity, PhysicsBundle},
+};
 use bevy::prelude::*;
 
 use super::{
     projectile::{Projectile, ProjectileBundle},
-    team::PlayerTeam,
+    team::*,
     CombatantBundle, Damage,
 };
 
@@ -18,10 +21,10 @@ pub struct CoinResources {
 pub struct CoinScene;
 
 #[derive(Event)]
-pub struct SpawnCoinEvent {
+pub struct SpawnCoinEvent<T: Team> {
     pub location: Transform,
     pub velocity: Velocity,
-    pub combat: CombatantBundle<PlayerTeam>,
+    pub combat: CombatantBundle<T>,
     pub owner: Entity,
     pub damage: Damage,
 }
@@ -31,8 +34,8 @@ pub struct CoinPlugin;
 impl Plugin for CoinPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, load_resources)
-            .add_systems(Update, spawn_coin)
-            .add_event::<SpawnCoinEvent>();
+            .add_systems(Update, all_teams_system!(spawn_coin));
+        all_teams_event!(app, SpawnCoinEvent);
     }
 }
 
@@ -42,10 +45,10 @@ pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     });
 }
 
-pub fn spawn_coin(
+pub fn spawn_coin<T: Team>(
     mut commands: Commands,
     res: Res<CoinResources>,
-    mut spawn_requests: EventReader<SpawnCoinEvent>,
+    mut spawn_requests: EventReader<SpawnCoinEvent<T>>,
     _children_query: Query<&Children>,
     time: Res<Time>,
 ) {

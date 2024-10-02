@@ -34,7 +34,8 @@ impl Team for FreeForAllTeam {
 
 //for use when building app, for example:
 //  app.add_systems(FixedUpdate, all_teams_system!(do_contact_damage))
-//will expand the macro to a tuple with do_contact_damage::<Team> for all teams
+//will expand the macro to a tuple with `do_contact_damage::<Team>` for all teams
+//note: have to import all teams in destination module
 #[macro_export]
 macro_rules! all_teams_system {
     (
@@ -45,6 +46,22 @@ macro_rules! all_teams_system {
             $name::<EnemyTeam>,
             $name::<FreeForAllTeam>,
         )
+    };
+}
+
+//for use when building app, for example:
+//  all_teams_event(app, Event)
+//will expand the macro to a list of statements `app.add_event::<Event<Team>>();` for all teams
+//note: have to import all teams in destination module
+#[macro_export]
+macro_rules! all_teams_event {
+    (
+        $app:ident,
+        $event:ident
+    ) => {
+        $app.add_event::<$event<PlayerTeam>>();
+        $app.add_event::<$event<EnemyTeam>>();
+        $app.add_event::<$event<FreeForAllTeam>>();
     };
 }
 

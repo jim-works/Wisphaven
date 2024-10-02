@@ -46,7 +46,9 @@ pub struct SpawnSlitherSpineEvent {
 impl Default for SpawnSlitherSpineEvent {
     fn default() -> Self {
         Self {
-            default: Default::default(),
+            default: DefaultSpawnEvent {
+                transform: Transform::from_translation(Vec3::new(0., 10., -10.)),
+            },
             segment_count: 5,
             segment_offset: Vec3::Z,
         }

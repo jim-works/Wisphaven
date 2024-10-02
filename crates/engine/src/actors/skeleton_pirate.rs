@@ -205,7 +205,7 @@ fn attack(
         With<SkeletonPirate>,
     >,
     aggro_query: Query<(&GlobalTransform, Option<&Velocity>)>,
-    mut spawn_coin: EventWriter<SpawnCoinEvent>,
+    mut spawn_coin: EventWriter<SpawnCoinEvent<EnemyTeam>>,
     time: Res<Time>,
 ) {
     const COIN_OFFSET: Vec3 = Vec3::new(0.0, 2.0, 0.0);
