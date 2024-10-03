@@ -22,6 +22,7 @@ pub mod mesher;
 pub mod net;
 pub mod physics;
 pub mod serialization;
+pub mod state;
 pub mod world;
 pub mod worldgen;
 
@@ -34,6 +35,7 @@ pub enum GameState {
     Setup,
     Menu,
     Game,
+    GameOver,
 }
 
 pub struct EnginePlugin;
@@ -55,6 +57,7 @@ impl Plugin for EnginePlugin {
             debug::DebugUIPlugin,
             effects::EffectsPlugin,
             camera::CameraPlugin,
+            state::GameStatePlugin,
         ))
         .init_state::<GameState>();
     }

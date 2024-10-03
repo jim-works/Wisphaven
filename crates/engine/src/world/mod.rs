@@ -12,6 +12,8 @@ use bevy::prelude::*;
 pub use block::*;
 use serde::{Deserialize, Serialize};
 
+use crate::GameState;
+
 use self::chunk::ChunkCoord;
 
 pub mod atmosphere;
@@ -58,18 +60,23 @@ impl Plugin for LevelPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
             PostUpdate,
-            LevelSystemSet::PostUpdate.run_if(in_state(LevelLoadState::Loaded)),
+            LevelSystemSet::PostUpdate
+                .run_if(in_state(LevelLoadState::Loaded))
+                .run_if(in_state(GameState::Game)),
         )
         .configure_sets(
             Update,
             LevelSystemSet::AfterLoadingAndMain
                 .run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded)))
+                .run_if(in_state(GameState::Game))
                 .after(LevelSystemSet::LoadingAndMain)
                 .after(LevelSystemSet::Main),
         )
         .configure_sets(
             Update,
-            LevelSystemSet::Main.run_if(in_state(LevelLoadState::Loaded)),
+            LevelSystemSet::Main
+                .run_if(in_state(LevelLoadState::Loaded))
+                .run_if(in_state(GameState::Game)),
         )
         .configure_sets(
             Update,
@@ -80,9 +87,9 @@ impl Plugin for LevelPlugin {
         )
         .configure_sets(
             Update,
-            LevelSystemSet::LoadingAndMain.run_if(
-                in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded)),
-            ),
+            LevelSystemSet::LoadingAndMain
+                .run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded)))
+                .run_if(in_state(GameState::Game)),
         )
         .configure_sets(
             FixedUpdate,
@@ -92,7 +99,8 @@ impl Plugin for LevelPlugin {
                 LevelSystemSet::PostTick,
             )
                 .chain()
-                .run_if(in_state(LevelLoadState::Loaded)),
+                .run_if(in_state(LevelLoadState::Loaded))
+                .run_if(in_state(GameState::Game)),
         )
         .add_systems(
             Update,

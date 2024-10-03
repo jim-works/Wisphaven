@@ -48,6 +48,9 @@ pub struct LocalPlayerSpawnedEvent(pub Entity);
 #[derive(Event)]
 pub struct SpawnLocalPlayerEvent;
 
+#[derive(Resource)]
+pub struct RespawningPlayer(pub Option<Duration>);
+
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
@@ -59,15 +62,16 @@ impl Plugin for PlayerPlugin {
                     (spawn_local_player, spawn_remote_player)
                         .run_if(resource_exists::<HeldItemResources>),
                     handle_disconnect,
-                    respawn_local_player,
                 ),
             )
             .add_systems(
                 Update,
                 send_updated_position_client.run_if(in_state(ClientState::Ready)),
             )
+            .add_systems(FixedUpdate, respawn_players.in_set(LevelSystemSet::PreTick))
             .add_event::<LocalPlayerSpawnedEvent>()
-            .add_event::<SpawnLocalPlayerEvent>();
+            .add_event::<SpawnLocalPlayerEvent>()
+            .insert_resource(RespawningPlayer(None));
     }
 }
 
@@ -120,13 +124,24 @@ fn trigger_local_player_spawn(mut writer: EventWriter<SpawnLocalPlayerEvent>) {
     writer.send(SpawnLocalPlayerEvent);
 }
 
-fn respawn_local_player(
+//todo - update when I update mulitplayer
+fn respawn_players(
     mut components: RemovedComponents<LocalPlayer>,
     mut writer: EventWriter<SpawnLocalPlayerEvent>,
+    mut respawning: ResMut<RespawningPlayer>,
+    time: Res<Time>,
 ) {
     if !components.is_empty() {
         components.clear();
+        respawning.0 = Some(time.elapsed() + Duration::from_secs(5));
+    }
+    if respawning
+        .0
+        .map(|respawn_time| time.elapsed() >= respawn_time)
+        .unwrap_or(false)
+    {
         writer.send(SpawnLocalPlayerEvent);
+        respawning.0 = None;
     }
 }
 

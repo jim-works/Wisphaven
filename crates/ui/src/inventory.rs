@@ -63,10 +63,14 @@ impl Plugin for InventoryPlugin {
         let show_inventory_id = app.world_mut().register_system(show_inventory);
         let hide_inventory_id = app.world_mut().register_system(hide_inventory::<false>);
         let hide_inventory_and_hotbar_id = app.world_mut().register_system(hide_inventory::<true>);
+        let update_counts_id = app.world_mut().register_system(update_counts);
+        let update_icons_id = app.world_mut().register_system(update_icons);
         app.insert_resource(InventorySystemIds {
             show_inventory: show_inventory_id,
             hide_inventory: hide_inventory_id,
             hide_inventory_and_hotbar: hide_inventory_and_hotbar_id,
+            update_counts: update_counts_id,
+            update_icons: update_icons_id,
         });
     }
 }
@@ -83,6 +87,8 @@ struct InventorySystemIds {
     show_inventory: SystemId,
     hide_inventory_and_hotbar: SystemId,
     hide_inventory: SystemId,
+    update_icons: SystemId,
+    update_counts: SystemId,
 }
 
 #[derive(Component)]
@@ -130,6 +136,7 @@ fn spawn_inventory_system(
     system_ids: Res<InventorySystemIds>,
 ) {
     for LocalPlayerSpawnedEvent(id) in event_reader.read() {
+        info!("inventory trying to spawn from LocalPlayerSpawned event");
         if let Ok(inv) = inventory_query.get(*id) {
             for entity in inventory_ui_query.iter() {
                 commands.entity(entity).despawn_recursive();
@@ -140,6 +147,8 @@ fn spawn_inventory_system(
                 UIState::Default => commands.run_system(system_ids.hide_inventory),
                 UIState::Inventory => commands.run_system(system_ids.show_inventory),
             };
+            commands.run_system(system_ids.update_counts);
+            commands.run_system(system_ids.update_icons);
             return;
         }
     }
@@ -290,6 +299,7 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                 InventoryUISelector,
             ));
         });
+    info!("inventory spawned!")
 }
 
 fn get_slot_coords(slot: usize, offset_px: f32) -> UiRect {

@@ -5,7 +5,7 @@ use itertools::Itertools;
 use rand::{thread_rng, RngCore};
 
 use engine::{
-    actors::world_anchor::WorldAnchor,
+    actors::world_anchor::{ActiveWorldAnchor, WorldAnchor},
     world::{
         atmosphere::{Calendar, NightStartedEvent},
         BlockCoord, BlockType, Level,
@@ -40,7 +40,7 @@ impl Plugin for WavesPlugin {
         app.add_systems(
             Update,
             (
-                trigger_assault.run_if(resource_exists::<WorldAnchor>),
+                trigger_assault.run_if(resource_exists::<ActiveWorldAnchor>),
                 spawn_wave.run_if(resource_exists::<Assault>),
                 send_wave_started_event
                     .after(trigger_assault)
