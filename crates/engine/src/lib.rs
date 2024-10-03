@@ -12,6 +12,7 @@
 #![feature(assert_matches)]
 
 pub mod actors;
+pub mod camera;
 pub mod chunk_loading;
 pub mod controllers;
 pub mod debug;
@@ -53,6 +54,7 @@ impl Plugin for EnginePlugin {
             net::NetPlugin,
             debug::DebugUIPlugin,
             effects::EffectsPlugin,
+            camera::CameraPlugin,
         ))
         .init_state::<GameState>();
     }

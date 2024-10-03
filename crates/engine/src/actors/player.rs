@@ -1,10 +1,6 @@
 use std::{f32::consts::PI, time::Duration};
 
-use bevy::{
-    core_pipeline::Skybox,
-    prelude::*,
-    render::{camera::CameraProjection, primitives::Frustum},
-};
+use bevy::prelude::*;
 use bevy_quinnet::client::QuinnetClient;
 use player_controller::RotateWithMouse;
 
@@ -12,7 +8,6 @@ use crate::{
     actors::{ghost::FloatBoost, team::PlayerTeam, Invulnerability, MoveSpeed},
     chunk_loading::ChunkLoader,
     controllers::*,
-    effects::camera::CameraEffectsBundle,
     items::{
         inventory::Inventory,
         item_attributes::{ItemSwingSpeed, ItemUseSpeed},
@@ -25,7 +20,7 @@ use crate::{
         ClientMessage, NetworkType, PlayerList, RemoteClient,
     },
     physics::{movement::*, *},
-    world::{atmosphere::SkyboxCubemap, settings::Settings, *},
+    world::{settings::Settings, *},
 };
 
 use super::{
@@ -45,9 +40,6 @@ pub struct Player {
 
 #[derive(Component)]
 pub struct LocalPlayer;
-
-#[derive(Component)]
-pub struct LocalPlayerCamera;
 
 #[derive(Event)]
 pub struct LocalPlayerSpawnedEvent(pub Entity);
@@ -127,18 +119,12 @@ pub fn spawn_local_player(
     mut spawn_event: EventWriter<LocalPlayerSpawnedEvent>,
     resources: Res<ItemResources>,
     item_query: Query<&MaxStackSize>,
-    skybox: Res<SkyboxCubemap>,
     ghost_resources: Res<GhostResources>,
     held_item_resouces: Res<HeldItemResources>,
 ) {
     info!("Spawning local player!");
     //adjust for ghost height
     let spawn_point = level.get_spawn_point() + Vec3::new(0., 1.5, 0.);
-    let projection = PerspectiveProjection {
-        fov: PI / 2.,
-        far: 1_000_000_000.0,
-        ..default()
-    };
     let player_id = commands
         .spawn((
             Name::new("local player"),
@@ -161,30 +147,6 @@ pub fn spawn_local_player(
             },
             FloatBoost::default().with_extra_height(3.0),
             settings.player_loader.clone(),
-            Camera3dBundle {
-                transform: Transform::from_xyz(0.0, 0.3, 0.0),
-                projection: Projection::Perspective(projection.clone()),
-                frustum: Frustum::from_clip_from_world(&projection.get_clip_from_view()),
-                ..default()
-            },
-            LocalPlayerCamera,
-            CameraEffectsBundle::default(),
-            // placeholder values - actually set by atmosphere
-            FogSettings {
-                color: Color::srgba(0.56, 0.824, 1.0, 1.0),
-                // directional_light_color: Color::srgba(1.0, 0.95, 0.85, 0.5),
-                directional_light_exponent: 0.8,
-                falloff: FogFalloff::Linear {
-                    start: 100.0,
-                    end: 200.0,
-                },
-                ..default()
-            },
-            // placeholder brightness - actually set by atmosphere
-            Skybox {
-                image: skybox.0.clone(),
-                brightness: 750.,
-            },
         ))
         .id();
     populate_player_entity(

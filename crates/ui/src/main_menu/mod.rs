@@ -74,9 +74,6 @@ enum SplashScreenState {
 }
 
 #[derive(Component, Clone, Copy)]
-struct MenuCamera;
-
-#[derive(Component, Clone, Copy)]
 struct MenuRoot;
 
 #[derive(Component, Clone, Copy)]
@@ -112,36 +109,16 @@ fn menu_entered(
     asset_server: Res<AssetServer>,
     res: Res<MainMenuSystemIds>,
 ) {
-    commands.spawn((
-        MenuCamera,
-        Camera3dBundle {
-            transform: CAMERA_TF.clone(),
-            camera: Camera {
-                clear_color: ClearColorConfig::Custom(Color::BLACK),
-                ..default()
-            },
-            ..default()
-        },
-    ));
     setup_splash_screen(&mut commands, &asset_server);
     setup_main_screen(&mut commands, &asset_server, &res);
     setup_world_select_screen(&mut commands);
 }
 
-//there is a bright flash that shows up at spawn for some reason and I'm too lazy to figure it out rn
-const CAMERA_TF: Transform = Transform::from_translation(Vec3::new(100., 100., 100.));
-
 fn menu_exited(
     mut commands: Commands,
-    camera_query: Query<Entity, With<MenuCamera>>,
     menu_query: Query<Entity, With<MenuRoot>>,
     ghost_query: Query<(Entity, &SwingHand, &UseHand), With<MainMenuGhost>>,
 ) {
-    for entity in camera_query.iter() {
-        if let Some(ec) = commands.get_entity(entity) {
-            ec.despawn_recursive();
-        }
-    }
     for entity in menu_query.iter() {
         if let Some(ec) = commands.get_entity(entity) {
             ec.despawn_recursive();

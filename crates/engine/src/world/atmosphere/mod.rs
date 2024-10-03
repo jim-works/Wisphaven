@@ -121,7 +121,7 @@ struct CalendarSpeed {
 }
 
 #[derive(Resource)]
-pub struct LoadingSkyboxCubemap(Handle<Image>);
+pub struct LoadingSkyboxCubemap(pub Handle<Image>);
 #[derive(Resource)]
 pub struct SkyboxCubemap(pub Handle<Image>);
 
