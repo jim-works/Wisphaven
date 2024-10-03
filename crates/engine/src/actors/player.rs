@@ -30,7 +30,7 @@ use super::{
     },
     death_effects::RestoreStaminaOnKill,
     ghost::{spawn_ghost_hand, Float, GhostResources, Handed},
-    Combatant, CombatantBundle, Damage, DeathInfo,
+    Combatant, CombatantBundle, Damage, DeathEvent, DeathInfo,
 };
 
 #[derive(Component)]
@@ -44,26 +44,29 @@ pub struct LocalPlayer;
 #[derive(Event)]
 pub struct LocalPlayerSpawnedEvent(pub Entity);
 
+#[derive(Event)]
+pub struct SpawnLocalPlayerEvent;
+
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            OnEnter(LevelLoadState::Loaded),
-            spawn_local_player.run_if(resource_exists::<HeldItemResources>),
-        )
-        .add_systems(
-            Update,
-            (
-                spawn_remote_player.run_if(resource_exists::<HeldItemResources>),
-                handle_disconnect,
-            ),
-        )
-        .add_systems(
-            Update,
-            send_updated_position_client.run_if(in_state(ClientState::Ready)),
-        )
-        .add_event::<LocalPlayerSpawnedEvent>();
+        app.add_systems(OnEnter(LevelLoadState::Loaded), trigger_local_player_spawn)
+            .add_systems(
+                Update,
+                (
+                    (spawn_local_player, spawn_remote_player)
+                        .run_if(resource_exists::<HeldItemResources>),
+                    handle_disconnect,
+                    respawn_local_player,
+                ),
+            )
+            .add_systems(
+                Update,
+                send_updated_position_client.run_if(in_state(ClientState::Ready)),
+            )
+            .add_event::<LocalPlayerSpawnedEvent>()
+            .add_event::<SpawnLocalPlayerEvent>();
     }
 }
 
@@ -110,7 +113,22 @@ fn spawn_remote_player(
     }
 }
 
+fn trigger_local_player_spawn(mut writer: EventWriter<SpawnLocalPlayerEvent>) {
+    writer.send(SpawnLocalPlayerEvent);
+}
+
+fn respawn_local_player(
+    mut components: RemovedComponents<LocalPlayer>,
+    mut writer: EventWriter<SpawnLocalPlayerEvent>,
+) {
+    if !components.is_empty() {
+        components.clear();
+        writer.send(SpawnLocalPlayerEvent);
+    }
+}
+
 pub fn spawn_local_player(
+    mut spawn_reader: EventReader<SpawnLocalPlayerEvent>,
     mut commands: Commands,
     settings: Res<Settings>,
     level: Res<Level>,
@@ -121,142 +139,148 @@ pub fn spawn_local_player(
     item_query: Query<&MaxStackSize>,
     ghost_resources: Res<GhostResources>,
     held_item_resouces: Res<HeldItemResources>,
+    player_query: Query<(), With<LocalPlayer>>,
 ) {
-    info!("Spawning local player!");
-    //adjust for ghost height
-    let spawn_point = level.get_spawn_point() + Vec3::new(0., 1.5, 0.);
-    let player_id = commands
-        .spawn((
-            Name::new("local player"),
-            LocalPlayer {},
-            CombatantBundle::<PlayerTeam> {
-                combatant: Combatant::new(10.0, 0.0),
-                death_info: DeathInfo {
-                    death_type: crate::actors::DeathType::LocalPlayer,
+    for _ in spawn_reader.read() {
+        if !player_query.is_empty() {
+            info!("trying to spawn local player when there's already one!");
+        }
+        info!("Spawning local player!");
+        //adjust for ghost height
+        let spawn_point = level.get_spawn_point() + Vec3::new(0., 1.5, 0.);
+        let player_id = commands
+            .spawn((
+                Name::new("local player"),
+                LocalPlayer {},
+                CombatantBundle::<PlayerTeam> {
+                    combatant: Combatant::new(1.0, 0.0),
+                    death_info: DeathInfo {
+                        death_type: crate::actors::DeathType::LocalPlayer,
+                    },
+                    invulnerability: Invulnerability::new(Duration::from_secs(1)),
+                    ..default()
                 },
-                invulnerability: Invulnerability::new(Duration::from_secs(1)),
-                ..default()
-            },
-            RotateWithMouse {
-                pitch_bound: PI * 0.49,
-                ..default()
-            },
-            ControllableBundle {
-                move_speed: MoveSpeed::new(0.5, 0.5, 0.10),
-                ..default()
-            },
-            FloatBoost::default().with_extra_height(3.0),
-            settings.player_loader.clone(),
-        ))
-        .id();
-    populate_player_entity(
-        player_id,
-        spawn_point,
-        &ghost_resources,
-        &held_item_resouces,
-        &mut commands,
-    );
-    let mut inventory = Inventory::new(player_id, 40);
+                RotateWithMouse {
+                    pitch_bound: PI * 0.49,
+                    ..default()
+                },
+                ControllableBundle {
+                    move_speed: MoveSpeed::new(0.5, 0.5, 0.10),
+                    ..default()
+                },
+                FloatBoost::default().with_extra_height(3.0),
+                settings.player_loader.clone(),
+            ))
+            .id();
+        populate_player_entity(
+            player_id,
+            spawn_point,
+            &ghost_resources,
+            &held_item_resouces,
+            &mut commands,
+        );
+        let mut inventory = Inventory::new(player_id, 40);
 
-    inventory.pickup_item(
-        ItemStack::new(
-            resources
-                .registry
-                .get_basic(&ItemName::core("ruby_hammer"))
-                .unwrap(),
-            1,
-        ),
-        &item_query,
-        &mut pickup_item,
-        &mut equip_item,
-    );
-    inventory.pickup_item(
-        ItemStack::new(
-            resources
-                .registry
-                .get_basic(&ItemName::core("ruby_pickaxe"))
-                .unwrap(),
-            1,
-        ),
-        &item_query,
-        &mut pickup_item,
-        &mut equip_item,
-    );
-    inventory.pickup_item(
-        ItemStack::new(
-            resources
-                .registry
-                .get_basic(&ItemName::core("ruby_shovel"))
-                .unwrap(),
-            1,
-        ),
-        &item_query,
-        &mut pickup_item,
-        &mut equip_item,
-    );
-    inventory.pickup_item(
-        ItemStack::new(
-            resources
-                .registry
-                .get_basic(&ItemName::core("ruby_axe"))
-                .unwrap(),
-            1,
-        ),
-        &item_query,
-        &mut pickup_item,
-        &mut equip_item,
-    );
-    inventory.pickup_item(
-        ItemStack::new(
-            resources
-                .registry
-                .get_basic(&ItemName::core("moon"))
-                .unwrap(),
-            1,
-        ),
-        &item_query,
-        &mut pickup_item,
-        &mut equip_item,
-    );
-    inventory.pickup_item(
-        ItemStack::new(
-            resources
-                .registry
-                .get_basic(&ItemName::core("dagger"))
-                .unwrap(),
-            100,
-        ),
-        &item_query,
-        &mut pickup_item,
-        &mut equip_item,
-    );
-    inventory.pickup_item(
-        ItemStack::new(
-            resources
-                .registry
-                .get_basic(&ItemName::core("coin_launcher"))
-                .unwrap(),
-            100,
-        ),
-        &item_query,
-        &mut pickup_item,
-        &mut equip_item,
-    );
-    inventory.pickup_item(
-        ItemStack::new(
-            resources
-                .registry
-                .get_basic(&ItemName::core("grapple"))
-                .unwrap(),
-            1,
-        ),
-        &item_query,
-        &mut pickup_item,
-        &mut equip_item,
-    );
+        inventory.pickup_item(
+            ItemStack::new(
+                resources
+                    .registry
+                    .get_basic(&ItemName::core("ruby_hammer"))
+                    .unwrap(),
+                1,
+            ),
+            &item_query,
+            &mut pickup_item,
+            &mut equip_item,
+        );
+        inventory.pickup_item(
+            ItemStack::new(
+                resources
+                    .registry
+                    .get_basic(&ItemName::core("ruby_pickaxe"))
+                    .unwrap(),
+                1,
+            ),
+            &item_query,
+            &mut pickup_item,
+            &mut equip_item,
+        );
+        inventory.pickup_item(
+            ItemStack::new(
+                resources
+                    .registry
+                    .get_basic(&ItemName::core("ruby_shovel"))
+                    .unwrap(),
+                1,
+            ),
+            &item_query,
+            &mut pickup_item,
+            &mut equip_item,
+        );
+        inventory.pickup_item(
+            ItemStack::new(
+                resources
+                    .registry
+                    .get_basic(&ItemName::core("ruby_axe"))
+                    .unwrap(),
+                1,
+            ),
+            &item_query,
+            &mut pickup_item,
+            &mut equip_item,
+        );
+        inventory.pickup_item(
+            ItemStack::new(
+                resources
+                    .registry
+                    .get_basic(&ItemName::core("moon"))
+                    .unwrap(),
+                1,
+            ),
+            &item_query,
+            &mut pickup_item,
+            &mut equip_item,
+        );
+        inventory.pickup_item(
+            ItemStack::new(
+                resources
+                    .registry
+                    .get_basic(&ItemName::core("dagger"))
+                    .unwrap(),
+                100,
+            ),
+            &item_query,
+            &mut pickup_item,
+            &mut equip_item,
+        );
+        inventory.pickup_item(
+            ItemStack::new(
+                resources
+                    .registry
+                    .get_basic(&ItemName::core("coin_launcher"))
+                    .unwrap(),
+                100,
+            ),
+            &item_query,
+            &mut pickup_item,
+            &mut equip_item,
+        );
+        inventory.pickup_item(
+            ItemStack::new(
+                resources
+                    .registry
+                    .get_basic(&ItemName::core("grapple"))
+                    .unwrap(),
+                1,
+            ),
+            &item_query,
+            &mut pickup_item,
+            &mut equip_item,
+        );
 
-    commands.entity(player_id).insert(inventory);
-    spawn_event.send(LocalPlayerSpawnedEvent(player_id));
+        commands.entity(player_id).insert(inventory);
+        spawn_event.send(LocalPlayerSpawnedEvent(player_id));
+    }
 }
 
 fn populate_player_entity(

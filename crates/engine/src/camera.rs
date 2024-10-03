@@ -50,10 +50,12 @@ fn on_enter_game(
         far: 1_000_000_000.0,
         ..default()
     };
+    //bevy will crash if the skybox is invalid, so better to print an error message
+    //this shouldn't happen anyway -- the LoadingSkyboxCubemap is only removed once a SkyboxCubemap is added
     let sky_image = skybox.map(|sky| sky.0.clone()).unwrap_or(
         loading_skybox
+            .map(|sky| sky.0.clone())
             .expect("there was no skybox or loading skybox when populating the camera")
-            .0
             .clone(),
     );
     ec.insert((

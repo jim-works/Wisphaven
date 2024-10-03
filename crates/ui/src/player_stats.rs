@@ -398,6 +398,7 @@ fn spawn_heart(
     for LocalPlayerSpawnedEvent(entity) in reader.read() {
         if let (Ok(root), Ok(player_combat)) = (root_query.get_single(), combat_query.get(*entity))
         {
+            commands.entity(root).despawn_descendants();
             commands.entity(root).with_children(|children| {
                 for i in 0..player_combat
                     .get_health(&combat_query)
@@ -461,6 +462,7 @@ fn spawn_stamina(
 ) {
     for LocalPlayerSpawnedEvent(entity) in reader.read() {
         if let (Ok(root), Ok(stamina)) = (root_query.get_single(), stamina_query.get(*entity)) {
+            commands.entity(root).despawn_descendants();
             commands.entity(root).with_children(|children| {
                 for i in 0..stamina.max.ceil() as i32 {
                     children

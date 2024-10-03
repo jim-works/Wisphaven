@@ -122,18 +122,18 @@ fn toggle_inventory(
 
 fn spawn_inventory_system(
     mut event_reader: EventReader<LocalPlayerSpawnedEvent>,
-    inventory_ui_query: Query<(&InventoryUI, &mut Visibility)>,
+    inventory_ui_query: Query<Entity, With<InventoryUI>>,
     inventory_query: Query<&Inventory, With<LocalPlayer>>,
     mut commands: Commands,
     resources: Res<InventoryResources>,
     state: Res<State<UIState>>,
     system_ids: Res<InventorySystemIds>,
 ) {
-    if !inventory_ui_query.is_empty() {
-        return;
-    }
     for LocalPlayerSpawnedEvent(id) in event_reader.read() {
         if let Ok(inv) = inventory_query.get(*id) {
+            for entity in inventory_ui_query.iter() {
+                commands.entity(entity).despawn_recursive();
+            }
             spawn_inventory(&mut commands, inv.len(), &resources);
             match state.get() {
                 UIState::Hidden => commands.run_system(system_ids.hide_inventory_and_hotbar),
