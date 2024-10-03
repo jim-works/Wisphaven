@@ -6,6 +6,7 @@ use player_controller::RotateWithMouse;
 
 use crate::{
     actors::{ghost::FloatBoost, team::PlayerTeam, Invulnerability, MoveSpeed},
+    camera::MainCamera,
     chunk_loading::ChunkLoader,
     controllers::*,
     items::{
@@ -80,6 +81,7 @@ fn spawn_remote_player(
     network_type: Res<State<NetworkType>>,
     ghost_resources: Res<GhostResources>,
     held_item_resouces: Res<HeldItemResources>,
+    camera: Res<MainCamera>,
 ) {
     for (entity, RemoteClient(client_id)) in joined_query.iter() {
         info!(
@@ -105,6 +107,7 @@ fn spawn_remote_player(
         }
         populate_player_entity(
             entity,
+            camera.0,
             Vec3::ZERO,
             &ghost_resources,
             &held_item_resouces,
@@ -140,6 +143,7 @@ pub fn spawn_local_player(
     ghost_resources: Res<GhostResources>,
     held_item_resouces: Res<HeldItemResources>,
     player_query: Query<(), With<LocalPlayer>>,
+    camera: Res<MainCamera>,
 ) {
     for _ in spawn_reader.read() {
         if !player_query.is_empty() {
@@ -174,6 +178,7 @@ pub fn spawn_local_player(
             .id();
         populate_player_entity(
             player_id,
+            camera.0,
             spawn_point,
             &ghost_resources,
             &held_item_resouces,
@@ -285,6 +290,7 @@ pub fn spawn_local_player(
 
 fn populate_player_entity(
     entity: Entity,
+    camera: Entity,
     spawn_point: Vec3,
     ghost_resources: &GhostResources,
     held_item_resources: &HeldItemResources,
@@ -322,7 +328,7 @@ fn populate_player_entity(
     ));
     //right hand
     let right_hand = spawn_ghost_hand(
-        entity,
+        camera,
         Transform::from_translation(spawn_point),
         Vec3::new(0.7, -0.5, -0.6),
         Vec3::new(0.8, 0.2, -0.5),
@@ -333,7 +339,7 @@ fn populate_player_entity(
     );
     //left hand
     let _left_hand = spawn_ghost_hand(
-        entity,
+        camera,
         Transform::from_translation(spawn_point),
         Vec3::new(-0.7, -0.5, -0.6),
         Vec3::new(-0.8, 0.2, -0.5),
