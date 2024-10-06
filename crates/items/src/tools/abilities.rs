@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use util::direction::Direction;
 
-use crate::world::{
+use engine::world::{
     events::{BlockDamageSetEvent, BlockHitEvent, ChunkUpdatedEvent},
     BlockCoord, BlockId, Level, LevelSystemSet,
 };

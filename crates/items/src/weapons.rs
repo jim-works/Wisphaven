@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 
-use crate::{
-    actors::{coin::SpawnCoinEvent, AttackEvent, Combatant, CombatantBundle, Damage},
+use engine::{
+    actors::{
+        coin::SpawnCoinEvent, team::PlayerTeam, AttackEvent, Combatant, CombatantBundle, Damage,
+    },
     physics::{
         collision::Aabb,
         movement::Velocity,
@@ -10,7 +12,9 @@ use crate::{
     world::{BlockPhysics, Level},
 };
 
-use super::{ItemSystemSet, SwingEndEvent, SwingItemEvent, UseEndEvent, UseItemEvent};
+use engine::items::{
+    HitResult, ItemSystemSet, SwingEndEvent, SwingItemEvent, UseEndEvent, UseItemEvent,
+};
 
 pub struct WeaponItemPlugin;
 
@@ -20,7 +24,8 @@ impl Plugin for WeaponItemPlugin {
             Update,
             (attack_melee, launch_coin).in_set(ItemSystemSet::UsageProcessing),
         )
-        .register_type::<CoinLauncherItem>();
+        .register_type::<CoinLauncherItem>()
+        .register_type::<MeleeWeaponItem>();
     }
 }
 
@@ -72,7 +77,7 @@ pub fn attack_melee(
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
-                    result: super::HitResult::Hit(hit.hit_pos),
+                    result: HitResult::Hit(hit.hit_pos),
                 });
                 info!("melee hit!");
             } else {
@@ -80,7 +85,7 @@ pub fn attack_melee(
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
-                    result: super::HitResult::Miss,
+                    result: HitResult::Miss,
                 });
                 info!("melee miss!");
             }
@@ -91,7 +96,7 @@ pub fn attack_melee(
 pub fn launch_coin(
     mut attack_item_reader: EventReader<UseItemEvent>,
     mut hit_writer: EventWriter<UseEndEvent>,
-    mut writer: EventWriter<SpawnCoinEvent<crate::actors::team::PlayerTeam>>,
+    mut writer: EventWriter<SpawnCoinEvent<PlayerTeam>>,
     weapon_query: Query<&CoinLauncherItem>,
 ) {
     for UseItemEvent {
@@ -116,7 +121,7 @@ pub fn launch_coin(
                 user: *user,
                 inventory_slot: *inventory_slot,
                 stack: *stack,
-                result: super::HitResult::Miss,
+                result: HitResult::Miss,
             });
         }
     }

@@ -16,7 +16,7 @@ pub enum ItemTargetPosition {
 impl ItemTargetPosition {
     pub fn get_use_pos(
         self,
-        query: &Query<(&GlobalTransform, Option<&ItemTargetLocalOffset>)>,
+        query: &Query<(&GlobalTransform, Option<&ItemUsageOffset>)>,
     ) -> Option<Transform> {
         match self {
             ItemTargetPosition::Entity(e) => query.get(e).ok().map(|(tf, offset)| {
@@ -29,7 +29,8 @@ impl ItemTargetPosition {
 }
 
 #[derive(Component, Default, Clone, Copy, Debug)]
-pub struct ItemTargetLocalOffset(Vec3);
+//local space
+pub struct ItemUsageOffset(Vec3);
 
 #[derive(Default, Clone)]
 pub enum ItemAction {
@@ -335,7 +336,7 @@ impl Inventory {
 
 pub fn tick_item_timers(
     mut query: Query<&mut Inventory>,
-    use_pos_query: Query<(&GlobalTransform, Option<&ItemTargetLocalOffset>)>,
+    use_pos_query: Query<(&GlobalTransform, Option<&ItemUsageOffset>)>,
     swing_speed_query: Query<&ItemSwingSpeed>,
     use_speed_query: Query<&ItemUseSpeed>,
     time: Res<Time>,

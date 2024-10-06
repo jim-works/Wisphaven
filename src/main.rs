@@ -11,14 +11,13 @@
 #![feature(const_fn_floating_point_arithmetic)]
 #![feature(assert_matches)]
 
-use ::engine::*;
 use std::{env, net::Ipv4Addr};
 
 use bevy::{prelude::*, window::WindowResolution};
 use bevy_hanabi::HanabiPlugin;
-use net::client::ClientConfig;
 
-use crate::net::{server::ServerConfig, NetworkType};
+use engine::net::{client::ClientConfig, server::ServerConfig, NetworkType};
+use engine::GameState;
 
 fn main() {
     //todo - this should be in GUI
@@ -62,6 +61,7 @@ fn main() {
         ui::UIPlugin,
         ::actors::ActorsPlugin,
         waves::GameplayPlugin,
+        ::items::ItemsPlugin,
     ));
 
     if let Some(port) = server_port {

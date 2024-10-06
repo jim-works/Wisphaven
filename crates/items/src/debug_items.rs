@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{
+use engine::{
     actors::personality::components::*,
     physics::{
         collision::Aabb,
@@ -9,11 +9,11 @@ use crate::{
     world::{BlockPhysics, Level},
 };
 
-use super::{HitResult, ItemSystemSet, UseEndEvent, UseItemEvent};
+use engine::items::{HitResult, ItemSystemSet, UseEndEvent, UseItemEvent};
 
-pub struct DebugItems;
+pub struct DebugItemsPlugin;
 
-impl Plugin for DebugItems {
+impl Plugin for DebugItemsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,

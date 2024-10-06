@@ -11,8 +11,8 @@
         "engine::world::block::NamedBlockMesh": (
             shape: MultiTexture(("grass_side.png", "grass_top.png", "grass_side.png", "grass_side.png", "dirt.png", "grass_side.png")),
         ),
-        "engine::items::tools::ToolResistance": Pickaxe(0),
-        "engine::items::tools::abilities::ShovelAbilityTarget": (),
+        "items::tools::ToolResistance": Pickaxe(0),
+        "items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     4294967297: (
@@ -25,7 +25,7 @@
         "engine::world::block::NamedBlockMesh": (
             shape: Uniform("dirt.png"),
         ),
-        "engine::items::tools::abilities::ShovelAbilityTarget": (),
+        "items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     4294967298: (
@@ -50,7 +50,7 @@
         "engine::world::block::NamedBlockMesh": (
             shape: MultiTexture(("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
         ),
-        "engine::items::tools::abilities::AxeAbilityTarget": (),
+        "items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
     4294967300: (
@@ -114,7 +114,7 @@
         "engine::world::block::NamedBlockMesh": (
             shape: Uniform("snow.png"),
         ),
-        "engine::items::tools::abilities::ShovelAbilityTarget": (),
+        "items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     4294967304: (
@@ -138,7 +138,7 @@
             z: 0.0,
           ),
         )),
-        "engine::items::tools::abilities::ShovelAbilityTarget": (),
+        "items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
     4294967305: (
@@ -175,7 +175,7 @@
         "engine::world::block::NamedBlockMesh": (
             shape: Uniform("sand.png"),
         ),
-        "engine::items::tools::abilities::ShovelAbilityTarget": (),
+        "items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
   4294967308: (
@@ -188,7 +188,7 @@
         "engine::world::block::NamedBlockMesh": (
             shape: Uniform("cactus.png"),
         ),
-        "engine::items::tools::abilities::AxeAbilityTarget": (),
+        "items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
     4294967309: (
@@ -201,7 +201,7 @@
         "engine::world::block::NamedBlockMesh": (
             shape: Uniform("cactus_flower.png"),
         ),
-        "engine::items::tools::abilities::AxeAbilityTarget": (),
+        "items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
     4294967310: (
@@ -227,8 +227,8 @@
             shape: Cross(("lily.png","lily.png")),
             use_transparent_shader: true
         ),
-        "engine::items::tools::ToolResistance": Instant,
-        "engine::items::tools::abilities::ShovelAbilityTarget": (),
+        "items::tools::ToolResistance": Instant,
+        "items::tools::abilities::ShovelAbilityTarget": (),
       },
     ),
   },

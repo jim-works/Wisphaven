@@ -10,11 +10,11 @@
         "engine::items::NamedItemIcon": (
             path: "dagger.png"
         ),
-        "engine::items::weapons::MeleeWeaponItem": (
+        "items::weapons::MeleeWeaponItem": (
             damage: Damage (amount: 5.0),
             knockback: 1.0,
         ),
-        "engine::items::tools::DontHitBlocks": (),
+        "items::tools::DontHitBlocks": (),
         "engine::items::item_attributes::ItemSwingSpeed": (
             windup: (
                 secs: 0,
@@ -36,26 +36,7 @@
         "engine::items::NamedItemIcon": (
             path: "personality_tester.png"
         ),
-        "engine::items::debug_items::PersonalityTester": (),
-      },
-    ),
-    4294967298: (
-      components: {
-        "engine::items::ItemName": (
-          namespace: "core",
-          name: "mega_air",
-        ),
-        "engine::items::NamedItemIcon": (
-            path: "vacuum.png"
-        ),
-        "engine::items::block_item::MegaBlockItem": (
-          BlockName(
-            namespace: "core",
-            name: "empty"
-          ),
-          10
-        ),
-        "engine::items::item_attributes::ConsumeItemOnHit": (),
+        "items::debug_items::PersonalityTester": (),
       },
     ),
     4294967299: (
@@ -67,7 +48,7 @@
         "engine::items::NamedItemIcon": (
             path: "ruby_pickaxe.png"
         ),
-        "engine::items::tools::Tool": (
+        "items::tools::Tool": (
             pickaxe: 3,
             shovel: 2,
             axe: 2,
@@ -93,7 +74,7 @@
         "engine::items::NamedItemIcon": (
             path: "ruby_axe.png"
         ),
-        "engine::items::tools::Tool": (
+        "items::tools::Tool": (
             axe: 3
         ),
         "engine::items::item_attributes::ItemSwingSpeed": (
@@ -106,7 +87,7 @@
                 nanos: 500000000,
             )
         ),
-        "engine::items::tools::abilities::AxeAbility": (
+        "items::tools::abilities::AxeAbility": (
             max_blocks: 10,
             search_radius: 2,
             damage_mult: 1.0
@@ -122,7 +103,7 @@
         "engine::items::NamedItemIcon": (
             path: "ruby_shovel.png"
         ),
-        "engine::items::tools::Tool": (
+        "items::tools::Tool": (
             shovel: 3
         ),
         "engine::items::item_attributes::ItemSwingSpeed": (
@@ -135,7 +116,7 @@
                 nanos: 500000000,
             )
         ),
-        "engine::items::tools::abilities::ShovelAbility": (
+        "items::tools::abilities::ShovelAbility": (
             radius: 2,
             length: 10,
             damage_mult: 1.0
@@ -151,7 +132,7 @@
         "engine::items::NamedItemIcon": (
             path: "glowjelly_jar.png"
         ),
-        "engine::items::actor_items::SpawnActorItem": (ActorName(
+        "items::actor_items::SpawnActorItem": (ActorName(
           namespace: "core",
           name: "glowjelly",
         )),
@@ -177,7 +158,7 @@
         "engine::items::NamedItemIcon": (
             path: "world_anchor.png"
         ),
-        "engine::items::actor_items::SpawnActorItem": (ActorName(
+        "items::actor_items::SpawnActorItem": (ActorName(
           namespace: "core",
           name: "world_anchor",
         )),
@@ -203,7 +184,7 @@
         "engine::items::NamedItemIcon": (
             path: "moon.png"
         ),
-        "engine::items::time_items::SkipToNightItem": (),
+        "items::time_items::SkipToNightItem": (),
         "engine::items::item_attributes::ItemUseSpeed": (
             windup: (
                 secs: 0,
@@ -225,7 +206,7 @@
         "engine::items::NamedItemIcon": (
             path: "coin.png"
         ),
-        "engine::items::weapons::CoinLauncherItem": (
+        "items::weapons::CoinLauncherItem": (
           speed: 1,
           damage: Damage (amount: 3.0)
         ),
@@ -262,7 +243,7 @@
                 nanos: 500000000,
             )
         ),
-        "engine::items::tools::Tool": (),
+        "items::tools::Tool": (),
       },
     ),
     4294967307: (
@@ -274,7 +255,7 @@
         "engine::items::NamedItemIcon": (
             path: "grapple.png"
         ),
-        "engine::items::grapple_item::GrappleItem": (
+        "items::grapple_item::GrappleItem": (
           max_speed: 0.5,
           strength: 0.1,
           length: 25.0,

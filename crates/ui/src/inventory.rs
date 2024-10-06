@@ -136,8 +136,9 @@ fn spawn_inventory_system(
     system_ids: Res<InventorySystemIds>,
 ) {
     for LocalPlayerSpawnedEvent(id) in event_reader.read() {
-        info!("inventory trying to spawn from LocalPlayerSpawned event");
+        info!("inventory UI trying to spawn from LocalPlayerSpawned event");
         if let Ok(inv) = inventory_query.get(*id) {
+            info!("spawning inventory UI with {} slots!", inv.len());
             for entity in inventory_ui_query.iter() {
                 commands.entity(entity).despawn_recursive();
             }

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::{
+use engine::{
     actors::Player,
     physics::{collision::Aabb, query},
     world::{
@@ -10,7 +10,7 @@ use crate::{
     },
 };
 
-use super::{
+use engine::items::{
     inventory::Inventory, CreatorItem, EquipItemEvent, HitResult, ItemStack, ItemSystemSet,
     MaxStackSize, PickupItemEvent, SwingEndEvent, SwingItemEvent,
 };

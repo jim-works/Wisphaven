@@ -705,14 +705,14 @@ fn create_item_id_maps_from_palette(
                 match registry.id_map.get(name) {
                     Some(loaded_map_id) => {
                         info!(
-                            "Mapped saved block {:?} (id: {:?}) to loaded block id {:?}",
+                            "Mapped saved item {:?} (id: {:?}) to loaded item id {:?}",
                             name, saved_map_id, loaded_map_id
                         );
                         saved_to_loaded.insert(*saved_map_id, *loaded_map_id);
                         loaded_to_saved.insert(*loaded_map_id, *saved_map_id);
                     }
                     None => {
-                        error!("Unknown block name in palette: {:?}", name);
+                        error!("Unknown item name in palette: {:?}", name);
                         return None;
                     }
                 }
@@ -720,7 +720,7 @@ fn create_item_id_maps_from_palette(
             Some((saved_to_loaded, loaded_to_saved))
         }
         Err(e) => {
-            error!("couldn't load block id map from palette, {}", e);
+            error!("couldn't load item id map from palette, {}", e);
             None
         }
     }

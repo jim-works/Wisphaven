@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 use bevy_hanabi::prelude::*;
 
-use crate::{
+use engine::{
     actors::{ActorName, ActorResources},
+    items::HitResult,
     physics::{
         collision::Aabb,
         query::{self, Raycast, RaycastHit},
@@ -10,11 +11,11 @@ use crate::{
     world::{BlockPhysics, Level},
 };
 
-use super::{ItemSystemSet, UseEndEvent, UseItemEvent};
+use engine::items::{ItemSystemSet, UseEndEvent, UseItemEvent};
 
-pub struct ActorItems;
+pub struct ActorItemsPlugin;
 
-impl Plugin for ActorItems {
+impl Plugin for ActorItemsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
@@ -156,7 +157,7 @@ fn do_spawn_actors(
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
-                    result: crate::items::HitResult::Hit(spawn_pos),
+                    result: HitResult::Hit(spawn_pos),
                 });
                 if let Ok((mut tf, mut spawner)) = particles.get_mut(effects.spawn_particles) {
                     tf.translation = spawn_pos;
@@ -167,7 +168,7 @@ fn do_spawn_actors(
                     user: *user,
                     inventory_slot: *inventory_slot,
                     stack: *stack,
-                    result: crate::items::HitResult::Miss,
+                    result: HitResult::Miss,
                 });
             }
         }

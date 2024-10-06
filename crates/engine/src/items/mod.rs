@@ -7,17 +7,11 @@ use crate::world::{Id, LevelSystemSet};
 
 use self::item_attributes::ItemAttributesPlugin;
 
-pub mod actor_items;
 pub mod block_item;
 pub mod crafting;
-pub mod debug_items;
-mod grapple_item;
 pub mod inventory;
 pub mod item_attributes;
 pub mod loot;
-pub mod time_items;
-pub mod tools;
-pub mod weapons;
 
 pub struct ItemsPlugin;
 
@@ -44,32 +38,20 @@ impl Plugin for ItemsPlugin {
                     .chain(),
             )
             .add_plugins((
-                debug_items::DebugItems,
-                tools::ToolsPlugin,
-                actor_items::ActorItems,
-                weapons::WeaponItemPlugin,
                 ItemAttributesPlugin,
-                time_items::TimeItemsPlugin,
                 loot::LootPlugin,
                 crafting::CraftingPlugin,
-                grapple_item::GrappleItemPlugin,
             ))
             .add_systems(
                 Update,
-                (
-                    block_item::use_block_entity_item,
-                    block_item::use_mega_block_item,
-                )
-                    .in_set(ItemSystemSet::UsageProcessing),
+                (block_item::use_block_entity_item,).in_set(ItemSystemSet::UsageProcessing),
             )
             .add_systems(
                 Update,
                 inventory::tick_item_timers.in_set(ItemSystemSet::Usage),
             )
             .register_type::<NamedItemIcon>()
-            .register_type::<ItemName>()
-            .register_type::<weapons::MeleeWeaponItem>()
-            .register_type::<block_item::MegaBlockItem>();
+            .register_type::<ItemName>();
     }
 }
 
@@ -87,7 +69,7 @@ pub struct ItemStack {
     pub size: u32,
 }
 impl ItemStack {
-    pub(crate) fn new(id: Entity, size: u32) -> ItemStack {
+    pub fn new(id: Entity, size: u32) -> ItemStack {
         Self { id, size }
     }
 }

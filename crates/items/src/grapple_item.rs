@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::physics::{grapple::ShootGrappleEvent, query::Raycast};
+use engine::physics::{grapple::ShootGrappleEvent, query::Raycast};
 
-use super::{ItemSystemSet, UseEndEvent, UseItemEvent};
+use engine::items::{HitResult, ItemSystemSet, UseEndEvent, UseItemEvent};
 
 pub struct GrappleItemPlugin;
 
@@ -61,7 +61,7 @@ pub fn launch_grapple(
                 user: *user,
                 inventory_slot: *inventory_slot,
                 stack: *stack,
-                result: super::HitResult::Miss,
+                result: HitResult::Miss,
             });
         }
     }
