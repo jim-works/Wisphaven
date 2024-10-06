@@ -1,9 +1,7 @@
 use bevy::prelude::*;
 
 use engine::{
-    actors::{
-        coin::SpawnCoinEvent, team::PlayerTeam, AttackEvent, Combatant, CombatantBundle, Damage,
-    },
+    actors::{team::PlayerTeam, AttackEvent, Combatant, CombatantBundle, Damage},
     physics::{
         collision::Aabb,
         movement::Velocity,
@@ -11,6 +9,8 @@ use engine::{
     },
     world::{BlockPhysics, Level},
 };
+
+use actors::coin::SpawnCoinEvent;
 
 use engine::items::{
     HitResult, ItemSystemSet, SwingEndEvent, SwingItemEvent, UseEndEvent, UseItemEvent,

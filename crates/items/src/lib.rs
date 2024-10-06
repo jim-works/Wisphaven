@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
 mod actor_items;
-mod debug_items;
 mod grapple_item;
 mod time_items;
 mod tools;
@@ -15,7 +14,6 @@ impl Plugin for ItemsPlugin {
             weapons::WeaponItemPlugin,
             time_items::TimeItemsPlugin,
             grapple_item::GrappleItemPlugin,
-            debug_items::DebugItemsPlugin,
             actor_items::ActorItemsPlugin,
             tools::ToolsPlugin,
         ));

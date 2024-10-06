@@ -1,12 +1,12 @@
 use std::time::Duration;
 
-use crate::{
+use bevy::prelude::*;
+use engine::{
     all_teams_event, all_teams_system,
     physics::{collision::Aabb, movement::Velocity, PhysicsBundle},
 };
-use bevy::prelude::*;
 
-use super::{
+use engine::actors::{
     projectile::{Projectile, ProjectileBundle},
     team::*,
     CombatantBundle, Damage,

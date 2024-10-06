@@ -27,18 +27,6 @@
         ),
       },
     ),
-    4294967297: (
-      components: {
-        "engine::items::ItemName": (
-          namespace: "core",
-          name: "personality_tester",
-        ),
-        "engine::items::NamedItemIcon": (
-            path: "personality_tester.png"
-        ),
-        "items::debug_items::PersonalityTester": (),
-      },
-    ),
     4294967299: (
       components: {
         "engine::items::ItemName": (

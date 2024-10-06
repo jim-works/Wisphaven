@@ -1,12 +1,15 @@
 use bevy::prelude::*;
 
-use crate::{
+use engine::{
     physics::{collision::Aabb, movement::GravityMult, PhysicsBundle},
-    util::{plugin::SmoothLookTo, SendEventCommand},
     world::LevelLoadState,
 };
 
-use super::{team::PlayerTeam, ActorName, ActorResources, Combatant, CombatantBundle, Idler};
+use util::{plugin::SmoothLookTo, SendEventCommand};
+
+use engine::actors::{
+    team::PlayerTeam, ActorName, ActorResources, Combatant, CombatantBundle, Idler,
+};
 
 #[derive(Resource)]
 pub struct WispResources {

@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use bevy::prelude::*;
 
+use actors::skeleton_pirate::SpawnSkeletonPirateEvent;
 use actors::spawning::{DefaultSpawnArgs, SpawnActorEvent};
-use engine::actors::skeleton_pirate::SpawnSkeletonPirateEvent;
 use util::SendEventCommand;
 
 use super::SpawnAction;

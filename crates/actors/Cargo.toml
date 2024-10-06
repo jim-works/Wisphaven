@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 bevy = { workspace = true }
 ahash = { workspace = true }
+big-brain = { workspace = true }
 
 engine = { path = "../engine" }
 util = { path = "../util" }

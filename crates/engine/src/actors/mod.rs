@@ -10,22 +10,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::util::{ease_out_quad, inverse_lerp, lerp};
 
-use self::personality::PersonalityPlugin;
-
 pub mod abilities;
 pub mod ai;
-pub mod behaviors;
 pub mod block_actors;
-pub mod coin;
 pub mod ghost;
-pub mod glowjelly;
-pub mod personality;
-pub mod skeleton_pirate;
-pub mod wisp;
 pub mod world_anchor;
-
-#[cfg(test)]
-mod test;
 
 pub struct ActorPlugin;
 
@@ -34,17 +23,11 @@ impl Plugin for ActorPlugin {
         app.add_plugins((
             CombatPlugin,
             BigBrainPlugin::new(PreUpdate),
-            PersonalityPlugin,
             block_actors::BlockActorPlugin,
-            behaviors::BehaviorsPlugin,
-            glowjelly::GlowjellyPlugin,
             world_anchor::WorldAnchorPlugin,
-            skeleton_pirate::SkeletonPiratePlugin,
-            coin::CoinPlugin,
             player::PlayerPlugin,
             ai::AIPlugin,
             ghost::GhostPlugin,
-            wisp::WispPlugin,
             abilities::AbilityPlugin,
         ))
         .add_systems(Update, idle_action_system)
