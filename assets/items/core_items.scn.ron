@@ -223,29 +223,6 @@
         "engine::items::item_attributes::ConsumeItemOnHit": ()
       },
     ),
-    4294967306: (
-      components: {
-        "engine::items::ItemName": (
-          namespace: "core",
-          name: "ruby_hammer",
-        ),
-        "engine::items::NamedItemIcon": (
-            path: "ruby_hammer.png"
-        ),
-        "engine::items::crafting::CraftingHammer": (),
-        "engine::items::item_attributes::ItemSwingSpeed": (
-            windup: (
-                secs: 1,
-                nanos: 0,
-            ),
-            backswing: (
-                secs: 0,
-                nanos: 500000000,
-            )
-        ),
-        "items::tools::Tool": (),
-      },
-    ),
     4294967307: (
       components: {
         "engine::items::ItemName": (

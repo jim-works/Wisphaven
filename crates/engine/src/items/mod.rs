@@ -8,7 +8,6 @@ use crate::world::{Id, LevelSystemSet};
 use self::item_attributes::ItemAttributesPlugin;
 
 pub mod block_item;
-pub mod crafting;
 pub mod inventory;
 pub mod item_attributes;
 pub mod loot;
@@ -37,11 +36,7 @@ impl Plugin for ItemsPlugin {
                 )
                     .chain(),
             )
-            .add_plugins((
-                ItemAttributesPlugin,
-                loot::LootPlugin,
-                crafting::CraftingPlugin,
-            ))
+            .add_plugins((ItemAttributesPlugin, loot::LootPlugin))
             .add_systems(
                 Update,
                 (block_item::use_block_entity_item,).in_set(ItemSystemSet::UsageProcessing),

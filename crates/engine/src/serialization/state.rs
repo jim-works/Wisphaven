@@ -1,7 +1,7 @@
 use bevy::{asset::LoadState, prelude::*};
 
 use crate::{
-    items::{crafting::recipes::RecipeList, ItemResources},
+    items::ItemResources,
     mesher::TerrainTexture,
     world::{atmosphere::SkyboxCubemap, BlockResources},
     GameState,
@@ -61,16 +61,10 @@ pub fn check_load_state(
     mut next: ResMut<NextState<GameLoadState>>,
     block_types: Option<Res<BlockResources>>,
     item_types: Option<Res<ItemResources>>,
-    recipes: Option<Res<RecipeList>>,
     block_textures: Res<TexturesLoaded>,
     skybox: Option<Res<SkyboxCubemap>>,
 ) {
-    if block_textures.0
-        && block_types.is_some()
-        && item_types.is_some()
-        && recipes.is_some()
-        && skybox.is_some()
-    {
+    if block_textures.0 && block_types.is_some() && item_types.is_some() && skybox.is_some() {
         info!("Finished loading!");
         next.set(GameLoadState::CreatingLevel)
     }

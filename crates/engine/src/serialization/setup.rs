@@ -6,8 +6,6 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::items::crafting::recipes::{BasicBlockRecipe, NamedBasicBlockRecipe, RecipeList};
-
 use crate::items::{
     ItemIcon, ItemId, ItemName, ItemNameIdMap, ItemRegistry, ItemResources, NamedItemIcon,
 };
@@ -17,7 +15,7 @@ use crate::serialization::db::{LevelDB, LevelDBErr};
 use crate::serialization::queries::{
     CREATE_CHUNK_TABLE, CREATE_WORLD_INFO_TABLE, INSERT_WORLD_INFO, LOAD_WORLD_INFO,
 };
-use crate::serialization::{LoadingBlocks, LoadingItems, LoadingRecipes};
+use crate::serialization::{LoadingBlocks, LoadingItems};
 use crate::util::string::Version;
 use crate::world::settings::GraphicsSettings;
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
@@ -45,9 +43,6 @@ impl Plugin for SetupPlugin {
                     (|| (LoadingBlocks, "blocks"))
                         .pipe(start_loading_scene::<LoadingBlockScenes>)
                         .run_if(resource_exists::<LoadingBlockScenes>),
-                    (|| (LoadingRecipes, "recipes"))
-                        .pipe(start_loading_scene::<LoadingRecipeScenes>)
-                        .run_if(resource_exists::<LoadingRecipeScenes>),
                     (|| (LoadingItems, "items"))
                         .pipe(start_loading_scene::<LoadingItemScenes>)
                         .run_if(resource_exists::<LoadingItemScenes>),
@@ -58,19 +53,14 @@ impl Plugin for SetupPlugin {
                     .run_if(not(resource_exists::<LoadingBlockTextures>))
                     .run_if(not(resource_exists::<LoadingItemTextures>))
                     .run_if(not(resource_exists::<LoadingBlockScenes>))
-                    .run_if(not(resource_exists::<LoadingRecipeScenes>))
                     .run_if(not(resource_exists::<LoadingItemScenes>)),
                 )
                     .run_if(in_state(state::GameLoadState::Preloading)),
             )
-            //create registries/recipe lists
+            //create registries
             .add_systems(
                 Update,
-                (
-                    load_block_registry,
-                    load_item_registry,
-                    load_recipe_list.run_if(resource_exists::<BlockResources>),
-                )
+                (load_block_registry, load_item_registry)
                     .run_if(in_state(state::GameLoadState::LoadingAssets)),
             )
             //create level
@@ -96,9 +86,6 @@ pub struct LoadingBlockScenes(Handle<LoadedFolder>);
 #[derive(Resource, Deref, Clone)]
 pub struct LoadingItemScenes(Handle<LoadedFolder>);
 
-#[derive(Resource, Deref, Clone)]
-pub struct LoadingRecipeScenes(Handle<LoadedFolder>);
-
 pub fn load_settings() -> Settings {
     Settings::default()
 }
@@ -120,9 +107,6 @@ pub fn load_folders(mut commands: Commands, assets: Res<AssetServer>, settings: 
     ));
     commands.insert_resource(LoadingItemScenes(
         assets.load_folder(settings.item_type_path),
-    ));
-    commands.insert_resource(LoadingRecipeScenes(
-        assets.load_folder(settings.recipe_path),
     ));
 }
 
@@ -360,66 +344,6 @@ pub fn load_item_registry(
     commands.insert_resource(ItemResources {
         registry: std::sync::Arc::new(registry),
     });
-}
-
-pub fn load_recipe_list(
-    mut commands: Commands,
-    loading_recipes: Query<(Entity, Option<&Children>), With<LoadingRecipes>>,
-    named_recipe: Query<&NamedBasicBlockRecipe>,
-    block_registry: Res<BlockResources>,
-    recipe_list: Option<Res<RecipeList>>,
-) {
-    //make sure there are no still loading recipe scenes before we make the registry
-    if recipe_list.is_some()
-        || loading_recipes
-            .iter()
-            .any(|(_, opt_children)| opt_children.is_none())
-    {
-        return;
-    }
-    //not happy with this, along with all the register type nonsense.
-    //todo - look into asset v2 when updating to 0.12 or just use serde_json
-    //  don't think I'll add a lot of components to recipes after all...
-    let recipes: Vec<BasicBlockRecipe> = loading_recipes
-        .iter()
-        .flat_map(|(scene_entity, opt_children)| {
-            commands.entity(scene_entity).remove::<LoadingRecipes>();
-            let mut recipes = Vec::with_capacity(opt_children.unwrap().len());
-            for recipe_entity in opt_children.unwrap() {
-                let NamedBasicBlockRecipe { recipe, products } =
-                    named_recipe.get(*recipe_entity).unwrap();
-                let mut id_recipe = Vec::with_capacity(recipe.len());
-                for y_row in recipe.iter() {
-                    let mut y_row_id = Vec::with_capacity(y_row.len());
-                    for x_row in y_row.iter() {
-                        y_row_id.push(
-                            x_row
-                                .iter()
-                                .map(|opt_name| {
-                                    opt_name
-                                        .as_ref()
-                                        .and_then(|name| block_registry.registry.get_basic(name))
-                                })
-                                .collect::<Vec<_>>(),
-                        )
-                    }
-                    id_recipe.push(y_row_id);
-                }
-                let id_products = products
-                    .iter()
-                    .map(|(coord, name)| (*coord, block_registry.registry.get_basic(name).into()))
-                    .collect();
-                commands
-                    .entity(*recipe_entity)
-                    .remove::<NamedBasicBlockRecipe>();
-                recipes.push(BasicBlockRecipe::new(&id_recipe, id_products).unwrap());
-            }
-            recipes
-        })
-        .collect();
-
-    info!("Finished loading {} recipes", recipes.len());
-    commands.insert_resource(RecipeList::new(recipes));
 }
 
 pub fn on_level_created(
