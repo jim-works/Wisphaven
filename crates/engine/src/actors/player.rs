@@ -1,5 +1,6 @@
 use std::{f32::consts::PI, time::Duration};
 
+use ::util::SendEventCommand;
 use bevy::prelude::*;
 use bevy_quinnet::client::QuinnetClient;
 use player_controller::RotateWithMouse;
@@ -152,7 +153,6 @@ pub fn spawn_local_player(
     level: Res<Level>,
     mut pickup_item: EventWriter<PickupItemEvent>,
     mut equip_item: EventWriter<EquipItemEvent>,
-    mut spawn_event: EventWriter<LocalPlayerSpawnedEvent>,
     resources: Res<ItemResources>,
     item_query: Query<&MaxStackSize>,
     ghost_resources: Res<GhostResources>,
@@ -287,7 +287,8 @@ pub fn spawn_local_player(
         );
 
         commands.entity(player_id).insert(inventory);
-        spawn_event.send(LocalPlayerSpawnedEvent(player_id));
+        //makes sure that player is actually spawned before this occurs, since events fire at a different time than commands
+        commands.add(SendEventCommand(LocalPlayerSpawnedEvent(player_id)));
     }
 }
 
