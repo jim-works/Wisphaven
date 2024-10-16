@@ -50,18 +50,20 @@ macro_rules! all_teams_system {
 }
 
 //for use when building app, for example:
-//  all_teams_event(app, Event)
+//  all_teams_function(app, add_event, Event)
 //will expand the macro to a list of statements `app.add_event::<Event<Team>>();` for all teams
 //note: have to import all teams in destination module
 #[macro_export]
-macro_rules! all_teams_event {
+macro_rules! all_teams_function {
     (
         $app:ident,
+        $function:ident,
         $event:ident
+        $(,$args:expr)?
     ) => {
-        $app.add_event::<$event<PlayerTeam>>();
-        $app.add_event::<$event<EnemyTeam>>();
-        $app.add_event::<$event<FreeForAllTeam>>();
+        $app.$function::<$event<PlayerTeam>>($($args)?);
+        $app.$function::<$event<EnemyTeam>>($($args)?);
+        $app.$function::<$event<FreeForAllTeam>>($($args)?);
     };
 }
 

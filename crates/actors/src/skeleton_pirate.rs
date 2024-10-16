@@ -15,6 +15,8 @@ use engine::{
 };
 use util::{physics::aim_projectile_straight_fallback, plugin::SmoothLookTo, SendEventCommand};
 
+use crate::spawning::{DefaultSpawnArgs, ProjectileSpawnArgs};
+
 use super::coin::SpawnCoinEvent;
 
 #[derive(Resource)]
@@ -230,17 +232,22 @@ fn attack(
                             Some(mut anim) => {
                                 anim.tick(time.delta_seconds());
                                 if anim.just_acted() {
-                                    spawn_coin.send(SpawnCoinEvent {
-                                        location: Transform::from_translation(spawn_point),
-                                        velocity: Velocity(aim_projectile_straight_fallback(
-                                            target.translation() - spawn_point,
-                                            target_v_opt.unwrap_or(&Velocity::default()).0 - v.0,
-                                            THROW_IMPULSE,
-                                            GRAVITY,
-                                        )),
-                                        combat: combat.clone(),
-                                        owner: actor,
-                                        damage,
+                                    spawn_coin.send(SpawnCoinEvent::<EnemyTeam> {
+                                        default_args: DefaultSpawnArgs {
+                                            transform: Transform::from_translation(spawn_point),
+                                        },
+                                        projectile_args: ProjectileSpawnArgs {
+                                            velocity: Velocity(aim_projectile_straight_fallback(
+                                                target.translation() - spawn_point,
+                                                target_v_opt.unwrap_or(&Velocity::default()).0
+                                                    - v.0,
+                                                THROW_IMPULSE,
+                                                GRAVITY,
+                                            )),
+                                            combat: combat.clone(),
+                                            owner: actor,
+                                            damage,
+                                        },
                                     });
                                 }
                                 if anim.finished() {
@@ -250,17 +257,21 @@ fn attack(
                             }
                             None => {
                                 //no anim so gogogogogogogogogogogogo
-                                spawn_coin.send(SpawnCoinEvent {
-                                    location: Transform::from_translation(spawn_point),
-                                    velocity: Velocity(aim_projectile_straight_fallback(
-                                        target.translation() - spawn_point,
-                                        target_v_opt.unwrap_or(&Velocity::default()).0 - v.0,
-                                        THROW_IMPULSE,
-                                        GRAVITY,
-                                    )),
-                                    combat: combat.clone(),
-                                    owner: actor,
-                                    damage,
+                                spawn_coin.send(SpawnCoinEvent::<EnemyTeam> {
+                                    default_args: DefaultSpawnArgs {
+                                        transform: Transform::from_translation(spawn_point),
+                                    },
+                                    projectile_args: ProjectileSpawnArgs {
+                                        velocity: Velocity(aim_projectile_straight_fallback(
+                                            target.translation() - spawn_point,
+                                            target_v_opt.unwrap_or(&Velocity::default()).0 - v.0,
+                                            THROW_IMPULSE,
+                                            GRAVITY,
+                                        )),
+                                        combat: combat.clone(),
+                                        owner: actor,
+                                        damage,
+                                    },
                                 });
                                 *state = ActionState::Success;
                                 continue;

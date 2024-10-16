@@ -194,7 +194,8 @@
         "engine::items::NamedItemIcon": (
             path: "coin.png"
         ),
-        "items::weapons::CoinLauncherItem": (
+        "items::weapons::ProjectileLauncherItem": (
+          name: "coin",
           speed: 1,
           damage: Damage (amount: 3.0)
         ),

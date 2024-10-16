@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::prelude::*;
 
 use engine::{
@@ -10,7 +12,7 @@ use engine::{
     world::{BlockPhysics, Level},
 };
 
-use actors::coin::SpawnCoinEvent;
+use actors::spawning::{ProjectileSpawnArgs, SpawnProjectileEvent};
 
 use engine::items::{
     HitResult, ItemSystemSet, SwingEndEvent, SwingItemEvent, UseEndEvent, UseItemEvent,
@@ -24,7 +26,7 @@ impl Plugin for WeaponItemPlugin {
             Update,
             (attack_melee, launch_coin).in_set(ItemSystemSet::UsageProcessing),
         )
-        .register_type::<CoinLauncherItem>()
+        .register_type::<ProjectileLauncherItem>()
         .register_type::<MeleeWeaponItem>();
     }
 }
@@ -38,7 +40,8 @@ pub struct MeleeWeaponItem {
 
 #[derive(Component, Reflect, Default)]
 #[reflect(Component, FromWorld)]
-pub struct CoinLauncherItem {
+pub struct ProjectileLauncherItem {
+    pub name: String,
     pub damage: Damage,
     pub speed: f32,
 }
@@ -96,8 +99,8 @@ pub fn attack_melee(
 pub fn launch_coin(
     mut attack_item_reader: EventReader<UseItemEvent>,
     mut hit_writer: EventWriter<UseEndEvent>,
-    mut writer: EventWriter<SpawnCoinEvent<PlayerTeam>>,
-    weapon_query: Query<&CoinLauncherItem>,
+    mut writer: EventWriter<SpawnProjectileEvent<PlayerTeam>>,
+    weapon_query: Query<&ProjectileLauncherItem>,
 ) {
     for UseItemEvent {
         user,
@@ -107,15 +110,20 @@ pub fn launch_coin(
     } in attack_item_reader.read()
     {
         if let Ok(weapon) = weapon_query.get(stack.id) {
-            writer.send(SpawnCoinEvent {
-                location: Transform::from_translation(tf.translation),
-                velocity: Velocity(tf.forward() * weapon.speed),
-                combat: CombatantBundle {
-                    combatant: Combatant::new(1.0, 0.0),
-                    ..default()
+            writer.send(SpawnProjectileEvent {
+                name: Arc::new(weapon.name.clone()),
+                default: actors::spawning::DefaultSpawnArgs {
+                    transform: Transform::from_translation(tf.translation),
                 },
-                owner: *user,
-                damage: weapon.damage,
+                projectile: ProjectileSpawnArgs {
+                    velocity: Velocity(tf.forward() * weapon.speed),
+                    combat: CombatantBundle {
+                        combatant: Combatant::new(1.0, 0.0),
+                        ..default()
+                    },
+                    owner: *user,
+                    damage: weapon.damage,
+                },
             });
             hit_writer.send(UseEndEvent {
                 user: *user,

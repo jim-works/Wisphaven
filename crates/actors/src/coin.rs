@@ -2,15 +2,16 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use engine::{
-    all_teams_event, all_teams_system,
-    physics::{collision::Aabb, movement::Velocity, PhysicsBundle},
+    all_teams_function, all_teams_system,
+    physics::{collision::Aabb, PhysicsBundle},
 };
 
 use engine::actors::{
     projectile::{Projectile, ProjectileBundle},
     team::*,
-    CombatantBundle, Damage,
 };
+
+use crate::spawning::{BuildProjectileRegistry, DefaultSpawnArgs, ProjectileSpawnArgs};
 
 #[derive(Resource)]
 pub struct CoinResources {
@@ -20,22 +21,29 @@ pub struct CoinResources {
 #[derive(Component)]
 pub struct CoinScene;
 
-#[derive(Event)]
-pub struct SpawnCoinEvent<T: Team> {
-    pub location: Transform,
-    pub velocity: Velocity,
-    pub combat: CombatantBundle<T>,
-    pub owner: Entity,
-    pub damage: Damage,
-}
-
 pub struct CoinPlugin;
 
 impl Plugin for CoinPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, load_resources)
             .add_systems(Update, all_teams_system!(spawn_coin));
-        all_teams_event!(app, SpawnCoinEvent);
+        all_teams_function!(app, add_event, SpawnCoinEvent);
+        all_teams_function!(app, add_projectile, SpawnCoinEvent, "coin".to_string());
+    }
+}
+
+#[derive(Event)]
+pub struct SpawnCoinEvent<T: Team> {
+    pub projectile_args: ProjectileSpawnArgs<T>,
+    pub default_args: DefaultSpawnArgs,
+}
+
+impl<T: Team> From<(DefaultSpawnArgs, ProjectileSpawnArgs<T>)> for SpawnCoinEvent<T> {
+    fn from(value: (DefaultSpawnArgs, ProjectileSpawnArgs<T>)) -> Self {
+        Self {
+            projectile_args: value.1,
+            default_args: value.0,
+        }
     }
 }
 
@@ -49,31 +57,34 @@ pub fn spawn_coin<T: Team>(
     mut commands: Commands,
     res: Res<CoinResources>,
     mut spawn_requests: EventReader<SpawnCoinEvent<T>>,
-    _children_query: Query<&Children>,
     time: Res<Time>,
 ) {
     const LIFETIME: Duration = Duration::from_secs(10);
     let curr_time = time.elapsed();
-    for spawn in spawn_requests.read() {
+    for SpawnCoinEvent {
+        projectile_args,
+        default_args,
+    } in spawn_requests.read()
+    {
         commands.spawn((
             SceneBundle {
                 scene: res.scene.clone_weak(),
-                transform: spawn.location.with_scale(Vec3::new(0.5, 0.5, 0.5)),
+                transform: default_args.transform,
                 ..default()
             },
             Name::new("coin"),
-            spawn.combat.clone(),
+            projectile_args.combat.clone(),
             PhysicsBundle {
                 collider: Aabb::centered(Vec3::new(0.125, 0.0625, 0.125)),
-                velocity: spawn.velocity,
+                velocity: projectile_args.velocity,
                 ..default()
             },
             ProjectileBundle::new(Projectile {
-                owner: spawn.owner,
+                owner: projectile_args.owner,
                 knockback_mult: 1.0,
                 terrain_damage: 0.5,
                 despawn_time: curr_time + LIFETIME,
-                damage: spawn.damage,
+                damage: projectile_args.damage,
                 despawn_on_hit: true,
                 on_hit_or_despawn: None,
             }),
