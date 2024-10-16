@@ -265,7 +265,7 @@ pub fn spawn_local_player(
             ItemStack::new(
                 resources
                     .registry
-                    .get_basic(&ItemName::core("coin_launcher"))
+                    .get_basic(&ItemName::core("spike_ball_launcher"))
                     .unwrap(),
                 100,
             ),

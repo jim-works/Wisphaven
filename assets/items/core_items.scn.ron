@@ -212,6 +212,33 @@
         "engine::items::item_attributes::ConsumeItemOnHit": ()
       },
     ),
+    4294967306: (
+      components: {
+        "engine::items::ItemName": (
+          namespace: "core",
+          name: "spike_ball_launcher",
+        ),
+        "engine::items::NamedItemIcon": (
+            path: "spike_ball.png"
+        ),
+        "items::weapons::ProjectileLauncherItem": (
+          name: "spike_ball",
+          speed: 5,
+          damage: Damage (amount: 10.0)
+        ),
+        "engine::items::item_attributes::ItemUseSpeed": (
+            windup: (
+                secs: 0,
+                nanos: 0,
+            ),
+            backswing: (
+                secs: 1,
+                nanos: 0
+            )
+        ),
+        "engine::items::item_attributes::ConsumeItemOnHit": ()
+      },
+    ),
     4294967307: (
       components: {
         "engine::items::ItemName": (
