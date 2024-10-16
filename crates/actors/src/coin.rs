@@ -85,8 +85,8 @@ pub fn spawn_coin<T: Team>(
                 terrain_damage: 0.5,
                 despawn_time: curr_time + LIFETIME,
                 damage: projectile_args.damage,
-                despawn_on_hit: true,
-                on_hit_or_despawn: None,
+                hit_behavior: engine::actors::projectile::ProjecileHitBehavior::Despawn,
+                on_hit: None,
             }),
             //no UninitializedActor b/c we don't have to do any setup
         ));

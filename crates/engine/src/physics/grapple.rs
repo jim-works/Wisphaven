@@ -126,7 +126,7 @@ fn shoot_grapple(
         };
         match hit {
             super::query::RaycastHit::Block(coord, pos) => {
-                ec.insert(Grappled {
+                ec.try_insert(Grappled {
                     target: GrappleTarget::Block {
                         block_coord: coord,
                         anchor_pos: pos.hit_pos,
@@ -141,7 +141,7 @@ fn shoot_grapple(
                 let Ok((_, gtf, _)) = object_query.get(hit.entity) else {
                     continue;
                 };
-                ec.insert(Grappled {
+                ec.try_insert(Grappled {
                     target: GrappleTarget::Entity {
                         target: hit.entity,
                         anchor_offset: gtf.affine().inverse().transform_point3(hit.hit_pos),

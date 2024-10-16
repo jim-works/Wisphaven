@@ -248,11 +248,11 @@ impl LevelData {
     ) {
         if SAVE {
             if let Some(mut ec) = commands.get_entity(chunk_entity) {
-                ec.insert((NeedsMesh::default(), NeedsSaving));
+                ec.try_insert((NeedsMesh::default(), NeedsSaving));
             }
         } else {
             if let Some(mut ec) = commands.get_entity(chunk_entity) {
-                ec.insert(NeedsMesh::default());
+                ec.try_insert(NeedsMesh::default());
             }
         }
         update_writer.send(ChunkUpdatedEvent { coord });
@@ -267,7 +267,7 @@ impl LevelData {
             if let Some(neighbor_ref) = self.get_chunk(coord.offset(dir)) {
                 if let ChunkType::Full(c) = neighbor_ref.value() {
                     if let Some(mut ec) = commands.get_entity(c.entity) {
-                        ec.insert(NeedsMesh::default());
+                        ec.try_insert(NeedsMesh::default());
                     }
                     update_writer.send(ChunkUpdatedEvent { coord: c.position });
                 }
@@ -452,7 +452,7 @@ impl LevelData {
             }
         } else {
             if let Some(mut ec) = commands.get_entity(id) {
-                ec.insert(DontMeshChunk);
+                ec.try_insert(DontMeshChunk);
             }
         }
         id

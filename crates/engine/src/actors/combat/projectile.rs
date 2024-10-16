@@ -33,6 +33,13 @@ pub struct ProjectileHit {
     projectile: Entity,
 }
 
+#[derive(Clone, Copy, Default)]
+pub enum ProjecileHitBehavior {
+    #[default]
+    Despawn,
+    None,
+}
+
 #[derive(Component)]
 pub struct Projectile {
     pub owner: Entity,
@@ -40,9 +47,9 @@ pub struct Projectile {
     pub terrain_damage: f32,
     pub knockback_mult: f32,
     pub despawn_time: Duration,
-    pub despawn_on_hit: bool,
+    pub hit_behavior: ProjecileHitBehavior,
     //usually want same behavior for both, so one function
-    pub on_hit_or_despawn: Option<Box<dyn Fn(ProjectileHit, &mut Commands) + Send + Sync>>,
+    pub on_hit: Option<Box<dyn Fn(ProjectileHit, &mut Commands) + Send + Sync>>,
 }
 
 //makrs that a projectile could spawn inside of an entity, and should ignore that entity until it is not inside it.
@@ -73,7 +80,7 @@ fn update_projectile_lifetime(
     let curr_time = time.elapsed();
     for (entity, proj) in query.iter() {
         if proj.despawn_time < curr_time {
-            if let Some(action) = &proj.on_hit_or_despawn {
+            if let Some(action) = &proj.on_hit {
                 action(
                     ProjectileHit {
                         hit: None,
@@ -166,11 +173,11 @@ fn proj_hit(
             attacker: proj.owner,
             target: hit,
             damage: proj.damage,
-            knockback: v.map_or_else(|| Vec3::ZERO, |v| v.0 * proj.knockback_mult),
+            knockback: v.map_or(Vec3::ZERO, |v| v.0 * proj.knockback_mult),
         });
     }
-    
-    if let Some(ref on_hit) = proj.on_hit_or_despawn {
+
+    if let Some(ref on_hit) = proj.on_hit {
         on_hit(
             ProjectileHit {
                 hit: target,
@@ -191,7 +198,8 @@ fn proj_hit(
         );
     }
 
-    if proj.despawn_on_hit {
-        commands.entity(proj_entity).despawn_recursive();
+    match proj.hit_behavior {
+        ProjecileHitBehavior::Despawn => commands.entity(proj_entity).despawn_recursive(),
+        ProjecileHitBehavior::None => (),
     }
 }

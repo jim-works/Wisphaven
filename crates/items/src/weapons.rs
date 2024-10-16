@@ -38,12 +38,28 @@ pub struct MeleeWeaponItem {
     pub knockback: f32,
 }
 
-#[derive(Component, Reflect, Default)]
+#[derive(Component, Reflect)]
 #[reflect(Component, FromWorld)]
 pub struct ProjectileLauncherItem {
     pub name: String,
     pub damage: Damage,
     pub speed: f32,
+    pub lifetime_mult: f32,
+    pub knockback_mult: f32,
+    pub terrain_damage_mult: f32,
+}
+
+impl Default for ProjectileLauncherItem {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            damage: Default::default(),
+            speed: Default::default(),
+            lifetime_mult: 1.,
+            knockback_mult: 1.,
+            terrain_damage_mult: 1.,
+        }
+    }
 }
 
 pub fn attack_melee(
@@ -123,6 +139,9 @@ pub fn launch_coin(
                     },
                     owner: *user,
                     damage: weapon.damage,
+                    lifetime_mult: weapon.lifetime_mult,
+                    knockback_mult: weapon.knockback_mult,
+                    terrain_damage_mult: weapon.terrain_damage_mult,
                 },
             });
             hit_writer.send(UseEndEvent {

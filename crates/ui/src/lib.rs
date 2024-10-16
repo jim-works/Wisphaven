@@ -187,7 +187,7 @@ fn update_main_camera_ui(
 ) {
     for ui_element in ui_query.iter() {
         if let Some(mut ec) = commands.get_entity(ui_element) {
-            ec.insert(TargetCamera(camera.0));
+            ec.try_insert(TargetCamera(camera.0));
         }
     }
 }

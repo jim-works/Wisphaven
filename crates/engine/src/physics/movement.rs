@@ -67,6 +67,11 @@ impl Default for Drag {
     }
 }
 
+#[derive(
+    Component, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize, Default,
+)]
+pub struct Restitution(pub f32);
+
 #[derive(Component, Deref, DerefMut, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Mass(pub f32);
 

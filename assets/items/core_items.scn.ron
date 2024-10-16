@@ -223,8 +223,9 @@
         ),
         "items::weapons::ProjectileLauncherItem": (
           name: "spike_ball",
-          speed: 5,
-          damage: Damage (amount: 10.0)
+          speed: 2,
+          damage: Damage (amount: 10.0),
+          lifetime_mult: 0.5,
         ),
         "engine::items::item_attributes::ItemUseSpeed": (
             windup: (
@@ -232,8 +233,8 @@
                 nanos: 0,
             ),
             backswing: (
-                secs: 1,
-                nanos: 0
+                secs: 0,
+                nanos: 250000000
             )
         ),
         "engine::items::item_attributes::ConsumeItemOnHit": ()

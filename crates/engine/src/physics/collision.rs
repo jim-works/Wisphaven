@@ -347,6 +347,7 @@ fn move_and_slide(
             &mut Velocity,
             &mut CollidingDirections,
             &Aabb,
+            &Restitution,
             Option<&mut CollidingBlocks>,
         ),
         Without<IgnoreTerrainCollision>,
@@ -359,7 +360,8 @@ fn move_and_slide(
     block_gizmos.blocks.clear();
     block_gizmos.hit_blocks.clear();
     let mut resolution_buffer: Vec<(f32, BlockCoord, Aabb)> = Vec::with_capacity(32);
-    for (mut tf, mut v, mut directions, col, mut opt_col_blocks) in objects.iter_mut() {
+    for (mut tf, mut v, mut directions, col, restitution, mut opt_col_blocks) in objects.iter_mut()
+    {
         if let Some(ref mut col_blocks) = opt_col_blocks {
             col_blocks.clear();
         }
@@ -428,7 +430,7 @@ fn move_and_slide(
                 let normal = contact_normal.to_vec3();
                 //stop before penetrating the other box
                 let v_abs = v.abs();
-                v.0 += normal * v_abs * (1.0 - t_adj);
+                v.0 += normal * v_abs * (1.0 - t_adj) + normal * restitution.0;
             }
         }
         tf.translation += v.0;

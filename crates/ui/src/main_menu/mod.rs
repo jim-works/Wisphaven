@@ -116,7 +116,7 @@ fn menu_entered(
 
 fn menu_exited(
     mut commands: Commands,
-    menu_query: Query<Entity, With<MenuRoot>>,
+    menu_query: Query<Entity, Or<(With<MenuRoot>, With<MainMenuElement>)>>,
     ghost_query: Query<(Entity, &SwingHand, &UseHand), With<MainMenuGhost>>,
 ) {
     for entity in menu_query.iter() {
@@ -176,7 +176,6 @@ fn setup_main_screen(
     res: &Res<MainMenuSystemIds>,
 ) {
     let button = (
-        MainMenuElement,
         ButtonColors::default(),
         ButtonBundle {
             style: Style {
@@ -199,7 +198,6 @@ fn setup_main_screen(
         .spawn((
             MainMenuContainer,
             MenuRoot,
-            MainMenuElement,
             NodeBundle {
                 style: Style {
                     width: Val::Percent(100.),
@@ -215,118 +213,97 @@ fn setup_main_screen(
         ))
         .with_children(|sections| {
             sections
-                .spawn((
-                    MainMenuElement,
-                    NodeBundle {
-                        style: Style {
-                            height: Val::Percent(25.),
-                            width: Val::Percent(100.),
-                            flex_direction: FlexDirection::Column,
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
+                .spawn((NodeBundle {
+                    style: Style {
+                        height: Val::Percent(25.),
+                        width: Val::Percent(100.),
+                        flex_direction: FlexDirection::Column,
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    ..default()
+                },))
+                .with_children(|logo| {
+                    logo.spawn((TextBundle {
+                        text: Text {
+                            justify: JustifyText::Center,
+                            sections: vec![TextSection {
+                                value: "Wisphaven".into(),
+                                style: get_large_text_style(asset_server),
+                            }],
                             ..default()
                         },
                         ..default()
-                    },
-                ))
-                .with_children(|logo| {
-                    logo.spawn((
-                        MainMenuElement,
-                        TextBundle {
-                            text: Text {
-                                justify: JustifyText::Center,
-                                sections: vec![TextSection {
-                                    value: "Wisphaven".into(),
-                                    style: get_large_text_style(asset_server),
-                                }],
-                                ..default()
-                            },
-                            ..default()
-                        },
-                    ));
+                    },));
                 });
             sections
-                .spawn((
-                    MainMenuElement,
-                    NodeBundle {
-                        style: Style {
-                            height: Val::Percent(75.),
-                            width: Val::Percent(100.),
-                            flex_direction: FlexDirection::Row,
-                            align_items: AlignItems::FlexStart,
-                            justify_content: JustifyContent::FlexStart,
-                            ..default()
-                        },
+                .spawn((NodeBundle {
+                    style: Style {
+                        height: Val::Percent(75.),
+                        width: Val::Percent(100.),
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::FlexStart,
+                        justify_content: JustifyContent::FlexStart,
                         ..default()
                     },
-                ))
+                    ..default()
+                },))
                 .with_children(|columns| {
                     columns
-                        .spawn((
-                            MainMenuElement,
-                            NodeBundle {
-                                style: Style {
-                                    height: Val::Percent(100.),
-                                    width: Val::Px(256.),
-                                    flex_direction: FlexDirection::Column,
-                                    align_items: AlignItems::FlexStart,
-                                    justify_content: JustifyContent::Center,
-                                    ..default()
-                                },
+                        .spawn((NodeBundle {
+                            style: Style {
+                                height: Val::Percent(100.),
+                                width: Val::Px(256.),
+                                flex_direction: FlexDirection::Column,
+                                align_items: AlignItems::FlexStart,
+                                justify_content: JustifyContent::Center,
                                 ..default()
                             },
-                        ))
+                            ..default()
+                        },))
                         .with_children(|buttons| {
                             buttons
                                 .spawn((ButtonAction::new(res.play_click), button.clone()))
                                 .with_children(|text| {
-                                    text.spawn((
-                                        MainMenuElement,
-                                        TextBundle {
-                                            text: Text {
-                                                sections: vec![TextSection {
-                                                    value: "Play".into(),
-                                                    style: get_text_style(asset_server),
-                                                }],
-                                                ..default()
-                                            },
+                                    text.spawn((TextBundle {
+                                        text: Text {
+                                            sections: vec![TextSection {
+                                                value: "Play".into(),
+                                                style: get_text_style(asset_server),
+                                            }],
                                             ..default()
                                         },
-                                    ));
+                                        ..default()
+                                    },));
                                 });
                             buttons
                                 .spawn((ButtonAction::new(res.settings_click), button.clone()))
                                 .with_children(|text| {
-                                    text.spawn((
-                                        MainMenuElement,
-                                        TextBundle {
-                                            text: Text {
-                                                sections: vec![TextSection {
-                                                    value: "Settings".into(),
-                                                    style: get_text_style(asset_server),
-                                                }],
-                                                ..default()
-                                            },
+                                    text.spawn((TextBundle {
+                                        text: Text {
+                                            sections: vec![TextSection {
+                                                value: "Settings".into(),
+                                                style: get_text_style(asset_server),
+                                            }],
                                             ..default()
                                         },
-                                    ));
+                                        ..default()
+                                    },));
                                 });
                             buttons
                                 .spawn((ButtonAction::new(res.quit_click), button.clone()))
                                 .with_children(|text| {
-                                    text.spawn((
-                                        MainMenuElement,
-                                        TextBundle {
-                                            text: Text {
-                                                sections: vec![TextSection {
-                                                    value: "Quit".into(),
-                                                    style: get_text_style(asset_server),
-                                                }],
-                                                ..default()
-                                            },
+                                    text.spawn((TextBundle {
+                                        text: Text {
+                                            sections: vec![TextSection {
+                                                value: "Quit".into(),
+                                                style: get_text_style(asset_server),
+                                            }],
                                             ..default()
                                         },
-                                    ));
+                                        ..default()
+                                    },));
                                 });
                         });
                 });
@@ -357,7 +334,10 @@ fn exit_splash_screen(
         timer.reset();
         match splash_screen_state.get() {
             SplashScreenState::Hidden => next_menu_state.set(MenuState::Main),
-            SplashScreenState::Shown => next_splash_state.set(SplashScreenState::Hidden),
+            SplashScreenState::Shown => {
+                next_splash_state.set(SplashScreenState::Hidden);
+                next_menu_state.set(MenuState::Main)
+            }
         }
     }
 }
@@ -536,6 +516,7 @@ fn spawn_ghost(
                 max_color: Vec3::new(73., 74., 117.) / 255.,
                 ..default()
             },
+            MainMenuElement,
         ));
     }
 }

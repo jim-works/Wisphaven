@@ -3,7 +3,11 @@ use std::time::Duration;
 use bevy::prelude::*;
 use engine::{
     all_teams_function, all_teams_system,
-    physics::{collision::Aabb, PhysicsBundle},
+    physics::{
+        collision::Aabb,
+        movement::{Drag, Restitution},
+        PhysicsBundle,
+    },
 };
 
 use engine::actors::{
@@ -64,7 +68,7 @@ pub fn spawn_spike_ball<T: Team>(
     mut spawn_requests: EventReader<SpawnSpikeBallEvent<T>>,
     time: Res<Time>,
 ) {
-    const LIFETIME: Duration = Duration::from_secs(10);
+    const LIFETIME: Duration = Duration::from_secs(5);
     let curr_time = time.elapsed();
     for SpawnSpikeBallEvent {
         projectile_args,
@@ -82,16 +86,18 @@ pub fn spawn_spike_ball<T: Team>(
             PhysicsBundle {
                 collider: Aabb::centered(Vec3::ONE),
                 velocity: projectile_args.velocity,
+                restitution: Restitution(1.),
+                drag: Drag(0.),
                 ..default()
             },
             ProjectileBundle::new(Projectile {
                 owner: projectile_args.owner,
-                knockback_mult: 1.0,
-                terrain_damage: 0.5,
-                despawn_time: curr_time + LIFETIME,
+                knockback_mult: 1.0 * projectile_args.knockback_mult,
+                terrain_damage: 0.5 * projectile_args.terrain_damage_mult,
+                despawn_time: curr_time + LIFETIME.mul_f32(projectile_args.lifetime_mult),
                 damage: projectile_args.damage,
-                despawn_on_hit: true,
-                on_hit_or_despawn: None,
+                hit_behavior: engine::actors::projectile::ProjecileHitBehavior::None,
+                on_hit: None,
             }),
             //no UninitializedActor b/c we don't have to do any setup
         ));

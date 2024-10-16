@@ -37,6 +37,9 @@ pub struct ProjectileSpawnArgs<T: Team> {
     pub combat: CombatantBundle<T>,
     pub owner: Entity,
     pub damage: Damage,
+    pub lifetime_mult: f32,
+    pub knockback_mult: f32,
+    pub terrain_damage_mult: f32,
 }
 
 impl<T: Team> ProjectileSpawnArgs<T> {
@@ -46,6 +49,9 @@ impl<T: Team> ProjectileSpawnArgs<T> {
             velocity: default(),
             damage: default(),
             combat: default(),
+            lifetime_mult: 1.,
+            knockback_mult: 1.,
+            terrain_damage_mult: 1.,
         }
     }
 }

@@ -164,7 +164,7 @@ impl Handed {
         match self {
             Handed::Left => {
                 if let Some(mut ec) = commands.get_entity(entity) {
-                    ec.insert((
+                    ec.try_insert((
                         SwingHand {
                             hand: left_hand,
                             miss_offset: Vec3::new(0.0, 0.0, 1.0), //idk default for now
@@ -178,7 +178,7 @@ impl Handed {
             }
             Handed::Right => {
                 if let Some(mut ec) = commands.get_entity(entity) {
-                    ec.insert((
+                    ec.try_insert((
                         SwingHand {
                             hand: right_hand,
                             miss_offset: Vec3::new(0.0, 0.0, 1.0), //idk default for now

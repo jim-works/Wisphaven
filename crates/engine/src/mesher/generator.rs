@@ -275,7 +275,7 @@ pub fn spawn_mesh<T: Bundle>(
             ChunkMeshChild,
         ));
         if let Some(bundle) = components {
-            ec.insert(bundle);
+            ec.try_insert(bundle);
         }
     });
 }

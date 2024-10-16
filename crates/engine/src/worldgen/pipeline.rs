@@ -150,7 +150,7 @@ pub fn queue_generating<
         let level_data = level.0.clone();
         match gen_request {
             ChunkNeedsGenerated::Full => {
-                ec.insert(ShapingTask {
+                ec.try_insert(ShapingTask {
                     task: pool.spawn(async move {
                         let mut chunk = GeneratingChunk::new(gen_coord, entity);
                         let heightmap = generator::shape_chunk(&mut chunk, gen_noise, id);
@@ -168,7 +168,7 @@ pub fn queue_generating<
             }
             ChunkNeedsGenerated::Lod(level) => {
                 let gen_level = *level;
-                ec.insert(LODShapingTask {
+                ec.try_insert(LODShapingTask {
                     task: pool.spawn(async move {
                         let mut chunk = GeneratingLODChunk::new(gen_coord, entity);
                         chunk.level = gen_level;

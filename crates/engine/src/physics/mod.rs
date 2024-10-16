@@ -1,4 +1,5 @@
 use bevy::{prelude::*, transform::TransformSystem};
+use movement::Restitution;
 
 use crate::{debug::DebugDrawTransform, world::LevelLoadState};
 
@@ -77,6 +78,7 @@ pub struct PhysicsBundle {
     pub debug_draw_transform: DebugDrawTransform,
     pub friction: FrictionBundle,
     pub drag: Drag,
+    pub restitution: Restitution,
 }
 
 #[derive(Bundle, Default)]

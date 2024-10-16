@@ -168,7 +168,7 @@ pub fn dash_player(
     for (entity, dash, mut stamina, v) in query.iter_mut() {
         if action.just_pressed(&Action::Dash) && dash.stamina_cost.apply(&mut stamina) {
             if let Some(mut ec) = commands.get_entity(entity) {
-                ec.insert(CurrentlyDashing::new(*dash, current_time, v.0));
+                ec.try_insert(CurrentlyDashing::new(*dash, current_time, v.0));
             }
         }
     }

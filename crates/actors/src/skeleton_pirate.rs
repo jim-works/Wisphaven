@@ -247,6 +247,7 @@ fn attack(
                                             combat: combat.clone(),
                                             owner: actor,
                                             damage,
+                                            ..ProjectileSpawnArgs::new(actor)
                                         },
                                     });
                                 }
@@ -271,6 +272,7 @@ fn attack(
                                         combat: combat.clone(),
                                         owner: actor,
                                         damage,
+                                        ..ProjectileSpawnArgs::new(actor)
                                     },
                                 });
                                 *state = ActionState::Success;

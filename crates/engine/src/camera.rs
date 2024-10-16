@@ -58,7 +58,7 @@ fn on_enter_game(
             .expect("there was no skybox or loading skybox when populating the camera")
             .clone()
     });
-    ec.insert((
+    ec.try_insert((
         // placeholder brightness - actually set by atmosphere
         Skybox {
             image: sky_image,
@@ -87,7 +87,7 @@ fn on_enter_menu(mut commands: Commands, main_camera: Res<MainCamera>) {
         error!("main camera doesn't exist");
         return;
     };
-    ec.insert((
+    ec.try_insert((
         CAMERA_TF.clone(),
         Camera {
             clear_color: ClearColorConfig::Custom(Color::BLACK),
