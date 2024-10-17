@@ -23,6 +23,7 @@ impl Plugin for CameraPlugin {
                     ..default()
                 },
                 CameraEffectsBundle::default(),
+                SpatialListener::new(1.),
             ))
             .id();
         app.insert_resource(MainCamera(cam));

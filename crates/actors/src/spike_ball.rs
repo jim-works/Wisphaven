@@ -18,8 +18,9 @@ use engine::actors::{
 use crate::spawning::{BuildProjectileRegistry, DefaultSpawnArgs, ProjectileSpawnArgs};
 
 #[derive(Resource)]
-pub struct SpikeBallResources {
-    pub scene: Handle<Scene>,
+struct SpikeBallResources {
+    scene: Handle<Scene>,
+    spawn_audio: Handle<AudioSource>,
 }
 
 #[derive(Component)]
@@ -56,13 +57,14 @@ impl<T: Team> From<(DefaultSpawnArgs, ProjectileSpawnArgs<T>)> for SpawnSpikeBal
     }
 }
 
-pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
+fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(SpikeBallResources {
         scene: assets.load("actors/spike_ball/spike_ball.glb#Scene0"),
+        spawn_audio: assets.load("sounds/spike_ball.ogg"),
     });
 }
 
-pub fn spawn_spike_ball<T: Team>(
+fn spawn_spike_ball<T: Team>(
     mut commands: Commands,
     res: Res<SpikeBallResources>,
     mut spawn_requests: EventReader<SpawnSpikeBallEvent<T>>,
@@ -99,7 +101,10 @@ pub fn spawn_spike_ball<T: Team>(
                 hit_behavior: engine::actors::projectile::ProjecileHitBehavior::None,
                 on_hit: None,
             }),
-            //no UninitializedActor b/c we don't have to do any setup
+            AudioBundle {
+                source: res.spawn_audio.clone(),
+                settings: PlaybackSettings::ONCE,
+            },
         ));
     }
 }
