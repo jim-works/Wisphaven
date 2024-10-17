@@ -31,3 +31,5 @@ pub fn get_small_text_style(asset_server: &Res<AssetServer>) -> TextStyle {
         color: Color::WHITE,
     }
 }
+
+pub const TRANSLUCENT_PANEL_BACKGROUND: Color = Color::hsla(272. / 360., 0.15, 0.15, 0.6);

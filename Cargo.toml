@@ -46,6 +46,8 @@ bevy_quinnet = "0.10.0"
 serde_with = "3.2.0"
 bevy_hanabi = "0.12.2"
 bitflags = "2.4.1"
+# already included in naga_oil
+regex = "1.11.0"
 
 [dependencies]
 ahash = { workspace = true }
@@ -69,6 +71,7 @@ bevy_quinnet = { workspace = true }
 serde_with = { workspace = true }
 bevy_hanabi = { workspace = true }
 bitflags = { workspace = true }
+regex = { workspace = true }
 
 #internal crates
 util = { path = "crates/util" }

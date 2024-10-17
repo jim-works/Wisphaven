@@ -29,27 +29,35 @@ struct WaveUIResources {
 }
 
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 struct WaveUIScreen;
 
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 struct WaveUIContainer;
 
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 struct WaveUIProgressBarBackground;
 
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 struct WaveUIProgressBarForeground;
 
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 struct WaveUIProgressLabel;
 
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 struct WaveUIWaveIndicatorContainer;
 
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 struct WaveUIWaveIndicatorParent(usize);
 
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 struct WaveUIWaveIndicator(usize);
 
 fn init(mut commands: Commands, asset_server: Res<AssetServer>) {

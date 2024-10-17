@@ -9,6 +9,11 @@ use engine::{
 };
 use util::{iterators::even_distribution_on_sphere, lerp, LocalRepeatingTimer};
 
+use crate::{
+    styles,
+    third_party::bevy_text_edit::{TextEditFocus, TextEditable},
+};
+
 use super::{
     styles::{get_large_text_style, get_text_style},
     ButtonAction, ButtonColors,
@@ -22,6 +27,7 @@ impl Plugin for MainMenuPlugin {
             play_click: app.world_mut().register_system(play_clicked),
             settings_click: app.world_mut().register_system(settings_clicked),
             quit_click: app.world_mut().register_system(quit_clicked),
+            create_click: app.world_mut().register_system(create_clicked),
         };
         app.init_state::<MenuState>()
             .init_state::<SplashScreenState>()
@@ -53,6 +59,7 @@ impl Plugin for MainMenuPlugin {
             .add_systems(OnEnter(MenuState::Main), show_main_screen)
             .add_systems(OnExit(MenuState::Main), hide_main_screen)
             .add_systems(OnEnter(MenuState::WorldSelect), show_world_select_screen)
+            .add_systems(OnExit(MenuState::WorldSelect), hide_world_select_screen)
             .add_systems(Update, spawn_ghost.run_if(in_state(GameState::Menu)));
     }
 }
@@ -74,22 +81,38 @@ enum SplashScreenState {
 }
 
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 struct MenuRoot;
 
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 struct SplashScreenContainer;
 
 #[derive(Component, Clone, Copy)]
-struct SplashScreenElement;
-
-#[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 struct MainMenuContainer;
 
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 struct MainMenuElement;
 
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 struct MainMenuGhost;
+
+#[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
+struct WorldSelectContainer;
+
+#[derive(Component, Clone)]
+#[component(storage = "SparseSet")]
+struct WorldSelectWorldButton {
+    world_name: String,
+}
+
+#[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
+struct WorldSelectCreateText;
 
 #[derive(Event)]
 struct SpawnMainMenuGhostEvent {
@@ -102,6 +125,7 @@ struct MainMenuSystemIds {
     play_click: SystemId,
     settings_click: SystemId,
     quit_click: SystemId,
+    create_click: SystemId,
 }
 
 fn menu_entered(
@@ -111,7 +135,7 @@ fn menu_entered(
 ) {
     setup_splash_screen(&mut commands, &asset_server);
     setup_main_screen(&mut commands, &asset_server, &res);
-    setup_world_select_screen(&mut commands);
+    setup_world_select_screen(&mut commands, &asset_server, &res);
 }
 
 fn menu_exited(
@@ -139,7 +163,6 @@ fn setup_splash_screen(commands: &mut Commands, asset_server: &Res<AssetServer>)
         .spawn((
             SplashScreenContainer,
             MenuRoot,
-            SplashScreenElement,
             NodeBundle {
                 style: Style {
                     width: Val::Percent(100.),
@@ -154,19 +177,16 @@ fn setup_splash_screen(commands: &mut Commands, asset_server: &Res<AssetServer>)
             },
         ))
         .with_children(|sections| {
-            sections.spawn((
-                SplashScreenElement,
-                TextBundle {
-                    text: Text {
-                        sections: vec![TextSection {
-                            value: "Angry Pie".into(),
-                            style: get_large_text_style(asset_server),
-                        }],
-                        ..default()
-                    },
+            sections.spawn((TextBundle {
+                text: Text {
+                    sections: vec![TextSection {
+                        value: "Angry Pie".into(),
+                        style: get_large_text_style(asset_server),
+                    }],
                     ..default()
                 },
-            ));
+                ..default()
+            },));
         });
 }
 
@@ -310,8 +330,153 @@ fn setup_main_screen(
         });
 }
 
-fn setup_world_select_screen(commands: &mut Commands) {
-    //MenuRoot
+fn setup_world_select_screen(
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    res: &Res<MainMenuSystemIds>,
+) {
+    // todo - when 0.15 comes out, add scrolling support
+    // https://github.com/bevyengine/bevy/pull/15291
+    let button = (
+        ButtonColors::default(),
+        ButtonBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Px(48.0),
+                border: UiRect::all(Val::Px(2.0)),
+                // horizontally center child text
+                justify_content: JustifyContent::Center,
+                // vertically center child text
+                align_items: AlignItems::Center,
+                margin: UiRect::all(Val::Px(4.)),
+                ..default()
+            },
+            border_color: BorderColor(ButtonColors::default().default_border),
+            background_color: BackgroundColor(ButtonColors::default().default_background),
+            ..default()
+        },
+    );
+    commands
+        .spawn((
+            WorldSelectContainer,
+            MenuRoot,
+            NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.),
+                    height: Val::Percent(100.),
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::FlexStart,
+                    ..default()
+                },
+                visibility: Visibility::Hidden,
+                ..default()
+            },
+        ))
+        .with_children(|sections| {
+            sections
+                .spawn((NodeBundle {
+                    style: Style {
+                        height: Val::Percent(25.),
+                        width: Val::Percent(100.),
+                        flex_direction: FlexDirection::Column,
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    ..default()
+                },))
+                .with_children(|logo| {
+                    logo.spawn((TextBundle {
+                        text: Text {
+                            justify: JustifyText::Center,
+                            sections: vec![TextSection {
+                                value: "Wisphaven".into(),
+                                style: get_large_text_style(asset_server),
+                            }],
+                            ..default()
+                        },
+                        ..default()
+                    },));
+                });
+            sections
+                .spawn((NodeBundle {
+                    style: Style {
+                        height: Val::Percent(75.),
+                        width: Val::Percent(100.),
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::FlexStart,
+                        justify_content: JustifyContent::FlexStart,
+                        ..default()
+                    },
+                    ..default()
+                },))
+                .with_children(|columns| {
+                    columns
+                        .spawn((NodeBundle {
+                            style: Style {
+                                height: Val::Percent(100.),
+                                width: Val::Px(512.),
+                                flex_direction: FlexDirection::Column,
+                                align_items: AlignItems::FlexStart,
+                                justify_content: JustifyContent::Center,
+                                ..default()
+                            },
+                            ..default()
+                        },))
+                        .with_children(|rows| {
+                            rows.spawn(NodeBundle {
+                                style: Style {
+                                    width: Val::Percent(100.),
+                                    flex_direction: FlexDirection::Row,
+                                    justify_content: JustifyContent::Start,
+                                    ..default()
+                                },
+                                background_color: BackgroundColor(
+                                    styles::TRANSLUCENT_PANEL_BACKGROUND,
+                                ),
+                                ..default()
+                            })
+                            .with_children(|items| {
+                                // text input
+                                items.spawn((
+                                    TextBundle {
+                                        text: Text {
+                                            sections: vec![TextSection {
+                                                value: "New World".into(),
+                                                style: get_text_style(asset_server),
+                                            }],
+                                            ..default()
+                                        },
+                                        style: Style {
+                                            width: Val::Px(384.),
+                                            ..default()
+                                        },
+                                        ..default()
+                                    },
+                                    TextEditable::default(),
+                                    Interaction::None,
+                                    WorldSelectCreateText,
+                                ));
+                                // create button
+                                items
+                                    .spawn((ButtonAction::new(res.create_click), button.clone()))
+                                    .with_children(|text| {
+                                        text.spawn((TextBundle {
+                                            text: Text {
+                                                sections: vec![TextSection {
+                                                    value: "Create".into(),
+                                                    style: get_text_style(asset_server),
+                                                }],
+                                                ..default()
+                                            },
+                                            ..default()
+                                        },));
+                                    });
+                            });
+                        });
+                });
+        });
 }
 
 fn go_to_splash_screen(mut next_state: ResMut<NextState<MenuState>>) {
@@ -381,14 +546,39 @@ fn hide_main_screen(mut container_query: Query<&mut Visibility, With<MainMenuCon
     }
 }
 
-fn show_world_select_screen() {}
+fn show_world_select_screen(
+    mut container_query: Query<&mut Visibility, With<WorldSelectContainer>>,
+    text_query: Query<Entity, With<WorldSelectCreateText>>,
+    mut commands: Commands,
+) {
+    for mut vis in container_query.iter_mut() {
+        *vis = Visibility::Inherited;
+    }
+    for entity in text_query.iter() {
+        if let Some(mut ec) = commands.get_entity(entity) {
+            ec.try_insert(TextEditFocus);
+        }
+    }
+}
 
-fn play_clicked(
+fn hide_world_select_screen(
+    mut container_query: Query<&mut Visibility, With<WorldSelectContainer>>,
+) {
+    for mut vis in container_query.iter_mut() {
+        *vis = Visibility::Hidden;
+    }
+}
+
+fn create_clicked(
     mut next_game_state: ResMut<NextState<GameState>>,
     mut next_menu_state: ResMut<NextState<MenuState>>,
 ) {
     next_game_state.set(GameState::Game);
     next_menu_state.set(MenuState::default());
+}
+
+fn play_clicked(mut next_menu_state: ResMut<NextState<MenuState>>) {
+    next_menu_state.set(MenuState::WorldSelect);
 }
 
 fn settings_clicked() {

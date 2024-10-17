@@ -17,6 +17,7 @@ pub mod main_menu;
 pub mod player_stats;
 pub mod state;
 pub mod styles;
+pub mod third_party;
 pub mod waves;
 
 use bevy::ecs::system::SystemId;
@@ -42,6 +43,7 @@ impl Plugin for UIPlugin {
                 player_stats::PlayerStatsUiPlugin,
                 waves::WavesPlugin,
                 main_menu::MainMenuPlugin,
+                third_party::bevy_text_edit::TextEditPlugin::new(vec![GameState::Menu]),
             ))
             .add_systems(OnEnter(GameState::Game), state::on_load)
             .add_systems(OnEnter(state::UIState::Default), capture_mouse)

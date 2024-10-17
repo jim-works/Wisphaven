@@ -110,12 +110,15 @@ struct PlayerBolt;
 
 //containers
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 pub struct PlayerStatContainer;
 
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 pub struct PlayerHeartContainer;
 
 #[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
 pub struct PlayerStaminaContainer;
 
 //systems
