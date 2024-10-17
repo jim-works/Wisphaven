@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use crate::{
+    all_teams_system,
     physics::{
         collision::{Aabb, CollidingBlocks},
         movement::Velocity,
@@ -13,7 +14,7 @@ use crate::{
 };
 use bevy::prelude::*;
 
-use super::{AttackEvent, Damage};
+use super::*;
 
 pub struct ProjectilePlugin;
 
@@ -21,7 +22,10 @@ impl Plugin for ProjectilePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (test_projectile_hit, update_projectile_lifetime)
+            (
+                all_teams_system!(test_projectile_hit),
+                update_projectile_lifetime,
+            )
                 .in_set(LevelSystemSet::Main)
                 .chain(),
         );
@@ -95,26 +99,29 @@ fn update_projectile_lifetime(
 }
 
 //todo - add collision events
-fn test_projectile_hit(
-    query: Query<(
-        Entity,
-        &GlobalTransform,
-        &Projectile,
-        Option<&Velocity>,
-        Option<&ProjectileSpawnedInEntity>,
-        &CollidingBlocks,
-    )>,
+fn test_projectile_hit<T: Team>(
+    query: Query<
+        (
+            Entity,
+            &GlobalTransform,
+            &Projectile,
+            Option<&Velocity>,
+            Option<&ProjectileSpawnedInEntity>,
+            &CollidingBlocks,
+        ),
+        With<T>,
+    >,
     mut attack_writer: EventWriter<AttackEvent>,
     mut commands: Commands,
     level: Res<Level>,
     physics_query: Query<&BlockPhysics>,
-    object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
+    object_query: Query<(Entity, &GlobalTransform, &Aabb), T::Targets>,
     id_query: Query<&BlockId>,
     mut damage_writer: EventWriter<BlockDamageSetEvent>,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
 ) {
     for (proj_entity, tf, proj, v, opt_in_entity, colliding_blocks) in query.iter() {
-        let opt_hit_entity = test_point(
+        let opt_hit_entity = test_point::<T>(
             tf.translation(),
             &level,
             &physics_query,

@@ -90,11 +90,11 @@ pub fn raycast(
 }
 
 //todo improve this
-pub fn test_point(
+pub fn test_point<T: crate::actors::team::Team>(
     point: Vec3,
     level: &Level,
     physics_query: &Query<&BlockPhysics>,
-    object_query: &Query<(Entity, &GlobalTransform, &Aabb)>,
+    object_query: &Query<(Entity, &GlobalTransform, &Aabb), T::Targets>,
     exclude: &[Entity],
 ) -> Option<Entity> {
     //test block
