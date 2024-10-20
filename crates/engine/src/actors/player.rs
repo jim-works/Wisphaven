@@ -305,8 +305,6 @@ fn populate_player_entity(
             hit_damage: Damage::new(1.0),
         },
         SpatialBundle::from_transform(Transform::from_translation(spawn_point)),
-        //TODO - FIX THIS - not working after upgrade or adding physicslevelset for some reason
-        // InterpolatedAttribute::from(Transform::from_translation(spawn_point)),
         Float::default(),
         PhysicsBundle {
             collider: collision::Aabb::centered(Vec3::new(0.8, 1.0, 0.8))

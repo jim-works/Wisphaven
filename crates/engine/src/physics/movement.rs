@@ -1,10 +1,7 @@
-use bevy::{prelude::*, transform::TransformSystem};
+use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    physics::TPS,
-    util::{iterators::AxisMap, project_onto_plane},
-};
+use crate::util::{iterators::AxisMap, project_onto_plane};
 
 use super::{
     collision::{CollidingBlocks, Friction, IgnoreTerrainCollision},
@@ -102,31 +99,11 @@ impl Mass {
     }
 }
 
-//TODO - FIX THESE - not working after upgrade or adding physicslevelset for some reason
-#[derive(Component)]
-pub struct InterpolatedAttribute<T: Component> {
-    pub old: T,
-    pub target: T,
-}
-
-impl<T: Component + Clone> From<T> for InterpolatedAttribute<T> {
-    fn from(value: T) -> Self {
-        Self {
-            old: value.clone(),
-            target: value,
-        }
-    }
-}
-
 pub struct MovementPlugin;
 
 impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Gravity(Vec3::new(0.0, -0.01, 0.0)))
-            .add_systems(
-                FixedUpdate,
-                snap_tf_interpolation.in_set(PhysicsSystemSet::ResetInterpolation),
-            )
             .add_systems(
                 FixedUpdate,
                 (look_in_movement_direction, translate)
@@ -138,14 +115,6 @@ impl Plugin for MovementPlugin {
                 (update_friction, update_drag, update_derivatives)
                     .chain()
                     .in_set(PhysicsSystemSet::UpdateDerivatives),
-            )
-            .add_systems(
-                FixedUpdate,
-                set_tf_interpolation_target.after(PhysicsSystemSet::UpdateDerivatives),
-            )
-            .add_systems(
-                PostUpdate,
-                interpolate_tf_translation.before(TransformSystem::TransformPropagate),
             );
     }
 }
@@ -220,38 +189,6 @@ fn update_drag(mut query: Query<(&mut Velocity, &Drag)>) {
 fn translate(mut query: Query<(&mut Transform, &Velocity), With<IgnoreTerrainCollision>>) {
     for (mut tf, v) in query.iter_mut() {
         tf.translation += v.0;
-    }
-}
-
-//TODO - FIX THESE - not working after upgrade or adding physicslevelset for some reason
-fn set_tf_interpolation_target(
-    mut query: Query<(&mut Transform, &mut InterpolatedAttribute<Transform>)>,
-) {
-    for (mut tf, mut interpolator) in query.iter_mut() {
-        interpolator.old = interpolator.target;
-        interpolator.target = *tf;
-        tf.translation = interpolator.old.translation;
-    }
-}
-
-fn snap_tf_interpolation(mut query: Query<(&mut Transform, &InterpolatedAttribute<Transform>)>) {
-    for (mut tf, interpolator) in query.iter_mut() {
-        tf.translation = interpolator.target.translation;
-    }
-}
-
-fn interpolate_tf_translation(
-    mut query: Query<(&mut Transform, &InterpolatedAttribute<Transform>)>,
-    time: Res<Time>,
-) {
-    //lerp speed needs to be slower if tick rate is slower
-    //passes eye test if TPS > 20 ish, which is all we care about fr fr
-    //probably should improve for lower TPS
-    let lerp_time = (time.delta_seconds() * TPS as f32).min(1.0);
-    for (mut tf, interpolator) in query.iter_mut() {
-        tf.translation = tf
-            .translation
-            .lerp(interpolator.target.translation, lerp_time);
     }
 }
 

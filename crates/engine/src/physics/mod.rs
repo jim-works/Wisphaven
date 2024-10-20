@@ -7,6 +7,7 @@ use self::{collision::IgnoreTerrainCollision, movement::Drag};
 
 pub mod collision;
 pub mod grapple;
+pub mod interpolation;
 pub mod movement;
 pub mod query;
 pub mod spring;
@@ -21,7 +22,6 @@ pub const TPS: f64 = 64.0;
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum PhysicsSystemSet {
     Main, //all user code should run here
-    ResetInterpolation,
     ProcessRaycasts,
     UpdatePosition,
     UpdateDerivatives,
@@ -42,13 +42,13 @@ impl Plugin for PhysicsPlugin {
             collision::CollisionPlugin,
             grapple::GrapplePlugin,
             spring::SpringPlugin,
+            interpolation::InterpolationPlugin,
         ))
         .insert_resource(Time::<Fixed>::from_hz(TPS))
         .configure_sets(
             FixedUpdate,
             (
                 PhysicsSystemSet::Main,
-                PhysicsSystemSet::ResetInterpolation,
                 PhysicsSystemSet::ProcessRaycasts,
                 PhysicsSystemSet::UpdatePosition,
                 PhysicsSystemSet::UpdateDerivatives,
