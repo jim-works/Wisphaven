@@ -32,6 +32,7 @@ use super::{
     },
     death_effects::RestoreStaminaOnKill,
     ghost::{spawn_ghost_hand, Float, GhostResources, Handed},
+    world_anchor::ActiveWorldAnchor,
     Combatant, CombatantBundle, Damage, DeathInfo,
 };
 
@@ -69,7 +70,15 @@ impl Plugin for PlayerPlugin {
                 Update,
                 send_updated_position_client.run_if(in_state(ClientState::Ready)),
             )
-            .add_systems(FixedUpdate, respawn_players.in_set(LevelSystemSet::PreTick))
+            .add_systems(
+                FixedUpdate,
+                (
+                    queue_players_for_respawn.run_if(resource_exists::<ActiveWorldAnchor>),
+                    respawn_players,
+                )
+                    .chain()
+                    .in_set(LevelSystemSet::PreTick),
+            )
             .add_event::<LocalPlayerSpawnedEvent>()
             .add_event::<SpawnLocalPlayerEvent>()
             .insert_resource(RespawningPlayer(None));
@@ -126,9 +135,8 @@ fn trigger_local_player_spawn(mut writer: EventWriter<SpawnLocalPlayerEvent>) {
 }
 
 //todo - update when I update mulitplayer
-fn respawn_players(
+fn queue_players_for_respawn(
     mut components: RemovedComponents<LocalPlayer>,
-    mut writer: EventWriter<SpawnLocalPlayerEvent>,
     mut respawning: ResMut<RespawningPlayer>,
     time: Res<Time>,
 ) {
@@ -136,6 +144,15 @@ fn respawn_players(
         components.clear();
         respawning.0 = Some(time.elapsed() + Duration::from_secs(5));
     }
+}
+
+//todo - update when I update mulitplayer
+// this needs to always run, the game over transition doesn't happen if there's a player pending respawn
+fn respawn_players(
+    mut writer: EventWriter<SpawnLocalPlayerEvent>,
+    mut respawning: ResMut<RespawningPlayer>,
+    time: Res<Time>,
+) {
     if respawning
         .0
         .map(|respawn_time| time.elapsed() >= respawn_time)
@@ -164,9 +181,9 @@ pub fn spawn_local_player(
         if !player_query.is_empty() {
             info!("trying to spawn local player when there's already one!");
         }
-        info!("Spawning local player!");
         //adjust for ghost height
         let spawn_point = level.get_spawn_point() + Vec3::new(0., 1.5, 0.);
+        info!("Spawning local player at {:?}", spawn_point);
         let player_id = commands
             .spawn((
                 Name::new("local player"),

@@ -7,6 +7,8 @@ use bevy::{
     render::render_resource::{TextureViewDescriptor, TextureViewDimension},
 };
 
+use crate::actors::world_anchor::ActiveWorldAnchor;
+
 #[derive(Component, Reflect)]
 struct Sun {
     strength: f32,
@@ -91,6 +93,30 @@ impl Calendar {
             self.time.day += 1;
             self.time.time -= self.total_day_length();
             day_writer.send(DayStartedEvent);
+        }
+    }
+
+    //todo:
+    //cannot handle amounts greater than 1 day or night
+    pub fn advance_eternal_night(
+        &mut self,
+        amount: Duration,
+        night_writer: &mut EventWriter<NightStartedEvent>,
+    ) {
+        if amount >= self.day_length.min(self.night_length) {
+            //cannot handle amounts greater than 1 day
+            return;
+        }
+        let was_in_day = self.in_day();
+        self.time.time += amount;
+        if was_in_day && !self.in_day() {
+            // account for transition to night if called during the day
+            night_writer.send(NightStartedEvent);
+        } else if self.time.time >= self.total_day_length() {
+            // skip the day portion and go straight to night if originally in night
+            self.time.day = self.next_night().day;
+            self.time.time = (self.next_night().time + amount).min(self.total_day_length());
+            night_writer.send(NightStartedEvent);
         }
     }
 
@@ -247,6 +273,7 @@ fn update_calendar(
     speed: Res<CalendarSpeed>,
     mut day_writer: EventWriter<DayStartedEvent>,
     mut night_writer: EventWriter<NightStartedEvent>,
+    world_anchor: Option<Res<ActiveWorldAnchor>>,
 ) {
     let inc = if calendar.time < speed.target {
         calendar
@@ -255,7 +282,10 @@ fn update_calendar(
     } else {
         time.delta()
     };
-    calendar.advance(inc, &mut day_writer, &mut night_writer);
+    match world_anchor {
+        Some(_) => calendar.advance(inc, &mut day_writer, &mut night_writer),
+        None => calendar.advance_eternal_night(inc, &mut night_writer),
+    };
 }
 
 fn speedup_time(mut reader: EventReader<SpeedupCalendarEvent>, mut speed: ResMut<CalendarSpeed>) {
