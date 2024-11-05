@@ -3,7 +3,7 @@ use std::sync::Arc;
 use ahash::HashMap;
 use bevy::prelude::*;
 use engine::{
-    actors::{team::*, CombatantBundle, Damage},
+    actors::{team::*, Combatant, CombatantBundle, Damage},
     all_teams_function, all_teams_system,
     physics::movement::Velocity,
     world::LevelSystemSet,
@@ -48,7 +48,10 @@ impl<T: Team> ProjectileSpawnArgs<T> {
             owner,
             velocity: default(),
             damage: default(),
-            combat: default(),
+            combat: CombatantBundle::<T> {
+                combatant: Combatant::new(10.0, 0.),
+                ..default()
+            },
             lifetime_mult: 1.,
             knockback_mult: 1.,
             terrain_damage_mult: 1.,

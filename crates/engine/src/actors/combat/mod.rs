@@ -138,6 +138,43 @@ impl Combatant {
         }
     }
 
+    pub fn has_ancestor(&self, entity: Entity, query: &Query<&Combatant>) -> bool {
+        match self {
+            Combatant::Root { .. } => false,
+            Combatant::Child { parent, .. } => {
+                if *parent == entity {
+                    return true;
+                }
+                let Ok(parent_combatant) = query.get(*parent) else {
+                    return false;
+                };
+                return parent_combatant.has_ancestor(entity, query);
+            }
+        }
+    }
+
+    pub fn get_root<'a>(
+        &'a self,
+        query: &'a Query<'a, 'a, &'a Combatant>,
+    ) -> Option<&'a Combatant> {
+        match self {
+            Combatant::Root { .. } => Some(&self),
+            Combatant::Child { .. } => {
+                let root = self
+                    .get_ancestor(query)
+                    .map(|root| query.get(root).ok())
+                    .flatten();
+                match root {
+                    Some(Combatant::Root { .. }) => root,
+                    _ => {
+                        warn!("combatant has no root");
+                        None
+                    }
+                }
+            }
+        }
+    }
+
     pub fn get_health(&self, query: &Query<&Combatant>) -> Option<Health> {
         match self {
             Combatant::Root { health, .. } => Some(*health),
@@ -148,6 +185,38 @@ impl Combatant {
                     .flatten();
                 match root {
                     Some(Combatant::Root { health, .. }) => Some(*health),
+                    _ => {
+                        warn!("combatant has no root");
+                        None
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub trait GetRootMut<'a> {
+    fn get_root_mut(
+        self,
+        query: &'a mut Query<'a, 'a, &'a mut Combatant>,
+    ) -> Option<Mut<'a, Combatant>>;
+}
+
+impl<'a> GetRootMut<'a> for Mut<'a, Combatant> {
+    fn get_root_mut(
+        mut self,
+        query: &'a mut Query<'a, 'a, &'a mut Combatant>,
+    ) -> Option<Mut<'a, Combatant>> {
+        match self.as_mut() {
+            Combatant::Root { .. } => Some(self),
+            Combatant::Child { .. } => {
+                let mut lens = query.transmute_lens::<&Combatant>();
+                let root = self
+                    .get_ancestor(&lens.query())
+                    .map(|root| query.get_mut(root).ok())
+                    .flatten();
+                match root {
+                    Some(root_mut) => Some(root_mut),
                     _ => {
                         warn!("combatant has no root");
                         None

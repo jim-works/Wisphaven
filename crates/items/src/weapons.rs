@@ -131,10 +131,10 @@ pub fn launch_coin(
                 default: actors::spawning::DefaultSpawnArgs {
                     transform: Transform::from_translation(tf.translation),
                 },
-                projectile: ProjectileSpawnArgs {
+                projectile: ProjectileSpawnArgs::<PlayerTeam> {
                     velocity: Velocity(tf.forward() * weapon.speed),
                     combat: CombatantBundle {
-                        combatant: Combatant::new(1.0, 0.0),
+                        combatant: Combatant::new(100.0, 0.0),
                         ..default()
                     },
                     owner: *user,

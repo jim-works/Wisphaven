@@ -36,7 +36,7 @@ impl Plugin for WavesPlugin {
                 action: Box::new(DefaultSpawn(Arc::new("slither_spine".to_string()))),
             },
         ];
-        spawns.sort_by(|a, b| b.strength.total_cmp(&a.strength));
+        spawns.sort_by(|a, b| a.strength.total_cmp(&b.strength));
         app.add_systems(
             Update,
             (
@@ -279,7 +279,7 @@ fn trigger_assault(
     info!("Assault begins on night {}!", calendar.time.day);
     assault.to_spawn.clear();
     let strength_mult = get_wave_strength(&calendar);
-    let start_time = calendar.time.time + Duration::from_secs_f32(5.);
+    let start_time = calendar.time.time;
     assault.to_spawn.push(WaveInfo {
         strength_mult,
         start_time,
@@ -288,7 +288,7 @@ fn trigger_assault(
             WaveSpawn {
                 start_offset: Duration::ZERO,
                 spawn: WaveSpawnType::Strength(10.),
-                strategy: SpawnStrategy::Burst { count: 5 },
+                strategy: SpawnStrategy::Burst { count: 3 },
             },
             WaveSpawn {
                 start_offset: Duration::ZERO,

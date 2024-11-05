@@ -86,7 +86,7 @@ fn spawn_spike_ball<T: Team>(
             Name::new("spike_ball"),
             projectile_args.combat.clone(),
             PhysicsBundle {
-                collider: Aabb::centered(Vec3::ONE),
+                collider: Aabb::centered(1.5 * Vec3::ONE),
                 velocity: projectile_args.velocity,
                 restitution: Restitution(1.),
                 drag: Drag(0.),

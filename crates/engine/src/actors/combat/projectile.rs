@@ -5,11 +5,11 @@ use crate::{
     physics::{
         collision::{Aabb, CollidingBlocks},
         movement::Velocity,
-        query::test_point,
+        query::test_box,
     },
     world::{
         events::{BlockDamageSetEvent, ChunkUpdatedEvent},
-        BlockCoord, BlockId, BlockPhysics, Level, LevelSystemSet,
+        BlockCoord, BlockId, Level, LevelSystemSet,
     },
 };
 use bevy::prelude::*;
@@ -21,12 +21,12 @@ pub struct ProjectilePlugin;
 impl Plugin for ProjectilePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            Update,
+            FixedUpdate,
             (
                 all_teams_system!(test_projectile_hit),
                 update_projectile_lifetime,
             )
-                .in_set(LevelSystemSet::Main)
+                .in_set(LevelSystemSet::PreTick)
                 .chain(),
         );
     }
@@ -108,26 +108,20 @@ fn test_projectile_hit<T: Team>(
             Option<&Velocity>,
             Option<&ProjectileSpawnedInEntity>,
             &CollidingBlocks,
+            &Aabb,
         ),
         With<T>,
     >,
     mut attack_writer: EventWriter<AttackEvent>,
     mut commands: Commands,
     level: Res<Level>,
-    physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb), T::Targets>,
     id_query: Query<&BlockId>,
     mut damage_writer: EventWriter<BlockDamageSetEvent>,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
 ) {
-    for (proj_entity, tf, proj, v, opt_in_entity, colliding_blocks) in query.iter() {
-        let opt_hit_entity = test_point::<T>(
-            tf.translation(),
-            &level,
-            &physics_query,
-            &object_query,
-            &[proj_entity],
-        );
+    for (proj_entity, tf, proj, v, opt_in_entity, colliding_blocks, aabb) in query.iter() {
+        let opt_hit_entity = test_box::<T>(tf.translation(), *aabb, &object_query, &[proj_entity]);
         if opt_hit_entity.is_some() || !colliding_blocks.is_empty() {
             let hit_blocks = colliding_blocks.iter().map(|&(coord, _, _)| coord);
             proj_hit(

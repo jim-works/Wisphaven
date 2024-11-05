@@ -97,6 +97,16 @@ pub fn test_point<T: crate::actors::team::Team>(
     object_query: &Query<(Entity, &GlobalTransform, &Aabb), T::Targets>,
     exclude: &[Entity],
 ) -> Option<Entity> {
+    //test entity
+    for (entity, tf, col) in object_query.iter() {
+        if exclude.contains(&entity) {
+            continue;
+        }
+        if col.intersects_point(tf.translation(), point) {
+            //our point intersects an entity
+            return Some(entity);
+        }
+    }
     //test block
     let test_block_coord = BlockCoord::from(point);
     if let Some(block_entity) = level.get_block_entity(test_block_coord) {
@@ -113,12 +123,22 @@ pub fn test_point<T: crate::actors::team::Team>(
             }
         }
     }
+    return None;
+}
+
+//todo improve this
+pub fn test_box<T: crate::actors::team::Team>(
+    point: Vec3,
+    aabb: Aabb,
+    object_query: &Query<(Entity, &GlobalTransform, &Aabb), T::Targets>,
+    exclude: &[Entity],
+) -> Option<Entity> {
     //test entity
     for (entity, tf, col) in object_query.iter() {
         if exclude.contains(&entity) {
             continue;
         }
-        if col.intersects_point(tf.translation(), point) {
+        if aabb.intersects_aabb(point, *col, tf.translation()) {
             //our point intersects an entity
             return Some(entity);
         }

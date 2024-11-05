@@ -12,7 +12,7 @@ use bevy::prelude::*;
 pub use block::*;
 use serde::{Deserialize, Serialize};
 
-use crate::GameState;
+use crate::{physics::PhysicsSystemSet, GameState};
 
 use self::chunk::ChunkCoord;
 
@@ -94,9 +94,9 @@ impl Plugin for LevelPlugin {
         .configure_sets(
             FixedUpdate,
             (
-                LevelSystemSet::PreTick,
-                LevelSystemSet::Tick,
-                LevelSystemSet::PostTick,
+                LevelSystemSet::PreTick.before(PhysicsSystemSet::Main),
+                LevelSystemSet::Tick.in_set(PhysicsSystemSet::Main),
+                LevelSystemSet::PostTick.after(PhysicsSystemSet::UpdateDerivatives),
             )
                 .chain()
                 .run_if(in_state(LevelLoadState::Loaded))
