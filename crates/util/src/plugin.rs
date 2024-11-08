@@ -4,9 +4,18 @@ use crate::lerp_delta_time;
 
 pub struct UtilPlugin;
 
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct UtilSystemSet;
+
 impl Plugin for UtilPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, smooth_look_to);
+        app.configure_sets(FixedUpdate, UtilSystemSet);
+        app.configure_sets(Update, UtilSystemSet);
+        app.add_systems(Update, smooth_look_to.in_set(UtilSystemSet))
+            .add_systems(
+                FixedUpdate,
+                crate::bevy_utils::follow_entity.in_set(UtilSystemSet),
+            );
     }
 }
 

@@ -83,3 +83,26 @@ pub fn cuboid(half_size: Vec3) -> Mesh {
     .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
     .with_inserted_indices(indices)
 }
+
+#[derive(Component)]
+pub struct FollowEntityTick {
+    pub target: Entity,
+    pub offset: Vec3,
+}
+
+pub(crate) fn follow_entity(
+    mut query: Query<(&mut Transform, &FollowEntityTick)>,
+    entity_query: Query<&Transform, Without<FollowEntityTick>>,
+    mut commands: Commands,
+) {
+    for (mut follower_tf, follower) in query.iter_mut() {
+        let Ok(target_tf) = entity_query.get(follower.target) else {
+            warn!("FollowEntityTick has target set to entity without Transform, removing...");
+            if let Some(mut ec) = commands.get_entity(follower.target) {
+                ec.remove::<FollowEntityTick>();
+            }
+            continue;
+        };
+        follower_tf.translation = target_tf.translation + follower.offset;
+    }
+}

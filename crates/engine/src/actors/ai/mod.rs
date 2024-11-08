@@ -19,7 +19,12 @@ impl Plugin for AIPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(scorers::ScorersPlugin).add_systems(
             Update,
-            (walk_to_destination_action, walk_to_entity_action, walk_to_current_target_action)
+            (
+                walk_to_destination_action,
+                walk_to_entity_action,
+                walk_to_current_target_action,
+                fly_to_current_target_action,
+            )
                 .in_set(BigBrainSet::Actions)
                 .in_set(LevelSystemSet::Main),
         );
@@ -260,9 +265,8 @@ fn walk_to_current_target_action(
                     *state = ActionState::Executing;
                 }
                 ActionState::Executing => {
-                    if let Some(target_tf) = targets
-                        .current_target()
-                        .and_then(|e| tf_query.get(e).ok())
+                    if let Some(target_tf) =
+                        targets.current_target().and_then(|e| tf_query.get(e).ok())
                     {
                         let dest = target_tf.translation();
                         let delta = Vec3::new(dest.x, 0.0, dest.z)
@@ -407,3 +411,84 @@ fn get_closest_block_dist(
     None
 }
 
+#[derive(Clone, Component, Debug, ActionBuilder)]
+pub struct FlyToCurrentTargetAction {
+    pub stop_distance: f32,
+    pub look_in_direction: bool,
+    pub offset: Vec3,
+}
+
+impl Default for FlyToCurrentTargetAction {
+    fn default() -> Self {
+        Self {
+            stop_distance: 1.,
+            look_in_direction: true,
+            offset: Vec3::Y * 5.,
+        }
+    }
+}
+
+fn fly_to_current_target_action(
+    mut info: Query<(
+        &Transform,
+        &AggroTargets,
+        &mut TickMovement,
+        Option<&mut SmoothLookTo>,
+    )>,
+    mut query: Query<(&Actor, &mut ActionState, &mut FlyToCurrentTargetAction)>,
+    tf_query: Query<&GlobalTransform>,
+    name_query: Query<&Name>,
+) {
+    fn cleanup(
+        action: &FlyToCurrentTargetAction,
+        look_opt: &mut Option<Mut<SmoothLookTo>>,
+        fm: &mut TickMovement,
+    ) {
+        if action.look_in_direction {
+            if let Some(ref mut look) = look_opt {
+                look.enabled = false;
+            }
+        }
+        fm.0 = Vec3::ZERO;
+    }
+    for (Actor(actor), mut state, action) in query.iter_mut() {
+        let Ok((tf, targets, mut fm, mut look_opt)) = info.get_mut(*actor) else {
+            warn!("Entity with FlyToCurrentTargetAction doesn't satisfy the necessary query.");
+            continue;
+        };
+        match *state {
+            ActionState::Requested => {
+                *state = ActionState::Executing;
+            }
+            ActionState::Executing => {
+                let Some(target_tf) = targets.current_target().and_then(|e| tf_query.get(e).ok())
+                else {
+                    *state = ActionState::Cancelled;
+                    if targets.current_target().is_some() {
+                        warn!("target entity doesn't have GlobalTransform");
+                    }
+                    continue;
+                };
+                let delta = target_tf.translation() - tf.translation;
+                if delta.length_squared() < action.stop_distance * action.stop_distance {
+                    *state = ActionState::Success;
+                    cleanup(&action, &mut look_opt, &mut fm);
+                }
+                let delta_normed = delta.normalize_or_zero();
+                fm.0 = delta_normed;
+                if action.look_in_direction {
+                    if let Some(mut look) = look_opt {
+                        look.up = Vec3::Y;
+                        look.forward = delta_normed;
+                        look.enabled = true;
+                    }
+                }
+            }
+            ActionState::Cancelled => {
+                *state = ActionState::Failure;
+                cleanup(&action, &mut look_opt, &mut fm);
+            }
+            _ => {}
+        }
+    }
+}

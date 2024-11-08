@@ -8,6 +8,7 @@ mod block_buffer;
 pub use block_buffer::*;
 
 mod block;
+use ::util::plugin::UtilSystemSet;
 use bevy::prelude::*;
 pub use block::*;
 use serde::{Deserialize, Serialize};
@@ -76,7 +77,8 @@ impl Plugin for LevelPlugin {
             Update,
             LevelSystemSet::Main
                 .run_if(in_state(LevelLoadState::Loaded))
-                .run_if(in_state(GameState::Game)),
+                .run_if(in_state(GameState::Game))
+                .after(UtilSystemSet),
         )
         .configure_sets(
             Update,
@@ -89,12 +91,15 @@ impl Plugin for LevelPlugin {
             Update,
             LevelSystemSet::LoadingAndMain
                 .run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded)))
-                .run_if(in_state(GameState::Game)),
+                .run_if(in_state(GameState::Game))
+                .after(UtilSystemSet),
         )
         .configure_sets(
             FixedUpdate,
             (
-                LevelSystemSet::PreTick.before(PhysicsSystemSet::Main),
+                LevelSystemSet::PreTick
+                    .before(PhysicsSystemSet::Main)
+                    .after(UtilSystemSet),
                 LevelSystemSet::Tick.in_set(PhysicsSystemSet::Main),
                 LevelSystemSet::PostTick.after(PhysicsSystemSet::UpdateDerivatives),
             )

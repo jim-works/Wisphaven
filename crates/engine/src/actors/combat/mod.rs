@@ -483,6 +483,15 @@ pub struct AggroPlayer {
     pub priority: i32,
 }
 
+impl Default for AggroPlayer {
+    fn default() -> Self {
+        Self {
+            range: f32::INFINITY,
+            priority: 0,
+        }
+    }
+}
+
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 struct AggroedOnPlayer(Entity);

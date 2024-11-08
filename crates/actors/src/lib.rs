@@ -1,4 +1,5 @@
 pub mod coin;
+mod eye_balloon;
 pub mod skeleton_pirate;
 pub mod slither_spine;
 pub mod spawning;
@@ -18,6 +19,7 @@ impl Plugin for ActorsPlugin {
             skeleton_pirate::SkeletonPiratePlugin,
             wisp::WispPlugin,
             spike_ball::SpikeBallPlugin,
+            eye_balloon::EyeBalloonPlugin,
         ));
     }
 }

@@ -1,5 +1,6 @@
 use bevy::{prelude::*, transform::TransformSystem};
 use movement::Restitution;
+use util::plugin::UtilSystemSet;
 
 use crate::{debug::DebugDrawTransform, world::LevelLoadState};
 
@@ -48,7 +49,7 @@ impl Plugin for PhysicsPlugin {
         .configure_sets(
             FixedUpdate,
             (
-                PhysicsSystemSet::Main,
+                PhysicsSystemSet::Main.after(UtilSystemSet),
                 PhysicsSystemSet::ProcessRaycasts,
                 PhysicsSystemSet::UpdatePosition,
                 PhysicsSystemSet::UpdateDerivatives,
