@@ -4,6 +4,7 @@ use std::{f32::consts::PI, time::Duration};
 use itertools::Itertools;
 
 mod numerical_traits;
+pub mod third_party;
 pub use numerical_traits::*;
 
 pub mod bevy_utils;

@@ -9,6 +9,7 @@ pub struct UtilSystemSet;
 
 impl Plugin for UtilPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(crate::third_party::scene_hook::HookPlugin);
         app.configure_sets(FixedUpdate, UtilSystemSet);
         app.configure_sets(Update, UtilSystemSet);
         app.add_systems(Update, smooth_look_to.in_set(UtilSystemSet))
