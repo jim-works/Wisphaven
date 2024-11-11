@@ -22,8 +22,7 @@ use crate::{
 
 #[derive(Resource)]
 struct EyeBalloonResources {
-    eye_scene: Handle<Scene>,
-    tentacle_scene: Handle<Scene>,
+    scene: Handle<Scene>,
 }
 
 pub struct EyeBalloonPlugin;
@@ -75,8 +74,7 @@ fn test_spawn(mut writer: EventWriter<SpawnActorEvent>) {
 
 fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(EyeBalloonResources {
-        eye_scene: assets.load("actors/eye_balloon/eye_balloon_eye.glb#Scene0"),
-        tentacle_scene: assets.load("actors/eye_balloon/eye_balloon_tentacle.glb#Scene0"),
+        scene: assets.load("actors/eye_balloon/eye_balloon.glb#Scene0"),
     });
 }
 
@@ -86,9 +84,11 @@ fn spawn_eye_balloon(
     mut spawn_requests: EventReader<SpawnEyeBalloonEvent>,
 ) {
     for SpawnEyeBalloonEvent { default_args } in spawn_requests.read() {
-        let mut head_ec = commands.spawn((
+        let mut head_ec = commands.spawn_empty();
+        let head_id = head_ec.id();
+        head_ec.insert((
             SceneBundle {
-                scene: res.eye_scene.clone_weak(),
+                scene: res.scene.clone_weak(),
                 transform: default_args.transform,
                 ..default()
             },
@@ -118,59 +118,46 @@ fn spawn_eye_balloon(
                 .label("eye_balloon_thinker")
                 .picker(Highest)
                 .when(FixedScore::build(0.01), FlyToCurrentTargetAction::default()),
+            SceneHook::new(move |entity, ec| {
+                match entity.get::<Name>().map(|t| t.as_str()) {
+                    Some("Iris") => {
+                        ec.insert((
+                            EyeBalloonIris,
+                            SmoothLookTo {
+                                speed: 0.25,
+                                ..default()
+                            },
+                            SmoothLookToAggroTarget { source: head_id },
+                        ));
+                    }
+                    Some("Tentacle") => {
+                        ec.insert((
+                            Name::new("eye_balloon_tentacle"),
+                            Aabb::new(
+                                Vec3::new(0.75, 5., 0.75),
+                                Vec3::new(-0.75 / 2., -5., -0.75 / 2.),
+                            ),
+                            IgnoreTerrainCollision,
+                            Combatant::Child {
+                                parent: head_id,
+                                defense: Defense::default(),
+                            },
+                        ));
+                    }
+                    Some("TentacleEnd") => {
+                        ec.insert((
+                            EyeBalloonTentacle,
+                            Aabb::centered(Vec3::splat(0.5)),
+                            IgnoreTerrainCollision,
+                            Combatant::Child {
+                                parent: head_id,
+                                defense: Defense::default(),
+                            },
+                        ));
+                    }
+                    _ => (),
+                };
+            }),
         ));
-        let head_id = head_ec.id();
-        head_ec.insert(SceneHook::new(move |entity, ec| {
-            match entity.get::<Name>().map(|t| t.as_str()) {
-                Some("Iris") => {
-                    ec.insert((
-                        EyeBalloonIris,
-                        SmoothLookTo {
-                            speed: 0.25,
-                            ..default()
-                        },
-                        SmoothLookToAggroTarget { source: head_id },
-                    ));
-                }
-                _ => (),
-            };
-        }));
-        //shadowing because have to have borrowed resources in closure, but have to move head_id.
-        //terrible syntax but what can you do?
-        let res = &res;
-        head_ec.with_children(move |ec| {
-            ec.spawn((
-                SceneBundle {
-                    scene: res.tentacle_scene.clone_weak(),
-                    ..default()
-                },
-                SceneHook::new(move |entity, ec| {
-                    match entity.get::<Name>().map(|t| t.as_str()) {
-                        Some("TentacleEnd") => {
-                            ec.insert((
-                                EyeBalloonTentacle,
-                                Aabb::centered(Vec3::splat(0.5)),
-                                IgnoreTerrainCollision,
-                                Combatant::Child {
-                                    parent: head_id,
-                                    defense: Defense::default(),
-                                },
-                            ));
-                        }
-                        _ => (),
-                    };
-                }),
-                Name::new("eye_balloon_tentacle"),
-                Aabb::new(
-                    Vec3::new(0.75, 5., 0.75),
-                    Vec3::new(-0.75 / 2., -5., -0.75 / 2.),
-                ),
-                IgnoreTerrainCollision,
-                Combatant::Child {
-                    parent: head_id,
-                    defense: Defense::default(),
-                },
-            ));
-        });
     }
 }
