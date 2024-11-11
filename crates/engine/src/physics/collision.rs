@@ -111,6 +111,9 @@ impl CollidingBlocks {
 }
 
 //from offset to offset + size
+// most things work with GlobalTransform's translation, with the notable exception being terrain collision, which uses the local transform.
+// entities that are a child of another object should also have the IgnoreTerrainCollision component
+// Scale and Rotation are not accounted for typically
 #[derive(Component, Clone, Copy, PartialEq, Default, Reflect, Debug, Serialize, Deserialize)]
 #[reflect(Component, FromWorld)]
 pub struct Aabb {

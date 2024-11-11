@@ -759,13 +759,14 @@ fn get_float_delta_velocity(desired_height_change: f32, interpolate_speed: f32) 
 }
 
 fn update_floater(
-    mut query: Query<(&mut Velocity, &mut Float, &Transform, &Aabb)>,
+    mut query: Query<(&mut Velocity, &mut Float, &GlobalTransform, &Aabb)>,
     physics_query: Query<&BlockPhysics>,
     level: Res<Level>,
     mut block_gizmos: ResMut<FixedUpdateBlockGizmos>,
 ) {
     const CHECK_MULT: f32 = 2.0;
-    for (mut v, float, tf, aabb) in query.iter_mut() {
+    for (mut v, float, gtf, aabb) in query.iter_mut() {
+        let translation = gtf.translation();
         //the ground has check area slightly larger than the actual hitbox to climb walls
         let ground_area = aabb.scale(float.ground_aabb_scale).move_min(Vec3::new(
             0.0,
@@ -776,8 +777,7 @@ fn update_floater(
         let ceiling_area =
             aabb.add_size(Vec3::new(0.0, float.target_ceiling_dist * CHECK_MULT, 0.0));
         //should move this into a function, but difficult to make borrow checker happy
-        let ground_overlaps =
-            level.get_blocks_in_volume(ground_area.to_block_volume(tf.translation));
+        let ground_overlaps = level.get_blocks_in_volume(ground_area.to_block_volume(translation));
         let ground_blocks = ground_overlaps
             .iter()
             .filter_map(|(coord, block)| {
@@ -786,10 +786,10 @@ fn update_floater(
                     .and_then(|e| physics_query.get(e).ok().and_then(|p| Aabb::from_block(p)))
                     .and_then(|b| Some((coord.as_vec3(), coord, b)))
             })
-            .filter(move |(pos, _, b)| ground_area.intersects_aabb(tf.translation, *b, *pos));
+            .filter(move |(pos, _, b)| ground_area.intersects_aabb(translation, *b, *pos));
         //now for ceiling blocks
         let ceiling_overlaps =
-            level.get_blocks_in_volume(ceiling_area.to_block_volume(tf.translation));
+            level.get_blocks_in_volume(ceiling_area.to_block_volume(translation));
         let ceiling_blocks = ceiling_overlaps
             .iter()
             .filter_map(|(coord, block)| {
@@ -798,9 +798,9 @@ fn update_floater(
                     .and_then(|e| physics_query.get(e).ok().and_then(|p| Aabb::from_block(p)))
                     .and_then(|b| Some((coord.as_vec3(), b)))
             })
-            .filter(move |(coord, b)| ceiling_area.intersects_aabb(tf.translation, *b, *coord));
-        let collider_top = aabb.world_max(tf.translation).y;
-        let collider_bot = aabb.world_min(tf.translation).y;
+            .filter(move |(coord, b)| ceiling_area.intersects_aabb(translation, *b, *coord));
+        let collider_top = aabb.world_max(translation).y;
+        let collider_bot = aabb.world_min(translation).y;
         let mut ground_y = None;
         let mut ceiling_y = None;
         //ceiling will be lowest point above the top of the floater's collider
@@ -849,7 +849,7 @@ fn update_floater(
             (Some(ground_y), Some(ceiling_y)) => 0.5 * (ground_y + ceiling_y), //take avg if we are in the middle
         };
 
-        let delta_v = get_float_delta_velocity(target_y - tf.translation.y, float.max_force);
+        let delta_v = get_float_delta_velocity(target_y - translation.y, float.max_force);
         if delta_v < 0.0 && ceiling_y.is_none() || delta_v > 0.0 && ground_y.is_none() {
             //don't want to get pulled down to the ground or pushed up to the ceiling
             continue;

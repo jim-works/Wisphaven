@@ -1,5 +1,3 @@
-use core::f32;
-
 use bevy::prelude::*;
 use big_brain::{prelude::Highest, scorers::FixedScore, thinker::Thinker};
 use engine::{
@@ -10,12 +8,12 @@ use engine::{
     controllers::ControllableBundle,
     physics::{
         collision::{Aabb, IgnoreTerrainCollision},
-        movement::{Drag, GravityMult, Mass},
+        movement::{GravityMult, Mass},
         PhysicsBundle,
     },
     world::{LevelLoadState, LevelSystemSet},
 };
-use util::{bevy_utils::FollowEntityTick, plugin::SmoothLookTo};
+use util::plugin::SmoothLookTo;
 
 use crate::spawning::{BuildActorRegistry, DefaultSpawnArgs, SpawnActorEvent};
 
@@ -115,14 +113,16 @@ fn spawn_eye_balloon(
         ));
         let head_id = head_ec.id();
         head_ec.with_children(|ec| {
-            //todo - this model looks super weird
             ec.spawn((
                 SceneBundle {
                     scene: res.tentacle_scene.clone_weak(),
                     ..default()
                 },
                 Name::new("eye_balloon_tentacle"),
-                Aabb::new(Vec3::new(1., 15., 1.), Vec3::new(-0.5, -15., -0.5)),
+                Aabb::new(
+                    Vec3::new(0.75, 5., 0.75),
+                    Vec3::new(-0.75 / 2., -5., -0.75 / 2.),
+                ),
                 IgnoreTerrainCollision,
                 Combatant::Child {
                     parent: head_id,

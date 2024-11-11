@@ -277,7 +277,7 @@ fn toggle_gizmo_depth(
 fn update_gizmos(
     mut gizmo: Gizmos,
     tf_query: Query<&GlobalTransform, With<DebugDrawTransform>>,
-    collider_query: Query<(&Transform, &Aabb)>,
+    collider_query: Query<(&GlobalTransform, &Aabb)>,
     blocks: Res<DebugBlockHitboxes>,
     fixed_update_blocks: Res<FixedUpdateBlockGizmos>,
     detail: Res<State<DebugUIDetailState>>,
@@ -285,8 +285,8 @@ fn update_gizmos(
     for tf in tf_query.iter() {
         gizmo.ray(tf.translation(), *tf.forward(), Color::srgb(1., 0., 0.));
     }
-    for (tf, collider) in collider_query.iter() {
-        let cuboid_tf = Transform::from_translation(collider.world_center(tf.translation))
+    for (gtf, collider) in collider_query.iter() {
+        let cuboid_tf = Transform::from_translation(collider.world_center(gtf.translation()))
             .with_scale(collider.size);
         gizmo.cuboid(cuboid_tf, Color::srgb(0., 0., 1.))
     }
