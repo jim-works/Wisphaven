@@ -437,17 +437,16 @@ fn fly_to_current_target_action(
     )>,
     mut query: Query<(&Actor, &mut ActionState, &mut FlyToCurrentTargetAction)>,
     tf_query: Query<&GlobalTransform>,
-    name_query: Query<&Name>,
 ) {
     fn cleanup(
         action: &FlyToCurrentTargetAction,
         look_opt: &mut Option<Mut<SmoothLookTo>>,
         fm: &mut TickMovement,
     ) {
-        if action.look_in_direction {
-            if let Some(ref mut look) = look_opt {
-                look.enabled = false;
-            }
+        if let Some(ref mut look) = look_opt
+            && action.look_in_direction
+        {
+            look.enabled = false;
         }
         fm.0 = Vec3::ZERO;
     }
@@ -476,12 +475,12 @@ fn fly_to_current_target_action(
                 }
                 let delta_normed = delta.normalize_or_zero();
                 fm.0 = delta_normed;
-                if action.look_in_direction {
-                    if let Some(mut look) = look_opt {
-                        look.up = Vec3::Y;
-                        look.forward = delta_normed;
-                        look.enabled = true;
-                    }
+                if let Some(mut look) = look_opt
+                    && action.look_in_direction
+                {
+                    look.up = Vec3::Y;
+                    look.forward = delta_normed;
+                    look.enabled = true;
                 }
             }
             ActionState::Cancelled => {

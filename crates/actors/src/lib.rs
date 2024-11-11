@@ -4,6 +4,7 @@ pub mod skeleton_pirate;
 pub mod slither_spine;
 pub mod spawning;
 pub mod spike_ball;
+mod util;
 mod wisp;
 
 use bevy::prelude::*;
@@ -20,6 +21,7 @@ impl Plugin for ActorsPlugin {
             wisp::WispPlugin,
             spike_ball::SpikeBallPlugin,
             eye_balloon::EyeBalloonPlugin,
+            util::ActorUtilPlugin,
         ));
     }
 }

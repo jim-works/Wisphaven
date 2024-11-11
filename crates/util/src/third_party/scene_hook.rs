@@ -1,5 +1,6 @@
 // the code in this file was taken from https://github.com/nicopap/bevy-scene-hook
 // it is licensed under the apache 2.0 license, copied below
+// CHANGES: The `run_hooks` system has been altered to run in the `FixedUpdate` schedule in the `UtilSystemSet` system set.
 /*
                                  Apache License
                            Version 2.0, January 2004
@@ -185,6 +186,8 @@ use bevy::{
     prelude::*,
     scene::SceneInstance,
 };
+
+use crate::plugin::UtilSystemSet;
 #[derive(Component, Debug)]
 pub struct SceneHooked;
 
@@ -223,6 +226,6 @@ fn run_hooks(
 pub(crate) struct HookPlugin;
 impl Plugin for HookPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, run_hooks);
+        app.add_systems(FixedUpdate, run_hooks.in_set(UtilSystemSet));
     }
 }

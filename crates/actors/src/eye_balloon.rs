@@ -13,9 +13,12 @@ use engine::{
     },
     world::{LevelLoadState, LevelSystemSet},
 };
-use util::plugin::SmoothLookTo;
+use util::{plugin::SmoothLookTo, third_party::scene_hook::SceneHook};
 
-use crate::spawning::{BuildActorRegistry, DefaultSpawnArgs, SpawnActorEvent};
+use crate::{
+    spawning::{BuildActorRegistry, DefaultSpawnArgs, SpawnActorEvent},
+    util::SmoothLookToAggroTarget,
+};
 
 #[derive(Resource)]
 struct EyeBalloonResources {
@@ -54,6 +57,12 @@ impl From<DefaultSpawnArgs> for SpawnEyeBalloonEvent {
 
 #[derive(Component)]
 struct EyeBalloon;
+
+#[derive(Component)]
+struct EyeBalloonTentacle;
+
+#[derive(Component)]
+struct EyeBalloonIris;
 
 fn test_spawn(mut writer: EventWriter<SpawnActorEvent>) {
     writer.send(SpawnActorEvent {
@@ -104,7 +113,6 @@ fn spawn_eye_balloon(
                 ..default()
             },
             AggroTargets::default(),
-            SmoothLookTo::default(),
             EyeBalloon,
             Thinker::build()
                 .label("eye_balloon_thinker")
@@ -112,12 +120,46 @@ fn spawn_eye_balloon(
                 .when(FixedScore::build(0.01), FlyToCurrentTargetAction::default()),
         ));
         let head_id = head_ec.id();
-        head_ec.with_children(|ec| {
+        head_ec.insert(SceneHook::new(move |entity, ec| {
+            match entity.get::<Name>().map(|t| t.as_str()) {
+                Some("Iris") => {
+                    ec.insert((
+                        EyeBalloonIris,
+                        SmoothLookTo {
+                            speed: 0.25,
+                            ..default()
+                        },
+                        SmoothLookToAggroTarget { source: head_id },
+                    ));
+                }
+                _ => (),
+            };
+        }));
+        //shadowing because have to have borrowed resources in closure, but have to move head_id.
+        //terrible syntax but what can you do?
+        let res = &res;
+        head_ec.with_children(move |ec| {
             ec.spawn((
                 SceneBundle {
                     scene: res.tentacle_scene.clone_weak(),
                     ..default()
                 },
+                SceneHook::new(move |entity, ec| {
+                    match entity.get::<Name>().map(|t| t.as_str()) {
+                        Some("TentacleEnd") => {
+                            ec.insert((
+                                EyeBalloonTentacle,
+                                Aabb::centered(Vec3::splat(0.5)),
+                                IgnoreTerrainCollision,
+                                Combatant::Child {
+                                    parent: head_id,
+                                    defense: Defense::default(),
+                                },
+                            ));
+                        }
+                        _ => (),
+                    };
+                }),
                 Name::new("eye_balloon_tentacle"),
                 Aabb::new(
                     Vec3::new(0.75, 5., 0.75),
