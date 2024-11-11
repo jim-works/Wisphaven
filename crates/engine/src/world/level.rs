@@ -746,7 +746,7 @@ impl LevelData {
         // this repeats from each end `MAX_CHECKS` times.
         //the idea is to prefer spawning above ground, but prefer spawning in the shallow cave than some place way up in the sky.
         const MIN_SPAWN_VOLUME: IVec3 = IVec3::splat(3);
-        const MAX_CHECKS: i32 = 10;
+        const MAX_CHECKS: i32 = 100;
         const CHECK_UP_RANGE: i32 = 100;
         const CHECK_DOWN_RANGE: i32 = 50;
         for dy in (0..MAX_CHECKS)
@@ -762,7 +762,6 @@ impl LevelData {
                 .iter()
                 .any(|coord| matches!(self.get_block(coord.into()), Some(BlockType::Filled(_))));
             if !found_ground {
-                info!("didn't find ground at {:?}", calculated_spawn_point);
                 continue;
             }
             let air_volume = Volume::new_inclusive(
@@ -773,7 +772,6 @@ impl LevelData {
                 .iter()
                 .all(|coord| matches!(self.get_block(coord.into()), Some(BlockType::Empty) | None));
             if !enough_air {
-                info!("not enough air at {:?}", calculated_spawn_point);
                 continue;
             }
             info!("found spawn at {:?}", calculated_spawn_point);
