@@ -4,8 +4,6 @@
 
 Wisphaven is a voxel village defense game that is currently in development.
 
-This project has mostly been abandoned, but I'm making one more update to quickly turn it into a somewhat fun game before moving on.
-
 Written in Rust using the Bevy game engine.
 
 ## How to run
@@ -30,13 +28,25 @@ Cranelift does not work very well with this project at the time of writing.
 
 - Infinite, procedurally generated world
 - Saving/loading terrain
-- Scuffed multiplayer
-- Basic combat
+- Scuffed multiplayer (currently broken)
+- Combat system with teams, knockback, defense, and multi-entity combatants.
 - Modular item, block, and crafting recipe systems
+- Several different enemy and weapon types.
 
-## Development
+## Development/Roadmap
 
-Initially, this project was going to be a town building game, but I fell out of love with that idea. I'm going to turn it into a more arcade survival game instead.
+Initially, this project was going to be a town building game, but I fell out of love with that idea. It's becoming more of an arcade survival game instead.
+
+Right now, each night, there are waves of enemies that will attack you and try to destroy your "World Anchor". The World Anchor is a structure that keeps you (a wisp) tethered to the world, once it's destroyed, you will not respawn after dying. It's probably best to defend it.
+
+On the agenda is:
+- Friendly wisps (citizens) that will automate tasks and help you defend.
+- Faster buildling mechanics
+- More items and types of enemies
+- Better crafting system. The current system has has poor discoverability and only works with blocks.
+- Improved UI - world select screen, settings, better in-game UI and inventory management
+- Proper multiplayer with support for headless servers
+- Optimization - I've cut a lot of corners to increase development speed, so the game's performance leaves a lot to be desired.
 
 I will be posting development updates on my [YouTube channel](https://www.youtube.com/channel/UCsfEWFba7Zo1DPNHisczM-g)
 
