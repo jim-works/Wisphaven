@@ -11,12 +11,13 @@ members = ["crates/*"]
 # Enable a small amount of optimization in debug mode
 [profile.dev]
 opt-level = 1
+# increases incremental compilation speed by about 10% while keeping debug info
+split-debuginfo="unpacked"
 
 # Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
 
-#TODO: uncomment for actual release builds
 #also look into this: https://nnethercote.github.io/perf-book/build-configuration.html#link-time-optimization
 [profile.release]
 lto = true

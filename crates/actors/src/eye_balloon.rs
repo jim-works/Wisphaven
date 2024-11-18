@@ -61,6 +61,9 @@ struct EyeBalloon;
 struct EyeBalloonTentacle;
 
 #[derive(Component)]
+struct EyeBalloonTentacleSegment;
+
+#[derive(Component)]
 struct EyeBalloonIris;
 
 fn test_spawn(mut writer: EventWriter<SpawnActorEvent>) {
@@ -86,6 +89,7 @@ fn spawn_eye_balloon(
     for SpawnEyeBalloonEvent { default_args } in spawn_requests.read() {
         let mut head_ec = commands.spawn_empty();
         let head_id = head_ec.id();
+
         head_ec.insert((
             SceneBundle {
                 scene: res.scene.clone_weak(),
@@ -155,6 +159,7 @@ fn spawn_eye_balloon(
                             },
                         ));
                     }
+                    Some("TentacleEndBone") => {}
                     _ => (),
                 };
             }),
