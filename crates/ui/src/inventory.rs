@@ -77,7 +77,7 @@ impl Plugin for InventoryPlugin {
 
 #[derive(Resource)]
 struct InventoryResources {
-    item_counts: TextStyle,
+    item_counts: (TextColor, TextFont),
     slot_background: Handle<Image>,
     selection_image: Handle<Image>,
 }
@@ -196,16 +196,13 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
         .spawn((
             MainCameraUIRoot,
             InventoryUI,
-            NodeBundle {
-                style: Style {
-                    width: Val::Px(400.0),
-                    height: Val::Px(200.0),
-                    align_items: AlignItems::FlexStart,
-                    flex_direction: FlexDirection::Column,
-                    justify_content: JustifyContent::FlexStart,
-                    position_type: PositionType::Absolute,
-                    ..default()
-                },
+            Node {
+                width: Val::Px(400.0),
+                height: Val::Px(200.0),
+                align_items: AlignItems::FlexStart,
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::FlexStart,
+                position_type: PositionType::Absolute,
                 ..default()
             },
         ))
@@ -215,70 +212,54 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                 let slot_coords = get_slot_coords(slot, 0.0);
                 slot_background
                     .spawn((
-                        ImageBundle {
-                            style: Style {
-                                aspect_ratio: Some(1.0),
-                                margin: UiRect::all(Val::Px(1.0)),
-                                width: Val::Px(SLOT_PX),
-                                height: Val::Px(SLOT_PX),
-                                left: slot_coords.left,
-                                right: slot_coords.right,
-                                bottom: slot_coords.bottom,
-                                top: slot_coords.top,
-                                position_type: PositionType::Absolute,
-                                align_items: AlignItems::Center,
-                                justify_content: JustifyContent::Center,
-                                ..default()
-                            },
-                            image: UiImage::new(resources.slot_background.clone()),
+                        Node {
+                            aspect_ratio: Some(1.0),
+                            margin: UiRect::all(Val::Px(1.0)),
+                            width: Val::Px(SLOT_PX),
+                            height: Val::Px(SLOT_PX),
+                            left: slot_coords.left,
+                            right: slot_coords.right,
+                            bottom: slot_coords.bottom,
+                            top: slot_coords.top,
+                            position_type: PositionType::Absolute,
+                            align_items: AlignItems::Center,
+                            justify_content: JustifyContent::Center,
                             ..default()
                         },
+                        ImageNode::new(resources.slot_background.clone()),
                         InventoryUISlotBackground(slot),
                     ))
                     .with_children(|slot_content| {
                         //spawn the slot content - this is where the item images go
                         slot_content.spawn((
-                            ImageBundle {
-                                style: Style {
-                                    width: Val::Px(SLOT_PX),
-                                    height: Val::Px(SLOT_PX),
-                                    position_type: PositionType::Absolute,
-                                    ..default()
-                                },
-                                visibility: Visibility::Hidden,
+                            Node {
+                                width: Val::Px(SLOT_PX),
+                                height: Val::Px(SLOT_PX),
+                                position_type: PositionType::Absolute,
                                 ..default()
                             },
+                            ImageNode::default(),
+                            Visibility::Hidden,
                             InventoryUISlot(slot, None),
                         ));
                         //this is the stack size label
                         //making a parent to anchor the label to the bottom right
                         slot_content
-                            .spawn(NodeBundle {
-                                style: Style {
-                                    width: Val::Percent(100.0),
-                                    height: Val::Percent(100.0),
-                                    position_type: PositionType::Absolute,
-                                    justify_content: JustifyContent::FlexEnd,
-                                    align_items: AlignItems::FlexEnd,
-                                    padding: UiRect::right(Val::Px(STACK_SIZE_LABEL_PADDING_PX)),
-                                    ..default()
-                                },
+                            .spawn(Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
+                                position_type: PositionType::Absolute,
+                                justify_content: JustifyContent::FlexEnd,
+                                align_items: AlignItems::FlexEnd,
+                                padding: UiRect::right(Val::Px(STACK_SIZE_LABEL_PADDING_PX)),
                                 ..default()
                             })
                             .with_children(|label| {
                                 label.spawn((
-                                    TextBundle {
-                                        text: Text {
-                                            sections: vec![TextSection::new(
-                                                "0",
-                                                resources.item_counts.clone(),
-                                            )],
-                                            justify: JustifyText::Right,
-                                            ..default()
-                                        },
-                                        visibility: Visibility::Hidden,
-                                        ..default()
-                                    },
+                                    Text::new("0".to_string()),
+                                    TextLayout::new_with_justify(JustifyText::Right),
+                                    resources.item_counts.clone(),
+                                    Visibility::Hidden,
                                     InventoryUISlot(slot, None),
                                 ));
                             });
@@ -287,16 +268,13 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
         })
         .with_children(|selector| {
             selector.spawn((
-                ImageBundle {
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        width: Val::Px(SLOT_PX),
-                        height: Val::Px(SLOT_PX),
-                        ..default()
-                    },
-                    image: UiImage::new(resources.selection_image.clone()),
+                Node {
+                    position_type: PositionType::Absolute,
+                    width: Val::Px(SLOT_PX),
+                    height: Val::Px(SLOT_PX),
                     ..default()
                 },
+                ImageNode::new(resources.selection_image.clone()),
                 InventoryUISelector,
             ));
         });
@@ -315,7 +293,7 @@ fn get_slot_coords(slot: usize, offset_px: f32) -> UiRect {
 }
 
 fn place_inventory_selector(
-    mut selector_query: Query<&mut Style, With<InventoryUISelector>>,
+    mut selector_query: Query<&mut Node, With<InventoryUISelector>>,
     inventory_query: Query<&Inventory, With<LocalPlayer>>,
 ) {
     if let Ok(inv) = inventory_query.get_single() {
@@ -343,7 +321,7 @@ fn update_counts(
             match inv.get(ui_slot.0) {
                 Some(stack) => {
                     *vis.as_mut() = Visibility::Inherited;
-                    text.sections[0].value = stack.size.to_string();
+                    text.0 = stack.size.to_string();
                 }
                 None => {
                     *vis.as_mut() = Visibility::Hidden;
@@ -354,7 +332,7 @@ fn update_counts(
 }
 
 fn update_icons(
-    mut label_query: Query<(&mut Visibility, &mut UiImage, &mut InventoryUISlot)>,
+    mut label_query: Query<(&mut Visibility, &mut ImageNode, &mut InventoryUISlot)>,
     mut images: ResMut<Assets<Image>>,
     pickup_reader: EventReader<PickupItemEvent>,
     drop_reader: EventReader<DropItemEvent>,
@@ -380,7 +358,7 @@ fn update_icons(
                 Some(stack) => match icon_query.get(stack.id) {
                     Ok(icon) => {
                         *vis.as_mut() = Visibility::Inherited;
-                        image.texture = icon.0.clone();
+                        image.image = icon.0.clone();
                     }
                     Err(_) => {
                         match block_item_query.get(stack.id) {
@@ -406,7 +384,7 @@ fn update_icons(
                                                 + PREVIEW_ORIGIN,
                                         );
                                         ui_slot.1 = Some(preview_entity);
-                                        image.texture = preview;
+                                        image.image = preview;
                                         *vis.as_mut() = Visibility::Inherited;
                                     }
                                     None => *vis.as_mut() = Visibility::Hidden,
@@ -462,12 +440,9 @@ fn spawn_block_preview(
 
     let entity = commands
         .spawn((
-            MaterialMeshBundle::<ExtendedMaterial<StandardMaterial, TextureArrayExtension>> {
-                mesh: mesh.clone(),
-                material: material.clone(),
-                transform: Transform::from_translation(position),
-                ..default()
-            },
+            Mesh3d(mesh.clone()),
+            MeshMaterial3d(material.clone()),
+            Transform::from_translation(position),
             BlockPreview,
             BLOCK_PREVIEW_LAYER,
         ))
@@ -475,23 +450,21 @@ fn spawn_block_preview(
             //spawn camera as a child so that we can just despawn_recursive() the one entity
             const CAMERA_OFFSET: Vec3 = Vec3::new(1.0, 1.0, 1.0);
             children
-                .spawn(Camera3dBundle {
-                    camera_3d: Camera3d { ..default() },
-                    camera: Camera {
+                .spawn((
+                    Camera3d::default(),
+                    Camera {
                         // render before the main camera
                         order: -1,
                         target: RenderTarget::Image(image_handle.clone()),
                         clear_color: ClearColorConfig::Custom(Color::NONE),
                         ..default()
                     },
-                    projection: Projection::Orthographic(OrthographicProjection {
+                    Projection::Orthographic(OrthographicProjection {
                         scale: 2.0 / SLOT_PX, // smaller numbers here make the block look bigger
-                        ..default()
+                        ..OrthographicProjection::default_3d()
                     }),
-                    transform: Transform::from_translation(CAMERA_OFFSET)
-                        .looking_at(Vec3::ZERO, Vec3::Y),
-                    ..default()
-                })
+                    Transform::from_translation(CAMERA_OFFSET).looking_at(Vec3::ZERO, Vec3::Y),
+                ))
                 // only render the block previews
                 .insert(BLOCK_PREVIEW_LAYER);
         })

@@ -62,7 +62,7 @@ fn trigger_spawning(mut writer: EventWriter<SpawnWispEvent>) {
 fn add_to_registry(mut res: ResMut<ActorResources>) {
     res.registry.add_dynamic(
         ActorName::core("wisp"),
-        Box::new(|commands, tf| commands.add(SendEventCommand(SpawnWispEvent { location: tf }))),
+        Box::new(|commands, tf| commands.queue(SendEventCommand(SpawnWispEvent { location: tf }))),
     );
 }
 
@@ -73,12 +73,9 @@ fn spawn_wisp(
 ) {
     for spawn in spawn_requests.read() {
         commands.spawn((
-            PbrBundle {
-                mesh: res.mesh.clone(),
-                material: res.material.clone(),
-                transform: spawn.location,
-                ..default()
-            },
+            Mesh3d(res.mesh.clone()),
+            MeshMaterial3d(res.material.clone()),
+            spawn.location,
             Name::new("wisp"),
             CombatantBundle::<PlayerTeam> {
                 combatant: Combatant::new(10., 0.),

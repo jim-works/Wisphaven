@@ -1,5 +1,6 @@
 // my modifications:
 // - change from regex_lite to regex dependency
+// - update `filter_out` and `filter_in` on `TextEditable` to be `Option<Regex>`
 // - update `is_ignored` to take &Regex instead of &Vec<String> for filtering, and &str instead of String for key
 // - update `is_ignored` call sites and the structs to use the new argument
 // - remove state feature
@@ -62,16 +63,12 @@
 //!
 //! ### Component
 //!
-//! Insert component `TextEditable` and `Interaction` into any text entity that needs to be editable:
+//! Insert component `TextEditable` into any text entity that needs to be editable:
 //!
 //! ```rust
 //! commands.spawn((
 //!     TextEditable::default(), // Mark text is editable
-//!     Interaction::None,       // Mark entity is interactable
-//!     TextBundle::from_section(
-//!         "Input Text 1",
-//!         TextStyle::default(),
-//!     ),
+//!     Text::new("Input Text 1"),
 //! ));
 //! ```
 //!
@@ -86,18 +83,13 @@
 //!         filter_out: vec!["5".into()],                // Ignore number 5
 //!         ..default()
 //!     },
-//!     Interaction::None,
-//!     TextBundle::from_section(
-//!         "Input Text 1",
-//!         TextStyle::default(),
-//!     ),
+//!     Text::new("Input Text 1"),
 //! ));
 //! ```
 
 use bevy::app::{App, Plugin, Update};
 use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::input::ButtonState;
-
 use bevy::prelude::{in_state, States};
 use bevy::prelude::{
     ButtonInput, Changed, Commands, Component, Deref, DerefMut, Entity, EventReader,
@@ -125,7 +117,6 @@ const BLINK_INTERVAL: f32 = 0.5;
 /// Current position of cursor in the text.
 #[derive(Component, Default)]
 pub struct CursorPosition {
-    pub section: usize,
     pub pos: usize,
 }
 
@@ -138,7 +129,6 @@ pub struct DisplayTextCursor(char);
 pub struct BlinkInterval(Timer);
 
 /// The main plugin
-
 #[derive(Default)]
 pub struct TextEditPlugin<T>
 where
@@ -206,14 +196,11 @@ pub struct TextEditFocus;
 ///         filter_in: vec!["[0-9]".into(), " ".into()], // Only allow number and space
 ///         filter_out: vec!["5".into()],                // Ignore number 5
 ///     },
-///     Interaction::None,
-///     TextBundle::from_section(
-///         "Input Text 1",
-///         TextStyle::default(),
-///     ),
+///     Text::new("Input Text 1"),
 /// ));
 /// ```
 #[derive(Component)]
+#[require(Interaction)]
 pub struct TextEditable {
     /// Character in this list won't be added to the text.
     pub filter_out: Option<Regex>,
@@ -248,10 +235,8 @@ fn unfocus_text_box(
         if ignore_entity.is_none() || e != ignore_entity.unwrap() {
             commands.entity(e).remove::<TextEditFocus>();
 
-            if text.sections.len() > cursor.section
-                && text.sections[cursor.section].value.len() > cursor.pos
-            {
-                text.sections[cursor.section].value.remove(cursor.pos);
+            if text.len() > cursor.pos {
+                text.remove(cursor.pos);
             }
             commands.entity(e).remove::<CursorPosition>();
             commands.entity(e).remove::<TextEditFocus>();
@@ -265,15 +250,10 @@ fn focus_text_box(
     display_cursor: Res<DisplayTextCursor>,
 ) {
     for (mut text, e) in focused_texts.iter_mut() {
-        if !text.sections.is_empty() {
-            let section = text.sections.len() - 1;
-            let pos = text.sections[section].value.len();
-            commands.entity(e).insert(CursorPosition { section, pos });
-            text.sections
-                .last_mut()
-                .unwrap()
-                .value
-                .push(**display_cursor);
+        if !text.is_empty() {
+            let pos = text.len();
+            commands.entity(e).insert(CursorPosition { pos });
+            text.push(**display_cursor);
         }
     }
 }
@@ -328,128 +308,63 @@ fn listen_keyboard_input(
         for (mut text, mut cursor, texteditable) in edit_text.iter_mut() {
             let ignore_regex = texteditable.filter_out.as_ref();
             let allow_regex = texteditable.filter_in.as_ref();
-            let mut text_len = 0;
-
-            if text.sections.len() <= cursor.section {
-                continue;
-            }
-
-            for section in &text.sections {
-                text_len += section.value.len();
-            }
-
             match &event.logical_key {
                 Key::Space => {
                     if is_ignored(ignore_regex, allow_regex, " ")
-                        || (texteditable.max_length > 0 && text_len > texteditable.max_length)
+                        || (texteditable.max_length > 0 && text.len() > texteditable.max_length)
                     {
                         continue;
                     }
 
-                    text.sections[cursor.section].value.insert(cursor.pos, ' ');
+                    text.insert(cursor.pos, ' ');
                     cursor.pos += 1;
                 }
                 Key::Backspace => {
                     if cursor.pos > 0 {
-                        text.sections[cursor.section].value.remove(cursor.pos - 1);
+                        text.remove(cursor.pos - 1);
                         cursor.pos -= 1;
-                    } else if cursor.section > 0 {
-                        text.sections[cursor.section].value.remove(cursor.pos);
-
-                        cursor.section -= 1;
-                        text.sections[cursor.section].value.pop();
-                        text.sections[cursor.section].value.push(**display_cursor);
-                        cursor.pos = text.sections[cursor.section].value.len() - 1;
                     }
                 }
                 Key::Delete => {
-                    if cursor.pos < text.sections[cursor.section].value.len() - 1 {
-                        text.sections[cursor.section].value.remove(cursor.pos + 1);
-                    } else if cursor.section < text.sections.len() - 1 {
-                        text.sections[cursor.section].value.remove(cursor.pos);
-
-                        cursor.section += 1;
-                        if !text.sections[cursor.section].value.is_empty() {
-                            text.sections[cursor.section].value.remove(0);
-                        }
-                        text.sections[cursor.section]
-                            .value
-                            .insert(0, **display_cursor);
-                        cursor.pos = 0;
+                    if cursor.pos < text.len() - 1 {
+                        text.remove(cursor.pos + 1);
                     }
                 }
                 Key::Character(character) => {
                     if is_ignored(ignore_regex, allow_regex, character)
-                        || (texteditable.max_length > 0 && text_len > texteditable.max_length)
+                        || (texteditable.max_length > 0 && text.len() > texteditable.max_length)
                     {
                         continue;
                     }
 
-                    text.sections[cursor.section]
-                        .value
-                        .insert_str(cursor.pos, character);
+                    text.insert_str(cursor.pos, character);
                     cursor.pos += character.len();
                 }
                 Key::ArrowLeft => {
                     if cursor.pos > 0 {
-                        text.sections[cursor.section].value.remove(cursor.pos);
+                        text.remove(cursor.pos);
 
                         cursor.pos -= 1;
-                        text.sections[cursor.section]
-                            .value
-                            .insert(cursor.pos, **display_cursor);
-                    } else if cursor.section > 0 {
-                        text.sections[cursor.section].value.remove(cursor.pos);
-
-                        cursor.section -= 1;
-                        if text.sections[cursor.section].value.is_empty() {
-                            text.sections[cursor.section].value.push(**display_cursor);
-                            cursor.pos = 0;
-                        } else {
-                            let last = text.sections[cursor.section].value.len() - 1;
-                            text.sections[cursor.section]
-                                .value
-                                .insert(last, **display_cursor);
-                            cursor.pos = last;
-                        }
+                        text.insert(cursor.pos, **display_cursor);
                     }
                 }
                 Key::ArrowRight => {
-                    if cursor.pos < text.sections[cursor.section].value.len() - 1 {
-                        text.sections[cursor.section].value.remove(cursor.pos);
+                    if cursor.pos < text.len() - 1 {
+                        text.remove(cursor.pos);
 
                         cursor.pos += 1;
-                        text.sections[cursor.section]
-                            .value
-                            .insert(cursor.pos, **display_cursor);
-                    } else if cursor.section < text.sections.len() - 1 {
-                        text.sections[cursor.section].value.remove(cursor.pos);
-
-                        cursor.section += 1;
-                        if text.sections[cursor.section].value.is_empty() {
-                            text.sections[cursor.section].value.push(**display_cursor);
-                            cursor.pos = 0;
-                        } else {
-                            text.sections[cursor.section]
-                                .value
-                                .insert(1, **display_cursor);
-                            cursor.pos = 1;
-                        }
+                        text.insert(cursor.pos, **display_cursor);
                     }
                 }
                 Key::Home => {
-                    text.sections[cursor.section].value.remove(cursor.pos);
-
-                    cursor.section = 0;
+                    text.remove(cursor.pos);
                     cursor.pos = 0;
-                    text.sections[0].value.insert(0, **display_cursor);
+                    text.insert(0, **display_cursor);
                 }
                 Key::End => {
-                    text.sections[cursor.section].value.remove(cursor.pos);
-
-                    cursor.section = text.sections.len() - 1;
-                    cursor.pos = text.sections[cursor.section].value.len();
-                    text.sections[cursor.section].value.push(**display_cursor);
+                    text.remove(cursor.pos);
+                    cursor.pos = text.len();
+                    text.push(**display_cursor);
                 }
                 _ => continue,
             }
@@ -465,19 +380,14 @@ fn blink_cursor(
 ) {
     blink_interval.tick(time.delta());
     for (mut text, cursor_pos, text_editable) in query.iter_mut() {
-        if text_editable.blink
-            && blink_interval.just_finished()
-            && text.sections.len() > cursor_pos.section
-            && text.sections[cursor_pos.section].value.len() > cursor_pos.pos
-        {
-            let current_cursor =
-                text.sections[cursor_pos.section].value.as_bytes()[cursor_pos.pos] as char;
+        if text_editable.blink && blink_interval.just_finished() && text.len() > cursor_pos.pos {
+            let current_cursor = text.as_bytes()[cursor_pos.pos] as char;
             let next_cursor = if current_cursor != **display_text_cursor {
                 **display_text_cursor
             } else {
                 ' '
             };
-            text.sections[cursor_pos.section].value.replace_range(
+            text.replace_range(
                 cursor_pos.pos..(cursor_pos.pos + 1),
                 String::from(next_cursor).as_str(),
             );

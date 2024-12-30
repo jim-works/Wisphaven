@@ -69,16 +69,13 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
         .spawn((
             WaveUIScreen,
             MainCameraUIRoot,
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::FlexEnd,
-                    justify_content: JustifyContent::FlexStart,
-                    position_type: PositionType::Absolute,
-                    ..default()
-                },
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::FlexEnd,
+                justify_content: JustifyContent::FlexStart,
+                position_type: PositionType::Absolute,
                 ..default()
             },
         ))
@@ -86,65 +83,49 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
             container
                 .spawn((
                     WaveUIContainer,
-                    NodeBundle {
-                        style: Style {
-                            width: Val::Px(240.0),
-                            height: Val::Px(16.0),
-                            margin: margin.clone(),
-                            flex_direction: FlexDirection::Column,
-                            align_items: AlignItems::FlexEnd,
-                            justify_content: JustifyContent::Center,
-                            position_type: PositionType::Relative,
-                            ..default()
-                        },
-                        visibility: Visibility::Visible,
+                    Node {
+                        width: Val::Px(240.0),
+                        height: Val::Px(16.0),
+                        margin: margin.clone(),
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::FlexEnd,
+                        justify_content: JustifyContent::Center,
+                        position_type: PositionType::Relative,
                         ..default()
                     },
+                    Visibility::Visible,
                 ))
                 .with_children(|children| {
                     children
                         .spawn((
                             WaveUIProgressBarBackground,
-                            NodeBundle {
-                                style: Style {
-                                    width: Val::Percent(100.),
-                                    height: Val::Px(12.0),
-                                    justify_content: JustifyContent::FlexStart,
-                                    align_items: AlignItems::FlexEnd,
-                                    ..default()
-                                },
-                                background_color: BackgroundColor(Color::Srgba(
-                                    Srgba::hex("202e37").unwrap(),
-                                )),
+                            Node {
+                                width: Val::Percent(100.),
+                                height: Val::Px(12.0),
+                                justify_content: JustifyContent::FlexStart,
+                                align_items: AlignItems::FlexEnd,
                                 ..default()
                             },
+                            BackgroundColor(Color::Srgba(Srgba::hex("202e37").unwrap())),
                         ))
                         .with_children(|bar| {
                             bar.spawn((
                                 WaveUIProgressBarForeground,
-                                NodeBundle {
-                                    style: Style {
-                                        width: Val::Percent(0.),
-                                        height: Val::Percent(100.),
-                                        position_type: PositionType::Absolute,
-                                        ..default()
-                                    },
-                                    background_color: BackgroundColor(Color::Srgba(
-                                        Srgba::hex("4f8fba").unwrap(),
-                                    )),
+                                Node {
+                                    width: Val::Percent(0.),
+                                    height: Val::Percent(100.),
+                                    position_type: PositionType::Absolute,
                                     ..default()
                                 },
+                                BackgroundColor(Color::Srgba(Srgba::hex("4f8fba").unwrap())),
                             ));
                         });
                     children.spawn((
                         WaveUIWaveIndicatorContainer,
-                        NodeBundle {
-                            style: Style {
-                                width: Val::Percent(100.),
-                                height: Val::Percent(100.),
-                                position_type: PositionType::Absolute,
-                                ..default()
-                            },
+                        Node {
+                            width: Val::Percent(100.),
+                            height: Val::Percent(100.),
+                            position_type: PositionType::Absolute,
                             ..default()
                         },
                     ));
@@ -180,14 +161,11 @@ fn spawn_wave_indicators(
                 children
                     .spawn((
                         WaveUIWaveIndicatorParent(i),
-                        NodeBundle {
-                            style: Style {
-                                position_type: PositionType::Absolute,
-                                width: Val::Px(16.),
-                                height: Val::Px(16.),
-                                left: Val::Percent(progress),
-                                ..default()
-                            },
+                        Node {
+                            position_type: PositionType::Absolute,
+                            width: Val::Px(16.),
+                            height: Val::Px(16.),
+                            left: Val::Percent(progress),
                             ..default()
                         },
                     ))
@@ -195,18 +173,15 @@ fn spawn_wave_indicators(
                         indicator.spawn((
                             WaveUIWaveIndicator(i),
                             Name::new("wave indicator"),
-                            ImageBundle {
-                                style: Style {
-                                    position_type: PositionType::Absolute,
-                                    width: Val::Px(16.),
-                                    height: Val::Px(16.),
-                                    left: Val::Px(-8.),
-                                    top: Val::Px(2.),
-                                    ..default()
-                                },
-                                image: resources.wave_indicator_texture.clone().into(),
+                            Node {
+                                position_type: PositionType::Absolute,
+                                width: Val::Px(16.),
+                                height: Val::Px(16.),
+                                left: Val::Px(-8.),
+                                top: Val::Px(2.),
                                 ..default()
                             },
+                            ImageNode::new(resources.wave_indicator_texture.clone()),
                         ));
                     });
             }
@@ -215,7 +190,7 @@ fn spawn_wave_indicators(
 }
 
 fn update_progress_bar(
-    mut fill_query: Query<&mut Style, With<WaveUIProgressBarForeground>>,
+    mut fill_query: Query<&mut Node, With<WaveUIProgressBarForeground>>,
     calendar: Res<Calendar>,
 ) {
     let night_progress = (calendar.get_sun_progress() - 0.5) * 2.;

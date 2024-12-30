@@ -266,7 +266,7 @@ fn can_decorate(
     chunk: ChunkCoord,
     level: &LevelData,
 ) -> Option<(
-    dashmap::mapref::one::RefMut<'_, ChunkCoord, ChunkType, ahash::RandomState>,
+    dashmap::mapref::one::RefMut<'_, ChunkCoord, ChunkType>,
     ChunkType,
 )> {
     //can only hold one mutable reference into level without deadlocking, so we must clone the top_chunk
@@ -374,7 +374,7 @@ pub fn poll_structure_waiters(
 fn can_structure(
     chunk: ChunkCoord,
     level: &LevelData,
-) -> Option<dashmap::mapref::one::RefMut<'_, ChunkCoord, ChunkType, ahash::RandomState>> {
+) -> Option<dashmap::mapref::one::RefMut<'_, ChunkCoord, ChunkType>> {
     //this is very ugly but not sure how to make it better
     if let Some(mut c) = level.get_chunk_mut(chunk) {
         if let ChunkType::Generating(phase, _) = c.value_mut() {

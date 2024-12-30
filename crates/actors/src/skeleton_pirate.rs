@@ -70,7 +70,7 @@ fn add_to_registry(mut res: ResMut<ActorResources>) {
     res.registry.add_dynamic(
         ActorName::core("skeleton_pirate"),
         Box::new(|commands, tf| {
-            commands.add(SendEventCommand(SpawnSkeletonPirateEvent { location: tf }))
+            commands.queue(SendEventCommand(SpawnSkeletonPirateEvent { location: tf }))
         }),
     );
 }
@@ -86,11 +86,8 @@ pub fn spawn_skeleton_pirate(
     const AGGRO_RANGE: f32 = ATTACK_RANGE * 2.0 + 5.0;
     for spawn in spawn_requests.read() {
         commands.spawn((
-            SceneBundle {
-                scene: skele_res.scene.clone_weak(),
-                transform: spawn.location,
-                ..default()
-            },
+            SceneRoot(skele_res.scene.clone_weak()),
+            spawn.location,
             Name::new("SkeletonPirate"),
             CombatantBundle::<EnemyTeam> {
                 combatant: Combatant::new(10.0, 0.0),
@@ -174,7 +171,7 @@ pub fn setup_skeleton_pirate(
                                             0.0
                                         },
                                     ),
-                                    skele_res.graph.clone(),
+                                    AnimationGraphHandle(skele_res.graph.clone()),
                                 ));
                             skele.scene = Some(*candidate_anim_player);
 
@@ -230,7 +227,7 @@ fn attack(
                         let spawn_point = tf.translation() + COIN_OFFSET;
                         match anim_opt {
                             Some(mut anim) => {
-                                anim.tick(time.delta_seconds());
+                                anim.tick(time.delta_secs());
                                 if anim.just_acted() {
                                     spawn_coin.send(SpawnCoinEvent::<EnemyTeam> {
                                         default_args: DefaultSpawnArgs {

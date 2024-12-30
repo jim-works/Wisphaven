@@ -67,11 +67,8 @@ pub fn spawn_coin<T: Team>(
     } in spawn_requests.read()
     {
         commands.spawn((
-            SceneBundle {
-                scene: res.scene.clone_weak(),
-                transform: default_args.transform,
-                ..default()
-            },
+            SceneRoot(res.scene.clone_weak()),
+            default_args.transform,
             Name::new("coin"),
             projectile_args.combat.clone(),
             PhysicsBundle {

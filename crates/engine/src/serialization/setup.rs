@@ -67,8 +67,7 @@ impl Plugin for SetupPlugin {
             .add_systems(
                 Update,
                 on_level_created.run_if(
-                    in_state(state::GameLoadState::Done)
-                        .and_then(in_state(LevelLoadState::NotLoaded)),
+                    in_state(state::GameLoadState::Done).and(in_state(LevelLoadState::NotLoaded)),
                 ),
             );
     }
@@ -233,11 +232,7 @@ pub fn start_loading_scene<Scene: Resource + std::ops::Deref<Target = Handle<Loa
 
                 info!("Spawning {} {} scenes", scenes.len(), name);
                 for scene in scenes {
-                    commands.spawn((
-                        DynamicSceneBundle { scene, ..default() },
-                        Name::new(name),
-                        bundle.clone(),
-                    ));
+                    commands.spawn((DynamicSceneRoot(scene), Name::new(name), bundle.clone()));
                 }
             }
         }

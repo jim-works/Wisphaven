@@ -150,8 +150,8 @@ pub enum ServerMessage {
 
 pub fn network_ready() -> impl Condition<()> {
     in_state(NetworkType::Singleplayer)
-        .or_else(in_state(NetworkType::Server).and_then(in_state(ServerState::Started)))
-        .or_else(in_state(NetworkType::Client).and_then(in_state(ClientState::Ready)))
+        .or(in_state(NetworkType::Server).and(in_state(ServerState::Started)))
+        .or(in_state(NetworkType::Client).and(in_state(ClientState::Ready)))
 }
 
 //recv from over the network

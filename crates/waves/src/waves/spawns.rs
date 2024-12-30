@@ -12,7 +12,7 @@ pub(crate) struct SkeletonPirateSpawn;
 
 impl SpawnAction for SkeletonPirateSpawn {
     fn spawn(&self, commands: &mut Commands, translation: Vec3) {
-        commands.add(SendEventCommand(SpawnSkeletonPirateEvent {
+        commands.queue(SendEventCommand(SpawnSkeletonPirateEvent {
             location: Transform::from_translation(translation),
         }));
     }
@@ -22,7 +22,7 @@ pub(crate) struct DefaultSpawn(pub(crate) Arc<String>);
 
 impl SpawnAction for DefaultSpawn {
     fn spawn(&self, commands: &mut Commands, translation: Vec3) {
-        commands.add(SendEventCommand(SpawnActorEvent {
+        commands.queue(SendEventCommand(SpawnActorEvent {
             name: self.0.clone(),
             args: DefaultSpawnArgs {
                 transform: Transform::from_translation(translation),

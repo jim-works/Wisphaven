@@ -112,7 +112,7 @@ impl BuildActorRegistry for App {
         registry.spawners.insert(
             name,
             Box::new(|event: DefaultSpawnArgs, commands: &mut Commands| {
-                commands.add(SendEventCommand(Event::from(event)));
+                commands.queue(SendEventCommand(Event::from(event)));
             }),
         );
         self
@@ -157,7 +157,7 @@ impl<T: Team> BuildProjectileRegistry<T> for App {
                 |default: DefaultSpawnArgs,
                  event: ProjectileSpawnArgs<T>,
                  commands: &mut Commands| {
-                    commands.add(SendEventCommand(Event::from((default, event))));
+                    commands.queue(SendEventCommand(Event::from((default, event))));
                 },
             ),
         );

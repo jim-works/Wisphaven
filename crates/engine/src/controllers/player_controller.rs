@@ -69,7 +69,7 @@ pub struct WindowFocused(pub bool);
 fn update_window_focused(mut focused: ResMut<WindowFocused>, query: Query<&Window>) {
     focused.0 = query
         .get_single()
-        .map(|w| w.cursor.grab_mode != CursorGrabMode::None)
+        .map(|w| w.cursor_options.grab_mode != CursorGrabMode::None)
         .unwrap_or(false);
 }
 

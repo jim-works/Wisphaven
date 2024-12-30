@@ -19,7 +19,7 @@ impl Plugin for InterpolationPlugin {
         .register_type::<TransformInterpolationState>();
 
         //create state when entity spawned
-        app.observe(
+        app.add_observer(
             |trigger: Trigger<OnAdd, Transform>,
              query: Query<&Transform, (With<Velocity>, Without<NoTransformInterpolation>)>,
              mut commands: Commands| {
@@ -36,7 +36,7 @@ impl Plugin for InterpolationPlugin {
 
         // create state when entity loses "NoTransformInterpolation" components
         // (idk why you would remove this after spawning, but why not support it)
-        app.observe(
+        app.add_observer(
             |trigger: Trigger<OnRemove, NoTransformInterpolation>,
              query: Query<&Transform, (With<Velocity>, Without<NoTransformInterpolation>)>,
              mut commands: Commands| {

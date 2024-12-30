@@ -29,13 +29,13 @@ impl Plugin for ChunkLoaderPlugin {
             Update,
             (
                 finish_loading_trigger.run_if(
-                    in_state(LevelLoadState::Loading).and_then(not(in_state(NetworkType::Client))),
+                    in_state(LevelLoadState::Loading).and(not(in_state(NetworkType::Client))),
                 ),
                 //todo: this is temporary
                 (|mut next_state: ResMut<NextState<LevelLoadState>>| {
                     next_state.set(LevelLoadState::Loaded);
                 })
-                .run_if(in_state(LevelLoadState::Loading).and_then(in_state(ClientState::Ready))),
+                .run_if(in_state(LevelLoadState::Loading).and(in_state(ClientState::Ready))),
             ),
         )
         .add_systems(OnEnter(LevelLoadState::Loading), on_load_level)
@@ -60,11 +60,7 @@ pub fn on_load_level(mut commands: Commands, settings: Res<Settings>, level: Res
         "creating inital loader at {:?} loader: {:?}",
         spawn_point, settings.init_loader
     );
-    commands.spawn((
-        SpatialBundle::from_transform(spawn_point),
-        InitialLoader,
-        settings.init_loader.clone(),
-    ));
+    commands.spawn((spawn_point, InitialLoader, settings.init_loader.clone()));
 }
 
 pub fn finish_loading_trigger(

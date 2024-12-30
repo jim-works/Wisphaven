@@ -414,7 +414,8 @@ impl LevelData {
         let id = commands
             .spawn((
                 GeneratedChunk,
-                SpatialBundle::from_transform(Transform::from_translation(coord.to_vec3())),
+                Transform::from_translation(coord.to_vec3()),
+                Visibility::default(),
                 coord,
                 Name::new("Chunk"),
             ))
@@ -438,7 +439,8 @@ impl LevelData {
                     .spawn((
                         Name::new("Chunk"),
                         coord,
-                        SpatialBundle::default(),
+                        Transform::default(),
+                        Visibility::default(),
                         NeedsLoading,
                     ))
                     .id();
@@ -462,7 +464,8 @@ impl LevelData {
             .spawn((
                 Name::new("LODChunk"),
                 coord,
-                SpatialBundle::default(),
+                Transform::default(),
+                Visibility::default(),
                 ChunkNeedsGenerated::Lod(lod_level),
             ))
             .id();
@@ -544,14 +547,7 @@ impl LevelData {
     pub fn get_buffer(
         &self,
         key: &ChunkCoord,
-    ) -> Option<
-        dashmap::mapref::one::Ref<
-            '_,
-            ChunkCoord,
-            Box<[BlockType; BLOCKS_PER_CHUNK]>,
-            ahash::RandomState,
-        >,
-    > {
+    ) -> Option<dashmap::mapref::one::Ref<'_, ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>>> {
         self.buffers.get(key)
     }
     pub fn buffer_iter(
@@ -574,13 +570,13 @@ impl LevelData {
     pub fn get_chunk(
         &self,
         key: ChunkCoord,
-    ) -> Option<dashmap::mapref::one::Ref<'_, ChunkCoord, ChunkType, ahash::RandomState>> {
+    ) -> Option<dashmap::mapref::one::Ref<'_, ChunkCoord, ChunkType>> {
         self.chunks.get(&key)
     }
     pub fn get_chunk_mut(
         &self,
         key: ChunkCoord,
-    ) -> Option<dashmap::mapref::one::RefMut<'_, ChunkCoord, ChunkType, ahash::RandomState>> {
+    ) -> Option<dashmap::mapref::one::RefMut<'_, ChunkCoord, ChunkType>> {
         self.chunks.get_mut(&key)
     }
     pub fn get_chunk_entity(&self, key: ChunkCoord) -> Option<Entity> {
@@ -665,12 +661,7 @@ impl LevelData {
         &self,
         level: usize,
     ) -> Option<
-        dashmap::mapref::one::Ref<
-            '_,
-            usize,
-            DashMap<ChunkCoord, LODChunkType, ahash::RandomState>,
-            ahash::RandomState,
-        >,
+        dashmap::mapref::one::Ref<'_, usize, DashMap<ChunkCoord, LODChunkType, ahash::RandomState>>,
     > {
         self.lod_chunks.get(&level)
     }

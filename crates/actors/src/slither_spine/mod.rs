@@ -167,11 +167,8 @@ fn spawn_handler(
 fn spawn_head(commands: &mut Commands, scene: Handle<Scene>, transform: Transform) -> Entity {
     commands
         .spawn((
-            SceneBundle {
-                scene,
-                transform,
-                ..default()
-            },
+            SceneRoot(scene),
+            transform,
             PhysicsBundle {
                 gravity: GravityMult::new(1.0),
                 collider: Aabb::new(
@@ -223,11 +220,8 @@ fn spawn_segement(
 ) -> Entity {
     commands
         .spawn((
-            SceneBundle {
-                scene,
-                transform,
-                ..default()
-            },
+            SceneRoot(scene),
+            transform,
             PhysicsBundle {
                 gravity: GravityMult::new(0.0),
                 collider: Aabb::new(

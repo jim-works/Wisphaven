@@ -49,7 +49,7 @@ fn add_to_registry(mut res: ResMut<ActorResources>) {
     res.registry.add_dynamic(
         ActorName::core("world_anchor"),
         Box::new(|commands, tf| {
-            commands.add(SendEventCommand(SpawnWorldAnchorEvent { location: tf }))
+            commands.queue(SendEventCommand(SpawnWorldAnchorEvent { location: tf }))
         }),
     );
 }
@@ -81,11 +81,8 @@ pub fn spawn_world_anchor(
     for spawn in spawn_requests.read() {
         let anchor = commands
             .spawn((
-                SceneBundle {
-                    scene: res.scene.clone_weak(),
-                    transform: spawn.location.with_scale(Vec3::new(2.0, 2.0, 2.0)),
-                    ..default()
-                },
+                SceneRoot(res.scene.clone_weak()),
+                spawn.location.with_scale(Vec3::new(2.0, 2.0, 2.0)),
                 Name::new("world anchor"),
                 CombatantBundle::<PlayerTeam> {
                     combatant: Combatant::new(10., 0.),

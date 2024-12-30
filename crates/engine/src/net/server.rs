@@ -43,9 +43,10 @@ impl Plugin for NetServerPlugin {
         .init_state::<ServerState>()
         .add_systems(
             Update,
-            create_server.run_if(resource_exists::<ServerConfig>.and_then(
-                in_state(ServerState::NotStarted).and_then(in_state(LevelLoadState::Loaded)),
-            )),
+            create_server.run_if(
+                resource_exists::<ServerConfig>
+                    .and(in_state(ServerState::NotStarted).and(in_state(LevelLoadState::Loaded))),
+            ),
         )
         .add_systems(
             OnEnter(ServerState::Starting),
@@ -65,9 +66,8 @@ impl Plugin for NetServerPlugin {
         )
         .add_systems(
             Update,
-            assign_server_player.run_if(
-                not(resource_exists::<ServerPlayer>).and_then(in_state(ServerState::Started)),
-            ),
+            assign_server_player
+                .run_if(not(resource_exists::<ServerPlayer>).and(in_state(ServerState::Started))),
         );
     }
 }

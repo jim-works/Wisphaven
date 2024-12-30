@@ -214,7 +214,10 @@ fn load_skybox(
     mut images: ResMut<Assets<Image>>,
     loading_skybox: Res<LoadingSkyboxCubemap>,
 ) {
-    if asset_server.load_state(&loading_skybox.0) == LoadState::Loaded {
+    if matches!(
+        asset_server.load_state(&loading_skybox.0),
+        LoadState::Loaded
+    ) {
         let image = images.get_mut(&loading_skybox.0).unwrap();
         //transform png into cubemap
         if image.texture_descriptor.array_layer_count() == 1 {
@@ -232,7 +235,7 @@ fn load_skybox(
 fn update_sky(
     mut sun_query: Query<(&mut Transform, &mut DirectionalLight, &Sun)>,
     mut skybox_query: Query<&mut Skybox>,
-    mut fog_query: Query<&mut FogSettings>,
+    mut fog_query: Query<&mut DistanceFog>,
     calendar: Res<Calendar>,
     fog_color: Res<Fog>,
 ) {
@@ -301,11 +304,8 @@ fn speedup_time(mut reader: EventReader<SpeedupCalendarEvent>, mut speed: ResMut
 
 fn setup_environment(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
-        DirectionalLightBundle {
-            directional_light: DirectionalLight {
-                shadows_enabled: true,
-                ..default()
-            },
+        DirectionalLight {
+            shadows_enabled: true,
             ..default()
         },
         Sun { strength: 7500.0 }, // Marks the light as Sun

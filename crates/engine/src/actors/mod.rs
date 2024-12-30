@@ -245,7 +245,7 @@ fn idle_action_system(
                     idle.seconds_remaining = action.seconds;
                 }
                 ActionState::Executing => {
-                    idle.seconds_remaining -= time.delta_seconds();
+                    idle.seconds_remaining -= time.delta_secs();
                     if idle.seconds_remaining <= 0.0 {
                         *state = ActionState::Success;
                     }

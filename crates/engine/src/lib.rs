@@ -7,8 +7,6 @@
 #![allow(clippy::too_many_arguments)]
 //TODO: remove this before release. annoying as balls during development
 #![allow(dead_code)]
-//don't care too much about precision here, so I'll allow this
-#![feature(const_fn_floating_point_arithmetic)]
 #![feature(assert_matches)]
 #![feature(let_chains)]
 

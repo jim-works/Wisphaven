@@ -78,11 +78,8 @@ fn spawn_spike_ball<T: Team>(
     } in spawn_requests.read()
     {
         commands.spawn((
-            SceneBundle {
-                scene: res.scene.clone_weak(),
-                transform: default_args.transform,
-                ..default()
-            },
+            SceneRoot(res.scene.clone_weak()),
+            default_args.transform,
             Name::new("spike_ball"),
             projectile_args.combat.clone(),
             PhysicsBundle {
@@ -101,10 +98,8 @@ fn spawn_spike_ball<T: Team>(
                 hit_behavior: engine::actors::projectile::ProjecileHitBehavior::None,
                 on_hit: None,
             }),
-            AudioBundle {
-                source: res.spawn_audio.clone(),
-                settings: PlaybackSettings::ONCE,
-            },
+            AudioPlayer(res.spawn_audio.clone()),
+            PlaybackSettings::ONCE,
         ));
     }
 }

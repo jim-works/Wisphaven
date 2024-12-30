@@ -41,7 +41,7 @@ impl Plugin for DebugUIPlugin {
 }
 
 #[derive(Resource)]
-struct DebugResources(TextStyle);
+struct DebugResources((TextColor, TextFont));
 
 #[derive(Component)]
 struct DebugUI;
@@ -85,12 +85,15 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(DebugResources(get_text_style(&assets)));
 }
 
-fn get_text_style(asset_server: &Res<AssetServer>) -> TextStyle {
-    TextStyle {
-        font: asset_server.load("fonts/AvenuePixel1.1/TTF/AvenuePixel-Regular.ttf"),
-        font_size: 32.0,
-        color: Color::WHITE,
-    }
+fn get_text_style(asset_server: &Res<AssetServer>) -> (TextColor, TextFont) {
+    (
+        TextColor(Color::WHITE),
+        TextFont {
+            font: asset_server.load("fonts/AvenuePixel1.1/TTF/AvenuePixel-Regular.ttf"),
+            font_size: 32.0,
+            ..default()
+        },
+    )
 }
 
 pub fn toggle_debug(
@@ -121,57 +124,30 @@ fn spawn_debug(mut commands: Commands, query: Query<&DebugUI>, resources: Res<De
         commands
             .spawn((
                 DebugUI,
-                NodeBundle {
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        align_items: AlignItems::FlexEnd,
-                        flex_direction: FlexDirection::Column,
-                        justify_content: JustifyContent::FlexStart,
-                        position_type: PositionType::Absolute,
-                        ..default()
-                    },
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    align_items: AlignItems::FlexEnd,
+                    flex_direction: FlexDirection::Column,
+                    justify_content: JustifyContent::FlexStart,
+                    position_type: PositionType::Absolute,
                     ..default()
                 },
             ))
             .with_children(|children| {
                 children.spawn((
-                    TextBundle {
-                        text: Text {
-                            sections: vec![TextSection::new(
-                                "test coordinates",
-                                resources.0.clone(),
-                            )],
-                            justify: JustifyText::Left,
-                            ..default()
-                        },
-                        ..default()
-                    },
+                    Text("test coordinates".to_string()),
+                    resources.0.clone(),
                     DebugCoordinates,
                 ));
                 children.spawn((
-                    TextBundle {
-                        text: Text {
-                            sections: vec![TextSection::new(
-                                "test chunk coordinates",
-                                resources.0.clone(),
-                            )],
-                            justify: JustifyText::Left,
-                            ..default()
-                        },
-                        ..default()
-                    },
+                    Text("test chunk coordinates".to_string()),
+                    resources.0.clone(),
                     DebugChunkCoordinates,
                 ));
                 children.spawn((
-                    TextBundle {
-                        text: Text {
-                            sections: vec![TextSection::new("test noises", resources.0.clone())],
-                            justify: JustifyText::Left,
-                            ..default()
-                        },
-                        ..default()
-                    },
+                    Text("test noises".to_string()),
+                    resources.0.clone(),
                     DebugTerrainNoises,
                 ));
             });
@@ -191,21 +167,14 @@ fn despawn_debug(mut commands: Commands, query: Query<Entity, With<DebugUI>>) {
 fn update_coords(
     player_query: Query<&GlobalTransform, With<LocalPlayer>>,
     mut ui_query: Query<&mut Text, With<DebugCoordinates>>,
-    resources: Res<DebugResources>,
 ) {
     if let Ok(tf) = player_query.get_single() {
         for mut text in ui_query.iter_mut() {
-            if text.sections.is_empty() {
-                text.sections = vec![TextSection::default()];
-            }
-            text.sections[0] = TextSection::new(
-                format!(
-                    "({:.2}, {:.2}, {:.2})",
-                    tf.translation().x,
-                    tf.translation().y,
-                    tf.translation().z
-                ),
-                resources.0.clone(),
+            text.0 = format!(
+                "({:.2}, {:.2}, {:.2})",
+                tf.translation().x,
+                tf.translation().y,
+                tf.translation().z
             );
         }
     }
@@ -214,17 +183,10 @@ fn update_coords(
 fn update_chunk_coords(
     player_query: Query<&GlobalTransform, With<LocalPlayer>>,
     mut ui_query: Query<&mut Text, With<DebugChunkCoordinates>>,
-    resources: Res<DebugResources>,
 ) {
     if let Ok(tf) = player_query.get_single() {
         for mut text in ui_query.iter_mut() {
-            if text.sections.is_empty() {
-                text.sections = vec![TextSection::default()];
-            }
-            text.sections[0] = TextSection::new(
-                format!("({:?})", ChunkCoord::from(tf.translation())),
-                resources.0.clone(),
-            );
+            text.0 = format!("({:?})", ChunkCoord::from(tf.translation()));
         }
     }
 }
@@ -232,7 +194,6 @@ fn update_chunk_coords(
 fn update_noises(
     player_query: Query<&GlobalTransform, With<LocalPlayer>>,
     mut ui_query: Query<&mut Text, With<DebugTerrainNoises>>,
-    resources: Res<DebugResources>,
     noises: Res<UsedShaperResources>,
 ) {
     let density_noise = &noises.0.density_noise;
@@ -240,21 +201,15 @@ fn update_noises(
     let landmass_noise = &noises.0.landmass_noise;
     let squish_noise = &noises.0.squish_noise;
     if let Ok(tf) = player_query.get_single() {
+        let pos = tf.translation();
         for mut text in ui_query.iter_mut() {
-            if text.sections.is_empty() {
-                text.sections = vec![TextSection::default()];
-            }
-            let pos = tf.translation();
-            text.sections[0] = TextSection::new(
-                format!(
-                    "heightmap: {:.2}\nlandmass: {:.4} (internal {:.1})\nsquish: {:.2}\ndensity: {:.2}",
-                    heightmap_noise.get_noise2d(pos.x, pos.z),
-                    landmass_noise.get_noise2d(pos.x, pos.z),
-                    landmass_noise.noise.get_noise(pos.x, pos.z),
-                    squish_noise.get_noise2d(pos.x,pos.z),
-                    density_noise.get_noise3d(pos.x, pos.y, pos.z)
-                ),
-                resources.0.clone(),
+            text.0 = format!(
+                "heightmap: {:.2}\nlandmass: {:.4} (internal {:.1})\nsquish: {:.2}\ndensity: {:.2}",
+                heightmap_noise.get_noise2d(pos.x, pos.z),
+                landmass_noise.get_noise2d(pos.x, pos.z),
+                landmass_noise.noise.get_noise(pos.x, pos.z),
+                squish_noise.get_noise2d(pos.x, pos.z),
+                density_noise.get_noise3d(pos.x, pos.y, pos.z)
             );
         }
     }

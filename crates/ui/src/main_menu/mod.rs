@@ -163,30 +163,21 @@ fn setup_splash_screen(commands: &mut Commands, asset_server: &Res<AssetServer>)
         .spawn((
             SplashScreenContainer,
             MenuRoot,
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.),
-                    height: Val::Percent(100.),
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    ..default()
-                },
-                visibility: Visibility::Hidden,
+            Node {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
                 ..default()
             },
+            Visibility::Hidden,
         ))
         .with_children(|sections| {
-            sections.spawn((TextBundle {
-                text: Text {
-                    sections: vec![TextSection {
-                        value: "Angry Pie".into(),
-                        style: get_large_text_style(asset_server),
-                    }],
-                    ..default()
-                },
-                ..default()
-            },));
+            sections.spawn((
+                Text("Angry Pie".into()),
+                get_large_text_style(asset_server).clone(),
+            ));
         });
 }
 
@@ -197,133 +188,95 @@ fn setup_main_screen(
 ) {
     let button = (
         ButtonColors::default(),
-        ButtonBundle {
-            style: Style {
-                width: Val::Percent(100.),
-                height: Val::Px(48.0),
-                border: UiRect::all(Val::Px(2.0)),
-                // horizontally center child text
-                justify_content: JustifyContent::Center,
-                // vertically center child text
-                align_items: AlignItems::Center,
-                margin: UiRect::all(Val::Px(4.)),
-                ..default()
-            },
-            border_color: BorderColor(ButtonColors::default().default_border),
-            background_color: BackgroundColor(ButtonColors::default().default_background),
+        Node {
+            width: Val::Percent(100.),
+            height: Val::Px(48.0),
+            border: UiRect::all(Val::Px(2.0)),
+            // horizontally center child text
+            justify_content: JustifyContent::Center,
+            // vertically center child text
+            align_items: AlignItems::Center,
+            margin: UiRect::all(Val::Px(4.)),
             ..default()
         },
+        BorderColor(ButtonColors::default().default_border),
+        BackgroundColor(ButtonColors::default().default_background),
+        Button,
     );
     commands
         .spawn((
             MainMenuContainer,
             MenuRoot,
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.),
-                    height: Val::Percent(100.),
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::FlexStart,
-                    ..default()
-                },
-                visibility: Visibility::Hidden,
+            Node {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::FlexStart,
                 ..default()
             },
+            Visibility::Hidden,
         ))
         .with_children(|sections| {
             sections
-                .spawn((NodeBundle {
-                    style: Style {
-                        height: Val::Percent(25.),
-                        width: Val::Percent(100.),
-                        flex_direction: FlexDirection::Column,
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
+                .spawn((Node {
+                    height: Val::Percent(25.),
+                    width: Val::Percent(100.),
+                    flex_direction: FlexDirection::Column,
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
                     ..default()
                 },))
                 .with_children(|logo| {
-                    logo.spawn((TextBundle {
-                        text: Text {
-                            justify: JustifyText::Center,
-                            sections: vec![TextSection {
-                                value: "Wisphaven".into(),
-                                style: get_large_text_style(asset_server),
-                            }],
-                            ..default()
-                        },
-                        ..default()
-                    },));
+                    logo.spawn((
+                        Text("Wisphaven".into()),
+                        TextLayout::new_with_justify(JustifyText::Center),
+                        get_large_text_style(asset_server).clone(),
+                    ));
                 });
             sections
-                .spawn((NodeBundle {
-                    style: Style {
-                        height: Val::Percent(75.),
-                        width: Val::Percent(100.),
-                        flex_direction: FlexDirection::Row,
-                        align_items: AlignItems::FlexStart,
-                        justify_content: JustifyContent::FlexStart,
-                        ..default()
-                    },
+                .spawn((Node {
+                    height: Val::Percent(75.),
+                    width: Val::Percent(100.),
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::FlexStart,
+                    justify_content: JustifyContent::FlexStart,
                     ..default()
                 },))
                 .with_children(|columns| {
                     columns
-                        .spawn((NodeBundle {
-                            style: Style {
-                                height: Val::Percent(100.),
-                                width: Val::Px(256.),
-                                flex_direction: FlexDirection::Column,
-                                align_items: AlignItems::FlexStart,
-                                justify_content: JustifyContent::Center,
-                                ..default()
-                            },
+                        .spawn(Node {
+                            height: Val::Percent(100.),
+                            width: Val::Px(256.),
+                            flex_direction: FlexDirection::Column,
+                            align_items: AlignItems::FlexStart,
+                            justify_content: JustifyContent::Center,
                             ..default()
-                        },))
+                        })
                         .with_children(|buttons| {
                             buttons
                                 .spawn((ButtonAction::new(res.play_click), button.clone()))
                                 .with_children(|text| {
-                                    text.spawn((TextBundle {
-                                        text: Text {
-                                            sections: vec![TextSection {
-                                                value: "Play".into(),
-                                                style: get_text_style(asset_server),
-                                            }],
-                                            ..default()
-                                        },
-                                        ..default()
-                                    },));
+                                    text.spawn((
+                                        Text("Play".into()),
+                                        get_text_style(asset_server).clone(),
+                                    ));
                                 });
                             buttons
                                 .spawn((ButtonAction::new(res.settings_click), button.clone()))
                                 .with_children(|text| {
-                                    text.spawn((TextBundle {
-                                        text: Text {
-                                            sections: vec![TextSection {
-                                                value: "Settings".into(),
-                                                style: get_text_style(asset_server),
-                                            }],
-                                            ..default()
-                                        },
-                                        ..default()
-                                    },));
+                                    text.spawn((
+                                        Text("Settings".into()),
+                                        get_text_style(asset_server).clone(),
+                                    ));
                                 });
                             buttons
                                 .spawn((ButtonAction::new(res.quit_click), button.clone()))
                                 .with_children(|text| {
-                                    text.spawn((TextBundle {
-                                        text: Text {
-                                            sections: vec![TextSection {
-                                                value: "Quit".into(),
-                                                style: get_text_style(asset_server),
-                                            }],
-                                            ..default()
-                                        },
-                                        ..default()
-                                    },));
+                                    text.spawn((
+                                        Text("Quit".into()),
+                                        get_text_style(asset_server).clone(),
+                                    ));
                                 });
                         });
                 });
@@ -335,125 +288,89 @@ fn setup_world_select_screen(
     asset_server: &Res<AssetServer>,
     res: &Res<MainMenuSystemIds>,
 ) {
-    // todo - when 0.15 comes out, add scrolling support
+    // todo 0.15 - when 0.15 comes out, add scrolling support
     // https://github.com/bevyengine/bevy/pull/15291
     let button = (
         ButtonColors::default(),
-        ButtonBundle {
-            style: Style {
-                width: Val::Percent(100.),
-                height: Val::Px(48.0),
-                border: UiRect::all(Val::Px(2.0)),
-                // horizontally center child text
-                justify_content: JustifyContent::Center,
-                // vertically center child text
-                align_items: AlignItems::Center,
-                margin: UiRect::all(Val::Px(4.)),
-                ..default()
-            },
-            border_color: BorderColor(ButtonColors::default().default_border),
-            background_color: BackgroundColor(ButtonColors::default().default_background),
+        Node {
+            width: Val::Percent(100.),
+            height: Val::Px(48.0),
+            border: UiRect::all(Val::Px(2.0)),
+            // horizontally center child text
+            justify_content: JustifyContent::Center,
+            // vertically center child text
+            align_items: AlignItems::Center,
+            margin: UiRect::all(Val::Px(4.)),
             ..default()
         },
+        BorderColor(ButtonColors::default().default_border),
+        BackgroundColor(ButtonColors::default().default_background),
+        Button,
     );
     commands
         .spawn((
             WorldSelectContainer,
             MenuRoot,
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.),
-                    height: Val::Percent(100.),
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::FlexStart,
-                    ..default()
-                },
-                visibility: Visibility::Hidden,
+            Node {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::FlexStart,
                 ..default()
             },
+            Visibility::Hidden,
         ))
         .with_children(|sections| {
             sections
-                .spawn((NodeBundle {
-                    style: Style {
-                        height: Val::Percent(25.),
-                        width: Val::Percent(100.),
-                        flex_direction: FlexDirection::Column,
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
+                .spawn((Node {
+                    height: Val::Percent(25.),
+                    width: Val::Percent(100.),
+                    flex_direction: FlexDirection::Column,
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
                     ..default()
                 },))
                 .with_children(|logo| {
-                    logo.spawn((TextBundle {
-                        text: Text {
-                            justify: JustifyText::Center,
-                            sections: vec![TextSection {
-                                value: "Wisphaven".into(),
-                                style: get_large_text_style(asset_server),
-                            }],
-                            ..default()
-                        },
-                        ..default()
-                    },));
+                    logo.spawn((
+                        Text("Wisphaven".into()),
+                        get_large_text_style(asset_server).clone(),
+                    ));
                 });
             sections
-                .spawn((NodeBundle {
-                    style: Style {
-                        height: Val::Percent(75.),
-                        width: Val::Percent(100.),
-                        flex_direction: FlexDirection::Row,
-                        align_items: AlignItems::FlexStart,
-                        justify_content: JustifyContent::FlexStart,
-                        ..default()
-                    },
+                .spawn((Node {
+                    height: Val::Percent(75.),
+                    width: Val::Percent(100.),
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::FlexStart,
+                    justify_content: JustifyContent::FlexStart,
                     ..default()
                 },))
                 .with_children(|columns| {
                     columns
-                        .spawn((NodeBundle {
-                            style: Style {
-                                height: Val::Percent(100.),
-                                width: Val::Px(512.),
-                                flex_direction: FlexDirection::Column,
-                                align_items: AlignItems::FlexStart,
-                                justify_content: JustifyContent::Center,
-                                ..default()
-                            },
+                        .spawn((Node {
+                            height: Val::Percent(100.),
+                            width: Val::Px(512.),
+                            flex_direction: FlexDirection::Column,
+                            align_items: AlignItems::FlexStart,
+                            justify_content: JustifyContent::Center,
                             ..default()
                         },))
                         .with_children(|rows| {
-                            rows.spawn(NodeBundle {
-                                style: Style {
+                            rows.spawn((
+                                Node {
                                     width: Val::Percent(100.),
                                     flex_direction: FlexDirection::Row,
                                     justify_content: JustifyContent::Start,
                                     ..default()
                                 },
-                                background_color: BackgroundColor(
-                                    styles::TRANSLUCENT_PANEL_BACKGROUND,
-                                ),
-                                ..default()
-                            })
+                                BackgroundColor(styles::TRANSLUCENT_PANEL_BACKGROUND),
+                            ))
                             .with_children(|items| {
                                 // text input
                                 items.spawn((
-                                    TextBundle {
-                                        text: Text {
-                                            sections: vec![TextSection {
-                                                value: "New World".into(),
-                                                style: get_text_style(asset_server),
-                                            }],
-                                            ..default()
-                                        },
-                                        style: Style {
-                                            width: Val::Px(384.),
-                                            ..default()
-                                        },
-                                        ..default()
-                                    },
+                                    Text("New World".into()),
+                                    get_text_style(asset_server).clone(),
                                     TextEditable::default(),
                                     Interaction::None,
                                     WorldSelectCreateText,
@@ -462,16 +379,10 @@ fn setup_world_select_screen(
                                 items
                                     .spawn((ButtonAction::new(res.create_click), button.clone()))
                                     .with_children(|text| {
-                                        text.spawn((TextBundle {
-                                            text: Text {
-                                                sections: vec![TextSection {
-                                                    value: "Create".into(),
-                                                    style: get_text_style(asset_server),
-                                                }],
-                                                ..default()
-                                            },
-                                            ..default()
-                                        },));
+                                        text.spawn((
+                                            Text("Create".into()),
+                                            get_text_style(asset_server).clone(),
+                                        ));
                                     });
                             });
                         });
@@ -604,11 +515,8 @@ fn spawn_ghost(
     for spawn in spawn_requests.read() {
         let ghost_entity = commands
             .spawn((
-                PbrBundle {
-                    material: res.material.clone(),
-                    transform: spawn.transform,
-                    ..default()
-                },
+                spawn.transform,
+                Visibility::default(),
                 Name::new("ghost"),
                 MainMenuGhost,
             ))
@@ -637,13 +545,9 @@ fn spawn_ghost(
                     let angle_inc = 2.0 * std::f32::consts::PI / GHOST_PARTICLE_COUNT as f32;
                     let angle = i as f32 * angle_inc;
                     children.spawn((
-                        PbrBundle {
-                            material,
-                            mesh: res.particle_mesh.clone(),
-                            transform: Transform::from_translation(point * dist)
-                                .with_scale(Vec3::splat(size)),
-                            ..default()
-                        },
+                        MeshMaterial3d(material),
+                        Mesh3d(res.particle_mesh.clone()),
+                        Transform::from_translation(point * dist).with_scale(Vec3::splat(size)),
                         OrbitParticle::stable(
                             dist,
                             Vec3::new(speed * angle.sin(), 0.0, speed * angle.cos()),
@@ -684,12 +588,10 @@ fn spawn_ghost(
         //falling particles
         commands.spawn((
             Name::new("emitter"),
-            SpatialBundle {
-                transform: Transform::from_translation(
-                    spawn.transform.translation - spawn.transform.scale.y * 3. * Vec3::Y,
-                ),
-                ..default()
-            },
+            Transform::from_translation(
+                spawn.transform.translation - spawn.transform.scale.y * 3. * Vec3::Y,
+            ),
+            Visibility::default(),
             MeshParticleEmitter {
                 shape: engine::effects::mesh_particles::MeshParticleShape::Cube,
                 min_scale: 0.08 * Vec3::ONE,
@@ -730,13 +632,10 @@ pub fn spawn_ghost_hand(
     let max_particle_dist: f32 = 0.2 / hand_size;
     commands
         .spawn((
-            PbrBundle {
-                mesh: res.particle_mesh.clone(),
-                material: res.hand_particle_material.clone(),
-                transform: Transform::from_translation(owner_pos.transform_point(offset))
-                    .with_scale(Vec3::splat(hand_size)),
-                ..default()
-            },
+            Mesh3d(res.particle_mesh.clone()),
+            MeshMaterial3d(res.hand_particle_material.clone()),
+            Transform::from_translation(owner_pos.transform_point(offset))
+                .with_scale(Vec3::splat(hand_size)),
             Hand {
                 owner,
                 offset,
@@ -771,13 +670,9 @@ pub fn spawn_ghost_hand(
                 let angle_inc = 2.0 * std::f32::consts::PI / HAND_PARTICLE_COUNT as f32;
                 let angle = i as f32 * angle_inc;
                 children.spawn((
-                    PbrBundle {
-                        material,
-                        mesh: res.particle_mesh.clone(),
-                        transform: Transform::from_translation(point * dist)
-                            .with_scale(Vec3::splat(size)),
-                        ..default()
-                    },
+                    MeshMaterial3d(material),
+                    Mesh3d(res.particle_mesh.clone()),
+                    Transform::from_translation(point * dist).with_scale(Vec3::splat(size)),
                     OrbitParticle::stable(
                         dist,
                         Vec3::new(speed * angle.sin(), 0.0, speed * angle.cos()),

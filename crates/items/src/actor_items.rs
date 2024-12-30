@@ -46,9 +46,9 @@ fn setup(mut commands: Commands, mut effects: ResMut<Assets<EffectAsset>>) {
     color_gradient1.add_key(0.7, Vec4::new(0.0, 0.0, 0.0, 0.0));
 
     let mut size_gradient1 = Gradient::new();
-    size_gradient1.add_key(0.0, Vec2::splat(0.2));
-    size_gradient1.add_key(0.3, Vec2::splat(0.2));
-    size_gradient1.add_key(1.0, Vec2::splat(0.0));
+    size_gradient1.add_key(0.0, Vec3::splat(0.2));
+    size_gradient1.add_key(0.3, Vec3::splat(0.2));
+    size_gradient1.add_key(1.0, Vec3::splat(0.0));
 
     let writer = ExprWriter::new();
 
@@ -81,7 +81,7 @@ fn setup(mut commands: Commands, mut effects: ResMut<Assets<EffectAsset>>) {
         speed: (writer.rand(ScalarType::Float) * writer.lit(5.) + writer.lit(5.)).expr(),
     };
 
-    let effect = EffectAsset::new(vec![50], Spawner::once(50.0.into(), true), writer.finish())
+    let effect = EffectAsset::new(50, Spawner::once(50.0.into(), true), writer.finish())
         .with_name("spawn particles")
         .init(init_pos)
         .init(init_vel)
@@ -121,7 +121,7 @@ fn do_spawn_actors(
     mut hit_writer: EventWriter<UseEndEvent>,
     mut commands: Commands,
     item_query: Query<&SpawnActorItem>,
-    mut particles: Query<(&mut Transform, &mut EffectSpawner), With<SpawnParticles>>,
+    mut particles: Query<(&mut Transform, &mut EffectInitializers), With<SpawnParticles>>,
     resources: Res<ActorResources>,
     effects: Res<SpawnItemResources>,
     level: Res<Level>,

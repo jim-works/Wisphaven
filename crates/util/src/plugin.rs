@@ -60,7 +60,7 @@ fn smooth_look_to(mut query: Query<(&mut Transform, &SmoothLookTo)>, time: Res<T
         let rot = tf.looking_to(look.forward, look.up).rotation;
         tf.rotation = tf.rotation.slerp(
             rot,
-            lerp_delta_time(look.speed, time.delta_seconds()).clamp(0.0, 1.0),
+            lerp_delta_time(look.speed, time.delta_secs()).clamp(0.0, 1.0),
         );
         if tf.rotation.abs_diff_eq(rot, TOLERANCE) {
             tf.rotation = rot;
