@@ -72,16 +72,8 @@
           name: "log_slab",
         ),
         "engine::world::block::BlockPhysics": Aabb(Aabb (
-          size: (
-            1.0,
-            0.5,
-            1.0,
-          ),
-          offset: (
-            0.0,
-            0.0,
-            0.0,
-          ),
+          size: (1.0, 0.5, 1.0),
+          offset: (0.0, 0.0, 0.0)
         )),
         "engine::world::block::NamedBlockMesh": (
             shape: BottomSlab(0.5, ("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
@@ -127,16 +119,8 @@
             shape: BottomSlab(0.25, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
         ),
         "engine::world::block::BlockPhysics": Aabb(Aabb (
-          size: (
-            1.0,
-            0.25,
-            1.0,
-          ),
-          offset: (
-            0.0,
-            0.0,
-            0.0,
-          ),
+          size: (1.0, 0.25, 1.0),
+          offset: (0.0, 0.0, 0.0),
         )),
         "items::tools::abilities::ShovelAbilityTarget": (),
       },
