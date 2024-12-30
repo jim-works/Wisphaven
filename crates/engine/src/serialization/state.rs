@@ -29,9 +29,8 @@ impl Plugin for SerializationStatePlugin {
             .insert_resource(TexturesLoaded::default())
             .add_systems(
                 Update,
-                (check_load_state, check_textures).run_if(
-                    in_state(GameLoadState::LoadingAssets).and_then(in_state(GameState::Game)),
-                ),
+                (check_load_state, check_textures)
+                    .run_if(in_state(GameLoadState::LoadingAssets).and(in_state(GameState::Game))),
             );
     }
 }
@@ -46,11 +45,11 @@ pub fn check_textures(
         && block_textures
             .0
             .iter()
-            .all(|x| assets.get_load_state(x) == Some(LoadState::Loaded))
+            .all(|x| matches!(assets.get_load_state(x), Some(LoadState::Loaded)))
         && item_textures
             .0
             .values()
-            .all(|x| assets.get_load_state(x) == Some(LoadState::Loaded))
+            .all(|x| matches!(assets.get_load_state(x), Some(LoadState::Loaded)))
     {
         progress.0 = true;
         info!("Finished loading textures")

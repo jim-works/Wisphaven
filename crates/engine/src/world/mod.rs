@@ -68,7 +68,7 @@ impl Plugin for LevelPlugin {
         .configure_sets(
             Update,
             LevelSystemSet::AfterLoadingAndMain
-                .run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded)))
+                .run_if(in_state(LevelLoadState::Loading).or(in_state(LevelLoadState::Loaded)))
                 .run_if(in_state(GameState::Game))
                 .after(LevelSystemSet::LoadingAndMain)
                 .after(LevelSystemSet::Main),
@@ -90,7 +90,7 @@ impl Plugin for LevelPlugin {
         .configure_sets(
             Update,
             LevelSystemSet::LoadingAndMain
-                .run_if(in_state(LevelLoadState::Loading).or_else(in_state(LevelLoadState::Loaded)))
+                .run_if(in_state(LevelLoadState::Loading).or(in_state(LevelLoadState::Loaded)))
                 .run_if(in_state(GameState::Game))
                 .after(UtilSystemSet),
         )

@@ -7,8 +7,6 @@
 #![allow(clippy::too_many_arguments)]
 //TODO: remove this before release. annoying as balls during development
 #![allow(dead_code)]
-//don't care too much about precision here, so I'll allow this
-#![feature(const_fn_floating_point_arithmetic)]
 #![feature(assert_matches)]
 #![feature(let_chains)]
 
@@ -107,7 +105,7 @@ fn change_button_colors(
         (
             &Interaction,
             &ButtonColors,
-            &mut UiImage,
+            &mut ImageNode,
             &mut BackgroundColor,
             &mut BorderColor,
         ),
@@ -160,21 +158,23 @@ pub fn world_mouse_active(state: &state::UIState) -> bool {
 
 fn capture_mouse(mut window_query: Query<&mut Window>) {
     let mut window = window_query.get_single_mut().unwrap();
-    window.cursor.grab_mode = CursorGrabMode::Locked;
-    window.cursor.visible = false;
+    window.cursor_options.grab_mode = CursorGrabMode::Locked;
+    window.cursor_options.visible = false;
 }
 
 fn release_mouse(mut window_query: Query<&mut Window>) {
     let mut window = window_query.get_single_mut().unwrap();
-    window.cursor.grab_mode = CursorGrabMode::None;
-    window.cursor.visible = true;
+    window.cursor_options.grab_mode = CursorGrabMode::None;
+    window.cursor_options.visible = true;
 }
 
 fn toggle_fullscreen(mut window_query: Query<&mut Window>, action: Res<ActionState<Action>>) {
     if action.just_pressed(&Action::ToggleFullscreen) {
         let mut window = window_query.get_single_mut().unwrap();
         window.mode = match window.mode {
-            bevy::window::WindowMode::Windowed => bevy::window::WindowMode::BorderlessFullscreen,
+            bevy::window::WindowMode::Windowed => {
+                bevy::window::WindowMode::BorderlessFullscreen(MonitorSelection::Current)
+            }
             _ => bevy::window::WindowMode::Windowed,
         };
     }
@@ -195,15 +195,16 @@ fn update_main_camera_ui(
     }
 }
 
+//TODO 0.15 - see if this is still necessary
 fn layout_bug_workaround(
-    mut query: Query<&mut Style, With<MainCameraUIRoot>>,
+    mut query: Query<&mut Node, With<MainCameraUIRoot>>,
     player_query: Query<(), Added<LocalPlayer>>,
 ) {
     if player_query.is_empty() {
         return;
     }
     //bug where this node's layout won't apply until I make a change -- guessing it's because it's spawned before the camera.
-    for mut style in query.iter_mut() {
-        style.display = style.display;
+    for mut node in query.iter_mut() {
+        node.display = node.display;
     }
 }

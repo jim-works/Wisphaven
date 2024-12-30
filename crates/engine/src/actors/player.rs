@@ -104,14 +104,11 @@ fn spawn_remote_player(
         );
         commands.entity(entity).insert((
             Name::new(clients.get(*client_id).cloned().unwrap().username),
-            PbrBundle {
-                mesh: meshes.add(Capsule3d::default()),
-                material: materials.add(StandardMaterial {
-                    base_color: Color::srgb(1.0, 0.0, 0.0),
-                    ..default()
-                }),
+            Mesh3d(meshes.add(Capsule3d::default())),
+            MeshMaterial3d(materials.add(StandardMaterial {
+                base_color: Color::srgb(1.0, 0.0, 0.0),
                 ..default()
-            },
+            })),
         ));
         if let NetworkType::Server = network_type.get() {
             commands.entity(entity).insert(ChunkLoader {
@@ -305,7 +302,7 @@ pub fn spawn_local_player(
 
         commands.entity(player_id).insert(inventory);
         //makes sure that player is actually spawned before this occurs, since events fire at a different time than commands
-        commands.add(SendEventCommand(LocalPlayerSpawnedEvent(player_id)));
+        commands.queue(SendEventCommand(LocalPlayerSpawnedEvent(player_id)));
     }
 }
 
@@ -321,7 +318,8 @@ fn populate_player_entity(
         Player {
             hit_damage: Damage::new(1.0),
         },
-        SpatialBundle::from_transform(Transform::from_translation(spawn_point)),
+        Transform::from_translation(spawn_point),
+        Visibility::default(),
         Float::default(),
         PhysicsBundle {
             collider: collision::Aabb::centered(Vec3::new(0.8, 1.0, 0.8))
@@ -402,7 +400,10 @@ fn handle_disconnect(mut commands: Commands, mut removed: RemovedComponents<Remo
             SyncPosition,
             SyncVelocity,
             Name,
-            PbrBundle,
+            Mesh3d,
+            MeshMaterial3d<StandardMaterial>,
+            Transform,
+            GlobalTransform,
             PhysicsBundle,
             Player,
         )>();

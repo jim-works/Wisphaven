@@ -1,6 +1,6 @@
 use bevy::{pbr::ExtendedMaterial, prelude::*};
 
-use util::{image::ImageExtension, palette::Palette};
+use util::palette::Palette;
 
 use crate::{
     items::{inventory::Inventory, ItemIcon, ItemName},
@@ -91,17 +91,17 @@ fn visualize_held_item(
     mut commands: Commands,
     //ugly but idc
     mut color_held_query: Query<
-        (Entity, &VisualizeHeldItem, &mut Handle<Mesh>),
+        (Entity, &VisualizeHeldItem, &mut Mesh3d),
         (
-            With<Handle<ExtendedMaterial<StandardMaterial, ColorArrayExtension>>>,
-            Without<Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>>,
+            With<MeshMaterial3d<ExtendedMaterial<StandardMaterial, ColorArrayExtension>>>,
+            Without<MeshMaterial3d<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>>,
         ),
     >,
     mut texture_held_query: Query<
-        (Entity, &VisualizeHeldItem, &mut Handle<Mesh>),
+        (Entity, &VisualizeHeldItem, &mut Mesh3d),
         (
-            With<Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>>,
-            Without<Handle<ExtendedMaterial<StandardMaterial, ColorArrayExtension>>>,
+            With<MeshMaterial3d<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>>,
+            Without<MeshMaterial3d<ExtendedMaterial<StandardMaterial, ColorArrayExtension>>>,
         ),
     >,
     inv_query: Query<&Inventory>,
@@ -113,11 +113,11 @@ fn visualize_held_item(
         if let Ok(inv) = inv_query.get(held.inventory) {
             if let Some(item) = inv.selected_item_entity() {
                 if let Ok(item_mesh) = item_query.get(item) {
-                    *mesh = item_mesh.mesh.clone();
+                    mesh.0 = item_mesh.mesh.clone();
                     if item_mesh.material == ItemMeshMaterial::TextureArray {
                         //we have color material attached, need to switch to texture
-                        commands.entity(entity).remove::<Handle<ExtendedMaterial<StandardMaterial, ColorArrayExtension>>>()
-                            .insert(res.texture_material.clone());
+                        commands.entity(entity).remove::<MeshMaterial3d<ExtendedMaterial<StandardMaterial, ColorArrayExtension>>>()
+                            .insert(MeshMaterial3d(res.texture_material.clone()));
                     }
                 } else {
                     *mesh = Default::default();
@@ -136,11 +136,15 @@ fn visualize_held_item(
         if let Ok(inv) = inv_query.get(held.inventory) {
             if let Some(item) = inv.selected_item_entity() {
                 if let Ok(item_mesh) = item_query.get(item) {
-                    *mesh = item_mesh.mesh.clone();
+                    mesh.0 = item_mesh.mesh.clone();
                     if item_mesh.material == ItemMeshMaterial::ColorArray {
                         //we have texture material attached, need to switch to color
-                        commands.entity(entity).remove::<Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>>()
-                            .insert(res.color_material.clone());
+                        commands
+                            .entity(entity)
+                            .remove::<MeshMaterial3d<
+                                ExtendedMaterial<StandardMaterial, TextureArrayExtension>,
+                            >>()
+                            .insert(MeshMaterial3d(res.color_material.clone()));
                     }
                 } else {
                     *mesh = Default::default();
@@ -163,11 +167,9 @@ pub fn create_held_item_visualizer(
 ) -> Entity {
     commands
         .spawn((
-            MaterialMeshBundle::<ExtendedMaterial<StandardMaterial, ColorArrayExtension>> {
-                material: res.color_material.clone(),
-                transform: tf,
-                ..default()
-            },
+            MeshMaterial3d(res.color_material.clone()),
+            Mesh3d::default(),
+            tf,
             VisualizeHeldItem { inventory },
         ))
         .id()

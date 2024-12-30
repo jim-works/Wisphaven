@@ -20,9 +20,6 @@ impl<const S: usize> SplineNoise<S> {
         self.spline.map(self.noise.get_noise(x, y))
     }
 }
-fn rot(x: u64) -> u64 {
-    (x << 16) | (x >> 16)
-}
 
 pub trait ToSeed {
     fn to_seed(&self) -> u64;

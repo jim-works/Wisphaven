@@ -18,10 +18,8 @@ impl Plugin for CameraPlugin {
         let cam = app
             .world_mut()
             .spawn((
-                Camera3dBundle {
-                    transform: Transform::from_xyz(0.0, 0.3, 0.0),
-                    ..default()
-                },
+                Transform::from_xyz(0.0, 0.3, 0.0),
+                Camera3d::default(),
                 CameraEffectsBundle::default(),
                 SpatialListener::new(1.),
             ))
@@ -64,9 +62,10 @@ fn on_enter_game(
         Skybox {
             image: sky_image,
             brightness: 750.,
+            ..default()
         },
         // placeholder values - actually set by atmosphere
-        FogSettings {
+        DistanceFog {
             color: Color::srgba(0.56, 0.824, 1.0, 1.0),
             // directional_light_color: Color::srgba(1.0, 0.95, 0.85, 0.5),
             directional_light_exponent: 0.8,
@@ -97,7 +96,7 @@ fn on_enter_menu(mut commands: Commands, main_camera: Res<MainCamera>) {
         Projection::default(),
         Frustum::default(),
     ));
-    ec.remove::<(Skybox, FogSettings)>();
+    ec.remove::<(Skybox, DistanceFog)>();
 }
 
 fn follow_player(

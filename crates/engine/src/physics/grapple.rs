@@ -316,12 +316,11 @@ fn update_visual(
         },
     ) in uninit_query.iter()
     {
-        commands.entity(entity).insert(PbrBundle {
-            mesh: resources.mesh.clone(),
-            material: resources.material.clone(),
-            transform: calc_tf(*user, *visual_origin, *width),
-            ..default()
-        });
+        commands.entity(entity).insert((
+            Mesh3d(resources.mesh.clone()),
+            MeshMaterial3d(resources.material.clone()),
+            calc_tf(*user, *visual_origin, *width),
+        ));
     }
 
     for (

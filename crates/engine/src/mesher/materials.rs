@@ -1,4 +1,5 @@
 use bevy::{
+    image::{ImageAddressMode, ImageSampler, ImageSamplerDescriptor, TextureFormatPixelInfo},
     pbr::*,
     prelude::*,
     render::{
@@ -7,7 +8,6 @@ use bevy::{
         render_resource::{
             Extent3d, TextureFormat, TextureViewDescriptor, TextureViewDimension, VertexFormat,
         },
-        texture::{ImageAddressMode, ImageSampler, ImageSamplerDescriptor, TextureFormatPixelInfo},
     },
 };
 

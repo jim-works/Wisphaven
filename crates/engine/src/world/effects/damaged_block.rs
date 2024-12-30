@@ -57,7 +57,7 @@ fn update_damaged_block_effect(
     mut reader: EventReader<BlockDamageSetEvent>,
     mut resources: ResMut<DamagedBlockResources>,
     mut commands: Commands,
-    mut damage_query: Query<&mut Handle<StandardMaterial>, With<DamagedBlockEffect>>,
+    mut damage_query: Query<&mut MeshMaterial3d<StandardMaterial>, With<DamagedBlockEffect>>,
 ) {
     for BlockDamageSetEvent {
         block_position,
@@ -76,8 +76,8 @@ fn update_damaged_block_effect(
         let new_material = resources.phases[damage_to_phase(*damage)].clone();
         match resources.damages.get(block_position) {
             Some(entity) => {
-                if let Ok(mut handle) = damage_query.get_mut(*entity) {
-                    *handle = new_material;
+                if let Ok(mut material) = damage_query.get_mut(*entity) {
+                    material.0 = new_material;
                 }
             }
             None => {
@@ -86,12 +86,9 @@ fn update_damaged_block_effect(
                     *block_position,
                     commands
                         .spawn((
-                            PbrBundle {
-                                mesh,
-                                material: new_material,
-                                transform: Transform::from_translation(block_position.center()),
-                                ..default()
-                            },
+                            Mesh3d(mesh),
+                            MeshMaterial3d(new_material),
+                            Transform::from_translation(block_position.center()),
                             DamagedBlockEffect,
                             NotShadowCaster,
                         ))

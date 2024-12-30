@@ -62,7 +62,7 @@ fn do_camera_fov_effect(
         let new_fov_add = lerp(
             effect.fov_added,
             target_fov_add,
-            lerp_delta_time(effect.change_speed, time.delta_seconds()),
+            lerp_delta_time(effect.change_speed, time.delta_secs()),
         );
         let fov_delta = new_fov_add - effect.fov_added;
         effect.fov_added = new_fov_add;

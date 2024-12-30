@@ -1,4 +1,3 @@
-#![feature(const_fn_floating_point_arithmetic)]
 use std::{f32::consts::PI, time::Duration};
 
 use itertools::Itertools;

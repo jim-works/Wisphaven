@@ -91,11 +91,8 @@ fn spawn_eye_balloon(
         let head_id = head_ec.id();
 
         head_ec.insert((
-            SceneBundle {
-                scene: res.scene.clone_weak(),
-                transform: default_args.transform,
-                ..default()
-            },
+            SceneRoot(res.scene.clone_weak()),
+            default_args.transform,
             Name::new("eye_balloon"),
             PhysicsBundle {
                 collider: Aabb::centered(Vec3::splat(1.5)),

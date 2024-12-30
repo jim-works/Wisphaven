@@ -15,15 +15,15 @@ impl Plugin for CrosshairPlugin {
 }
 
 #[derive(Resource)]
-struct CrosshairResources(UiImage, Style);
+struct CrosshairResources(Handle<Image>, Node);
 
 #[derive(Component)]
 struct Crosshair;
 
 fn init(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(CrosshairResources(
-        assets.load("textures/crosshair.png").into(),
-        Style {
+        assets.load("textures/crosshair.png"),
+        Node {
             width: Val::Px(16.0),
             height: Val::Px(16.0),
             aspect_ratio: Some(1.0),
@@ -44,25 +44,18 @@ fn spawn_crosshair(
             .spawn((
                 Crosshair,
                 MainCameraUIRoot,
-                NodeBundle {
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        align_items: AlignItems::Center,
-                        justify_content: JustifyContent::Center,
-                        position_type: PositionType::Absolute,
-                        ..default()
-                    },
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    position_type: PositionType::Absolute,
                     ..default()
                 },
                 Name::new("crosshair container"),
             ))
             .with_children(|children| {
-                children.spawn(ImageBundle {
-                    style: resources.1.clone(),
-                    image: resources.0.clone(),
-                    ..default()
-                });
+                children.spawn((resources.1.clone(), ImageNode::new(resources.0.clone())));
             });
     }
 }

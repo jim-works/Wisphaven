@@ -266,12 +266,8 @@ pub fn spawn_mesh<T: Bundle>(
 ) {
     commands.entity(entity).with_children(|children| {
         let mut ec = children.spawn((
-            MaterialMeshBundle::<ExtendedMaterial<StandardMaterial, TextureArrayExtension>> {
-                mesh: data.create_mesh(meshes),
-                material,
-                transform: Transform::default(),
-                ..default()
-            },
+            Mesh3d(data.create_mesh(meshes)),
+            MeshMaterial3d(material),
             ChunkMeshChild,
         ));
         if let Some(bundle) = components {

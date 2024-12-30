@@ -39,7 +39,7 @@ block entities, two approaches:
     go with (2)
 Player interactions with block entities (see https://docs.rs/bevy/latest/bevy/ecs/prelude/struct.EventWriter.html):
 Use InterationComponent(Box<dyn FnMut(&mut commands)>)
-where the supplied function sends a type-erased event: commands.add(|w: &mut World| {
+where the supplied function sends a type-erased event: commands.queue(|w: &mut World| {
         w.send_event(MyEvent);
     });
 

@@ -302,7 +302,7 @@ fn add_to_registry(mut res: ResMut<ActorResources>) {
     res.registry.add_dynamic(
         ActorName::core("ghost"),
         Box::new(|commands, tf| {
-            commands.add(SendEventCommand(SpawnGhostEvent {
+            commands.queue(SendEventCommand(SpawnGhostEvent {
                 location: tf,
                 handed: Handed::Right,
             }))
@@ -326,12 +326,9 @@ fn spawn_ghost(
     for spawn in spawn_requests.read() {
         let ghost_entity = commands
             .spawn((
-                PbrBundle {
-                    material: res.material.clone(),
-                    mesh: res.center_mesh.clone(),
-                    transform: spawn.location,
-                    ..default()
-                },
+                MeshMaterial3d(res.material.clone()),
+                Mesh3d(res.center_mesh.clone()),
+                spawn.location,
                 Name::new("ghost"),
                 CombatantBundle::<PlayerTeam> {
                     combatant: Combatant::new(10.0, 0.),
@@ -372,13 +369,9 @@ fn spawn_ghost(
                     let angle_inc = 2.0 * PI / GHOST_PARTICLE_COUNT as f32;
                     let angle = i as f32 * angle_inc;
                     children.spawn((
-                        PbrBundle {
-                            material,
-                            mesh: res.particle_mesh.clone(),
-                            transform: Transform::from_translation(point * dist)
-                                .with_scale(Vec3::splat(size)),
-                            ..default()
-                        },
+                        MeshMaterial3d(material),
+                        Mesh3d(res.particle_mesh.clone()),
+                        Transform::from_translation(point * dist).with_scale(Vec3::splat(size)),
                         OrbitParticle::stable(
                             dist,
                             Vec3::new(speed * angle.sin(), 0.0, speed * angle.cos()),
@@ -458,13 +451,10 @@ pub fn spawn_ghost_hand(
     let max_particle_dist: f32 = 0.2 / hand_size;
     commands
         .spawn((
-            PbrBundle {
-                mesh: res.particle_mesh.clone(),
-                material: res.hand_particle_material.clone(),
-                transform: Transform::from_translation(owner_pos.transform_point(offset))
-                    .with_scale(Vec3::splat(hand_size)),
-                ..default()
-            },
+            Transform::from_translation(owner_pos.transform_point(offset))
+                .with_scale(Vec3::splat(hand_size)),
+            Mesh3d(res.particle_mesh.clone()),
+            MeshMaterial3d(res.hand_particle_material.clone()),
             Hand {
                 owner,
                 offset,
@@ -499,13 +489,9 @@ pub fn spawn_ghost_hand(
                 let angle_inc = 2.0 * PI / HAND_PARTICLE_COUNT as f32;
                 let angle = i as f32 * angle_inc;
                 children.spawn((
-                    PbrBundle {
-                        material,
-                        mesh: res.particle_mesh.clone(),
-                        transform: Transform::from_translation(point * dist)
-                            .with_scale(Vec3::splat(size)),
-                        ..default()
-                    },
+                    MeshMaterial3d(material),
+                    Mesh3d(res.particle_mesh.clone()),
+                    Transform::from_translation(point * dist).with_scale(Vec3::splat(size)),
                     OrbitParticle::stable(
                         dist,
                         Vec3::new(speed * angle.sin(), 0.0, speed * angle.cos()),
@@ -678,7 +664,7 @@ fn update_ghost_hand(
                         dest,
                         ease_in_out_quad((*windup_time - *time_remaining) / (*windup_time)),
                     );
-                    let t = *time_remaining - time.delta_seconds();
+                    let t = *time_remaining - time.delta_secs();
                     *time_remaining = t.max(0.0);
                 }
 
@@ -703,7 +689,7 @@ fn update_ghost_hand(
                         *target,
                         ease_in_back((*hit_time - *hit_time_remaining) / (*hit_time)),
                     );
-                    *hit_time_remaining -= time.delta_seconds();
+                    *hit_time_remaining -= time.delta_secs();
                     if *hit_time_remaining <= 0.0 {
                         tf.translation = *target;
                         hand.state = HandState::Returning {
@@ -728,7 +714,7 @@ fn update_ghost_hand(
                         target,
                         ease_in_out_quad((*return_time - *return_time_remaining) / (*return_time)),
                     );
-                    *return_time_remaining -= time.delta_seconds();
+                    *return_time_remaining -= time.delta_secs();
                     if *return_time_remaining <= 0.0 {
                         hand.state = HandState::Following;
                     }
@@ -742,7 +728,7 @@ fn move_cube_orbit_particles(
     mut query: Query<(&mut Transform, &mut OrbitParticle)>,
     time: Res<Time>,
 ) {
-    let dt = time.delta_seconds();
+    let dt = time.delta_secs();
     for (mut tf, mut particle) in query.iter_mut() {
         let delta = (particle.origin - tf.translation).normalize_or_zero();
         let g = particle.gravity;

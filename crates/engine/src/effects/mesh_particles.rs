@@ -114,13 +114,9 @@ fn spawn_particles(
                 MeshParticleShape::Cube => resources.cube.clone(),
             };
             commands.spawn((
-                PbrBundle {
-                    mesh,
-                    material,
-                    transform: Transform::from_translation(gtf.translation() + offset)
-                        .with_scale(scale),
-                    ..default()
-                },
+                MeshMaterial3d(material),
+                Mesh3d(mesh),
+                Transform::from_translation(gtf.translation() + offset).with_scale(scale),
                 TimedDespawner(Timer::new(emitter.lifetime, TimerMode::Once)),
                 PhysicsBundle {
                     velocity: Velocity(offset * emitter.speed),

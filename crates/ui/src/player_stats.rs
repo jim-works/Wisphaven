@@ -51,24 +51,24 @@ impl Plugin for PlayerStatsUiPlugin {
 
 #[derive(Resource)]
 struct PlayerHealthUiResources {
-    heart: UiImage,
-    broken_heart: UiImage,
-    flash_heart: UiImage,
-    empty_heart: UiImage,
-    happy_ghost: UiImage,
-    sad_ghost: UiImage,
-    heart_style: Style,
-    heart_overlay_style: Style,
-    ghost_style: Style,
+    heart: Handle<Image>,
+    broken_heart: Handle<Image>,
+    flash_heart: Handle<Image>,
+    empty_heart: Handle<Image>,
+    happy_ghost: Handle<Image>,
+    sad_ghost: Handle<Image>,
+    heart_style: Node,
+    heart_overlay_style: Node,
+    ghost_style: Node,
 }
 
 #[derive(Resource)]
 struct PlayerStaminaUiResources {
-    bolt: UiImage,
-    empty_bolt: UiImage,
-    flash_bolt: UiImage,
-    style: Style,
-    overlay_style: Style,
+    bolt: Handle<Image>,
+    empty_bolt: Handle<Image>,
+    flash_bolt: Handle<Image>,
+    style: Node,
+    overlay_style: Node,
 }
 
 //images
@@ -134,27 +134,27 @@ struct StaminaSystems {
 
 fn init(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(PlayerHealthUiResources {
-        heart: assets.load("textures/ui/heart.png").into(),
-        broken_heart: assets.load("textures/ui/broken_heart.png").into(),
-        flash_heart: assets.load("textures/ui/heart_flash.png").into(),
-        empty_heart: assets.load("textures/ui/empty_heart.png").into(),
-        happy_ghost: assets.load("textures/ghosts/happy_ghost.png").into(),
-        sad_ghost: assets.load("textures/ghosts/sad_ghost.png").into(),
-        heart_style: Style {
+        heart: assets.load("textures/ui/heart.png"),
+        broken_heart: assets.load("textures/ui/broken_heart.png"),
+        flash_heart: assets.load("textures/ui/heart_flash.png"),
+        empty_heart: assets.load("textures/ui/empty_heart.png"),
+        happy_ghost: assets.load("textures/ghosts/happy_ghost.png"),
+        sad_ghost: assets.load("textures/ghosts/sad_ghost.png"),
+        heart_style: Node {
             width: Val::Px(16.0),
             height: Val::Px(16.0),
             aspect_ratio: Some(1.0),
             margin: UiRect::all(Val::Px(1.0)),
             ..default()
         },
-        heart_overlay_style: Style {
+        heart_overlay_style: Node {
             width: Val::Px(16.0),
             height: Val::Px(16.0),
             aspect_ratio: Some(1.0),
             position_type: PositionType::Absolute,
             ..default()
         },
-        ghost_style: Style {
+        ghost_style: Node {
             width: Val::Px(32.0),
             height: Val::Px(32.0),
             aspect_ratio: Some(1.0),
@@ -165,14 +165,14 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
         bolt: assets.load("textures/ui/bolt.png").into(),
         flash_bolt: assets.load("textures/ui/flash_bolt.png").into(),
         empty_bolt: assets.load("textures/ui/dead_bolt.png").into(),
-        style: Style {
+        style: Node {
             width: Val::Px(11.0),
             height: Val::Px(16.0),
             aspect_ratio: Some(1.0),
             margin: UiRect::all(Val::Px(1.0)),
             ..default()
         },
-        overlay_style: Style {
+        overlay_style: Node {
             width: Val::Px(11.0),
             height: Val::Px(16.0),
             aspect_ratio: Some(1.0),
@@ -184,15 +184,12 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
         .spawn((
             PlayerStatContainer,
             MainCameraUIRoot,
-            NodeBundle {
-                style: Style {
-                    min_width: Val::Percent(100.0),
-                    min_height: Val::Percent(100.0),
-                    flex_direction: FlexDirection::ColumnReverse,
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::FlexStart,
-                    ..default()
-                },
+            Node {
+                min_width: Val::Percent(100.0),
+                min_height: Val::Percent(100.0),
+                flex_direction: FlexDirection::ColumnReverse,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::FlexStart,
                 ..default()
             },
             Name::new("UI stat container"),
@@ -200,30 +197,24 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
         .with_children(|children| {
             children.spawn((
                 PlayerHeartContainer,
-                NodeBundle {
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Px(18.0),
-                        flex_direction: FlexDirection::Row,
-                        align_items: AlignItems::Center,
-                        justify_content: JustifyContent::Center,
-                        ..default()
-                    },
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(18.0),
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
                     ..default()
                 },
                 Name::new("UI heart container"),
             ));
             children.spawn((
                 PlayerStaminaContainer,
-                NodeBundle {
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Px(18.0),
-                        flex_direction: FlexDirection::Row,
-                        align_items: AlignItems::Center,
-                        justify_content: JustifyContent::Center,
-                        ..default()
-                    },
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(18.0),
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
                     ..default()
                 },
                 Name::new("UI stamina container"),
@@ -245,7 +236,7 @@ fn hide_player_stat_ui(mut query: Query<&mut Visibility, With<PlayerStatContaine
 
 fn flash_hearts(
     player_query: Query<Entity, With<LocalPlayer>>,
-    mut heart_query: Query<&mut UiImage, With<PlayerFlashHeart>>,
+    mut heart_query: Query<&mut ImageNode, With<PlayerFlashHeart>>,
     mut reader: EventReader<DamageTakenEvent>,
     mut state: Local<(Duration, i32, bool)>,
     time: Res<Time>,
@@ -292,7 +283,7 @@ fn flash_hearts(
 
 fn flash_stamina(
     player_query: Query<Entity, With<LocalPlayer>>,
-    mut bolt_query: Query<&mut UiImage, With<PlayerFlashBolt>>,
+    mut bolt_query: Query<&mut ImageNode, With<PlayerFlashBolt>>,
     mut reader: EventReader<StaminaUpdatedEvent>,
     mut state: Local<(Duration, i32, bool)>,
     time: Res<Time>,
@@ -350,7 +341,7 @@ fn flash_stamina(
 
 fn update_hearts(
     player_query: Query<&Combatant, With<LocalPlayer>>,
-    mut heart_query: Query<(&PlayerBrokenHeart, &mut UiImage)>,
+    mut heart_query: Query<(&PlayerBrokenHeart, &mut ImageNode)>,
     combatant_query: Query<&Combatant>,
 ) {
     let curr_health = player_query.get_single().map_or(0.0, |info| {
@@ -373,7 +364,7 @@ fn update_hearts(
 
 fn update_stamina(
     player_query: Query<&Stamina, With<LocalPlayer>>,
-    mut bolt_query: Query<(&PlayerEmptyBolt, &mut UiImage)>,
+    mut bolt_query: Query<(&PlayerEmptyBolt, &mut ImageNode)>,
 ) {
     let curr_stamina = player_query.get_single().map_or(0.0, |info| info.current);
     for (
@@ -411,24 +402,16 @@ fn spawn_heart(
                 {
                     children
                         .spawn((
-                            ImageBundle {
-                                style: res.heart_style.clone(),
-                                image: res.heart.clone(),
-                                ..default()
-                            },
+                            res.heart_style.clone(),
+                            ImageNode::new(res.heart.clone()),
                             PlayerHeart,
                         ))
                         .with_children(|heart_overlay| {
                             heart_overlay
                                 .spawn((
-                                    ImageBundle {
-                                        style: res.heart_overlay_style.clone(),
-                                        image: res
-                                            .empty_heart
-                                            .clone()
-                                            .with_color(Color::srgba(1.0, 1.0, 1.0, 0.0)),
-                                        ..default()
-                                    },
+                                    res.heart_overlay_style.clone(),
+                                    ImageNode::new(res.empty_heart.clone())
+                                        .with_color(Color::srgba(1.0, 1.0, 1.0, 0.0)),
                                     PlayerBrokenHeart {
                                         min_health: (i as f32),
                                         max_health: (i as f32 + 1.0),
@@ -436,14 +419,9 @@ fn spawn_heart(
                                 ))
                                 .with_children(|flash_overlay| {
                                     flash_overlay.spawn((
-                                        ImageBundle {
-                                            style: res.heart_overlay_style.clone(),
-                                            image: res
-                                                .flash_heart
-                                                .clone()
-                                                .with_color(Color::srgba(1.0, 1.0, 1.0, 0.0)),
-                                            ..default()
-                                        },
+                                        res.heart_overlay_style.clone(),
+                                        ImageNode::new(res.flash_heart.clone())
+                                            .with_color(Color::srgba(1.0, 1.0, 1.0, 0.0)),
                                         PlayerFlashHeart,
                                     ));
                                 });
@@ -470,24 +448,16 @@ fn spawn_stamina(
                 for i in 0..stamina.max.ceil() as i32 {
                     children
                         .spawn((
-                            ImageBundle {
-                                style: res.style.clone(),
-                                image: res.bolt.clone(),
-                                ..default()
-                            },
+                            res.style.clone(),
+                            ImageNode::new(res.bolt.clone()),
                             PlayerHeart,
                         ))
                         .with_children(|heart_overlay| {
                             heart_overlay
                                 .spawn((
-                                    ImageBundle {
-                                        style: res.overlay_style.clone(),
-                                        image: res
-                                            .empty_bolt
-                                            .clone()
-                                            .with_color(Color::srgba(1.0, 1.0, 1.0, 0.0)),
-                                        ..default()
-                                    },
+                                    res.overlay_style.clone(),
+                                    ImageNode::new(res.empty_bolt.clone())
+                                        .with_color(Color::srgba(1.0, 1.0, 1.0, 0.0)),
                                     PlayerEmptyBolt {
                                         min_stamina: (i as f32),
                                         max_stamina: (i as f32 + 1.0),
@@ -495,14 +465,9 @@ fn spawn_stamina(
                                 ))
                                 .with_children(|flash_overlay| {
                                     flash_overlay.spawn((
-                                        ImageBundle {
-                                            style: res.overlay_style.clone(),
-                                            image: res
-                                                .flash_bolt
-                                                .clone()
-                                                .with_color(Color::srgba(1.0, 1.0, 1.0, 0.0)),
-                                            ..default()
-                                        },
+                                        res.overlay_style.clone(),
+                                        ImageNode::new(res.flash_bolt.clone())
+                                            .with_color(Color::srgba(1.0, 1.0, 1.0, 0.0)),
                                         PlayerFlashBolt,
                                     ));
                                 });

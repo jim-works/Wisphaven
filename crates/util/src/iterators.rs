@@ -149,7 +149,7 @@ impl<'a, T> VolumeContainer<T> {
         self.size
     }
 
-    pub fn iter(&'a self) -> impl Iterator<Item = (IVec3, Option<&T>)> + Clone + 'a {
+    pub fn iter(&'a self) -> impl Iterator<Item = (IVec3, Option<&'a T>)> + Clone + 'a {
         self.volume.iter().map(|pos| (pos, self.get(pos)))
     }
 

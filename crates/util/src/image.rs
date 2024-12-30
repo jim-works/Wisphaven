@@ -1,7 +1,4 @@
-use bevy::{
-    prelude::*,
-    render::{render_resource::*, texture::*},
-};
+use bevy::{image::TextureFormatPixelInfo, prelude::*, render::render_resource::*};
 
 //sourced from https://github.com/bevyengine/bevy/pull/10392 until bevy gets proper image sampling
 #[derive(Debug)]

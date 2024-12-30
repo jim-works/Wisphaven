@@ -36,8 +36,8 @@ impl Plugin for NetClientPlugin {
             Update,
             create_client.run_if(
                 resource_exists::<ClientConfig>
-                    .and_then(in_state(ClientState::NotStarted))
-                    .and_then(resource_exists::<Level>),
+                    .and(in_state(ClientState::NotStarted))
+                    .and(resource_exists::<Level>),
             ),
         )
         .add_systems(
@@ -53,13 +53,11 @@ impl Plugin for NetClientPlugin {
             )
                 .run_if(
                     resource_exists::<QuinnetClient>
-                        .and_then(resource_exists::<LocalClient>)
-                        .and_then(
-                            in_state(ClientState::Started).or_else(in_state(ClientState::Ready)),
-                        )
-                        .and_then(
+                        .and(resource_exists::<LocalClient>)
+                        .and(in_state(ClientState::Started).or(in_state(ClientState::Ready)))
+                        .and(
                             in_state(GameLoadState::CreatingLevel)
-                                .or_else(in_state(GameLoadState::Done)),
+                                .or(in_state(GameLoadState::Done)),
                         ),
                 ),
         )

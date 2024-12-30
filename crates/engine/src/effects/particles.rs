@@ -61,9 +61,9 @@ fn setup_damage_particles(mut commands: Commands, mut effects: ResMut<Assets<Eff
 
     let size = SizeOverLifetimeModifier {
         gradient: Gradient::from_keys([
-            (0.0, Vec2::splat(0.2)),
-            (0.8, Vec2::splat(0.2)),
-            (1.0, Vec2::ZERO),
+            (0.0, Vec3::splat(0.2)),
+            (0.8, Vec3::splat(0.2)),
+            (1.0, Vec3::ZERO),
         ]),
         screen_space_size: false,
     };
@@ -79,7 +79,7 @@ fn setup_damage_particles(mut commands: Commands, mut effects: ResMut<Assets<Eff
 
     let effect = effects.add(
         EffectAsset::new(
-            vec![MAX_DAMAGE_PARTICLES],
+            MAX_DAMAGE_PARTICLES,
             Spawner::once(DAMAGE_PARTICLES_PER_HIT.into(), true),
             writer.finish(),
         )

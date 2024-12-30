@@ -1,9 +1,9 @@
-use bevy::{pbr::ExtendedMaterial, prelude::*};
+use bevy::prelude::*;
 
 use util::direction::DirectionFlags;
 
 use crate::{
-    mesher::{extended_materials::TextureArrayExtension, ChunkMaterial},
+    mesher::ChunkMaterial,
     physics::{
         collision::{Aabb, CollidingDirections},
         movement::Velocity,
@@ -70,18 +70,13 @@ fn falling_block_spawner(
                             collider: collider.scale(Vec3::ONE * COLLIDER_SQUISH_FACTOR),
                             ..default()
                         },
-                        MaterialMeshBundle::<
-                            ExtendedMaterial<StandardMaterial, TextureArrayExtension>,
-                        > {
-                            transform: Transform::from_translation(event.position),
-                            mesh,
-                            material: if block_mesh.use_transparent_shader {
-                                materials.transparent_material.clone().unwrap()
-                            } else {
-                                materials.opaque_material.clone().unwrap()
-                            },
-                            ..default()
-                        },
+                        Transform::from_translation(event.position),
+                        Mesh3d(mesh),
+                        MeshMaterial3d(if block_mesh.use_transparent_shader {
+                            materials.transparent_material.clone().unwrap()
+                        } else {
+                            materials.opaque_material.clone().unwrap()
+                        }),
                         event.falling_block,
                     ));
                 }
