@@ -9,7 +9,7 @@ use crate::{
     net::NetworkType,
     world::{
         chunk::{ArrayChunk, ChunkCoord, ChunkTrait, BLOCKS_PER_CHUNK},
-        events::CreateLevelEvent,
+        events::LoadLevelEvent,
         util::BlockPalette,
         BlockId, BlockRegistry, BlockType, Id, LevelSystemSet,
     },
@@ -70,14 +70,14 @@ impl Default for LevelName {
 }
 
 fn create_level(
-    mut writer: EventWriter<CreateLevelEvent>,
+    mut writer: EventWriter<LoadLevelEvent>,
     network_type: Res<State<NetworkType>>,
     level_name: Res<LevelName>,
     mut next_state: ResMut<NextState<state::GameLoadState>>,
 ) {
-    writer.send(CreateLevelEvent {
+    writer.send(LoadLevelEvent {
         name: level_name.0,
-        seed: 8008135,
+        seed: None,
         network_type: *network_type.get(),
     });
     next_state.set(state::GameLoadState::Done);

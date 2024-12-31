@@ -1,6 +1,7 @@
 use bevy::asset::LoadedFolder;
 pub use bevy::prelude::*;
 use bevy::utils::HashMap;
+use rand::RngCore;
 
 use std::fs;
 use std::path::PathBuf;
@@ -18,7 +19,7 @@ use crate::serialization::queries::{
 use crate::serialization::{LevelName, LoadingBlocks, LoadingItems, SavedLevelInfo};
 use crate::util::string::Version;
 use crate::world::settings::GraphicsSettings;
-use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
+use crate::world::{events::LoadLevelEvent, settings::Settings, Level};
 use crate::world::{
     BlockId, BlockName, BlockNameIdMap, BlockRegistry, BlockResources, Id, LevelData,
     LevelLoadState, NamedBlockMesh,
@@ -347,7 +348,7 @@ pub fn load_item_registry(
 }
 
 pub fn on_level_created(
-    mut reader: EventReader<CreateLevelEvent>,
+    mut reader: EventReader<LoadLevelEvent>,
     settings: Res<Settings>,
     block_resources: Res<BlockResources>,
     item_resources: Res<ItemResources>,
@@ -383,8 +384,18 @@ pub fn on_level_created(
                 }
                 load_block_palette(&mut db, &mut commands, &block_resources.registry);
                 load_item_palette(&mut db, &mut commands, &item_resources.registry);
+                let default_seed = event.seed.unwrap_or(rand::thread_rng().next_u64());
+                match load_or_set_level_seed(&mut db, default_seed) {
+                    Ok(seed) => {
+                        commands.insert_resource(Level(Arc::new(LevelData::new(event.name, seed))));
+                    }
+                    Err(err) => {
+                        error!("Error reading level seed: {:?}", err);
+                        return;
+                    }
+                }
+
                 commands.insert_resource(db);
-                commands.insert_resource(Level(Arc::new(LevelData::new(event.name, 8008135))));
                 next_state.set(LevelLoadState::Loading);
                 info!("in state loading!");
             }
@@ -438,6 +449,49 @@ fn check_level_version(db: &mut LevelDB) -> Result<(), LevelDBErr> {
     }
     Ok(())
 }
+
+// returns the active the seed of the level.
+// this will seed in the world info table if present, otherwise, default seed.
+fn load_or_set_level_seed(db: &mut LevelDB, default_seed: u64) -> Result<u64, LevelDBErr> {
+    const SEED_KEY: &str = "seed";
+    match db.execute_query_sync(LOAD_WORLD_INFO, rusqlite::params![SEED_KEY], |row| {
+        row.get::<_, Vec<u8>>(0)
+    }) {
+        Ok(data) => match bincode::deserialize::<u64>(&data) {
+            Ok(seed) => {
+                info!("loaded saved seed: {}", seed);
+                return Ok(seed);
+            }
+            Err(e) => {
+                error!("Corrupt world seed: {:?}", e);
+                return Err(LevelDBErr::Bincode(e));
+            }
+        },
+        Err(LevelDBErr::Sqlite(rusqlite::Error::QueryReturnedNoRows)) => {
+            //world does not have a set seed, we need to set it to the default seed.
+            match db.execute_command_sync(|sql| {
+                sql.execute(
+                    INSERT_WORLD_INFO,
+                    rusqlite::params![SEED_KEY, bincode::serialize(&default_seed).unwrap()],
+                )
+            }) {
+                None => {
+                    info!(
+                        "level doesn't contain a saved seed, set it to {}",
+                        default_seed
+                    );
+                    Ok(default_seed)
+                }
+                Some(e) => Err(e),
+            }
+        }
+        Err(e) => {
+            error!("Error getting seed from db: {:?}", e);
+            return Err(e);
+        }
+    }
+}
+
 fn load_block_palette(db: &mut LevelDB, commands: &mut Commands, registry: &BlockRegistry) {
     match db.execute_query_sync(LOAD_WORLD_INFO, rusqlite::params!["block_palette"], |row| {
         row.get(0)

@@ -21,7 +21,6 @@ pub mod waves;
 use bevy::picking::focus::PickingInteraction;
 use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
-use bevy_simple_text_input;
 use engine::camera::MainCamera;
 use leafwing_input_manager::action_state::ActionState;
 

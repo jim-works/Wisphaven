@@ -9,7 +9,7 @@ pub struct WorldEventsPlugin;
 
 impl Plugin for WorldEventsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<CreateLevelEvent>()
+        app.add_event::<LoadLevelEvent>()
             .add_event::<OpenLevelEvent>()
             .add_event::<ExplosionEvent>()
             .add_event::<BlockUsedEvent>()
@@ -21,9 +21,9 @@ impl Plugin for WorldEventsPlugin {
 }
 
 #[derive(Event)]
-pub struct CreateLevelEvent {
+pub struct LoadLevelEvent {
     pub name: &'static str,
-    pub seed: u64,
+    pub seed: Option<u64>,
     pub network_type: NetworkType,
 }
 

@@ -2,18 +2,16 @@ use std::time::Duration;
 
 use bevy::{app::AppExit, prelude::*};
 
-use bevy_simple_text_input::{
-    TextInput, TextInputPlaceholder, TextInputTextColor, TextInputTextFont, TextInputValue,
-};
+use bevy_simple_text_input::{TextInput, TextInputTextColor, TextInputTextFont, TextInputValue};
 use engine::{
     actors::ghost::{GhostResources, Hand, HandState, Handed, OrbitParticle, SwingHand, UseHand},
     effects::mesh_particles::MeshParticleEmitter,
-    serialization::LevelName,
+    serialization::{LevelName, SavedLevels},
     GameState,
 };
 use util::{iterators::even_distribution_on_sphere, lerp, LocalRepeatingTimer};
 
-use crate::styles;
+use crate::styles::{self, TRANSLUCENT_PANEL_BACKGROUND};
 
 use super::{
     styles::{get_large_text_style, get_text_style},
@@ -107,6 +105,14 @@ struct WorldSelectWorldButton {
 #[derive(Component, Clone, Copy)]
 #[component(storage = "SparseSet")]
 struct WorldSelectCreateText;
+
+#[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
+struct WorldSelectLoadLevelContainer;
+
+#[derive(Component, Clone, Copy)]
+#[component(storage = "SparseSet")]
+struct WorldSelectLoadLevelButton(&'static str);
 
 #[derive(Event)]
 struct SpawnMainMenuGhostEvent {
@@ -310,23 +316,9 @@ fn setup_world_select_screen(commands: &mut Commands, asset_server: &Res<AssetSe
         ))
         .with_children(|sections| {
             sections
+                // create world stuff
                 .spawn((Node {
                     height: Val::Percent(25.),
-                    width: Val::Percent(100.),
-                    flex_direction: FlexDirection::Column,
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    ..default()
-                },))
-                .with_children(|logo| {
-                    logo.spawn((
-                        Text("Wisphaven".into()),
-                        get_large_text_style(asset_server).clone(),
-                    ));
-                });
-            sections
-                .spawn((Node {
-                    height: Val::Percent(75.),
                     width: Val::Percent(100.),
                     flex_direction: FlexDirection::Row,
                     align_items: AlignItems::FlexStart,
@@ -384,7 +376,80 @@ fn setup_world_select_screen(commands: &mut Commands, asset_server: &Res<AssetSe
                             });
                         });
                 });
+            //load world section
+            sections.spawn((
+                Node {
+                    height: Val::Percent(75.),
+                    width: Val::Percent(100.),
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::FlexStart,
+                    justify_content: JustifyContent::FlexStart,
+                    ..default()
+                },
+                BackgroundColor(TRANSLUCENT_PANEL_BACKGROUND),
+                WorldSelectLoadLevelContainer,
+            ));
         });
+    commands.run_system_cached(spawn_world_select_items);
+}
+
+fn spawn_world_select_items(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    saved_worlds: Res<SavedLevels>,
+    container_query: Query<Entity, With<WorldSelectLoadLevelContainer>>,
+) {
+    let Ok(root) = container_query.get_single() else {
+        error!("Invalid world select container");
+        return;
+    };
+    let Some(mut root_ec) = commands.get_entity(root) else {
+        error!("world select container doesn't have commands");
+        return;
+    };
+    let button = (
+        ButtonColors::default(),
+        Node {
+            width: Val::Percent(100.),
+            height: Val::Px(48.0),
+            border: UiRect::all(Val::Px(2.0)),
+            // horizontally center child text
+            justify_content: JustifyContent::Center,
+            // vertically center child text
+            align_items: AlignItems::Center,
+            margin: UiRect::all(Val::Px(4.)),
+            ..default()
+        },
+        BorderColor(ButtonColors::default().default_border),
+        BackgroundColor(ButtonColors::default().default_background),
+        Button,
+    );
+
+    for level in saved_worlds.0.iter() {
+        root_ec.with_children(|container| {
+            container
+                .spawn((
+                    Node {
+                        width: Val::Percent(100.),
+                        flex_direction: FlexDirection::Row,
+                        justify_content: JustifyContent::Start,
+                        ..default()
+                    },
+                    BackgroundColor(styles::TRANSLUCENT_PANEL_BACKGROUND),
+                ))
+                .with_children(|components| {
+                    components
+                        .spawn((WorldSelectLoadLevelButton(level.name.0), button.clone()))
+                        .observe(load_level_clicked)
+                        .with_children(|text| {
+                            text.spawn((
+                                Text(level.name.0.into()),
+                                get_text_style(&asset_server).clone(),
+                            ));
+                        });
+                });
+        });
+    }
 }
 
 fn go_to_splash_screen(mut next_state: ResMut<NextState<MenuState>>) {
@@ -479,8 +544,44 @@ fn create_clicked(
 ) {
     let input_name = &text_value.get_single().unwrap().0;
     println!("{} was clicked. Textbox has {}", click.entity(), input_name);
-    level_name.0 = input_name.clone().leak();
     click.propagate(false);
+    start_level(
+        input_name.clone().leak(),
+        &mut level_name,
+        &mut next_game_state,
+        &mut next_menu_state,
+    );
+}
+
+fn load_level_clicked(
+    mut click: Trigger<Pointer<Click>>,
+    button_query: Query<&WorldSelectLoadLevelButton>,
+    mut next_game_state: ResMut<NextState<GameState>>,
+    mut next_menu_state: ResMut<NextState<MenuState>>,
+    mut level_name: ResMut<LevelName>,
+) {
+    let input_name = button_query.get(click.entity()).unwrap().0;
+    println!(
+        "{} was clicked. Loading level {}",
+        click.entity(),
+        input_name,
+    );
+    click.propagate(false);
+    start_level(
+        input_name,
+        &mut level_name,
+        &mut next_game_state,
+        &mut next_menu_state,
+    );
+}
+
+fn start_level(
+    name: &'static str,
+    level_name: &mut ResMut<LevelName>,
+    next_game_state: &mut ResMut<NextState<GameState>>,
+    next_menu_state: &mut ResMut<NextState<MenuState>>,
+) {
+    level_name.0 = name;
     next_game_state.set(GameState::Game);
     next_menu_state.set(MenuState::default());
 }
