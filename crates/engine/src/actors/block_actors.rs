@@ -11,7 +11,7 @@ use crate::{
     },
     world::{
         events::ChunkUpdatedEvent, BlockCoord, BlockId, BlockMesh, BlockPhysics, BlockType, Level,
-        LevelSystemSet,
+        LevelLoadState, LevelSystemSet,
     },
 };
 
@@ -65,6 +65,7 @@ fn falling_block_spawner(
             if let Some(collider) = Aabb::from_block(opt_physics.unwrap_or(&BlockPhysics::Solid)) {
                 if let Some(mesh) = block_mesh.single_mesh.clone() {
                     commands.spawn((
+                        StateScoped(LevelLoadState::Loaded),
                         PhysicsBundle {
                             velocity: Velocity(event.initial_velocity),
                             collider: collider.scale(Vec3::ONE * COLLIDER_SQUISH_FACTOR),

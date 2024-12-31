@@ -20,6 +20,7 @@ use engine::{
     },
     mesher::{extended_materials::TextureArrayExtension, ChunkMaterial},
     world::{BlockMesh, LevelSystemSet},
+    GameState,
 };
 
 use crate::MainCameraUIRoot;
@@ -194,6 +195,7 @@ fn hide_inventory<const HIDE_HOTBAR: bool>(
 fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryResources) {
     commands
         .spawn((
+            StateScoped(GameState::Game),
             MainCameraUIRoot,
             InventoryUI,
             Node {
@@ -438,6 +440,7 @@ fn spawn_block_preview(
 
     let image_handle = images.add(image);
 
+    #[allow(state_scoped_entities)]
     let entity = commands
         .spawn((
             Mesh3d(mesh.clone()),

@@ -18,7 +18,7 @@ use crate::{
         movement::{GravityMult, Mass, Velocity},
         PhysicsBundle, PhysicsLevelSet,
     },
-    world::{settings::GraphicsSettings, BlockPhysics, Level, LevelSystemSet},
+    world::{settings::GraphicsSettings, BlockPhysics, Level, LevelLoadState, LevelSystemSet},
 };
 
 use super::{
@@ -326,6 +326,7 @@ fn spawn_ghost(
     for spawn in spawn_requests.read() {
         let ghost_entity = commands
             .spawn((
+                StateScoped(LevelLoadState::Loaded),
                 MeshMaterial3d(res.material.clone()),
                 Mesh3d(res.center_mesh.clone()),
                 spawn.location,
@@ -451,6 +452,7 @@ pub fn spawn_ghost_hand(
     let max_particle_dist: f32 = 0.2 / hand_size;
     commands
         .spawn((
+            StateScoped(LevelLoadState::Loaded),
             Transform::from_translation(owner_pos.transform_point(offset))
                 .with_scale(Vec3::splat(hand_size)),
             Mesh3d(res.particle_mesh.clone()),

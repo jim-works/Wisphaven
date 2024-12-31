@@ -232,6 +232,7 @@ pub fn start_loading_scene<Scene: Resource + std::ops::Deref<Target = Handle<Loa
 
                 info!("Spawning {} {} scenes", scenes.len(), name);
                 for scene in scenes {
+                    #[allow(state_scoped_entities)]
                     commands.spawn((DynamicSceneRoot(scene), Name::new(name), bundle.clone()));
                 }
             }

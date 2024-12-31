@@ -165,6 +165,7 @@ pub fn create_held_item_visualizer(
     tf: Transform,
     res: &HeldItemResources,
 ) -> Entity {
+    #[allow(state_scoped_entities)]
     commands
         .spawn((
             MeshMaterial3d(res.color_material.clone()),

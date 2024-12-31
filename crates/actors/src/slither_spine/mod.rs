@@ -15,7 +15,7 @@ use engine::{
         movement::{Drag, GravityMult, LookInMovementDirection, Velocity},
         PhysicsBundle, PhysicsLevelSet,
     },
-    world::{chunk::ChunkCoord, LevelSystemSet},
+    world::{chunk::ChunkCoord, LevelLoadState, LevelSystemSet},
 };
 
 pub struct SlitherSpinePlugin;
@@ -167,6 +167,7 @@ fn spawn_handler(
 fn spawn_head(commands: &mut Commands, scene: Handle<Scene>, transform: Transform) -> Entity {
     commands
         .spawn((
+            StateScoped(LevelLoadState::Loaded),
             SceneRoot(scene),
             transform,
             PhysicsBundle {
@@ -220,6 +221,7 @@ fn spawn_segement(
 ) -> Entity {
     commands
         .spawn((
+            StateScoped(LevelLoadState::Loaded),
             SceneRoot(scene),
             transform,
             PhysicsBundle {

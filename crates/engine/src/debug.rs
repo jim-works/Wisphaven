@@ -7,7 +7,7 @@ use crate::{
     controllers::Action,
     physics::{collision::Aabb, PhysicsSystemSet},
     world::{chunk::ChunkCoord, BlockCoord, BlockPhysics},
-    worldgen::UsedShaperResources,
+    worldgen::UsedShaperResources, GameState,
 };
 
 pub struct DebugUIPlugin;
@@ -123,6 +123,7 @@ fn spawn_debug(mut commands: Commands, query: Query<&DebugUI>, resources: Res<De
     if query.is_empty() {
         commands
             .spawn((
+                StateScoped(GameState::Game),
                 DebugUI,
                 Node {
                     width: Val::Percent(100.0),

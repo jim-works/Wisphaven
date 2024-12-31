@@ -24,6 +24,7 @@ use crate::{
         settings::Settings,
         BlockId, BlockRegistry, BlockResources, ChunkBoundaryCrossedEvent, Level, LevelLoadState,
     },
+    GameState,
 };
 
 use super::{
@@ -41,6 +42,7 @@ impl Plugin for NetServerPlugin {
             initialize_later: true,
         })
         .init_state::<ServerState>()
+        .enable_state_scoped_entities::<ServerState>()
         .add_systems(
             Update,
             create_server.run_if(
@@ -227,7 +229,9 @@ fn handle_join(
     } else {
         info!("{} connected", &username);
         info!("QuinnetServer player: {:?}", server_player);
-        let player_entity = commands.spawn(RemoteClient(Some(client_id))).id();
+        let player_entity = commands
+            .spawn((StateScoped(GameState::Game), RemoteClient(Some(client_id))))
+            .id();
         let info = PlayerInfo {
             username,
             entity: player_entity,

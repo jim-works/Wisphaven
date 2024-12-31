@@ -10,6 +10,7 @@ use crate::{
     },
     world::BlockcastHit,
     worldgen::{ChunkNeedsGenerated, GeneratedChunk, GenerationPhase},
+    GameState,
 };
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
@@ -410,6 +411,7 @@ impl LevelData {
         //spawn new chunk
         let id = commands
             .spawn((
+                StateScoped(GameState::Game),
                 GeneratedChunk,
                 Transform::from_translation(coord.to_vec3()),
                 Visibility::default(),
@@ -434,6 +436,7 @@ impl LevelData {
             None => {
                 let id = commands
                     .spawn((
+                        StateScoped(GameState::Game),
                         Name::new("Chunk"),
                         coord,
                         Transform::default(),
@@ -457,6 +460,7 @@ impl LevelData {
     pub fn create_lod_chunk(&self, coord: ChunkCoord, lod_level: u8, commands: &mut Commands) {
         let id = commands
             .spawn((
+                StateScoped(GameState::Game),
                 Name::new("LODChunk"),
                 coord,
                 Transform::default(),

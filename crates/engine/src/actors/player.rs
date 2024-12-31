@@ -183,6 +183,7 @@ pub fn spawn_local_player(
         info!("Spawning local player at {:?}", spawn_point);
         let player_id = commands
             .spawn((
+                StateScoped(LevelLoadState::Loaded),
                 Name::new("local player"),
                 LocalPlayer {},
                 CombatantBundle::<PlayerTeam> {

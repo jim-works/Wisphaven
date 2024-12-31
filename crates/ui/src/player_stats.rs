@@ -4,12 +4,11 @@ use bevy::{ecs::system::SystemId, prelude::*};
 
 use engine::{
     actors::{
-        abilities::{
-            stamina::send_stamina_updated_events, stamina::Stamina, stamina::StaminaUpdatedEvent,
-        },
+        abilities::stamina::{send_stamina_updated_events, Stamina, StaminaUpdatedEvent},
         Combatant, DamageTakenEvent, LocalPlayer, LocalPlayerSpawnedEvent,
     },
     world::LevelLoadState,
+    GameState,
 };
 
 use util::inverse_lerp;
@@ -182,6 +181,7 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
     });
     commands
         .spawn((
+            StateScoped(GameState::Game),
             PlayerStatContainer,
             MainCameraUIRoot,
             Node {

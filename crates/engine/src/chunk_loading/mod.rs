@@ -60,7 +60,7 @@ pub fn on_load_level(mut commands: Commands, settings: Res<Settings>, level: Res
         "creating inital loader at {:?} loader: {:?}",
         spawn_point, settings.init_loader
     );
-    commands.spawn((spawn_point, InitialLoader, settings.init_loader.clone()));
+    commands.spawn((StateScoped(LevelLoadState::Loading), spawn_point, InitialLoader, settings.init_loader.clone()));
 }
 
 pub fn finish_loading_trigger(

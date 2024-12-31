@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use engine::physics::{collision::Aabb, movement::GravityMult, PhysicsBundle};
+use engine::{
+    physics::{collision::Aabb, movement::GravityMult, PhysicsBundle},
+    world::LevelLoadState,
+};
 
 use util::{plugin::SmoothLookTo, SendEventCommand};
 
@@ -70,6 +73,7 @@ fn spawn_wisp(
 ) {
     for spawn in spawn_requests.read() {
         commands.spawn((
+            StateScoped(LevelLoadState::Loaded),
             Mesh3d(res.mesh.clone()),
             MeshMaterial3d(res.material.clone()),
             spawn.location,

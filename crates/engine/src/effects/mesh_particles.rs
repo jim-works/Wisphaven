@@ -113,6 +113,7 @@ fn spawn_particles(
             let mesh = match emitter.shape {
                 MeshParticleShape::Cube => resources.cube.clone(),
             };
+            #[allow(state_scoped_entities)]
             commands.spawn((
                 MeshMaterial3d(material),
                 Mesh3d(mesh),

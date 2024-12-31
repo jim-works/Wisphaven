@@ -81,6 +81,7 @@ pub fn spawn_world_anchor(
     for spawn in spawn_requests.read() {
         let anchor = commands
             .spawn((
+                StateScoped(LevelLoadState::Loaded),
                 SceneRoot(res.scene.clone_weak()),
                 spawn.location.with_scale(Vec3::new(2.0, 2.0, 2.0)),
                 Name::new("world anchor"),

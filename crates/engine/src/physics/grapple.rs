@@ -4,6 +4,7 @@ use crate::{
     actors::ghost::UseHand,
     items::ItemSystemSet,
     world::{BlockCoord, Level, LevelSystemSet},
+    GameState,
 };
 
 use super::{
@@ -120,7 +121,7 @@ fn shoot_grapple(
             user: *owner,
             width: 0.1,
         };
-        let visual_entity = commands.spawn(visual).id();
+        let visual_entity = commands.spawn((StateScoped(GameState::Game), visual)).id();
         let Some(mut ec) = commands.get_entity(*owner) else {
             continue;
         };
