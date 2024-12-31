@@ -1,4 +1,4 @@
-use std::{f32::EPSILON, time::Duration};
+use std::time::Duration;
 
 use bevy::prelude::*;
 
@@ -89,7 +89,7 @@ fn do_dash(
     for (entity, tf, mut v, dash, ms_opt, tm_opt) in dashing_query.iter_mut() {
         let dash_direction = tm_opt
             .map(|dir| {
-                if dir.0.length_squared() < EPSILON {
+                if dir.0.length_squared() < f32::EPSILON {
                     tf.forward().as_vec3()
                 } else {
                     dir.0

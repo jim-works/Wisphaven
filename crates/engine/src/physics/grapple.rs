@@ -303,7 +303,7 @@ fn update_visual(
                 .with_scale(Vec3::new(width, width, origin.distance(dest)))
                 .looking_at(origin, Vec3::Y)
         } else {
-            return Transform::default();
+            Transform::default()
         }
     };
 

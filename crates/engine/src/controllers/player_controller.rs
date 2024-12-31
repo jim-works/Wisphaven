@@ -18,7 +18,7 @@ use crate::{
     world::{
         events::{BlockHitEvent, BlockUsedEvent},
         settings::Settings,
-        BlockCoord, BlockPhysics, Level, LevelSystemSet, UsableBlock,
+        BlockPhysics, Level, LevelSystemSet, UsableBlock,
     },
 };
 
@@ -256,7 +256,7 @@ pub fn player_punch(
                             block_hit_writer.send(BlockHitEvent {
                                 item: None,
                                 user: Some(player_entity),
-                                block_position: BlockCoord::from(hit_pos),
+                                block_position: hit_pos,
                                 hit_forward: tf.forward(),
                             });
                         }

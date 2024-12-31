@@ -81,5 +81,5 @@ pub fn is_chunk_ready_for_meshing(coord: ChunkCoord, level: &Level) -> bool {
         }
     }
     //all neighboring chunks are ready!
-    return true;
+    true
 }

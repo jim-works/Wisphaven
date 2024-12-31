@@ -246,15 +246,12 @@ impl LevelData {
         commands: &mut Commands,
         update_writer: &mut EventWriter<ChunkUpdatedEvent>,
     ) {
-        if SAVE {
-            if let Some(mut ec) = commands.get_entity(chunk_entity) {
-                ec.try_insert((NeedsMesh::default(), NeedsSaving));
-            }
-        } else {
-            if let Some(mut ec) = commands.get_entity(chunk_entity) {
-                ec.try_insert(NeedsMesh::default());
-            }
+        if SAVE && let Some(mut ec) = commands.get_entity(chunk_entity) {
+            ec.try_insert((NeedsMesh::default(), NeedsSaving));
+        } else if let Some(mut ec) = commands.get_entity(chunk_entity) {
+            ec.try_insert(NeedsMesh::default());
         }
+
         update_writer.send(ChunkUpdatedEvent { coord });
     }
     pub fn update_chunk_neighbors_only(
@@ -452,10 +449,8 @@ impl LevelData {
             if let Some(mut ec) = commands.get_entity(id) {
                 ec.remove::<DontMeshChunk>();
             }
-        } else {
-            if let Some(mut ec) = commands.get_entity(id) {
-                ec.try_insert(DontMeshChunk);
-            }
+        } else if let Some(mut ec) = commands.get_entity(id) {
+            ec.try_insert(DontMeshChunk);
         }
         id
     }
@@ -741,8 +736,7 @@ impl LevelData {
         const CHECK_UP_RANGE: i32 = 100;
         const CHECK_DOWN_RANGE: i32 = 50;
         for dy in (0..MAX_CHECKS)
-            .map(|i| (0..i * CHECK_UP_RANGE).chain((-i * CHECK_DOWN_RANGE..0).rev()))
-            .flatten()
+            .flat_map(|i| (0..i * CHECK_UP_RANGE).chain((-i * CHECK_DOWN_RANGE..0).rev()))
         {
             calculated_spawn_point.y = dy;
             let ground_volume = Volume::new_inclusive(

@@ -30,9 +30,9 @@ fn update_smooth_look_to_aggro_target(
     for (looker_entity, source, mut looker, looker_gtf) in looker_query.iter_mut() {
         let Ok(source_entity) = source_query.get(source.source) else {
             warn!("SmoothLookToAggroTarget source does not have AggroTargets! removing...");
-            commands.get_entity(looker_entity).map(|mut ec| {
+            if let Some(mut ec) = commands.get_entity(looker_entity) {
                 ec.remove::<SmoothLookToAggroTarget>();
-            });
+            };
             continue;
         };
         if let Some(target_gtf) = source_entity

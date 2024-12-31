@@ -396,11 +396,11 @@ fn blink_cursor(
 }
 
 fn is_ignored(ignored: Option<&Regex>, allowed: Option<&Regex>, key: &str) -> bool {
-    if ignored.map_or(false, |re| re.is_match(key)) {
+    if ignored.is_none_or(|re| re.is_match(key)) {
         return true;
     }
 
-    if allowed.map_or(true, |re| re.is_match(key)) {
+    if allowed.is_none_or(|re| re.is_match(key)) {
         return false;
     }
 

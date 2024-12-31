@@ -108,7 +108,7 @@ fn update_segments(
                 new_translations.push((
                     entity,
                     delta - delta.normalize_or_zero() * segment.target_dist,
-                    attach_tf.clone(),
+                    *attach_tf,
                 ));
             }
         }
@@ -268,8 +268,7 @@ fn move_head(
         head.was_in_ground = in_ground;
         if let Some(aggro_gtf) = targets
             .current_target()
-            .map(|e| aggro_query.get(e).ok())
-            .flatten()
+            .and_then(|e| aggro_query.get(e).ok())
         {
             let mut delta = aggro_gtf.translation() - tf.translation;
             delta.y = 0.;

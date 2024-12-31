@@ -12,3 +12,6 @@ regex = { workspace = true }
 engine = { path = "../engine" }
 util = { path = "../util" }
 waves = { path = "../waves" }
+
+[lints]
+workspace = true

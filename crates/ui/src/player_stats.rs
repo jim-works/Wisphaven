@@ -162,9 +162,9 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
         },
     });
     commands.insert_resource(PlayerStaminaUiResources {
-        bolt: assets.load("textures/ui/bolt.png").into(),
-        flash_bolt: assets.load("textures/ui/flash_bolt.png").into(),
-        empty_bolt: assets.load("textures/ui/dead_bolt.png").into(),
+        bolt: assets.load("textures/ui/bolt.png"),
+        flash_bolt: assets.load("textures/ui/flash_bolt.png"),
+        empty_bolt: assets.load("textures/ui/dead_bolt.png"),
         style: Node {
             width: Val::Px(11.0),
             height: Val::Px(16.0),

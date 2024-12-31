@@ -133,7 +133,7 @@ impl Combatant {
                 let Ok(parent_combatant) = query.get(*parent) else {
                     return None;
                 };
-                return parent_combatant.get_ancestor(query).or(Some(*parent));
+                parent_combatant.get_ancestor(query).or(Some(*parent))
             }
         }
     }
@@ -148,7 +148,7 @@ impl Combatant {
                 let Ok(parent_combatant) = query.get(*parent) else {
                     return false;
                 };
-                return parent_combatant.has_ancestor(entity, query);
+                parent_combatant.has_ancestor(entity, query)
             }
         }
     }
@@ -158,12 +158,11 @@ impl Combatant {
         query: &'a Query<'a, 'a, &'a Combatant>,
     ) -> Option<&'a Combatant> {
         match self {
-            Combatant::Root { .. } => Some(&self),
+            Combatant::Root { .. } => Some(self),
             Combatant::Child { .. } => {
                 let root = self
                     .get_ancestor(query)
-                    .map(|root| query.get(root).ok())
-                    .flatten();
+                    .and_then(|root| query.get(root).ok());
                 match root {
                     Some(Combatant::Root { .. }) => root,
                     _ => {
@@ -181,8 +180,7 @@ impl Combatant {
             Combatant::Child { .. } => {
                 let root = self
                     .get_ancestor(query)
-                    .map(|root| query.get(root).ok())
-                    .flatten();
+                    .and_then(|root| query.get(root).ok());
                 match root {
                     Some(Combatant::Root { health, .. }) => Some(*health),
                     _ => {
@@ -213,8 +211,7 @@ impl<'a> GetRootMut<'a> for Mut<'a, Combatant> {
                 let mut lens = query.transmute_lens::<&Combatant>();
                 let root = self
                     .get_ancestor(&lens.query())
-                    .map(|root| query.get_mut(root).ok())
-                    .flatten();
+                    .and_then(|root| query.get_mut(root).ok());
                 match root {
                     Some(root_mut) => Some(root_mut),
                     _ => {
@@ -374,7 +371,7 @@ impl Damage {
                     amount: self.calc(*defense),
                     dtype: self.dtype,
                 };
-                return parents_damage.calc_recursive(parent, query);
+                parents_damage.calc_recursive(parent, query)
             }
         }
     }
@@ -555,7 +552,7 @@ fn create_level_entity(mut commands: Commands) {
     commands.insert_resource(LevelEntity(entity));
 }
 
-fn do_contact_damage<'a, T: Team>(
+fn do_contact_damage<T: Team>(
     attacker_query: Query<(Entity, &ContactDamage, &GlobalTransform, &Aabb), With<T>>,
     target_query: Query<(Entity, &GlobalTransform, &Aabb), T::Targets>,
     mut attack_writer: EventWriter<AttackEvent>,

@@ -541,7 +541,7 @@ fn spawn_ghost(
                         MAX_PARTICLE_SPEED,
                         i as f32 / GHOST_PARTICLE_COUNT as f32,
                     );
-                    let material = (&res.particle_materials[i as usize]).clone();
+                    let material = res.particle_materials[i as usize].clone();
                     let angle_inc = 2.0 * std::f32::consts::PI / GHOST_PARTICLE_COUNT as f32;
                     let angle = i as f32 * angle_inc;
                     children.spawn((

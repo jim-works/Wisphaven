@@ -511,9 +511,9 @@ impl From<IVec3> for BlockCoord {
     }
 }
 
-impl Into<IVec3> for BlockCoord {
-    fn into(self) -> IVec3 {
-        IVec3::new(self.x, self.y, self.z)
+impl From<BlockCoord> for IVec3 {
+    fn from(v: BlockCoord) -> IVec3 {
+        IVec3::new(v.x, v.y, v.z)
     }
 }
 

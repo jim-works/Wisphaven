@@ -10,3 +10,6 @@ itertools = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
 bracket-noise = { workspace = true }
+
+[lints]
+workspace = true

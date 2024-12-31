@@ -205,6 +205,6 @@ fn layout_bug_workaround(
     }
     //bug where this node's layout won't apply until I make a change -- guessing it's because it's spawned before the camera.
     for mut node in query.iter_mut() {
-        node.display = node.display;
+        node.set_changed();
     }
 }

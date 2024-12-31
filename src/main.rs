@@ -9,6 +9,8 @@
 #![allow(dead_code)]
 #![feature(assert_matches)]
 #![feature(let_chains)]
+//lints created using dylint will give a warning
+#![allow(unknown_lints)]
 
 use std::{env, net::Ipv4Addr};
 

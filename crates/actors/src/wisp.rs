@@ -1,9 +1,6 @@
 use bevy::prelude::*;
 
-use engine::{
-    physics::{collision::Aabb, movement::GravityMult, PhysicsBundle},
-    world::LevelLoadState,
-};
+use engine::physics::{collision::Aabb, movement::GravityMult, PhysicsBundle};
 
 use util::{plugin::SmoothLookTo, SendEventCommand};
 
@@ -30,7 +27,7 @@ pub struct WispPlugin;
 impl Plugin for WispPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (load_resources, add_to_registry))
-            .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
+            // .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
             .add_systems(Update, spawn_wisp)
             .add_event::<SpawnWispEvent>();
     }
@@ -47,17 +44,17 @@ pub fn load_resources(
     });
 }
 
-fn trigger_spawning(mut writer: EventWriter<SpawnWispEvent>) {
-    for i in 0..0 {
-        writer.send(SpawnWispEvent {
-            location: Transform::from_xyz(
-                (i % 5) as f32 * -5.0,
-                (i / 5) as f32 * 5.0 + 50.0,
-                (i / 5) as f32 * -1.0 + 10.0,
-            ),
-        });
-    }
-}
+// fn trigger_spawning(writer: EventWriter<SpawnWispEvent>) {
+//     // for i in 0..0 {
+//     //     writer.send(SpawnWispEvent {
+//     //         location: Transform::from_xyz(
+//     //             (i % 5) as f32 * -5.0,
+//     //             (i / 5) as f32 * 5.0 + 50.0,
+//     //             (i / 5) as f32 * -1.0 + 10.0,
+//     //         ),
+//     //     });
+//     // }
+// }
 
 fn add_to_registry(mut res: ResMut<ActorResources>) {
     res.registry.add_dynamic(
