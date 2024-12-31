@@ -48,17 +48,35 @@ impl Plugin for SerializationPlugin {
             )
             .add_event::<SaveChunkEvent>()
             .add_event::<db::DataFromDBEvent>()
-            .insert_resource(SaveTimer(Timer::from_seconds(0.1, TimerMode::Repeating)));
+            .insert_resource(SaveTimer(Timer::from_seconds(0.1, TimerMode::Repeating)))
+            .init_resource::<LevelName>();
+    }
+}
+
+#[derive(Resource)]
+pub struct SavedLevels(pub Vec<SavedLevelInfo>);
+
+pub struct SavedLevelInfo {
+    pub name: LevelName,
+}
+
+#[derive(Resource)]
+pub struct LevelName(pub &'static str);
+
+impl Default for LevelName {
+    fn default() -> Self {
+        Self("level")
     }
 }
 
 fn create_level(
     mut writer: EventWriter<CreateLevelEvent>,
     network_type: Res<State<NetworkType>>,
+    level_name: Res<LevelName>,
     mut next_state: ResMut<NextState<state::GameLoadState>>,
 ) {
     writer.send(CreateLevelEvent {
-        name: "level",
+        name: level_name.0,
         seed: 8008135,
         network_type: *network_type.get(),
     });

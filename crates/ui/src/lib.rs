@@ -16,16 +16,15 @@ pub mod main_menu;
 pub mod player_stats;
 pub mod state;
 pub mod styles;
-pub mod third_party;
 pub mod waves;
 
-use bevy::ecs::system::SystemId;
+use bevy::picking::focus::PickingInteraction;
 use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
+use bevy_simple_text_input;
 use engine::camera::MainCamera;
 use leafwing_input_manager::action_state::ActionState;
 
-use engine::actors::LocalPlayer;
 use engine::controllers::Action;
 use engine::world::LevelSystemSet;
 use engine::GameState;
@@ -42,7 +41,7 @@ impl Plugin for UIPlugin {
                 player_stats::PlayerStatsUiPlugin,
                 waves::WavesPlugin,
                 main_menu::MainMenuPlugin,
-                third_party::bevy_text_edit::TextEditPlugin::new(vec![GameState::Menu]),
+                bevy_simple_text_input::TextInputPlugin,
             ))
             .add_systems(OnEnter(GameState::Game), state::on_load)
             .add_systems(OnEnter(state::UIState::Default), capture_mouse)
@@ -53,27 +52,10 @@ impl Plugin for UIPlugin {
                 (
                     toggle_fullscreen,
                     change_button_colors,
-                    do_button_action,
                     update_main_camera_ui,
-                    layout_bug_workaround,
                 ),
             )
             .insert_resource(UiScale(2.0));
-    }
-}
-
-#[derive(Component, Clone)]
-pub struct ButtonAction {
-    pub action: SystemId,
-    prev_state: Interaction,
-}
-
-impl ButtonAction {
-    pub fn new(action: SystemId) -> Self {
-        Self {
-            action,
-            prev_state: Interaction::default(),
-        }
     }
 }
 
@@ -103,48 +85,29 @@ impl Default for ButtonColors {
 fn change_button_colors(
     mut interaction_query: Query<
         (
-            &Interaction,
+            &PickingInteraction,
             &ButtonColors,
-            &mut ImageNode,
             &mut BackgroundColor,
             &mut BorderColor,
         ),
-        (Changed<Interaction>, With<Button>),
+        (Changed<PickingInteraction>, With<Button>),
     >,
 ) {
-    for (interaction, color, mut image, mut background, mut border) in &mut interaction_query {
+    for (interaction, color, mut background, mut border) in &mut interaction_query {
         match *interaction {
-            Interaction::Pressed => {
-                image.color = color.pressed_background;
+            PickingInteraction::Pressed => {
                 background.0 = color.pressed_background;
                 border.0 = color.pressed_border;
             }
-            Interaction::Hovered => {
-                image.color = color.hovered_background;
+            PickingInteraction::Hovered => {
                 background.0 = color.hovered_background;
                 border.0 = color.hovered_border;
             }
-            Interaction::None => {
-                image.color = color.default_background;
+            PickingInteraction::None => {
                 background.0 = color.default_background;
                 border.0 = color.default_border;
             }
         }
-    }
-}
-
-fn do_button_action(
-    mut interaction_query: Query<
-        (&Interaction, &mut ButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut commands: Commands,
-) {
-    for (interaction, mut action) in &mut interaction_query {
-        if *interaction != Interaction::Pressed && action.prev_state == Interaction::Pressed {
-            commands.run_system(action.action);
-        }
-        action.prev_state = *interaction;
     }
 }
 
@@ -192,19 +155,5 @@ fn update_main_camera_ui(
         if let Some(mut ec) = commands.get_entity(ui_element) {
             ec.try_insert(TargetCamera(camera.0));
         }
-    }
-}
-
-//TODO 0.15 - see if this is still necessary
-fn layout_bug_workaround(
-    mut query: Query<&mut Node, With<MainCameraUIRoot>>,
-    player_query: Query<(), Added<LocalPlayer>>,
-) {
-    if player_query.is_empty() {
-        return;
-    }
-    //bug where this node's layout won't apply until I make a change -- guessing it's because it's spawned before the camera.
-    for mut node in query.iter_mut() {
-        node.set_changed();
     }
 }

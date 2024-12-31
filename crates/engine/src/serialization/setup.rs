@@ -15,7 +15,7 @@ use crate::serialization::db::{LevelDB, LevelDBErr};
 use crate::serialization::queries::{
     CREATE_CHUNK_TABLE, CREATE_WORLD_INFO_TABLE, INSERT_WORLD_INFO, LOAD_WORLD_INFO,
 };
-use crate::serialization::{LoadingBlocks, LoadingItems};
+use crate::serialization::{LevelName, LoadingBlocks, LoadingItems, SavedLevelInfo};
 use crate::util::string::Version;
 use crate::world::settings::GraphicsSettings;
 use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
@@ -24,7 +24,11 @@ use crate::world::{
     LevelLoadState, NamedBlockMesh,
 };
 
-use super::{state, BlockTextureMap, ItemTextureMap, LoadedToSavedIdMap, SavedToLoadedIdMap};
+use super::{
+    state, BlockTextureMap, ItemTextureMap, LoadedToSavedIdMap, SavedLevels, SavedToLoadedIdMap,
+};
+
+const LEVEL_FILE_EXTENSION: &'static str = ".db";
 
 pub struct SetupPlugin;
 
@@ -33,7 +37,7 @@ impl Plugin for SetupPlugin {
         app.insert_resource(load_settings())
             .insert_resource(load_graphics_settings())
             //instantiate entities that we need to load
-            .add_systems(PreStartup, load_folders)
+            .add_systems(PreStartup, (load_folders, load_saved_level_list).chain())
             //initiate loading of each type of scene
             .add_systems(
                 Update,
@@ -356,7 +360,7 @@ pub fn on_level_created(
         fs::create_dir_all(settings.env_path).unwrap();
         let db = LevelDB::new(
             std::path::Path::new(settings.env_path)
-                .join(event.name.to_owned() + ".db")
+                .join(event.name.to_owned() + LEVEL_FILE_EXTENSION)
                 .as_path(),
         );
         match db {
@@ -664,4 +668,45 @@ fn create_palette_from_item_id_map(
         palette.insert(name.clone(), loaded_to_saved.get(id).unwrap());
     }
     bincode::serialize(&palette).unwrap()
+}
+
+fn load_saved_level_list(settings: Res<Settings>, mut commands: Commands) {
+    let mut levels = SavedLevels(Vec::new());
+    let level_name_regex = regex::Regex::new("(.+)\\.db").unwrap();
+
+    match std::fs::read_dir(settings.env_path) {
+        Ok(paths) => {
+            for path in paths {
+                match path {
+                    Ok(entry) => {
+                        let filename_opt = entry.file_name();
+                        let Some(filename) = filename_opt.to_str() else {
+                            error!(
+                                "Could not convert level file name to string {:?}",
+                                filename_opt
+                            );
+                            continue;
+                        };
+                        if let Some(capture) = level_name_regex.captures(filename) {
+                            let name = capture.get(1).unwrap().as_str().to_string().leak();
+                            info!("found level: {}", name);
+                            levels.0.push(SavedLevelInfo {
+                                name: LevelName(name),
+                            });
+                        }
+                    }
+                    Err(e) => {
+                        error!("error getting entry when reading level list {:?}", e);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            error!(
+                "couldn't load world list from {} (error: {:?})",
+                settings.env_path, e
+            );
+        }
+    }
+    commands.insert_resource(levels);
 }

@@ -69,6 +69,8 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
         .spawn((
             WaveUIScreen,
             MainCameraUIRoot,
+            PickingBehavior::IGNORE,
+            Name::new("WaveUIScreen"),
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),

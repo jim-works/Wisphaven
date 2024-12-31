@@ -1,38 +1,32 @@
 use std::time::Duration;
 
-use bevy::{app::AppExit, ecs::system::SystemId, prelude::*};
+use bevy::{app::AppExit, prelude::*};
 
+use bevy_simple_text_input::{
+    TextInput, TextInputPlaceholder, TextInputTextColor, TextInputTextFont, TextInputValue,
+};
 use engine::{
     actors::ghost::{GhostResources, Hand, HandState, Handed, OrbitParticle, SwingHand, UseHand},
     effects::mesh_particles::MeshParticleEmitter,
+    serialization::LevelName,
     GameState,
 };
 use util::{iterators::even_distribution_on_sphere, lerp, LocalRepeatingTimer};
 
-use crate::{
-    styles,
-    third_party::bevy_text_edit::{TextEditFocus, TextEditable},
-};
+use crate::styles;
 
 use super::{
     styles::{get_large_text_style, get_text_style},
-    ButtonAction, ButtonColors,
+    ButtonColors,
 };
 
 pub struct MainMenuPlugin;
 
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
-        let system_ids = MainMenuSystemIds {
-            play_click: app.world_mut().register_system(play_clicked),
-            settings_click: app.world_mut().register_system(settings_clicked),
-            quit_click: app.world_mut().register_system(quit_clicked),
-            create_click: app.world_mut().register_system(create_clicked),
-        };
         app.init_state::<MenuState>()
             .init_state::<SplashScreenState>()
             .add_event::<SpawnMainMenuGhostEvent>()
-            .insert_resource(system_ids)
             .add_systems(OnEnter(GameState::Menu), menu_entered)
             .add_systems(OnExit(GameState::Menu), menu_exited)
             .add_systems(
@@ -120,22 +114,10 @@ struct SpawnMainMenuGhostEvent {
     handed: Handed,
 }
 
-#[derive(Resource)]
-struct MainMenuSystemIds {
-    play_click: SystemId,
-    settings_click: SystemId,
-    quit_click: SystemId,
-    create_click: SystemId,
-}
-
-fn menu_entered(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    res: Res<MainMenuSystemIds>,
-) {
+fn menu_entered(mut commands: Commands, asset_server: Res<AssetServer>) {
     setup_splash_screen(&mut commands, &asset_server);
-    setup_main_screen(&mut commands, &asset_server, &res);
-    setup_world_select_screen(&mut commands, &asset_server, &res);
+    setup_main_screen(&mut commands, &asset_server);
+    setup_world_select_screen(&mut commands, &asset_server);
 }
 
 fn menu_exited(
@@ -173,6 +155,7 @@ fn setup_splash_screen(commands: &mut Commands, asset_server: &Res<AssetServer>)
                 ..default()
             },
             Visibility::Hidden,
+            PickingBehavior::IGNORE,
         ))
         .with_children(|sections| {
             sections.spawn((
@@ -182,11 +165,7 @@ fn setup_splash_screen(commands: &mut Commands, asset_server: &Res<AssetServer>)
         });
 }
 
-fn setup_main_screen(
-    commands: &mut Commands,
-    asset_server: &Res<AssetServer>,
-    res: &Res<MainMenuSystemIds>,
-) {
+fn setup_main_screen(commands: &mut Commands, asset_server: &Res<AssetServer>) {
     let button = (
         ButtonColors::default(),
         Node {
@@ -218,6 +197,7 @@ fn setup_main_screen(
                 ..default()
             },
             Visibility::Hidden,
+            PickingBehavior::IGNORE,
         ))
         .with_children(|sections| {
             sections
@@ -234,7 +214,13 @@ fn setup_main_screen(
                         Text("Wisphaven".into()),
                         TextLayout::new_with_justify(JustifyText::Center),
                         get_large_text_style(asset_server).clone(),
-                    ));
+                    ))
+                    .observe(
+                        |over: Trigger<Pointer<Down>>, mut texts: Query<&mut TextColor>| {
+                            let mut color = texts.get_mut(over.entity()).unwrap();
+                            color.0 = bevy::color::palettes::tailwind::CYAN_400.into();
+                        },
+                    );
                 });
             sections
                 .spawn((Node {
@@ -257,7 +243,8 @@ fn setup_main_screen(
                         })
                         .with_children(|buttons| {
                             buttons
-                                .spawn((ButtonAction::new(res.play_click), button.clone()))
+                                .spawn((Name::new("play button"), button.clone()))
+                                .observe(play_clicked)
                                 .with_children(|text| {
                                     text.spawn((
                                         Text("Play".into()),
@@ -265,7 +252,8 @@ fn setup_main_screen(
                                     ));
                                 });
                             buttons
-                                .spawn((ButtonAction::new(res.settings_click), button.clone()))
+                                .spawn((Name::new("settings button"), button.clone()))
+                                .observe(settings_clicked)
                                 .with_children(|text| {
                                     text.spawn((
                                         Text("Settings".into()),
@@ -273,7 +261,8 @@ fn setup_main_screen(
                                     ));
                                 });
                             buttons
-                                .spawn((ButtonAction::new(res.quit_click), button.clone()))
+                                .spawn((Name::new("quit button"), button.clone()))
+                                .observe(quit_clicked)
                                 .with_children(|text| {
                                     text.spawn((
                                         Text("Quit".into()),
@@ -285,13 +274,7 @@ fn setup_main_screen(
         });
 }
 
-fn setup_world_select_screen(
-    commands: &mut Commands,
-    asset_server: &Res<AssetServer>,
-    res: &Res<MainMenuSystemIds>,
-) {
-    // todo 0.15 - when 0.15 comes out, add scrolling support
-    // https://github.com/bevyengine/bevy/pull/15291
+fn setup_world_select_screen(commands: &mut Commands, asset_server: &Res<AssetServer>) {
     let button = (
         ButtonColors::default(),
         Node {
@@ -323,6 +306,7 @@ fn setup_world_select_screen(
                 ..default()
             },
             Visibility::Hidden,
+            PickingBehavior::IGNORE,
         ))
         .with_children(|sections| {
             sections
@@ -371,16 +355,26 @@ fn setup_world_select_screen(
                             ))
                             .with_children(|items| {
                                 // text input
+                                let (color, font, picking) = get_text_style(asset_server);
                                 items.spawn((
-                                    Text("New World".into()),
-                                    get_text_style(asset_server).clone(),
-                                    TextEditable::default(),
-                                    Interaction::None,
+                                    Node {
+                                        width: Val::Percent(100.),
+                                        border: UiRect::all(Val::Px(5.0)),
+                                        padding: UiRect::all(Val::Px(5.0)),
+                                        ..default()
+                                    },
+                                    BorderColor::default(),
+                                    BackgroundColor::default(),
+                                    TextInput,
+                                    TextInputTextColor(color),
+                                    TextInputTextFont(font),
+                                    picking,
                                     WorldSelectCreateText,
                                 ));
                                 // create button
                                 items
-                                    .spawn((ButtonAction::new(res.create_click), button.clone()))
+                                    .spawn(button.clone())
+                                    .observe(create_clicked)
                                     .with_children(|text| {
                                         text.spawn((
                                             Text("Create".into()),
@@ -462,16 +456,9 @@ fn hide_main_screen(mut container_query: Query<&mut Visibility, With<MainMenuCon
 
 fn show_world_select_screen(
     mut container_query: Query<&mut Visibility, With<WorldSelectContainer>>,
-    text_query: Query<Entity, With<WorldSelectCreateText>>,
-    mut commands: Commands,
 ) {
     for mut vis in container_query.iter_mut() {
         *vis = Visibility::Inherited;
-    }
-    for entity in text_query.iter() {
-        if let Some(mut ec) = commands.get_entity(entity) {
-            ec.try_insert(TextEditFocus);
-        }
     }
 }
 
@@ -484,22 +471,38 @@ fn hide_world_select_screen(
 }
 
 fn create_clicked(
+    mut click: Trigger<Pointer<Click>>,
+    text_value: Query<&TextInputValue, With<WorldSelectCreateText>>,
     mut next_game_state: ResMut<NextState<GameState>>,
     mut next_menu_state: ResMut<NextState<MenuState>>,
+    mut level_name: ResMut<LevelName>,
 ) {
+    let input_name = &text_value.get_single().unwrap().0;
+    println!("{} was clicked. Textbox has {}", click.entity(), input_name);
+    level_name.0 = input_name.clone().leak();
+    click.propagate(false);
     next_game_state.set(GameState::Game);
     next_menu_state.set(MenuState::default());
 }
 
-fn play_clicked(mut next_menu_state: ResMut<NextState<MenuState>>) {
+fn play_clicked(
+    mut click: Trigger<Pointer<Click>>,
+    mut next_menu_state: ResMut<NextState<MenuState>>,
+) {
+    println!("{} was clicked", click.entity());
+    click.propagate(false);
     next_menu_state.set(MenuState::WorldSelect);
 }
 
-fn settings_clicked() {
+fn settings_clicked(mut click: Trigger<Pointer<Click>>) {
+    println!("{} was clicked", click.entity());
+    click.propagate(false);
     info!("settings clicked!");
 }
 
-fn quit_clicked(mut exit: EventWriter<AppExit>) {
+fn quit_clicked(mut click: Trigger<Pointer<Click>>, mut exit: EventWriter<AppExit>) {
+    println!("{} was clicked", click.entity());
+    click.propagate(false);
     exit.send(AppExit::Success);
 }
 

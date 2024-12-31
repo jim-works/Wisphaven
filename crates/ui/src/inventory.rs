@@ -1,5 +1,4 @@
 use bevy::{
-    ecs::system::SystemId,
     pbr::ExtendedMaterial,
     prelude::*,
     render::{
@@ -15,6 +14,7 @@ use leafwing_input_manager::prelude::ActionState;
 use engine::{
     actors::{LocalPlayer, LocalPlayerSpawnedEvent},
     controllers::Action,
+    debug::TextStyle,
     items::{
         block_item::BlockItem, inventory::Inventory, DropItemEvent, ItemIcon, PickupItemEvent,
     },
@@ -60,36 +60,14 @@ impl Plugin for InventoryPlugin {
         .add_systems(OnEnter(UIState::Default), hide_inventory::<false>)
         .add_systems(OnEnter(UIState::Hidden), hide_inventory::<true>)
         .add_systems(Startup, init);
-
-        let show_inventory_id = app.world_mut().register_system(show_inventory);
-        let hide_inventory_id = app.world_mut().register_system(hide_inventory::<false>);
-        let hide_inventory_and_hotbar_id = app.world_mut().register_system(hide_inventory::<true>);
-        let update_counts_id = app.world_mut().register_system(update_counts);
-        let update_icons_id = app.world_mut().register_system(update_icons);
-        app.insert_resource(InventorySystemIds {
-            show_inventory: show_inventory_id,
-            hide_inventory: hide_inventory_id,
-            hide_inventory_and_hotbar: hide_inventory_and_hotbar_id,
-            update_counts: update_counts_id,
-            update_icons: update_icons_id,
-        });
     }
 }
 
 #[derive(Resource)]
 struct InventoryResources {
-    item_counts: (TextColor, TextFont),
+    item_counts: TextStyle,
     slot_background: Handle<Image>,
     selection_image: Handle<Image>,
-}
-
-#[derive(Resource)]
-struct InventorySystemIds {
-    show_inventory: SystemId,
-    hide_inventory_and_hotbar: SystemId,
-    hide_inventory: SystemId,
-    update_icons: SystemId,
-    update_counts: SystemId,
 }
 
 #[derive(Component)]
@@ -134,7 +112,6 @@ fn spawn_inventory_system(
     mut commands: Commands,
     resources: Res<InventoryResources>,
     state: Res<State<UIState>>,
-    system_ids: Res<InventorySystemIds>,
 ) {
     for LocalPlayerSpawnedEvent(id) in event_reader.read() {
         info!("inventory UI trying to spawn from LocalPlayerSpawned event");
@@ -145,12 +122,12 @@ fn spawn_inventory_system(
             }
             spawn_inventory(&mut commands, inv.len(), &resources);
             match state.get() {
-                UIState::Hidden => commands.run_system(system_ids.hide_inventory_and_hotbar),
-                UIState::Default => commands.run_system(system_ids.hide_inventory),
-                UIState::Inventory => commands.run_system(system_ids.show_inventory),
+                UIState::Hidden => commands.run_system_cached(hide_inventory::<true>),
+                UIState::Default => commands.run_system_cached(hide_inventory::<false>),
+                UIState::Inventory => commands.run_system_cached(show_inventory),
             };
-            commands.run_system(system_ids.update_counts);
-            commands.run_system(system_ids.update_icons);
+            commands.run_system_cached(update_counts);
+            commands.run_system_cached(update_icons);
             return;
         }
     }
@@ -197,6 +174,8 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
         .spawn((
             StateScoped(GameState::Game),
             MainCameraUIRoot,
+            PickingBehavior::IGNORE,
+            Name::new("Inventory UI"),
             InventoryUI,
             Node {
                 width: Val::Px(400.0),

@@ -7,7 +7,8 @@ use crate::{
     controllers::Action,
     physics::{collision::Aabb, PhysicsSystemSet},
     world::{chunk::ChunkCoord, BlockCoord, BlockPhysics},
-    worldgen::UsedShaperResources, GameState,
+    worldgen::UsedShaperResources,
+    GameState,
 };
 
 pub struct DebugUIPlugin;
@@ -41,7 +42,7 @@ impl Plugin for DebugUIPlugin {
 }
 
 #[derive(Resource)]
-struct DebugResources((TextColor, TextFont));
+struct DebugResources(TextStyle);
 
 #[derive(Component)]
 struct DebugUI;
@@ -81,11 +82,13 @@ pub enum DebugUIDetailState {
     Most,
 }
 
+pub type TextStyle = (TextColor, TextFont, PickingBehavior);
+
 fn init(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(DebugResources(get_text_style(&assets)));
 }
 
-fn get_text_style(asset_server: &Res<AssetServer>) -> (TextColor, TextFont) {
+fn get_text_style(asset_server: &Res<AssetServer>) -> TextStyle {
     (
         TextColor(Color::WHITE),
         TextFont {
@@ -93,6 +96,7 @@ fn get_text_style(asset_server: &Res<AssetServer>) -> (TextColor, TextFont) {
             font_size: 32.0,
             ..default()
         },
+        PickingBehavior::IGNORE,
     )
 }
 

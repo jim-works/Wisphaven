@@ -46,6 +46,7 @@ fn spawn_crosshair(
                 StateScoped(GameState::Game),
                 Crosshair,
                 MainCameraUIRoot,
+                PickingBehavior::IGNORE,
                 Node {
                     width: Val::Percent(100.0),
                     height: Val::Percent(100.0),
