@@ -325,12 +325,12 @@ impl Aabb {
             other_expanded.sweep_ray(other_pos, self.world_center(my_pos), my_v)
         {
             if time >= 0.0 && time <= 1.0 {
-                return Some((time, contact_point, normal));
+                Some((time, contact_point, normal))
             } else {
-                return None;
+                None
             }
         } else {
-            return None;
+            None
         }
     }
 }
@@ -382,7 +382,7 @@ fn move_and_slide(
         let overlaps_iter = overlaps.iter().filter_map(|(coord, block)| {
             block
                 .and_then(|b| b.entity())
-                .and_then(|e| block_physics.get(e).ok().and_then(|p| Some((coord, p, e))))
+                .and_then(|e| block_physics.get(e).ok().map(|p| (coord, p, e)))
         });
         if *debug_state == DebugUIState::Shown {
             let gizmos_iter = overlaps.iter().map(|(coord, block)| {
@@ -391,7 +391,7 @@ fn move_and_slide(
                     block
                         .and_then(|b| b.entity())
                         .and_then(|e| block_physics.get(e).ok())
-                        .and_then(|p| Some(p.clone())),
+                        .cloned(),
                 )
             });
             block_gizmos.blocks.extend(gizmos_iter);

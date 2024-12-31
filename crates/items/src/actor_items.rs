@@ -9,6 +9,7 @@ use engine::{
         query::{self, Raycast, RaycastHit},
     },
     world::{BlockPhysics, Level},
+    GameState,
 };
 
 use engine::items::{ItemSystemSet, UseEndEvent, UseItemEvent};
@@ -102,6 +103,7 @@ fn setup(mut commands: Commands, mut effects: ResMut<Assets<EffectAsset>>) {
         });
     let id = commands
         .spawn((
+            StateScoped(GameState::Game),
             Name::new("spawn particle"),
             ParticleEffectBundle {
                 effect: ParticleEffect::new(effects.add(effect)),

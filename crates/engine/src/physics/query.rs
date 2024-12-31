@@ -54,7 +54,7 @@ pub fn raycast(
                 if let Some(collider) = physics_query
                     .get(block_entity)
                     .ok()
-                    .and_then(|physics| Aabb::from_block(physics))
+                    .and_then(Aabb::from_block)
                 {
                     if collider.intersects_point(test_block_coord.to_vec3(), test_point) {
                         //our point intersects the block
@@ -86,7 +86,7 @@ pub fn raycast(
         }
         dist += STEP_SIZE;
     }
-    return None;
+    None
 }
 
 //todo improve this
@@ -114,7 +114,7 @@ pub fn test_point<T: crate::actors::team::Team>(
             if let Some(collider) = physics_query
                 .get(block_entity)
                 .ok()
-                .and_then(|physics| Aabb::from_block(physics))
+                .and_then(Aabb::from_block)
             {
                 if collider.intersects_point(test_block_coord.to_vec3(), point) {
                     //our point intersects the block
@@ -123,7 +123,7 @@ pub fn test_point<T: crate::actors::team::Team>(
             }
         }
     }
-    return None;
+    None
 }
 
 //todo improve this
@@ -143,5 +143,5 @@ pub fn test_box<T: crate::actors::team::Team>(
             return Some(entity);
         }
     }
-    return None;
+    None
 }

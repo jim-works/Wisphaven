@@ -281,6 +281,7 @@ impl BlockRegistry {
         info!("added block {:?}", name);
         let id = BlockId(Id::Basic(self.basic_entities.len() as u32));
         let item_name = ItemName::core(name.name.clone());
+        #[allow(state_scoped_entities)]
         let item = commands
             .spawn((
                 ItemBundle {
@@ -358,6 +359,7 @@ impl BlockRegistry {
         }
     }
     fn setup_block(id: BlockId, commands: &mut Commands) -> Entity {
+        #[allow(state_scoped_entities)]
         commands.spawn(id).id()
     }
     pub fn get_block_type(&self, id: BlockId, commands: &mut Commands) -> BlockType {
@@ -511,9 +513,9 @@ impl From<IVec3> for BlockCoord {
     }
 }
 
-impl Into<IVec3> for BlockCoord {
-    fn into(self) -> IVec3 {
-        IVec3::new(self.x, self.y, self.z)
+impl From<BlockCoord> for IVec3 {
+    fn from(v: BlockCoord) -> IVec3 {
+        IVec3::new(v.x, v.y, v.z)
     }
 }
 

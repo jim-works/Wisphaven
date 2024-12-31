@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use engine::{
     all_teams_function, all_teams_system,
     physics::{collision::Aabb, PhysicsBundle},
+    world::LevelLoadState,
 };
 
 use engine::actors::{
@@ -67,6 +68,7 @@ pub fn spawn_coin<T: Team>(
     } in spawn_requests.read()
     {
         commands.spawn((
+            StateScoped(LevelLoadState::Loaded),
             SceneRoot(res.scene.clone_weak()),
             default_args.transform,
             Name::new("coin"),

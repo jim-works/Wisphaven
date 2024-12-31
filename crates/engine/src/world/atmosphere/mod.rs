@@ -7,7 +7,7 @@ use bevy::{
     render::render_resource::{TextureViewDescriptor, TextureViewDimension},
 };
 
-use crate::actors::world_anchor::ActiveWorldAnchor;
+use crate::{actors::world_anchor::ActiveWorldAnchor, GameState};
 
 #[derive(Component, Reflect)]
 struct Sun {
@@ -304,6 +304,7 @@ fn speedup_time(mut reader: EventReader<SpeedupCalendarEvent>, mut speed: ResMut
 
 fn setup_environment(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
+        StateScoped(GameState::Game),
         DirectionalLight {
             shadows_enabled: true,
             ..default()

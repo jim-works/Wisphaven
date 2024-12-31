@@ -109,7 +109,7 @@ pub fn queue_meshing(
         query.par_iter().for_each(|(entity, coord, needs_mesh)| {
             if needs_mesh
                 .order
-                .map_or(false, |order| max_order + order_tolerance < order)
+                .is_some_and(|order| max_order + order_tolerance < order)
             {
                 //too late in the order, don't mesh yet
                 return;

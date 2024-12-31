@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use engine::GameState;
 
 use crate::MainCameraUIRoot;
 
@@ -42,6 +43,7 @@ fn spawn_crosshair(
     } else {
         commands
             .spawn((
+                StateScoped(GameState::Game),
                 Crosshair,
                 MainCameraUIRoot,
                 Node {

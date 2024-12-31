@@ -136,6 +136,7 @@ pub fn create_item<T: Bundle>(
 
 //lessens the requirements for an item (for example without an icon)
 pub fn create_raw_item<T: Bundle>(info: ItemBundle, bundle: T, commands: &mut Commands) -> Entity {
+    #[allow(state_scoped_entities)]
     commands.spawn((info, bundle)).id()
 }
 
@@ -270,6 +271,7 @@ impl ItemRegistry {
     }
     pub fn create_basic(&mut self, bundle: ItemBundle, commands: &mut Commands) -> Entity {
         let name = bundle.name.clone();
+        #[allow(state_scoped_entities)]
         let entity = commands.spawn(bundle).id();
         self.add_basic(name, entity, commands);
         entity
@@ -302,6 +304,7 @@ impl ItemRegistry {
         }
     }
     fn setup_item(id: ItemId, commands: &mut Commands) -> Entity {
+        #[allow(state_scoped_entities)]
         commands.spawn(id).id()
     }
 }

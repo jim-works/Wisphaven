@@ -51,7 +51,7 @@ use crate::world::{block::*, chunk::*, util::BlockPalette};
 // }
 
 // fn normal_system(mut commands: Commands, level: Res<Level>, counter: Res<Counter>) {
-//     let mut normal_buffer = BlockBuffer::new();
+//     let mut normal_buffer = BlockBuffer::default();
 //     normal_buffer.set(
 //         BlockCoord::new(10 + counter.0 as i32, 10, 10),
 //         BlockChange::Set(BlockType::Basic(counter.0)),

@@ -154,11 +154,7 @@ fn update_friction(
             //get avg friction of all collided blocks
             let mut sum_fric_coeff = 0.0;
             for (_, e, _) in blocks.iter() {
-                sum_fric_coeff += block_query
-                    .get(*e)
-                    .ok()
-                    .and_then(|f| Some(f.0))
-                    .unwrap_or_default();
+                sum_fric_coeff += block_query.get(*e).ok().map(|f| f.0).unwrap_or_default();
             }
             //total friction is block avg friction combined with entity's friction
             let f = ((sum_fric_coeff / blocks.len() as f32) + f.0) / 2.0;

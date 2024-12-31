@@ -4,13 +4,13 @@ use bevy::prelude::*;
 use crate::{
     world::{
         chunk::{ChunkCoord, ChunkType},
-        Level, BlockId,
+        BlockId, Level,
     },
     worldgen::GeneratedChunk,
 };
 
-use super::{ChunkSaveFormat, NeedsSaving, SaveChunkEvent, SaveTimer, LoadedToSavedIdMap};
 use super::db::*;
+use super::{ChunkSaveFormat, LoadedToSavedIdMap, NeedsSaving, SaveChunkEvent, SaveTimer};
 
 pub fn save_all(
     mut save_writer: EventWriter<SaveChunkEvent>,
@@ -38,7 +38,7 @@ pub fn do_saving(
     level: Res<Level>,
     mut commands: Commands,
     block_query: Query<&BlockId>,
-    id_map: Res<LoadedToSavedIdMap<BlockId>>
+    id_map: Res<LoadedToSavedIdMap<BlockId>>,
 ) {
     let mut saved = 0;
     //get unique coordinates
@@ -52,7 +52,12 @@ pub fn do_saving(
                         save_data.push(SaveCommand(
                             ChunkTable::Terrain,
                             coord,
-                            bincode::serialize(&ChunkSaveFormat::palette_ids_only((chunk.position, &chunk.blocks), &block_query, &id_map)).unwrap(),
+                            bincode::serialize(&ChunkSaveFormat::palette_ids_only(
+                                (chunk.position, &chunk.blocks),
+                                &block_query,
+                                &id_map,
+                            ))
+                            .unwrap(),
                         ));
                         saved += 1;
                         ec.remove::<NeedsSaving>();
@@ -62,7 +67,7 @@ pub fn do_saving(
                     if let Some(mut ec) = commands.get_entity(*id) {
                         ec.remove::<NeedsSaving>();
                     }
-                },
+                }
                 ChunkType::Generating(_, chunk) => {
                     if let Some(mut ec) = commands.get_entity(chunk.entity) {
                         ec.remove::<NeedsSaving>();
@@ -74,7 +79,12 @@ pub fn do_saving(
             save_data.push(SaveCommand(
                 ChunkTable::Buffers,
                 coord,
-                bincode::serialize(&ChunkSaveFormat::ids_only((coord, &buffer.value()), &block_query, &id_map)).unwrap(),
+                bincode::serialize(&ChunkSaveFormat::ids_only(
+                    (coord, buffer.value()),
+                    &block_query,
+                    &id_map,
+                ))
+                .unwrap(),
             ));
         }
     }

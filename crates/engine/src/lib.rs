@@ -57,7 +57,6 @@ impl Plugin for EnginePlugin {
             effects::EffectsPlugin,
             camera::CameraPlugin,
             state::GameStatePlugin,
-        ))
-        .init_state::<GameState>();
+        ));
     }
 }

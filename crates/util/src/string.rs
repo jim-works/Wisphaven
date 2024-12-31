@@ -13,10 +13,10 @@ impl Version {
 
     //game is compatible if the major/minor versions are equal
     pub fn game_compatible(&self, other: &Version) -> bool {
-        return self.major.is_some()
+        self.major.is_some()
             && self.major == other.major
             && self.minor.is_some()
-            && self.minor == other.minor;
+            && self.minor == other.minor
     }
 }
 
@@ -42,7 +42,7 @@ impl From<&str> for Version {
     fn from(value: &str) -> Self {
         let mut result = Self::default();
         let pieces = value.split(".").collect::<Vec<_>>();
-        if let Some(major) = pieces.get(0) {
+        if let Some(major) = pieces.first() {
             result.major = major.parse::<u32>().ok();
         }
         if let Some(minor) = pieces.get(1) {

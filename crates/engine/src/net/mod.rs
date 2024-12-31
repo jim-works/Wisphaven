@@ -28,6 +28,7 @@ impl Plugin for NetPlugin {
             .add_event::<UpdateEntityTransform>()
             .add_event::<UpdateEntityVelocity>()
             .init_state::<NetworkType>()
+            .enable_state_scoped_entities::<NetworkType>()
             .insert_resource(PlayerList::default())
             .insert_resource(ChannelsConfig::default());
     }

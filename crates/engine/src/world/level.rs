@@ -10,6 +10,7 @@ use crate::{
     },
     world::BlockcastHit,
     worldgen::{ChunkNeedsGenerated, GeneratedChunk, GenerationPhase},
+    GameState,
 };
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
@@ -246,15 +247,12 @@ impl LevelData {
         commands: &mut Commands,
         update_writer: &mut EventWriter<ChunkUpdatedEvent>,
     ) {
-        if SAVE {
-            if let Some(mut ec) = commands.get_entity(chunk_entity) {
-                ec.try_insert((NeedsMesh::default(), NeedsSaving));
-            }
-        } else {
-            if let Some(mut ec) = commands.get_entity(chunk_entity) {
-                ec.try_insert(NeedsMesh::default());
-            }
+        if SAVE && let Some(mut ec) = commands.get_entity(chunk_entity) {
+            ec.try_insert((NeedsMesh::default(), NeedsSaving));
+        } else if let Some(mut ec) = commands.get_entity(chunk_entity) {
+            ec.try_insert(NeedsMesh::default());
         }
+
         update_writer.send(ChunkUpdatedEvent { coord });
     }
     pub fn update_chunk_neighbors_only(
@@ -413,6 +411,7 @@ impl LevelData {
         //spawn new chunk
         let id = commands
             .spawn((
+                StateScoped(GameState::Game),
                 GeneratedChunk,
                 Transform::from_translation(coord.to_vec3()),
                 Visibility::default(),
@@ -437,6 +436,7 @@ impl LevelData {
             None => {
                 let id = commands
                     .spawn((
+                        StateScoped(GameState::Game),
                         Name::new("Chunk"),
                         coord,
                         Transform::default(),
@@ -452,16 +452,15 @@ impl LevelData {
             if let Some(mut ec) = commands.get_entity(id) {
                 ec.remove::<DontMeshChunk>();
             }
-        } else {
-            if let Some(mut ec) = commands.get_entity(id) {
-                ec.try_insert(DontMeshChunk);
-            }
+        } else if let Some(mut ec) = commands.get_entity(id) {
+            ec.try_insert(DontMeshChunk);
         }
         id
     }
     pub fn create_lod_chunk(&self, coord: ChunkCoord, lod_level: u8, commands: &mut Commands) {
         let id = commands
             .spawn((
+                StateScoped(GameState::Game),
                 Name::new("LODChunk"),
                 coord,
                 Transform::default(),
@@ -741,8 +740,7 @@ impl LevelData {
         const CHECK_UP_RANGE: i32 = 100;
         const CHECK_DOWN_RANGE: i32 = 50;
         for dy in (0..MAX_CHECKS)
-            .map(|i| (0..i * CHECK_UP_RANGE).chain((-i * CHECK_DOWN_RANGE..0).rev()))
-            .flatten()
+            .flat_map(|i| (0..i * CHECK_UP_RANGE).chain((-i * CHECK_DOWN_RANGE..0).rev()))
         {
             calculated_spawn_point.y = dy;
             let ground_volume = Volume::new_inclusive(

@@ -29,3 +29,6 @@ bitflags = { workspace = true }
 
 #internal deps
 util = { path = "../util" }
+
+[lints]
+workspace = true

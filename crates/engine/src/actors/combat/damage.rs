@@ -46,7 +46,7 @@ fn process_attacks(
             continue;
         };
         let mut lens = target_query.transmute_lens::<&Combatant>();
-        let Some(damage_taken) = attack.damage.calc_recursive(&target_info, &lens.query()) else {
+        let Some(damage_taken) = attack.damage.calc_recursive(target_info, &lens.query()) else {
             error!("child combatant has no root!");
             continue;
         };

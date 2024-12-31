@@ -81,3 +81,23 @@ ui = { path = "crates/ui" }
 actors = { path = "crates/actors" }
 waves = { path = "crates/waves" }
 items = { path = "crates/items" }
+
+[workspace.metadata.dylint]
+libraries = [
+    { git = "https://github.com/jim-works/bevy_lints", branch="master" },
+    # or, if you have the library cloned locally
+    # { path = "../bevy_devtools" },
+]
+
+# disable unknown lints warning
+# lets us use #[allow(state_scoped_entities)] over this monstrosity
+#![cfg_attr(dylint_lib = "bevy_lints", allow(state_scoped_entities))]
+[workspace.lints.rust]
+unknown_lints = "allow"
+
+[workspace.lints.clippy]
+too_many_arguments = "allow"
+type_complexity = "allow"
+let_and_return = "allow"
+manual_range_contains = "allow"
+needless_doctest_main = "allow"

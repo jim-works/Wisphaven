@@ -232,6 +232,7 @@ pub fn start_loading_scene<Scene: Resource + std::ops::Deref<Target = Handle<Loa
 
                 info!("Spawning {} {} scenes", scenes.len(), name);
                 for scene in scenes {
+                    #[allow(state_scoped_entities)]
                     commands.spawn((DynamicSceneRoot(scene), Name::new(name), bundle.clone()));
                 }
             }
@@ -372,12 +373,9 @@ pub fn on_level_created(
                     error!("Error creating world info table: {:?}", err);
                     return;
                 }
-                match check_level_version(&mut db) {
-                    Err(err) => {
-                        error!("Error checking level version: {:?}", err);
-                        return;
-                    }
-                    _ => {}
+                if let Err(err) = check_level_version(&mut db) {
+                    error!("Error checking level version: {:?}", err);
+                    return;
                 }
                 load_block_palette(&mut db, &mut commands, &block_resources.registry);
                 load_item_palette(&mut db, &mut commands, &item_resources.registry);

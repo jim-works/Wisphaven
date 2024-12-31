@@ -18,7 +18,7 @@ use crate::{
         movement::{GravityMult, Mass, Velocity},
         PhysicsBundle, PhysicsLevelSet,
     },
-    world::{settings::GraphicsSettings, BlockPhysics, Level, LevelSystemSet},
+    world::{settings::GraphicsSettings, BlockPhysics, Level, LevelLoadState, LevelSystemSet},
 };
 
 use super::{
@@ -326,6 +326,7 @@ fn spawn_ghost(
     for spawn in spawn_requests.read() {
         let ghost_entity = commands
             .spawn((
+                StateScoped(LevelLoadState::Loaded),
                 MeshMaterial3d(res.material.clone()),
                 Mesh3d(res.center_mesh.clone()),
                 spawn.location,
@@ -365,7 +366,7 @@ fn spawn_ghost(
                         MAX_PARTICLE_SPEED,
                         i as f32 / GHOST_PARTICLE_COUNT as f32,
                     );
-                    let material = (&res.particle_materials[i as usize]).clone();
+                    let material = res.particle_materials[i as usize].clone();
                     let angle_inc = 2.0 * PI / GHOST_PARTICLE_COUNT as f32;
                     let angle = i as f32 * angle_inc;
                     children.spawn((
@@ -451,6 +452,7 @@ pub fn spawn_ghost_hand(
     let max_particle_dist: f32 = 0.2 / hand_size;
     commands
         .spawn((
+            StateScoped(LevelLoadState::Loaded),
             Transform::from_translation(owner_pos.transform_point(offset))
                 .with_scale(Vec3::splat(hand_size)),
             Mesh3d(res.particle_mesh.clone()),
@@ -631,7 +633,7 @@ fn update_ghost_hand(
 
         //hand is a child of owner when following
         if let HandState::Following = hand.state {
-            if !parent_opt.is_some() {
+            if parent_opt.is_none() {
                 let Some(mut ec) = commands.get_entity(owner) else {
                     //owner despawned
                     commands.entity(entity).despawn_recursive();
@@ -769,8 +771,8 @@ fn update_floater(
             .filter_map(|(coord, block)| {
                 block
                     .and_then(|b| b.entity())
-                    .and_then(|e| physics_query.get(e).ok().and_then(|p| Aabb::from_block(p)))
-                    .and_then(|b| Some((coord.as_vec3(), coord, b)))
+                    .and_then(|e| physics_query.get(e).ok().and_then(Aabb::from_block))
+                    .map(|b| (coord.as_vec3(), coord, b))
             })
             .filter(move |(pos, _, b)| ground_area.intersects_aabb(translation, *b, *pos));
         //now for ceiling blocks
@@ -781,8 +783,8 @@ fn update_floater(
             .filter_map(|(coord, block)| {
                 block
                     .and_then(|b| b.entity())
-                    .and_then(|e| physics_query.get(e).ok().and_then(|p| Aabb::from_block(p)))
-                    .and_then(|b| Some((coord.as_vec3(), b)))
+                    .and_then(|e| physics_query.get(e).ok().and_then(Aabb::from_block))
+                    .map(|b| (coord.as_vec3(), b))
             })
             .filter(move |(coord, b)| ceiling_area.intersects_aabb(translation, *b, *coord));
         let collider_top = aabb.world_max(translation).y;

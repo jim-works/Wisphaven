@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use engine::world::atmosphere::Calendar;
+use engine::{world::atmosphere::Calendar, GameState};
 
 use waves::waves::{Assault, AssaultStartedEvent};
 
@@ -78,6 +78,7 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
                 position_type: PositionType::Absolute,
                 ..default()
             },
+            StateScoped(GameState::Game),
         ))
         .with_children(|container| {
             container
@@ -86,7 +87,7 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
                     Node {
                         width: Val::Px(240.0),
                         height: Val::Px(16.0),
-                        margin: margin.clone(),
+                        margin,
                         flex_direction: FlexDirection::Column,
                         align_items: AlignItems::FlexEnd,
                         justify_content: JustifyContent::Center,

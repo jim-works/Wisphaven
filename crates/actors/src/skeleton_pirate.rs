@@ -12,6 +12,7 @@ use engine::{
     },
     controllers::{ControllableBundle, JumpBundle},
     physics::{collision::Aabb, movement::Velocity, PhysicsBundle, GRAVITY},
+    world::LevelLoadState,
 };
 use util::{physics::aim_projectile_straight_fallback, plugin::SmoothLookTo, SendEventCommand};
 
@@ -86,25 +87,28 @@ pub fn spawn_skeleton_pirate(
     const AGGRO_RANGE: f32 = ATTACK_RANGE * 2.0 + 5.0;
     for spawn in spawn_requests.read() {
         commands.spawn((
+            StateScoped(LevelLoadState::Loaded),
             SceneRoot(skele_res.scene.clone_weak()),
             spawn.location,
             Name::new("SkeletonPirate"),
-            CombatantBundle::<EnemyTeam> {
-                combatant: Combatant::new(10.0, 0.0),
-                ..default()
-            },
-            PhysicsBundle {
-                collider: Aabb::new(Vec3::new(0.8, 1.6, 0.8), Vec3::new(-0.4, 0., -0.4)),
-                ..default()
-            },
-            ControllableBundle {
-                move_speed: MoveSpeed::new(0.5, 0.5, 0.10),
-                ..default()
-            },
-            JumpBundle {
-                jump: Jump::new(12.0, 0),
-                ..default()
-            },
+            (
+                CombatantBundle::<EnemyTeam> {
+                    combatant: Combatant::new(10.0, 0.0),
+                    ..default()
+                },
+                PhysicsBundle {
+                    collider: Aabb::new(Vec3::new(0.8, 1.6, 0.8), Vec3::new(-0.4, 0., -0.4)),
+                    ..default()
+                },
+                ControllableBundle {
+                    move_speed: MoveSpeed::new(0.5, 0.5, 0.10),
+                    ..default()
+                },
+                JumpBundle {
+                    jump: Jump::new(12.0, 0),
+                    ..default()
+                },
+            ),
             SmoothLookTo::new(0.7),
             SkeletonPirate { ..default() },
             KillOnSunrise,

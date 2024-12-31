@@ -8,6 +8,7 @@ use engine::{
         movement::{Drag, Restitution},
         PhysicsBundle,
     },
+    world::LevelLoadState,
 };
 
 use engine::actors::{
@@ -78,6 +79,7 @@ fn spawn_spike_ball<T: Team>(
     } in spawn_requests.read()
     {
         commands.spawn((
+            StateScoped(LevelLoadState::Loaded),
             SceneRoot(res.scene.clone_weak()),
             default_args.transform,
             Name::new("spike_ball"),

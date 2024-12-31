@@ -161,6 +161,7 @@ fn menu_exited(
 fn setup_splash_screen(commands: &mut Commands, asset_server: &Res<AssetServer>) {
     commands
         .spawn((
+            StateScoped(GameState::Menu),
             SplashScreenContainer,
             MenuRoot,
             Node {
@@ -205,6 +206,7 @@ fn setup_main_screen(
     );
     commands
         .spawn((
+            StateScoped(GameState::Menu),
             MainMenuContainer,
             MenuRoot,
             Node {
@@ -309,6 +311,7 @@ fn setup_world_select_screen(
     );
     commands
         .spawn((
+            StateScoped(GameState::Menu),
             WorldSelectContainer,
             MenuRoot,
             Node {
@@ -515,6 +518,7 @@ fn spawn_ghost(
     for spawn in spawn_requests.read() {
         let ghost_entity = commands
             .spawn((
+                StateScoped(GameState::Menu),
                 spawn.transform,
                 Visibility::default(),
                 Name::new("ghost"),
@@ -541,7 +545,7 @@ fn spawn_ghost(
                         MAX_PARTICLE_SPEED,
                         i as f32 / GHOST_PARTICLE_COUNT as f32,
                     );
-                    let material = (&res.particle_materials[i as usize]).clone();
+                    let material = res.particle_materials[i as usize].clone();
                     let angle_inc = 2.0 * std::f32::consts::PI / GHOST_PARTICLE_COUNT as f32;
                     let angle = i as f32 * angle_inc;
                     children.spawn((
@@ -587,6 +591,7 @@ fn spawn_ghost(
 
         //falling particles
         commands.spawn((
+            StateScoped(GameState::Menu),
             Name::new("emitter"),
             Transform::from_translation(
                 spawn.transform.translation - spawn.transform.scale.y * 3. * Vec3::Y,
@@ -632,6 +637,7 @@ pub fn spawn_ghost_hand(
     let max_particle_dist: f32 = 0.2 / hand_size;
     commands
         .spawn((
+            StateScoped(GameState::Menu),
             Mesh3d(res.particle_mesh.clone()),
             MeshMaterial3d(res.hand_particle_material.clone()),
             Transform::from_translation(owner_pos.transform_point(offset))

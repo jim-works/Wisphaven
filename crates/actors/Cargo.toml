@@ -10,3 +10,6 @@ big-brain = { workspace = true }
 
 engine = { path = "../engine" }
 util = { path = "../util" }
+
+[lints]
+workspace = true

@@ -1,6 +1,9 @@
 use bevy::{pbr::NotShadowCaster, prelude::*, utils::HashMap};
 
-use crate::world::{events::BlockDamageSetEvent, BlockCoord, BlockDamage};
+use crate::{
+    world::{events::BlockDamageSetEvent, BlockCoord, BlockDamage},
+    GameState,
+};
 
 pub struct DamagedBlockPlugin;
 
@@ -86,6 +89,7 @@ fn update_damaged_block_effect(
                     *block_position,
                     commands
                         .spawn((
+                            StateScoped(GameState::Game),
                             Mesh3d(mesh),
                             MeshMaterial3d(new_material),
                             Transform::from_translation(block_position.center()),

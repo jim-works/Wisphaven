@@ -108,7 +108,7 @@ impl BuildActorRegistry for App {
     ) -> &mut App {
         let mut registry = self
             .world_mut()
-            .get_resource_or_insert_with(|| ActorRegistry::default());
+            .get_resource_or_insert_with(ActorRegistry::default);
         registry.spawners.insert(
             name,
             Box::new(|event: DefaultSpawnArgs, commands: &mut Commands| {
@@ -125,7 +125,7 @@ fn actor_spawn_handler(
     registry: Res<ActorRegistry>,
 ) {
     for SpawnActorEvent { name, args } in events.read() {
-        let name: &String = &name;
+        let name: &String = name;
         if let Some(spawner) = registry.spawners.get(name) {
             spawner(*args, &mut commands);
         }
@@ -150,7 +150,7 @@ impl<T: Team> BuildProjectileRegistry<T> for App {
     ) -> &mut App {
         let mut registry = self
             .world_mut()
-            .get_resource_or_insert_with(|| ProjectileRegistry::default());
+            .get_resource_or_insert_with(ProjectileRegistry::default);
         registry.spawners.insert(
             name,
             Box::new(
@@ -176,7 +176,7 @@ fn projectile_spawn_handler<T: Team>(
         projectile: projectile_args,
     } in events.read()
     {
-        let name: &String = &name;
+        let name: &String = name;
         if let Some(spawner) = registry.spawners.get(name) {
             spawner(*default_args, projectile_args.clone(), &mut commands);
         }

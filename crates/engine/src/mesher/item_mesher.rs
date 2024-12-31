@@ -165,6 +165,7 @@ pub fn create_held_item_visualizer(
     tf: Transform,
     res: &HeldItemResources,
 ) -> Entity {
+    #[allow(state_scoped_entities)]
     commands
         .spawn((
             MeshMaterial3d(res.color_material.clone()),
@@ -236,7 +237,7 @@ pub fn generate_item_meshes(
 
                 mesh_chunk(&fat_chunk, &mut chunk_mesh);
                 for vert in chunk_mesh.transparent.verts.iter_mut() {
-                    *vert = *vert / 16.0;
+                    *vert /= 16.0;
                 }
                 let item_mesh = chunk_mesh.transparent.create_mesh(&mut meshes);
                 commands.entity(item).insert(ItemMesh {

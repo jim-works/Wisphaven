@@ -54,6 +54,10 @@ I will be posting development updates on my [YouTube channel](https://www.youtub
 
 I am currently not looking for contributions, but I'm open to suggestions! Feel free to put ideas in the issues.
 
+## Lints
+
+The project optionally uses my linting library, `bevy_lints`. See [the repo](https://github.com/jim-works/bevy_lints) for more details.
+
 ## License
 
 GPL3 - See LICENSE.txt

@@ -88,7 +88,7 @@ fn on_enter_menu(mut commands: Commands, main_camera: Res<MainCamera>) {
         return;
     };
     ec.try_insert((
-        CAMERA_TF.clone(),
+        CAMERA_TF,
         Camera {
             clear_color: ClearColorConfig::Custom(Color::BLACK),
             ..default()

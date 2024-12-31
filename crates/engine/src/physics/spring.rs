@@ -1,5 +1,3 @@
-use std::f32::EPSILON;
-
 use bevy::prelude::*;
 
 use super::{movement::Velocity, PhysicsSystemSet};
@@ -48,7 +46,7 @@ fn update_springs(
                 let delta_mag = delta.length();
                 let extension = delta_mag - spring.rest_length;
 
-                if delta_mag > EPSILON {
+                if delta_mag > f32::EPSILON {
                     let delta_v = spring.strength * extension * delta / delta_mag;
                     info!(
                         "delta v {}, delta {}, extension {}",

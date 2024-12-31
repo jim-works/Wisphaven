@@ -15,7 +15,7 @@ use engine::{
         movement::{Drag, GravityMult, LookInMovementDirection, Velocity},
         PhysicsBundle, PhysicsLevelSet,
     },
-    world::{chunk::ChunkCoord, LevelSystemSet},
+    world::{chunk::ChunkCoord, LevelLoadState, LevelSystemSet},
 };
 
 pub struct SlitherSpinePlugin;
@@ -108,7 +108,7 @@ fn update_segments(
                 new_translations.push((
                     entity,
                     delta - delta.normalize_or_zero() * segment.target_dist,
-                    attach_tf.clone(),
+                    *attach_tf,
                 ));
             }
         }
@@ -167,6 +167,7 @@ fn spawn_handler(
 fn spawn_head(commands: &mut Commands, scene: Handle<Scene>, transform: Transform) -> Entity {
     commands
         .spawn((
+            StateScoped(LevelLoadState::Loaded),
             SceneRoot(scene),
             transform,
             PhysicsBundle {
@@ -220,6 +221,7 @@ fn spawn_segement(
 ) -> Entity {
     commands
         .spawn((
+            StateScoped(LevelLoadState::Loaded),
             SceneRoot(scene),
             transform,
             PhysicsBundle {
@@ -268,8 +270,7 @@ fn move_head(
         head.was_in_ground = in_ground;
         if let Some(aggro_gtf) = targets
             .current_target()
-            .map(|e| aggro_query.get(e).ok())
-            .flatten()
+            .and_then(|e| aggro_query.get(e).ok())
         {
             let mut delta = aggro_gtf.translation() - tf.translation;
             delta.y = 0.;

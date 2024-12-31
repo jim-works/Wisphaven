@@ -196,21 +196,21 @@ pub fn lerp_delta_time(speed: f32, dt: f32) -> f32 {
 pub fn ease_in_back(t: f32) -> f32 {
     let c1 = 1.70158;
     let c3 = c1 + 1.0;
-    return c3 * t * t * t - c1 * t * t;
+    c3 * t * t * t - c1 * t * t
 }
 
 //https://easings.net/#easeInOutQuad
 //used for the return after
 pub fn ease_in_out_quad(t: f32) -> f32 {
-    return if t < 0.5 {
+    if t < 0.5 {
         2.0 * t * t
     } else {
         1.0 - (-2.0 * t + 2.0).powi(2) / 2.0
-    };
+    }
 }
 
 pub fn ease_out_quad(t: f32) -> f32 {
-    return 1.0 - (1.0 - t) * (1.0 - t);
+    1.0 - (1.0 - t) * (1.0 - t)
 }
 
 //this is used to make a continuous distribution discrete

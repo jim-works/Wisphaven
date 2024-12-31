@@ -17,6 +17,7 @@ use crate::{
     items::{ItemId, ItemResources},
     serialization::state::GameLoadState,
     world::{events::ChunkUpdatedEvent, BlockId, BlockResources, Level, LevelData},
+    GameState,
 };
 
 use super::{
@@ -32,6 +33,7 @@ impl Plugin for NetClientPlugin {
             initialize_later: true,
         })
         .init_state::<ClientState>()
+        .enable_state_scoped_entities::<ClientState>()
         .add_systems(
             Update,
             create_client.run_if(
@@ -321,7 +323,11 @@ fn setup_remote_player(
     entity_map: &mut LocalEntityMap,
 ) {
     let local_entity = commands
-        .spawn((RemoteClient(remote_id), Name::new(remote.username.clone())))
+        .spawn((
+            StateScoped(GameState::Game),
+            RemoteClient(remote_id),
+            Name::new(remote.username.clone()),
+        ))
         .id();
     entity_map.insert(local_entity, remote.entity);
     info!("Setup remote player: {}", remote.username);

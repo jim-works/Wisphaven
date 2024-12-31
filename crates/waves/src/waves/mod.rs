@@ -87,7 +87,7 @@ impl Assault {
     fn compile(&self) -> Vec<CompiledSpawn> {
         let mut spawns = Vec::new();
         for wave in self.to_spawn.iter() {
-            spawns.append(&mut wave.compile(&self));
+            spawns.append(&mut wave.compile(self));
         }
         spawns.sort_unstable_by(|a, b| b.spawn_time.cmp(&a.spawn_time));
         spawns
@@ -415,7 +415,7 @@ fn spawn_wave(mut assault: ResMut<Assault>, mut commands: Commands, calendar: Re
     let spawn_opt = if assault
         .compiled
         .last()
-        .map_or(false, |spawn| spawn.spawn_time < current_time)
+        .is_some_and(|spawn| spawn.spawn_time < current_time)
     {
         assault.compiled.pop()
     } else {

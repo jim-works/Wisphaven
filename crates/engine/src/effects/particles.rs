@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy_hanabi::prelude::*;
 
-use crate::{actors::DamageTakenEvent, effects::EFFECT_GRAVITY, util::bevy_utils::TimedDespawner};
+use crate::{
+    actors::DamageTakenEvent, effects::EFFECT_GRAVITY, util::bevy_utils::TimedDespawner, GameState,
+};
 
 pub struct ParticlesPlugin;
 
@@ -103,6 +105,7 @@ fn spawn_damage_particles(
     for event in reader.read() {
         //can set scale/color later by setting custom properties on the particle effet
         commands.spawn((
+            StateScoped(GameState::Game),
             Name::new("damage_particle"),
             ParticleEffectBundle {
                 effect: ParticleEffect::new(particles.effect.clone()),
