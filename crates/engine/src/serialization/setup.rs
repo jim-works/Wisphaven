@@ -1,11 +1,13 @@
 use bevy::asset::LoadedFolder;
 pub use bevy::prelude::*;
 use bevy::utils::HashMap;
+use itertools::Itertools;
 use rand::RngCore;
 
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use crate::items::{
     ItemIcon, ItemId, ItemName, ItemNameIdMap, ItemRegistry, ItemResources, NamedItemIcon,
@@ -731,42 +733,47 @@ fn create_palette_from_item_id_map(
 }
 
 fn load_saved_level_list(settings: Res<Settings>, mut commands: Commands) {
-    let mut levels = SavedLevels(Vec::new());
     let level_name_regex = regex::Regex::new("(.+)\\.db").unwrap();
 
-    match std::fs::read_dir(settings.env_path) {
-        Ok(paths) => {
-            for path in paths {
-                match path {
-                    Ok(entry) => {
-                        let filename_opt = entry.file_name();
-                        let Some(filename) = filename_opt.to_str() else {
-                            error!(
-                                "Could not convert level file name to string {:?}",
-                                filename_opt
-                            );
-                            continue;
-                        };
-                        if let Some(capture) = level_name_regex.captures(filename) {
-                            let name = capture.get(1).unwrap().as_str().to_string().leak();
-                            info!("found level: {}", name);
-                            levels.0.push(SavedLevelInfo {
-                                name: LevelName(name),
-                            });
-                        }
-                    }
+    let levels = match std::fs::read_dir(settings.env_path) {
+        Ok(paths) => SavedLevels(
+            // read all levels in directory, return sorted by modified time
+            paths
+                .into_iter()
+                .filter_map_ok(|entry| {
+                    let filename_opt = entry.file_name();
+                    let time = entry
+                        .metadata()
+                        .and_then(|m| m.modified())
+                        .unwrap_or(SystemTime::UNIX_EPOCH);
+                    let filename = filename_opt.to_str()?;
+                    let capture = level_name_regex.captures(filename)?;
+                    let name = capture.get(1).unwrap().as_str().to_string().leak();
+                    info!("found level: {}", name);
+                    Some(SavedLevelInfo {
+                        name: LevelName(name),
+                        modified_time: time,
+                    })
+                })
+                .filter_map(|v| match v {
+                    Ok(ok) => Some(ok),
                     Err(e) => {
                         error!("error getting entry when reading level list {:?}", e);
+                        None
                     }
-                }
-            }
-        }
+                })
+                .sorted_by_key(|info| info.modified_time)
+                // sort by most recently modified
+                .rev()
+                .collect::<Vec<_>>(),
+        ),
         Err(e) => {
             error!(
                 "couldn't load world list from {} (error: {:?})",
                 settings.env_path, e
             );
+            SavedLevels(Vec::new())
         }
-    }
+    };
     commands.insert_resource(levels);
 }

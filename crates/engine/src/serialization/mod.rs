@@ -57,6 +57,7 @@ pub struct SavedLevels(pub Vec<SavedLevelInfo>);
 
 pub struct SavedLevelInfo {
     pub name: LevelName,
+    pub modified_time: std::time::SystemTime,
 }
 
 #[derive(Resource)]

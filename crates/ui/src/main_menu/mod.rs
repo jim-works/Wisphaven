@@ -1,6 +1,5 @@
-use std::time::Duration;
-
 use bevy::{app::AppExit, prelude::*};
+use std::time::Duration;
 
 use bevy_simple_text_input::{TextInput, TextInputTextColor, TextInputTextFont, TextInputValue};
 use engine::{
