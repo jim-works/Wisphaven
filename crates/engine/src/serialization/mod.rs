@@ -41,7 +41,6 @@ impl Plugin for SerializationPlugin {
                     .in_set(LevelSystemSet::AfterLoadingAndMain)
                     .run_if(not(in_state(NetworkType::Client))),
             )
-            .add_systems(PostUpdate, db::finish_up.in_set(LevelSystemSet::PostUpdate))
             .add_systems(
                 Update,
                 create_level.run_if(in_state(state::GameLoadState::CreatingLevel)),

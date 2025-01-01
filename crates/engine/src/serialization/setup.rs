@@ -29,7 +29,7 @@ use super::{
     state, BlockTextureMap, ItemTextureMap, LoadedToSavedIdMap, SavedLevels, SavedToLoadedIdMap,
 };
 
-const LEVEL_FILE_EXTENSION: &'static str = ".db";
+const LEVEL_FILE_EXTENSION: &str = ".db";
 
 pub struct SetupPlugin;
 
@@ -460,11 +460,11 @@ fn load_or_set_level_seed(db: &mut LevelDB, default_seed: u64) -> Result<u64, Le
         Ok(data) => match bincode::deserialize::<u64>(&data) {
             Ok(seed) => {
                 info!("loaded saved seed: {}", seed);
-                return Ok(seed);
+                Ok(seed)
             }
             Err(e) => {
                 error!("Corrupt world seed: {:?}", e);
-                return Err(LevelDBErr::Bincode(e));
+                Err(LevelDBErr::Bincode(e))
             }
         },
         Err(LevelDBErr::Sqlite(rusqlite::Error::QueryReturnedNoRows)) => {
@@ -487,7 +487,7 @@ fn load_or_set_level_seed(db: &mut LevelDB, default_seed: u64) -> Result<u64, Le
         }
         Err(e) => {
             error!("Error getting seed from db: {:?}", e);
-            return Err(e);
+            Err(e)
         }
     }
 }
