@@ -18,7 +18,8 @@ pub mod state;
 pub mod styles;
 pub mod waves;
 
-use bevy::picking::focus::PickingInteraction;
+use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
+use bevy::picking::focus::{HoverMap, PickingInteraction};
 use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
 use engine::camera::MainCamera;
@@ -52,6 +53,7 @@ impl Plugin for UIPlugin {
                     toggle_fullscreen,
                     change_button_colors,
                     update_main_camera_ui,
+                    update_scroll_position,
                 ),
             )
             .insert_resource(UiScale(2.0));
@@ -153,6 +155,40 @@ fn update_main_camera_ui(
     for ui_element in ui_query.iter() {
         if let Some(mut ec) = commands.get_entity(ui_element) {
             ec.try_insert(TargetCamera(camera.0));
+        }
+    }
+}
+
+/// Updates the scroll position of scrollable nodes in response to mouse input
+pub fn update_scroll_position(
+    mut mouse_wheel_events: EventReader<MouseWheel>,
+    hover_map: Res<HoverMap>,
+    mut scrolled_node_query: Query<&mut ScrollPosition>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+) {
+    const LINE_HEIGHT: f32 = 32.;
+    for mouse_wheel_event in mouse_wheel_events.read() {
+        let (mut dx, mut dy) = match mouse_wheel_event.unit {
+            MouseScrollUnit::Line => (
+                mouse_wheel_event.x * LINE_HEIGHT,
+                mouse_wheel_event.y * LINE_HEIGHT,
+            ),
+            MouseScrollUnit::Pixel => (mouse_wheel_event.x, mouse_wheel_event.y),
+        };
+
+        if keyboard_input.pressed(KeyCode::ControlLeft)
+            || keyboard_input.pressed(KeyCode::ControlRight)
+        {
+            std::mem::swap(&mut dx, &mut dy);
+        }
+
+        for (_pointer, pointer_map) in hover_map.iter() {
+            for (entity, _hit) in pointer_map.iter() {
+                if let Ok(mut scroll_position) = scrolled_node_query.get_mut(*entity) {
+                    scroll_position.offset_x -= dx;
+                    scroll_position.offset_y -= dy;
+                }
+            }
         }
     }
 }

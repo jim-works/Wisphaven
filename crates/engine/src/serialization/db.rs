@@ -1,7 +1,6 @@
 use std::{collections::VecDeque, path::Path};
 
 use bevy::{
-    app::AppExit,
     prelude::*,
     tasks::{AsyncComputeTaskPool, Task},
 };

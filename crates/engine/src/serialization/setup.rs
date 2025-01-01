@@ -24,6 +24,7 @@ use crate::world::{
     BlockId, BlockName, BlockNameIdMap, BlockRegistry, BlockResources, Id, LevelData,
     LevelLoadState, NamedBlockMesh,
 };
+use crate::GameState;
 
 use super::{
     state, BlockTextureMap, ItemTextureMap, LoadedToSavedIdMap, SavedLevels, SavedToLoadedIdMap,
@@ -354,8 +355,8 @@ pub fn on_level_created(
     item_resources: Res<ItemResources>,
     mut next_state: ResMut<NextState<LevelLoadState>>,
     mut commands: Commands,
+    mut next_game_state: ResMut<NextState<GameState>>,
 ) {
-    const MAX_DBS: u32 = 1;
     if let Some(event) = reader.read().next() {
         info!("on level created event received");
         fs::create_dir_all(settings.env_path).unwrap();
@@ -370,16 +371,19 @@ pub fn on_level_created(
                     db.execute_command_sync(|sql| sql.execute(CREATE_CHUNK_TABLE, []))
                 {
                     error!("Error creating chunk table: {:?}", err);
+                    next_game_state.set(GameState::Menu);
                     return;
                 }
                 if let Some(err) =
                     db.execute_command_sync(|sql| sql.execute(CREATE_WORLD_INFO_TABLE, []))
                 {
                     error!("Error creating world info table: {:?}", err);
+                    next_game_state.set(GameState::Menu);
                     return;
                 }
                 if let Err(err) = check_level_version(&mut db) {
                     error!("Error checking level version: {:?}", err);
+                    next_game_state.set(GameState::Menu);
                     return;
                 }
                 load_block_palette(&mut db, &mut commands, &block_resources.registry);
@@ -391,6 +395,7 @@ pub fn on_level_created(
                     }
                     Err(err) => {
                         error!("Error reading level seed: {:?}", err);
+                        next_game_state.set(GameState::Menu);
                         return;
                     }
                 }
@@ -401,6 +406,7 @@ pub fn on_level_created(
             }
             Err(e) => {
                 error!("couldn't open db {}", e);
+                next_game_state.set(GameState::Menu);
             }
         }
     }

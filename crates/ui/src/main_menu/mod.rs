@@ -381,9 +381,10 @@ fn setup_world_select_screen(commands: &mut Commands, asset_server: &Res<AssetSe
                 Node {
                     height: Val::Percent(75.),
                     width: Val::Percent(100.),
-                    flex_direction: FlexDirection::Row,
+                    flex_direction: FlexDirection::Column,
                     align_items: AlignItems::FlexStart,
                     justify_content: JustifyContent::FlexStart,
+                    overflow: Overflow::scroll_y(),
                     ..default()
                 },
                 BackgroundColor(TRANSLUCENT_PANEL_BACKGROUND),
@@ -420,6 +421,10 @@ fn spawn_world_select_items(
             margin: UiRect::all(Val::Px(4.)),
             ..default()
         },
+        PickingBehavior {
+            should_block_lower: false,
+            ..default()
+        },
         BorderColor(ButtonColors::default().default_border),
         BackgroundColor(ButtonColors::default().default_background),
         Button,
@@ -436,6 +441,10 @@ fn spawn_world_select_items(
                         ..default()
                     },
                     BackgroundColor(styles::TRANSLUCENT_PANEL_BACKGROUND),
+                    PickingBehavior {
+                        should_block_lower: false,
+                        ..default()
+                    },
                 ))
                 .with_children(|components| {
                     components
