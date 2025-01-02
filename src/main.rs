@@ -31,6 +31,12 @@ fn main() {
     if args.len() == 2 && args[1] == "skip-menu" {
         skip_menu = true;
     }
+    if args.len() == 2 && args[1] == "set-cwd" {
+        // for debugging
+        print!("SETTING CWD");
+        env::set_current_dir(std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
+            .expect("Failed to set CWD");
+    }
     if args.len() == 3 && args[1] == "host" {
         server_port = Some(args[2].parse::<u16>().unwrap());
         println!("Need to start server on port {}", server_port.unwrap());

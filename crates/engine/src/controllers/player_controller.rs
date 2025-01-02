@@ -8,7 +8,7 @@ use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
     actors::*,
-    items::{inventory::Inventory, EquipItemEvent, UnequipItemEvent},
+    items::inventory::Inventory,
     physics::{
         collision::Aabb,
         grapple::Grappled,
@@ -38,7 +38,6 @@ impl Plugin for PlayerControllerPlugin {
                 follow_local_player,
                 player_punch,
                 player_use,
-                player_scroll_inventory,
                 toggle_player_flight,
             )
                 .in_set(LevelSystemSet::Main),
@@ -319,34 +318,5 @@ pub fn player_use(
                 crate::items::inventory::ItemTargetPosition::Entity(entity),
             );
         }
-    }
-}
-
-pub fn player_scroll_inventory(
-    mut query: Query<&mut Inventory, With<LocalPlayer>>,
-    mut equip_writer: EventWriter<EquipItemEvent>,
-    mut unequip_writer: EventWriter<UnequipItemEvent>,
-    focused: Res<WindowFocused>,
-    action: Res<ActionState<Action>>,
-) {
-    if !focused.0 {
-        return;
-    }
-    const SCROLL_SENSITIVITY: f32 = 0.05;
-    if let Ok(mut inv) = query.get_single_mut() {
-        let delta = action.value(&Action::Scroll);
-        let slot_diff = if delta > SCROLL_SENSITIVITY {
-            -1
-        } else if delta < -SCROLL_SENSITIVITY {
-            1
-        } else {
-            0
-        };
-        let curr_slot = inv.selected_slot();
-        inv.select_slot(
-            curr_slot as i32 + slot_diff,
-            &mut equip_writer,
-            &mut unequip_writer,
-        );
     }
 }

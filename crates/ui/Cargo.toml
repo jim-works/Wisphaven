@@ -8,6 +8,7 @@ ahash = { workspace = true }
 bevy = { workspace = true }
 leafwing-input-manager = { workspace = true }
 regex = { workspace = true }
+bevy_simple_text_input = { workspace = true }
 
 engine = { path = "../engine" }
 util = { path = "../util" }

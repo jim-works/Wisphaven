@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use bevy::{ecs::system::SystemId, prelude::*};
+use bevy::prelude::*;
 
 use engine::{
     actors::{
@@ -36,15 +36,6 @@ impl Plugin for PlayerStatsUiPlugin {
                 Update,
                 (spawn_heart, spawn_stamina).run_if(in_state(LevelLoadState::Loaded)),
             );
-
-        let update_hearts_id = app.world_mut().register_system(update_hearts);
-        app.insert_resource(HeartSystems {
-            update_hearts: update_hearts_id,
-        });
-        let update_stamina_id = app.world_mut().register_system(update_stamina);
-        app.insert_resource(StaminaSystems {
-            update_stamina: update_stamina_id,
-        });
     }
 }
 
@@ -120,17 +111,6 @@ pub struct PlayerHeartContainer;
 #[component(storage = "SparseSet")]
 pub struct PlayerStaminaContainer;
 
-//systems
-#[derive(Resource)]
-struct HeartSystems {
-    update_hearts: SystemId,
-}
-
-#[derive(Resource)]
-struct StaminaSystems {
-    update_stamina: SystemId,
-}
-
 fn init(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(PlayerHealthUiResources {
         heart: assets.load("textures/ui/heart.png"),
@@ -184,6 +164,7 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
             StateScoped(GameState::Game),
             PlayerStatContainer,
             MainCameraUIRoot,
+            PickingBehavior::IGNORE,
             Node {
                 min_width: Val::Percent(100.0),
                 min_height: Val::Percent(100.0),
@@ -241,7 +222,6 @@ fn flash_hearts(
     mut state: Local<(Duration, i32, bool)>,
     time: Res<Time>,
     mut commands: Commands,
-    systems: Res<HeartSystems>,
 ) {
     let flash_duration = Duration::from_secs_f32(0.1);
     let flashes = 1;
@@ -255,7 +235,7 @@ fn flash_hearts(
                 for mut heart in heart_query.iter_mut() {
                     heart.color = Color::srgba(1.0, 1.0, 1.0, 1.0);
                 }
-                commands.run_system(systems.update_hearts);
+                commands.run_system_cached(update_hearts);
             }
         }
     }
@@ -288,7 +268,6 @@ fn flash_stamina(
     mut state: Local<(Duration, i32, bool)>,
     time: Res<Time>,
     mut commands: Commands,
-    systems: Res<StaminaSystems>,
 ) {
     let flash_duration = Duration::from_secs_f32(0.1);
     let flashes = 1;
@@ -313,7 +292,7 @@ fn flash_stamina(
                     }
                 }
                 //update stats on display
-                commands.run_system(systems.update_stamina);
+                commands.run_system_cached(update_stamina);
             }
         }
     }
@@ -387,7 +366,6 @@ fn spawn_heart(
     combat_query: Query<&Combatant>,
     res: Res<PlayerHealthUiResources>,
     root_query: Query<Entity, With<PlayerHeartContainer>>,
-    systems: Res<HeartSystems>,
 ) {
     for LocalPlayerSpawnedEvent(entity) in reader.read() {
         if let (Ok(root), Ok(player_combat)) = (root_query.get_single(), combat_query.get(*entity))
@@ -429,7 +407,7 @@ fn spawn_heart(
                 }
             });
         }
-        commands.run_system(systems.update_hearts);
+        commands.run_system_cached(update_hearts);
     }
 }
 
@@ -439,7 +417,6 @@ fn spawn_stamina(
     stamina_query: Query<&Stamina>,
     res: Res<PlayerStaminaUiResources>,
     root_query: Query<Entity, With<PlayerStaminaContainer>>,
-    systems: Res<StaminaSystems>,
 ) {
     for LocalPlayerSpawnedEvent(entity) in reader.read() {
         if let (Ok(root), Ok(stamina)) = (root_query.get_single(), stamina_query.get(*entity)) {
@@ -475,6 +452,6 @@ fn spawn_stamina(
                 }
             });
         }
-        commands.run_system(systems.update_stamina);
+        commands.run_system_cached(update_stamina);
     }
 }

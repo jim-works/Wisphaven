@@ -19,8 +19,6 @@ impl Plugin for ItemsPlugin {
         app.add_event::<StartUsingItemEvent>()
             .add_event::<UseItemEvent>()
             .add_event::<UseEndEvent>()
-            .add_event::<EquipItemEvent>()
-            .add_event::<UnequipItemEvent>()
             .add_event::<PickupItemEvent>()
             .add_event::<DropItemEvent>()
             .add_event::<StartSwingingItemEvent>()
@@ -206,18 +204,6 @@ impl HitResult {
     }
 }
 
-#[derive(Event)]
-pub struct EquipItemEvent {
-    pub user: Entity,
-    pub inventory_slot: usize,
-    pub stack: ItemStack,
-}
-#[derive(Event)]
-pub struct UnequipItemEvent {
-    pub user: Entity,
-    pub inventory_slot: usize,
-    pub stack: ItemStack,
-}
 #[derive(Event)]
 pub struct PickupItemEvent {
     pub user: Entity,

@@ -1,5 +1,4 @@
 use bevy::{
-    ecs::system::SystemId,
     pbr::ExtendedMaterial,
     prelude::*,
     render::{
@@ -9,15 +8,16 @@ use bevy::{
         },
         view::RenderLayers,
     },
+    ui::RelativeCursorPosition,
+    window::PrimaryWindow,
 };
 use leafwing_input_manager::prelude::ActionState;
 
 use engine::{
     actors::{LocalPlayer, LocalPlayerSpawnedEvent},
-    controllers::Action,
-    items::{
-        block_item::BlockItem, inventory::Inventory, DropItemEvent, ItemIcon, PickupItemEvent,
-    },
+    controllers::{player_controller::WindowFocused, Action},
+    debug::TextStyle,
+    items::{block_item::BlockItem, inventory::Inventory, ItemIcon, ItemStack, MaxStackSize},
     mesher::{extended_materials::TextureArrayExtension, ChunkMaterial},
     world::{BlockMesh, LevelSystemSet},
     GameState,
@@ -41,7 +41,7 @@ pub const BLOCK_PREVIEW_LAYER: RenderLayers = RenderLayers::layer(1);
 pub struct InventoryPlugin;
 
 #[derive(Component)]
-pub struct BlockPreview;
+pub struct BlockPreview(Entity);
 
 impl Plugin for InventoryPlugin {
     fn build(&self, app: &mut App) {
@@ -53,57 +53,110 @@ impl Plugin for InventoryPlugin {
                 spawn_inventory_system,
                 update_counts,
                 update_icons,
+                update_mouse_display,
+                player_scroll_inventory,
             )
                 .in_set(LevelSystemSet::Main),
         )
+        .init_resource::<MouseInventory>()
         .add_systems(OnEnter(UIState::Inventory), show_inventory)
         .add_systems(OnEnter(UIState::Default), hide_inventory::<false>)
         .add_systems(OnEnter(UIState::Hidden), hide_inventory::<true>)
         .add_systems(Startup, init);
-
-        let show_inventory_id = app.world_mut().register_system(show_inventory);
-        let hide_inventory_id = app.world_mut().register_system(hide_inventory::<false>);
-        let hide_inventory_and_hotbar_id = app.world_mut().register_system(hide_inventory::<true>);
-        let update_counts_id = app.world_mut().register_system(update_counts);
-        let update_icons_id = app.world_mut().register_system(update_icons);
-        app.insert_resource(InventorySystemIds {
-            show_inventory: show_inventory_id,
-            hide_inventory: hide_inventory_id,
-            hide_inventory_and_hotbar: hide_inventory_and_hotbar_id,
-            update_counts: update_counts_id,
-            update_icons: update_icons_id,
-        });
     }
 }
 
 #[derive(Resource)]
 struct InventoryResources {
-    item_counts: (TextColor, TextFont),
+    item_counts: TextStyle,
     slot_background: Handle<Image>,
     selection_image: Handle<Image>,
-}
-
-#[derive(Resource)]
-struct InventorySystemIds {
-    show_inventory: SystemId,
-    hide_inventory_and_hotbar: SystemId,
-    hide_inventory: SystemId,
-    update_icons: SystemId,
-    update_counts: SystemId,
 }
 
 #[derive(Component)]
 struct InventoryUI;
 
 #[derive(Component)]
-struct InventoryUISlotBackground(usize);
+#[require(RelativeCursorPosition)]
+struct InventoryUISlotBackground {
+    inventory: Entity,
+    slot: usize,
+}
 
-#[derive(Component)]
-//slot num, entity stored in slot
-struct InventoryUISlot(usize, Option<Entity>);
+#[derive(Component, Clone, Copy)]
+enum InventoryUISlot {
+    Mouse,
+    Entity { inventory: Entity, slot: usize },
+}
+
+impl InventoryUISlot {
+    fn get_stack(
+        self,
+        mouse: &MouseInventory,
+        inventory_query: &Query<&Inventory>,
+    ) -> Option<ItemStack> {
+        match self {
+            InventoryUISlot::Mouse => mouse.selected.map(|m| m.stack),
+            InventoryUISlot::Entity { inventory, slot } => inventory_query
+                .get(inventory)
+                .ok()
+                .and_then(|inv| inv.get(slot))
+                .and_then(|stack| {
+                    //subtract off the items currently held in the mouse
+                    match mouse.selected {
+                        Some(selected) => {
+                            let new_stack_size = stack.size.saturating_sub(selected.stack.size);
+                            if inventory == selected.inventory
+                                && selected.slot == slot
+                                && selected.stack.id == stack.id
+                            {
+                                if new_stack_size > 0 {
+                                    Some(ItemStack::new(stack.id, new_stack_size))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                Some(stack)
+                            }
+                        }
+                        None => Some(stack),
+                    }
+                }),
+        }
+    }
+}
+
+#[derive(Component, Default, Clone, Copy)]
+struct InventoryUISlotIcon(Option<Entity>);
+
+#[derive(Component, Default, Clone, Copy)]
+struct InventoryUISlotText(u32);
 
 #[derive(Component)]
 struct InventoryUISelector;
+
+#[derive(Resource, Default)]
+struct MouseInventory {
+    selected: Option<MouseInventorySelected>,
+}
+
+impl MouseInventory {
+    fn clear(&mut self) {
+        self.selected = None;
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct MouseInventorySelected {
+    slot: usize,
+    stack: ItemStack,
+    inventory: Entity,
+    click_offset: Vec2,
+}
+
+#[derive(Component)]
+#[require(Node)]
+struct MouseInventoryVisual;
 
 fn init(assets: Res<AssetServer>, mut commands: Commands) {
     commands.insert_resource(InventoryResources {
@@ -134,7 +187,6 @@ fn spawn_inventory_system(
     mut commands: Commands,
     resources: Res<InventoryResources>,
     state: Res<State<UIState>>,
-    system_ids: Res<InventorySystemIds>,
 ) {
     for LocalPlayerSpawnedEvent(id) in event_reader.read() {
         info!("inventory UI trying to spawn from LocalPlayerSpawned event");
@@ -143,60 +195,140 @@ fn spawn_inventory_system(
             for entity in inventory_ui_query.iter() {
                 commands.entity(entity).despawn_recursive();
             }
-            spawn_inventory(&mut commands, inv.len(), &resources);
+            spawn_inventory(&mut commands, *id, inv.len(), &resources);
             match state.get() {
-                UIState::Hidden => commands.run_system(system_ids.hide_inventory_and_hotbar),
-                UIState::Default => commands.run_system(system_ids.hide_inventory),
-                UIState::Inventory => commands.run_system(system_ids.show_inventory),
+                UIState::Hidden => commands.run_system_cached(hide_inventory::<true>),
+                UIState::Default => commands.run_system_cached(hide_inventory::<false>),
+                UIState::Inventory => commands.run_system_cached(show_inventory),
             };
-            commands.run_system(system_ids.update_counts);
-            commands.run_system(system_ids.update_icons);
+            commands.run_system_cached(update_counts);
+            commands.run_system_cached(update_icons);
             return;
         }
     }
 }
 
 fn show_inventory(
-    mut inventory_query: Query<(&InventoryUI, &mut Visibility), Without<InventoryUISlotBackground>>,
-    mut slot_query: Query<&mut Visibility, With<InventoryUISlotBackground>>,
+    mut inventory_query: Query<
+        &mut Visibility,
+        (With<InventoryUISlotBackground>, With<InventoryUI>),
+    >,
+    mut slot_query: Query<&mut Visibility, (With<InventoryUISlotBackground>, Without<InventoryUI>)>,
 ) {
-    if let Ok((_, mut vis)) = inventory_query.get_single_mut() {
+    for mut vis in inventory_query.iter_mut() {
+        info!("showing inventory");
         *vis.as_mut() = Visibility::Inherited;
-        //display all slots
-        for mut slot in slot_query.iter_mut() {
-            *slot.as_mut() = Visibility::Inherited;
-        }
+    }
+    //display all slots
+    for mut slot in slot_query.iter_mut() {
+        *slot.as_mut() = Visibility::Inherited;
     }
 }
 
 fn hide_inventory<const HIDE_HOTBAR: bool>(
     mut slot_query: Query<(&mut Visibility, &InventoryUISlotBackground), Without<InventoryUI>>,
-    mut inventory_query: Query<(&InventoryUI, &mut Visibility), Without<InventoryUISlotBackground>>,
+    mut inventory_query: Query<
+        &mut Visibility,
+        (Without<InventoryUISlotBackground>, With<InventoryUI>),
+    >,
 ) {
-    if let Ok((_, mut vis)) = inventory_query.get_single_mut() {
+    for mut vis in inventory_query.iter_mut() {
+        info!("hiding inventory");
         *vis.as_mut() = if HIDE_HOTBAR {
             Visibility::Hidden
         } else {
             Visibility::Inherited
         };
-
-        for (mut vis, slot) in slot_query.iter_mut() {
-            //make sure hotbar slots are shown if needed
-            if !HIDE_HOTBAR && slot.0 < HOTBAR_SLOTS {
-                *vis.as_mut() = Visibility::Inherited;
-            } else {
-                //hide everything else (or hotbar slots too if HIDE_HOTBAR is true)
-                *vis.as_mut() = Visibility::Hidden;
-            }
+    }
+    for (mut vis, slot) in slot_query.iter_mut() {
+        //make sure hotbar slots are shown if needed
+        if !HIDE_HOTBAR && slot.slot < HOTBAR_SLOTS {
+            *vis.as_mut() = Visibility::Inherited;
+        } else {
+            //hide everything else (or hotbar slots too if HIDE_HOTBAR is true)
+            *vis.as_mut() = Visibility::Hidden;
         }
     }
 }
 
-fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryResources) {
+fn spawn_inventory(
+    commands: &mut Commands,
+    owner: Entity,
+    slots: usize,
+    resources: &InventoryResources,
+) {
+    let background = Node {
+        aspect_ratio: Some(1.0),
+        margin: UiRect::all(Val::Px(1.0)),
+        width: Val::Px(SLOT_PX),
+        height: Val::Px(SLOT_PX),
+        position_type: PositionType::Absolute,
+        align_items: AlignItems::Center,
+        justify_content: JustifyContent::Center,
+        ..default()
+    };
+    let icon = (
+        Node {
+            width: Val::Px(SLOT_PX),
+            height: Val::Px(SLOT_PX),
+            position_type: PositionType::Absolute,
+            ..default()
+        },
+        ImageNode::default(),
+        Visibility::Hidden,
+        InventoryUISlotIcon::default(),
+        PickingBehavior::IGNORE,
+    );
+    let count_parent = (
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            position_type: PositionType::Absolute,
+            justify_content: JustifyContent::FlexEnd,
+            align_items: AlignItems::FlexEnd,
+            padding: UiRect::right(Val::Px(STACK_SIZE_LABEL_PADDING_PX)),
+            ..default()
+        },
+        PickingBehavior::IGNORE,
+    );
+    let count = (
+        Text::new("0".to_string()),
+        TextLayout::new_with_justify(JustifyText::Right),
+        resources.item_counts.clone(),
+        Visibility::Hidden,
+        InventoryUISlotText::default(),
+    );
+    commands
+        .spawn((
+            MouseInventoryVisual,
+            Node {
+                position_type: PositionType::Absolute,
+                ..background.clone()
+            },
+            Visibility::Inherited,
+            PickingBehavior::IGNORE,
+            StateScoped(GameState::Game),
+            MainCameraUIRoot,
+            Name::new("Mouse inventory"),
+            GlobalZIndex(1),
+        ))
+        .with_children(|slot_content| {
+            //spawn the slot content - this is where the item images go
+            slot_content.spawn((icon.clone(), InventoryUISlot::Mouse));
+            //this is the stack size label
+            //making a parent to anchor the label to the bottom right
+            slot_content
+                .spawn(count_parent.clone())
+                .with_children(|label| {
+                    label.spawn((count.clone(), InventoryUISlot::Mouse));
+                });
+        });
     commands
         .spawn((
             StateScoped(GameState::Game),
             MainCameraUIRoot,
+            PickingBehavior::IGNORE,
+            Name::new("Inventory UI"),
             InventoryUI,
             Node {
                 width: Val::Px(400.0),
@@ -215,54 +347,39 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                 slot_background
                     .spawn((
                         Node {
-                            aspect_ratio: Some(1.0),
-                            margin: UiRect::all(Val::Px(1.0)),
-                            width: Val::Px(SLOT_PX),
-                            height: Val::Px(SLOT_PX),
                             left: slot_coords.left,
                             right: slot_coords.right,
-                            bottom: slot_coords.bottom,
                             top: slot_coords.top,
-                            position_type: PositionType::Absolute,
-                            align_items: AlignItems::Center,
-                            justify_content: JustifyContent::Center,
-                            ..default()
+                            bottom: slot_coords.bottom,
+                            ..background.clone()
                         },
                         ImageNode::new(resources.slot_background.clone()),
-                        InventoryUISlotBackground(slot),
+                        InventoryUISlotBackground {
+                            slot,
+                            inventory: owner,
+                        },
                     ))
+                    .observe(slot_clicked)
                     .with_children(|slot_content| {
                         //spawn the slot content - this is where the item images go
                         slot_content.spawn((
-                            Node {
-                                width: Val::Px(SLOT_PX),
-                                height: Val::Px(SLOT_PX),
-                                position_type: PositionType::Absolute,
-                                ..default()
+                            icon.clone(),
+                            InventoryUISlot::Entity {
+                                inventory: owner,
+                                slot,
                             },
-                            ImageNode::default(),
-                            Visibility::Hidden,
-                            InventoryUISlot(slot, None),
                         ));
                         //this is the stack size label
                         //making a parent to anchor the label to the bottom right
                         slot_content
-                            .spawn(Node {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                position_type: PositionType::Absolute,
-                                justify_content: JustifyContent::FlexEnd,
-                                align_items: AlignItems::FlexEnd,
-                                padding: UiRect::right(Val::Px(STACK_SIZE_LABEL_PADDING_PX)),
-                                ..default()
-                            })
+                            .spawn(count_parent.clone())
                             .with_children(|label| {
                                 label.spawn((
-                                    Text::new("0".to_string()),
-                                    TextLayout::new_with_justify(JustifyText::Right),
-                                    resources.item_counts.clone(),
-                                    Visibility::Hidden,
-                                    InventoryUISlot(slot, None),
+                                    count.clone(),
+                                    InventoryUISlot::Entity {
+                                        inventory: owner,
+                                        slot,
+                                    },
                                 ));
                             });
                     });
@@ -310,94 +427,108 @@ fn place_inventory_selector(
 }
 
 fn update_counts(
-    mut label_query: Query<(&mut Visibility, &mut Text, &InventoryUISlot)>,
-    pickup_reader: EventReader<PickupItemEvent>,
-    drop_reader: EventReader<DropItemEvent>,
-    inventory_query: Query<&Inventory, (With<LocalPlayer>, Changed<Inventory>)>,
+    mut label_query: Query<(
+        &mut Visibility,
+        &mut Text,
+        &InventoryUISlot,
+        &InventoryUISlotText,
+    )>,
+    inventory_query: Query<&Inventory>,
+    mouse: Res<MouseInventory>,
 ) {
-    if pickup_reader.is_empty() && drop_reader.is_empty() {
-        return;
-    }
-    if let Ok(inv) = inventory_query.get_single() {
-        for (mut vis, mut text, ui_slot) in label_query.iter_mut() {
-            match inv.get(ui_slot.0) {
-                Some(stack) => {
-                    *vis.as_mut() = Visibility::Inherited;
+    for (mut vis, mut text, ui_slot, prev_value) in label_query.iter_mut() {
+        match ui_slot.get_stack(&mouse, &inventory_query) {
+            Some(stack) => {
+                *vis.as_mut() = Visibility::Inherited;
+                if prev_value.0 != stack.size {
                     text.0 = stack.size.to_string();
                 }
-                None => {
-                    *vis.as_mut() = Visibility::Hidden;
-                }
+            }
+            None => {
+                *vis.as_mut() = Visibility::Hidden;
             }
         }
     }
 }
 
 fn update_icons(
-    mut label_query: Query<(&mut Visibility, &mut ImageNode, &mut InventoryUISlot)>,
+    mut label_query: Query<(
+        &mut Visibility,
+        &mut ImageNode,
+        &InventoryUISlot,
+        &mut InventoryUISlotIcon,
+    )>,
     mut images: ResMut<Assets<Image>>,
-    pickup_reader: EventReader<PickupItemEvent>,
-    drop_reader: EventReader<DropItemEvent>,
-    inventory_query: Query<&Inventory, (With<LocalPlayer>, Changed<Inventory>)>,
+    inventory_query: Query<&Inventory>,
     icon_query: Query<&ItemIcon>,
     block_item_query: Query<&BlockItem>,
     block_mesh_query: Query<&BlockMesh>,
+    block_preview_query: Query<&BlockPreview>,
     materials: Res<ChunkMaterial>,
+    mouse: Res<MouseInventory>,
     mut commands: Commands,
 ) {
-    if pickup_reader.is_empty() && drop_reader.is_empty() {
-        return;
-    }
-    if let Ok(inv) = inventory_query.get_single() {
-        for (index, (mut vis, mut image, mut ui_slot)) in label_query.iter_mut().enumerate() {
-            if let Some(stored_entity) = ui_slot.1 {
-                if let Some(ec) = commands.get_entity(stored_entity) {
-                    ec.despawn_recursive();
-                }
-                ui_slot.1 = None;
+    fn clear_slot(commands: &mut Commands, icon: &mut InventoryUISlotIcon) {
+        if let Some(stored_entity) = icon.0 {
+            if let Some(ec) = commands.get_entity(stored_entity) {
+                ec.despawn_recursive();
             }
-            match inv.get(ui_slot.0) {
-                Some(stack) => match icon_query.get(stack.id) {
-                    Ok(icon) => {
-                        *vis.as_mut() = Visibility::Inherited;
-                        image.image = icon.0.clone();
-                    }
-                    Err(_) => {
-                        match block_item_query.get(stack.id) {
-                            Ok(item) => {
-                                //render block item
-                                //todo - despawn if dynamic
-                                match block_mesh_query
-                                    .get(item.0)
-                                    .ok()
-                                    .and_then(|block_mesh| block_mesh.single_mesh.as_ref())
-                                {
-                                    Some(mesh) => {
-                                        //spawn these entities super far out because lighting affects all layers
-                                        //this way they (probably) won't end up in the shadow of some terrain
-                                        const PREVIEW_ORIGIN: Vec3 =
-                                            Vec3::new(1_000_000.0, 1_000_000.0, 1_000_000.0);
-                                        let (preview_entity, preview) = spawn_block_preview(
-                                            &mut commands,
-                                            &mut images,
-                                            mesh.clone(),
-                                            materials.opaque_material.clone().unwrap(),
-                                            Vec3::new(index as f32 * 5.0, 0.0, 0.0)
-                                                + PREVIEW_ORIGIN,
-                                        );
-                                        ui_slot.1 = Some(preview_entity);
-                                        image.image = preview;
-                                        *vis.as_mut() = Visibility::Inherited;
-                                    }
-                                    None => *vis.as_mut() = Visibility::Hidden,
-                                }
+            icon.0 = None;
+        }
+    }
+    for (index, (mut vis, mut image, ui_slot, mut icon)) in label_query.iter_mut().enumerate() {
+        let Some(stack) = ui_slot.get_stack(&mouse, &inventory_query) else {
+            clear_slot(&mut commands, &mut icon);
+            *vis.as_mut() = Visibility::Hidden;
+            continue;
+        };
+        match icon_query.get(stack.id) {
+            Ok(icon) => {
+                *vis.as_mut() = Visibility::Inherited;
+                image.image = icon.0.clone();
+            }
+            Err(_) => {
+                //todo - cache these
+                match block_item_query.get(stack.id) {
+                    Ok(item) => {
+                        if let Some(old_icon) = icon.0
+                            && let Ok(old_preview) = block_preview_query.get(old_icon)
+                            && old_preview.0 == item.0
+                        {
+                            //we already have a block preview for this block, no need to re-render
+                            continue;
+                        }
+                        //despawn old block item
+                        clear_slot(&mut commands, &mut icon);
+                        //render block item
+                        //todo - despawn if dynamic
+                        info!("new block item!");
+                        match block_mesh_query
+                            .get(item.0)
+                            .ok()
+                            .and_then(|block_mesh| block_mesh.single_mesh.as_ref())
+                        {
+                            Some(mesh) => {
+                                //spawn these entities super far out because lighting affects all layers
+                                //this way they (probably) won't end up in the shadow of some terrain
+                                const PREVIEW_ORIGIN: Vec3 =
+                                    Vec3::new(1_000_000.0, 1_000_000.0, 1_000_000.0);
+                                let (preview_entity, preview) = spawn_block_preview(
+                                    &mut commands,
+                                    &mut images,
+                                    mesh.clone(),
+                                    materials.opaque_material.clone().unwrap(),
+                                    Vec3::new(index as f32 * 5.0, 0.0, 0.0) + PREVIEW_ORIGIN,
+                                    item.0,
+                                );
+                                icon.0 = Some(preview_entity);
+                                image.image = preview;
+                                *vis.as_mut() = Visibility::Inherited;
                             }
-                            Err(_) => *vis.as_mut() = Visibility::Hidden,
+                            None => *vis.as_mut() = Visibility::Hidden,
                         }
                     }
-                },
-                None => {
-                    *vis.as_mut() = Visibility::Hidden;
+                    Err(_) => *vis.as_mut() = Visibility::Hidden,
                 }
             }
         }
@@ -406,10 +537,11 @@ fn update_icons(
 
 fn spawn_block_preview(
     commands: &mut Commands,
-    images: &mut ResMut<Assets<Image>>,
+    images: &mut Assets<Image>,
     mesh: Handle<Mesh>,
     material: Handle<ExtendedMaterial<StandardMaterial, TextureArrayExtension>>,
     position: Vec3,
+    block: Entity,
 ) -> (Entity, Handle<Image>) {
     // This code for rendering to a texture is taken from one of the Bevy examples,
     // https://github.com/bevyengine/bevy/blob/main/examples/3d/render_to_texture.rs
@@ -446,7 +578,7 @@ fn spawn_block_preview(
             Mesh3d(mesh.clone()),
             MeshMaterial3d(material.clone()),
             Transform::from_translation(position),
-            BlockPreview,
+            BlockPreview(block),
             BLOCK_PREVIEW_LAYER,
         ))
         .with_children(|children| {
@@ -474,4 +606,154 @@ fn spawn_block_preview(
         .id();
 
     (entity, image_handle)
+}
+
+fn update_mouse_display(
+    mouse: Res<MouseInventory>,
+    mut parent_query: Query<&mut Node, With<MouseInventoryVisual>>,
+    window: Single<&Window, With<PrimaryWindow>>,
+    scale: Res<UiScale>,
+) {
+    let Some(position) = window.cursor_position() else {
+        return;
+    };
+    let Some(mouse) = mouse.selected else {
+        return;
+    };
+    for mut node in parent_query.iter_mut() {
+        node.left = Val::Px((position.x - mouse.click_offset.x) / scale.0);
+        node.top = Val::Px((position.y - mouse.click_offset.y) / scale.0);
+    }
+}
+
+fn slot_clicked(
+    trigger: Trigger<Pointer<Click>>,
+    slot_query: Query<(
+        &InventoryUISlotBackground,
+        &RelativeCursorPosition,
+        &ComputedNode,
+    )>,
+    mut inventory_query: Query<&mut Inventory>,
+    mut mouse: ResMut<MouseInventory>,
+    stack_query: Query<&MaxStackSize>,
+) {
+    let Ok((target_slot, cursor_offset, slot_node)) = slot_query.get(trigger.entity()) else {
+        return;
+    };
+    let mut moved_out_of_mouse = 0;
+    match mouse.selected {
+        Some(selected) => {
+            // mouse has items, so we need to try to stack against the target slot
+            // left click = stack as many as possible
+            // right click = stack one
+            // middle click = stack half?
+            // feels weird since middle/right click are reversed, but feel like it's more useful to pick up half a stack and drop one item at a time.
+
+            // 2 cases - either swapping within one inventory, or moving between two inventories:
+            if selected.inventory == target_slot.inventory {
+                // only 1 inventory involved
+                let Ok(mut inventory) = inventory_query.get_mut(selected.inventory) else {
+                    //invalid inventory, clear the mouse
+                    info!("invalid inventory");
+                    mouse.clear();
+                    return;
+                };
+                if !matches!(inventory.get(selected.slot), Some(x) if x.id == selected.stack.id) {
+                    //item changed out from under us (likely due to poor game design), clear the mouse to avoid confusing behavior
+                    mouse.clear();
+                    return;
+                }
+                let desired_move_count = match trigger.button {
+                    PointerButton::Primary => u32::MAX,
+                    PointerButton::Secondary => 1,
+                    PointerButton::Middle => selected.stack.size.div_ceil(2),
+                }
+                .min(selected.stack.size);
+                moved_out_of_mouse = inventory.move_items(
+                    selected.slot,
+                    target_slot.slot,
+                    desired_move_count,
+                    &stack_query,
+                );
+            } else {
+                // swapping between two inventories
+                let Ok([_target_inventory, _mouse_inventory]) =
+                    inventory_query.get_many_mut([target_slot.inventory, selected.inventory])
+                else {
+                    //invalid inventory, clear the mouse
+                    mouse.clear();
+                    return;
+                };
+                todo!("Inventory UI needs to support multiple inventories");
+            }
+        }
+        None => {
+            let Ok(target_inventory) = inventory_query.get(target_slot.inventory) else {
+                //invalid inventory, clear the mouse
+                mouse.clear();
+                return;
+            };
+            if let Some(stack) = target_inventory.get(target_slot.slot) {
+                //mouse is empty, pick up whole stack if left click, half if right click
+                let new_size = match trigger.button {
+                    PointerButton::Primary => stack.size,
+                    PointerButton::Secondary => stack.size.div_ceil(2),
+                    PointerButton::Middle => 1,
+                };
+
+                mouse.selected = if new_size > 0 {
+                    Some(MouseInventorySelected {
+                        slot: target_slot.slot,
+                        stack: ItemStack::new(stack.id, new_size),
+                        inventory: target_slot.inventory,
+                        click_offset: cursor_offset.normalized.unwrap_or_default()
+                            * slot_node.size(),
+                    })
+                } else {
+                    None
+                };
+            }
+        }
+    }
+
+    if moved_out_of_mouse > 0 {
+        mouse.selected = match mouse.selected {
+            Some(selected) => {
+                let new_size = selected.stack.size.saturating_sub(moved_out_of_mouse);
+                if new_size == 0 {
+                    None
+                } else {
+                    Some(MouseInventorySelected {
+                        stack: ItemStack::new(selected.stack.id, new_size),
+                        ..selected
+                    })
+                }
+            }
+            None => None,
+        };
+    }
+}
+
+pub fn player_scroll_inventory(
+    mut query: Query<&mut Inventory, With<LocalPlayer>>,
+    focused: Res<WindowFocused>,
+    action: Res<ActionState<Action>>,
+) {
+    if !focused.0 {
+        return;
+    }
+    const SCROLL_SENSITIVITY: f32 = 0.05;
+    if let Ok(mut inv) = query.get_single_mut() {
+        let delta = action.value(&Action::Scroll);
+        let slot_diff = if delta > SCROLL_SENSITIVITY {
+            -1
+        } else if delta < -SCROLL_SENSITIVITY {
+            1
+        } else {
+            0
+        };
+        let curr_slot = inv.selected_slot();
+        let new_slot = (curr_slot as i32 + slot_diff).rem_euclid(HOTBAR_SLOTS as i32);
+        inv.select_slot(new_slot);
+    }
 }

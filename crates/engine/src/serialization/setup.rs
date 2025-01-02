@@ -1,10 +1,13 @@
 use bevy::asset::LoadedFolder;
 pub use bevy::prelude::*;
 use bevy::utils::HashMap;
+use itertools::Itertools;
+use rand::RngCore;
 
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use crate::items::{
     ItemIcon, ItemId, ItemName, ItemNameIdMap, ItemRegistry, ItemResources, NamedItemIcon,
@@ -15,16 +18,21 @@ use crate::serialization::db::{LevelDB, LevelDBErr};
 use crate::serialization::queries::{
     CREATE_CHUNK_TABLE, CREATE_WORLD_INFO_TABLE, INSERT_WORLD_INFO, LOAD_WORLD_INFO,
 };
-use crate::serialization::{LoadingBlocks, LoadingItems};
+use crate::serialization::{LevelName, LoadingBlocks, LoadingItems, SavedLevelInfo};
 use crate::util::string::Version;
 use crate::world::settings::GraphicsSettings;
-use crate::world::{events::CreateLevelEvent, settings::Settings, Level};
+use crate::world::{events::LoadLevelEvent, settings::Settings, Level};
 use crate::world::{
     BlockId, BlockName, BlockNameIdMap, BlockRegistry, BlockResources, Id, LevelData,
     LevelLoadState, NamedBlockMesh,
 };
+use crate::GameState;
 
-use super::{state, BlockTextureMap, ItemTextureMap, LoadedToSavedIdMap, SavedToLoadedIdMap};
+use super::{
+    state, BlockTextureMap, ItemTextureMap, LoadedToSavedIdMap, SavedLevels, SavedToLoadedIdMap,
+};
+
+const LEVEL_FILE_EXTENSION: &str = ".db";
 
 pub struct SetupPlugin;
 
@@ -33,7 +41,7 @@ impl Plugin for SetupPlugin {
         app.insert_resource(load_settings())
             .insert_resource(load_graphics_settings())
             //instantiate entities that we need to load
-            .add_systems(PreStartup, load_folders)
+            .add_systems(PreStartup, (load_folders, load_saved_level_list).chain())
             //initiate loading of each type of scene
             .add_systems(
                 Update,
@@ -343,20 +351,20 @@ pub fn load_item_registry(
 }
 
 pub fn on_level_created(
-    mut reader: EventReader<CreateLevelEvent>,
+    mut reader: EventReader<LoadLevelEvent>,
     settings: Res<Settings>,
     block_resources: Res<BlockResources>,
     item_resources: Res<ItemResources>,
     mut next_state: ResMut<NextState<LevelLoadState>>,
     mut commands: Commands,
+    mut next_game_state: ResMut<NextState<GameState>>,
 ) {
-    const MAX_DBS: u32 = 1;
     if let Some(event) = reader.read().next() {
         info!("on level created event received");
         fs::create_dir_all(settings.env_path).unwrap();
         let db = LevelDB::new(
             std::path::Path::new(settings.env_path)
-                .join(event.name.to_owned() + ".db")
+                .join(event.name.to_owned() + LEVEL_FILE_EXTENSION)
                 .as_path(),
         );
         match db {
@@ -365,27 +373,42 @@ pub fn on_level_created(
                     db.execute_command_sync(|sql| sql.execute(CREATE_CHUNK_TABLE, []))
                 {
                     error!("Error creating chunk table: {:?}", err);
+                    next_game_state.set(GameState::Menu);
                     return;
                 }
                 if let Some(err) =
                     db.execute_command_sync(|sql| sql.execute(CREATE_WORLD_INFO_TABLE, []))
                 {
                     error!("Error creating world info table: {:?}", err);
+                    next_game_state.set(GameState::Menu);
                     return;
                 }
                 if let Err(err) = check_level_version(&mut db) {
                     error!("Error checking level version: {:?}", err);
+                    next_game_state.set(GameState::Menu);
                     return;
                 }
                 load_block_palette(&mut db, &mut commands, &block_resources.registry);
                 load_item_palette(&mut db, &mut commands, &item_resources.registry);
+                let default_seed = event.seed.unwrap_or(rand::thread_rng().next_u64());
+                match load_or_set_level_seed(&mut db, default_seed) {
+                    Ok(seed) => {
+                        commands.insert_resource(Level(Arc::new(LevelData::new(event.name, seed))));
+                    }
+                    Err(err) => {
+                        error!("Error reading level seed: {:?}", err);
+                        next_game_state.set(GameState::Menu);
+                        return;
+                    }
+                }
+
                 commands.insert_resource(db);
-                commands.insert_resource(Level(Arc::new(LevelData::new(event.name, 8008135))));
                 next_state.set(LevelLoadState::Loading);
                 info!("in state loading!");
             }
             Err(e) => {
                 error!("couldn't open db {}", e);
+                next_game_state.set(GameState::Menu);
             }
         }
     }
@@ -434,6 +457,49 @@ fn check_level_version(db: &mut LevelDB) -> Result<(), LevelDBErr> {
     }
     Ok(())
 }
+
+// returns the active the seed of the level.
+// this will seed in the world info table if present, otherwise, default seed.
+fn load_or_set_level_seed(db: &mut LevelDB, default_seed: u64) -> Result<u64, LevelDBErr> {
+    const SEED_KEY: &str = "seed";
+    match db.execute_query_sync(LOAD_WORLD_INFO, rusqlite::params![SEED_KEY], |row| {
+        row.get::<_, Vec<u8>>(0)
+    }) {
+        Ok(data) => match bincode::deserialize::<u64>(&data) {
+            Ok(seed) => {
+                info!("loaded saved seed: {}", seed);
+                Ok(seed)
+            }
+            Err(e) => {
+                error!("Corrupt world seed: {:?}", e);
+                Err(LevelDBErr::Bincode(e))
+            }
+        },
+        Err(LevelDBErr::Sqlite(rusqlite::Error::QueryReturnedNoRows)) => {
+            //world does not have a set seed, we need to set it to the default seed.
+            match db.execute_command_sync(|sql| {
+                sql.execute(
+                    INSERT_WORLD_INFO,
+                    rusqlite::params![SEED_KEY, bincode::serialize(&default_seed).unwrap()],
+                )
+            }) {
+                None => {
+                    info!(
+                        "level doesn't contain a saved seed, set it to {}",
+                        default_seed
+                    );
+                    Ok(default_seed)
+                }
+                Some(e) => Err(e),
+            }
+        }
+        Err(e) => {
+            error!("Error getting seed from db: {:?}", e);
+            Err(e)
+        }
+    }
+}
+
 fn load_block_palette(db: &mut LevelDB, commands: &mut Commands, registry: &BlockRegistry) {
     match db.execute_query_sync(LOAD_WORLD_INFO, rusqlite::params!["block_palette"], |row| {
         row.get(0)
@@ -664,4 +730,50 @@ fn create_palette_from_item_id_map(
         palette.insert(name.clone(), loaded_to_saved.get(id).unwrap());
     }
     bincode::serialize(&palette).unwrap()
+}
+
+fn load_saved_level_list(settings: Res<Settings>, mut commands: Commands) {
+    let level_name_regex = regex::Regex::new("(.+)\\.db").unwrap();
+
+    let levels = match std::fs::read_dir(settings.env_path) {
+        Ok(paths) => SavedLevels(
+            // read all levels in directory, return sorted by modified time
+            paths
+                .into_iter()
+                .filter_map_ok(|entry| {
+                    let filename_opt = entry.file_name();
+                    let time = entry
+                        .metadata()
+                        .and_then(|m| m.modified())
+                        .unwrap_or(SystemTime::UNIX_EPOCH);
+                    let filename = filename_opt.to_str()?;
+                    let capture = level_name_regex.captures(filename)?;
+                    let name = capture.get(1).unwrap().as_str().to_string().leak();
+                    info!("found level: {}", name);
+                    Some(SavedLevelInfo {
+                        name: LevelName(name),
+                        modified_time: time,
+                    })
+                })
+                .filter_map(|v| match v {
+                    Ok(ok) => Some(ok),
+                    Err(e) => {
+                        error!("error getting entry when reading level list {:?}", e);
+                        None
+                    }
+                })
+                .sorted_by_key(|info| info.modified_time)
+                // sort by most recently modified
+                .rev()
+                .collect::<Vec<_>>(),
+        ),
+        Err(e) => {
+            error!(
+                "couldn't load world list from {} (error: {:?})",
+                settings.env_path, e
+            );
+            SavedLevels(Vec::new())
+        }
+    };
+    commands.insert_resource(levels);
 }

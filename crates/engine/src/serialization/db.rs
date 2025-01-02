@@ -1,7 +1,6 @@
 use std::{collections::VecDeque, path::Path};
 
 use bevy::{
-    app::AppExit,
     prelude::*,
     tasks::{AsyncComputeTaskPool, Task},
 };
@@ -101,6 +100,34 @@ impl LevelDB {
         if !data.is_empty() {
             self.load_queue.push_back(data);
         }
+    }
+
+    fn flush_saves(&mut self) {
+        info!("flush_saves");
+        if let Some(task) = &mut self.current_task {
+            //finish current task
+            let _ = future::block_on(task);
+        }
+        let mut saved = 0;
+        //run all saving tasks before closing
+        while let Some(command) = self.save_queue.pop_front() {
+            if let Ok(conn) = self.pool.get() {
+                saved += command.len();
+                if let Err(e) = do_saving(conn, command) {
+                    error!("Error saving chunks: {:?}", e);
+                }
+            }
+        }
+        info!(
+            "Finished saving! Saved {} chunks after last command.",
+            saved
+        );
+    }
+}
+
+impl Drop for LevelDB {
+    fn drop(&mut self) {
+        self.flush_saves();
     }
 }
 
@@ -205,29 +232,4 @@ fn assign_db_work(
         Ok(conn) => db.current_task = Some(pool.spawn(async { f(conn) })),
         Err(e) => error!("Error establishing DB connection: {:?}", e),
     }
-}
-
-//runs all save commands when the app exits
-pub fn finish_up(mut db: ResMut<LevelDB>, reader: EventReader<AppExit>) {
-    if reader.is_empty() {
-        return;
-    }
-    if let Some(task) = &mut db.current_task {
-        //finish current task
-        let _ = future::block_on(task);
-    }
-    let mut saved = 0;
-    //run all saving tasks before closing
-    while let Some(command) = db.save_queue.pop_front() {
-        if let Ok(conn) = db.pool.get() {
-            saved += command.len();
-            if let Err(e) = do_saving(conn, command) {
-                error!("Error saving chunks: {:?}", e);
-            }
-        }
-    }
-    info!(
-        "Finished saving! Saved {} chunks after last command.",
-        saved
-    );
 }

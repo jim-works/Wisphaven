@@ -16,16 +16,15 @@ pub mod main_menu;
 pub mod player_stats;
 pub mod state;
 pub mod styles;
-pub mod third_party;
 pub mod waves;
 
-use bevy::ecs::system::SystemId;
+use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
+use bevy::picking::focus::{HoverMap, PickingInteraction};
 use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
 use engine::camera::MainCamera;
 use leafwing_input_manager::action_state::ActionState;
 
-use engine::actors::LocalPlayer;
 use engine::controllers::Action;
 use engine::world::LevelSystemSet;
 use engine::GameState;
@@ -42,7 +41,7 @@ impl Plugin for UIPlugin {
                 player_stats::PlayerStatsUiPlugin,
                 waves::WavesPlugin,
                 main_menu::MainMenuPlugin,
-                third_party::bevy_text_edit::TextEditPlugin::new(vec![GameState::Menu]),
+                bevy_simple_text_input::TextInputPlugin,
             ))
             .add_systems(OnEnter(GameState::Game), state::on_load)
             .add_systems(OnEnter(state::UIState::Default), capture_mouse)
@@ -53,27 +52,11 @@ impl Plugin for UIPlugin {
                 (
                     toggle_fullscreen,
                     change_button_colors,
-                    do_button_action,
                     update_main_camera_ui,
-                    layout_bug_workaround,
+                    update_scroll_position,
                 ),
             )
             .insert_resource(UiScale(2.0));
-    }
-}
-
-#[derive(Component, Clone)]
-pub struct ButtonAction {
-    pub action: SystemId,
-    prev_state: Interaction,
-}
-
-impl ButtonAction {
-    pub fn new(action: SystemId) -> Self {
-        Self {
-            action,
-            prev_state: Interaction::default(),
-        }
     }
 }
 
@@ -103,48 +86,29 @@ impl Default for ButtonColors {
 fn change_button_colors(
     mut interaction_query: Query<
         (
-            &Interaction,
+            &PickingInteraction,
             &ButtonColors,
-            &mut ImageNode,
             &mut BackgroundColor,
             &mut BorderColor,
         ),
-        (Changed<Interaction>, With<Button>),
+        (Changed<PickingInteraction>, With<Button>),
     >,
 ) {
-    for (interaction, color, mut image, mut background, mut border) in &mut interaction_query {
+    for (interaction, color, mut background, mut border) in &mut interaction_query {
         match *interaction {
-            Interaction::Pressed => {
-                image.color = color.pressed_background;
+            PickingInteraction::Pressed => {
                 background.0 = color.pressed_background;
                 border.0 = color.pressed_border;
             }
-            Interaction::Hovered => {
-                image.color = color.hovered_background;
+            PickingInteraction::Hovered => {
                 background.0 = color.hovered_background;
                 border.0 = color.hovered_border;
             }
-            Interaction::None => {
-                image.color = color.default_background;
+            PickingInteraction::None => {
                 background.0 = color.default_background;
                 border.0 = color.default_border;
             }
         }
-    }
-}
-
-fn do_button_action(
-    mut interaction_query: Query<
-        (&Interaction, &mut ButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut commands: Commands,
-) {
-    for (interaction, mut action) in &mut interaction_query {
-        if *interaction != Interaction::Pressed && action.prev_state == Interaction::Pressed {
-            commands.run_system(action.action);
-        }
-        action.prev_state = *interaction;
     }
 }
 
@@ -195,16 +159,36 @@ fn update_main_camera_ui(
     }
 }
 
-//TODO 0.15 - see if this is still necessary
-fn layout_bug_workaround(
-    mut query: Query<&mut Node, With<MainCameraUIRoot>>,
-    player_query: Query<(), Added<LocalPlayer>>,
+/// Updates the scroll position of scrollable nodes in response to mouse input
+pub fn update_scroll_position(
+    mut mouse_wheel_events: EventReader<MouseWheel>,
+    hover_map: Res<HoverMap>,
+    mut scrolled_node_query: Query<&mut ScrollPosition>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
 ) {
-    if player_query.is_empty() {
-        return;
-    }
-    //bug where this node's layout won't apply until I make a change -- guessing it's because it's spawned before the camera.
-    for mut node in query.iter_mut() {
-        node.set_changed();
+    const LINE_HEIGHT: f32 = 32.;
+    for mouse_wheel_event in mouse_wheel_events.read() {
+        let (mut dx, mut dy) = match mouse_wheel_event.unit {
+            MouseScrollUnit::Line => (
+                mouse_wheel_event.x * LINE_HEIGHT,
+                mouse_wheel_event.y * LINE_HEIGHT,
+            ),
+            MouseScrollUnit::Pixel => (mouse_wheel_event.x, mouse_wheel_event.y),
+        };
+
+        if keyboard_input.pressed(KeyCode::ControlLeft)
+            || keyboard_input.pressed(KeyCode::ControlRight)
+        {
+            std::mem::swap(&mut dx, &mut dy);
+        }
+
+        for (_pointer, pointer_map) in hover_map.iter() {
+            for (entity, _hit) in pointer_map.iter() {
+                if let Ok(mut scroll_position) = scrolled_node_query.get_mut(*entity) {
+                    scroll_position.offset_x -= dx;
+                    scroll_position.offset_y -= dy;
+                }
+            }
+        }
     }
 }
