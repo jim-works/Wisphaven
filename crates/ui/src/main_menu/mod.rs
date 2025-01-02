@@ -256,15 +256,16 @@ fn setup_main_screen(commands: &mut Commands, asset_server: &Res<AssetServer>) {
                                         get_text_style(asset_server).clone(),
                                     ));
                                 });
-                            buttons
-                                .spawn((Name::new("settings button"), button.clone()))
-                                .observe(settings_clicked)
-                                .with_children(|text| {
-                                    text.spawn((
-                                        Text("Settings".into()),
-                                        get_text_style(asset_server).clone(),
-                                    ));
-                                });
+                            // todo - add settings menu
+                            // buttons
+                            //     .spawn((Name::new("settings button"), button.clone()))
+                            //     .observe(settings_clicked)
+                            //     .with_children(|text| {
+                            //         text.spawn((
+                            //             Text("Settings".into()),
+                            //             get_text_style(asset_server).clone(),
+                            //         ));
+                            //     });
                             buttons
                                 .spawn((Name::new("quit button"), button.clone()))
                                 .observe(quit_clicked)

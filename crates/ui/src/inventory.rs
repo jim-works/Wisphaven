@@ -16,7 +16,8 @@ use engine::{
     controllers::Action,
     debug::TextStyle,
     items::{
-        block_item::BlockItem, inventory::Inventory, DropItemEvent, ItemIcon, PickupItemEvent,
+        block_item::BlockItem, inventory::Inventory, DropItemEvent, ItemIcon, ItemStack,
+        MaxStackSize, PickupItemEvent,
     },
     mesher::{extended_materials::TextureArrayExtension, ChunkMaterial},
     world::{BlockMesh, LevelSystemSet},
@@ -56,6 +57,7 @@ impl Plugin for InventoryPlugin {
             )
                 .in_set(LevelSystemSet::Main),
         )
+        .init_resource::<MouseInventory>()
         .add_systems(OnEnter(UIState::Inventory), show_inventory)
         .add_systems(OnEnter(UIState::Default), hide_inventory::<false>)
         .add_systems(OnEnter(UIState::Hidden), hide_inventory::<true>)
@@ -71,17 +73,44 @@ struct InventoryResources {
 }
 
 #[derive(Component)]
-struct InventoryUI;
+struct InventoryUI {
+    inventory: Entity,
+}
 
 #[derive(Component)]
-struct InventoryUISlotBackground(usize);
+struct InventoryUISlotBackground {
+    inventory: Entity,
+    slot: usize,
+}
 
 #[derive(Component)]
 //slot num, entity stored in slot
-struct InventoryUISlot(usize, Option<Entity>);
+struct InventoryUISlot {
+    inventory: Entity,
+    slot: usize,
+    icon_entity: Option<Entity>,
+}
 
 #[derive(Component)]
 struct InventoryUISelector;
+
+#[derive(Resource, Default)]
+struct MouseInventory {
+    selected: Option<MouseInventorySelected>,
+}
+
+impl MouseInventory {
+    fn clear(&mut self) {
+        self.selected = None;
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct MouseInventorySelected {
+    slot: usize,
+    stack: ItemStack,
+    inventory: Entity,
+}
 
 fn init(assets: Res<AssetServer>, mut commands: Commands) {
     commands.insert_resource(InventoryResources {
@@ -120,7 +149,7 @@ fn spawn_inventory_system(
             for entity in inventory_ui_query.iter() {
                 commands.entity(entity).despawn_recursive();
             }
-            spawn_inventory(&mut commands, inv.len(), &resources);
+            spawn_inventory(&mut commands, *id, inv.len(), &resources);
             match state.get() {
                 UIState::Hidden => commands.run_system_cached(hide_inventory::<true>),
                 UIState::Default => commands.run_system_cached(hide_inventory::<false>),
@@ -159,7 +188,7 @@ fn hide_inventory<const HIDE_HOTBAR: bool>(
 
         for (mut vis, slot) in slot_query.iter_mut() {
             //make sure hotbar slots are shown if needed
-            if !HIDE_HOTBAR && slot.0 < HOTBAR_SLOTS {
+            if !HIDE_HOTBAR && slot.slot < HOTBAR_SLOTS {
                 *vis.as_mut() = Visibility::Inherited;
             } else {
                 //hide everything else (or hotbar slots too if HIDE_HOTBAR is true)
@@ -169,14 +198,19 @@ fn hide_inventory<const HIDE_HOTBAR: bool>(
     }
 }
 
-fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryResources) {
+fn spawn_inventory(
+    commands: &mut Commands,
+    owner: Entity,
+    slots: usize,
+    resources: &InventoryResources,
+) {
     commands
         .spawn((
             StateScoped(GameState::Game),
             MainCameraUIRoot,
             PickingBehavior::IGNORE,
             Name::new("Inventory UI"),
-            InventoryUI,
+            InventoryUI { inventory: owner },
             Node {
                 width: Val::Px(400.0),
                 height: Val::Px(200.0),
@@ -208,8 +242,12 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                             ..default()
                         },
                         ImageNode::new(resources.slot_background.clone()),
-                        InventoryUISlotBackground(slot),
+                        InventoryUISlotBackground {
+                            slot,
+                            inventory: owner,
+                        },
                     ))
+                    .observe(slot_clicked)
                     .with_children(|slot_content| {
                         //spawn the slot content - this is where the item images go
                         slot_content.spawn((
@@ -221,27 +259,39 @@ fn spawn_inventory(commands: &mut Commands, slots: usize, resources: &InventoryR
                             },
                             ImageNode::default(),
                             Visibility::Hidden,
-                            InventoryUISlot(slot, None),
+                            InventoryUISlot {
+                                inventory: owner,
+                                slot,
+                                icon_entity: None,
+                            },
+                            PickingBehavior::IGNORE,
                         ));
                         //this is the stack size label
                         //making a parent to anchor the label to the bottom right
                         slot_content
-                            .spawn(Node {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                position_type: PositionType::Absolute,
-                                justify_content: JustifyContent::FlexEnd,
-                                align_items: AlignItems::FlexEnd,
-                                padding: UiRect::right(Val::Px(STACK_SIZE_LABEL_PADDING_PX)),
-                                ..default()
-                            })
+                            .spawn((
+                                Node {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    position_type: PositionType::Absolute,
+                                    justify_content: JustifyContent::FlexEnd,
+                                    align_items: AlignItems::FlexEnd,
+                                    padding: UiRect::right(Val::Px(STACK_SIZE_LABEL_PADDING_PX)),
+                                    ..default()
+                                },
+                                PickingBehavior::IGNORE,
+                            ))
                             .with_children(|label| {
                                 label.spawn((
                                     Text::new("0".to_string()),
                                     TextLayout::new_with_justify(JustifyText::Right),
                                     resources.item_counts.clone(),
                                     Visibility::Hidden,
-                                    InventoryUISlot(slot, None),
+                                    InventoryUISlot {
+                                        inventory: owner,
+                                        slot,
+                                        icon_entity: None,
+                                    },
                                 ));
                             });
                     });
@@ -288,18 +338,19 @@ fn place_inventory_selector(
     }
 }
 
+//todo - support multiple inventories
 fn update_counts(
     mut label_query: Query<(&mut Visibility, &mut Text, &InventoryUISlot)>,
     pickup_reader: EventReader<PickupItemEvent>,
     drop_reader: EventReader<DropItemEvent>,
     inventory_query: Query<&Inventory, (With<LocalPlayer>, Changed<Inventory>)>,
 ) {
-    if pickup_reader.is_empty() && drop_reader.is_empty() {
+    if pickup_reader.is_empty() && drop_reader.is_empty() && inventory_query.is_empty() {
         return;
     }
     if let Ok(inv) = inventory_query.get_single() {
         for (mut vis, mut text, ui_slot) in label_query.iter_mut() {
-            match inv.get(ui_slot.0) {
+            match inv.get(ui_slot.slot) {
                 Some(stack) => {
                     *vis.as_mut() = Visibility::Inherited;
                     text.0 = stack.size.to_string();
@@ -312,6 +363,7 @@ fn update_counts(
     }
 }
 
+//todo - support multiple inventories
 fn update_icons(
     mut label_query: Query<(&mut Visibility, &mut ImageNode, &mut InventoryUISlot)>,
     mut images: ResMut<Assets<Image>>,
@@ -324,18 +376,18 @@ fn update_icons(
     materials: Res<ChunkMaterial>,
     mut commands: Commands,
 ) {
-    if pickup_reader.is_empty() && drop_reader.is_empty() {
+    if pickup_reader.is_empty() && drop_reader.is_empty() && inventory_query.is_empty() {
         return;
     }
     if let Ok(inv) = inventory_query.get_single() {
         for (index, (mut vis, mut image, mut ui_slot)) in label_query.iter_mut().enumerate() {
-            if let Some(stored_entity) = ui_slot.1 {
+            if let Some(stored_entity) = ui_slot.icon_entity {
                 if let Some(ec) = commands.get_entity(stored_entity) {
                     ec.despawn_recursive();
                 }
-                ui_slot.1 = None;
+                ui_slot.icon_entity = None;
             }
-            match inv.get(ui_slot.0) {
+            match inv.get(ui_slot.slot) {
                 Some(stack) => match icon_query.get(stack.id) {
                     Ok(icon) => {
                         *vis.as_mut() = Visibility::Inherited;
@@ -364,7 +416,7 @@ fn update_icons(
                                             Vec3::new(index as f32 * 5.0, 0.0, 0.0)
                                                 + PREVIEW_ORIGIN,
                                         );
-                                        ui_slot.1 = Some(preview_entity);
+                                        ui_slot.icon_entity = Some(preview_entity);
                                         image.image = preview;
                                         *vis.as_mut() = Visibility::Inherited;
                                     }
@@ -453,4 +505,101 @@ fn spawn_block_preview(
         .id();
 
     (entity, image_handle)
+}
+
+fn slot_clicked(
+    trigger: Trigger<Pointer<Click>>,
+    slot_query: Query<&InventoryUISlotBackground>,
+    mut inventory_query: Query<&mut Inventory>,
+    mut mouse: ResMut<MouseInventory>,
+    stack_query: Query<&MaxStackSize>,
+) {
+    let Ok(target_slot) = slot_query.get(trigger.entity()) else {
+        return;
+    };
+    let mut moved_out_of_mouse = 0;
+    match mouse.selected {
+        Some(selected) => {
+            // mouse has items, so we need to try to stack against the target slot
+            // left click = stack as many as possible
+            // right click = stack one
+            // middle click = stack half?
+            // feels weird since middle/right click are reversed, but feel like it's more useful to pick up half a stack and drop one item at a time.
+
+            // 2 cases - either swapping within one inventory, or moving between two inventories:
+            if selected.inventory == target_slot.inventory {
+                // only 1 inventory involved
+                let Ok(mut inventory) = inventory_query.get_mut(selected.inventory) else {
+                    //invalid inventory, clear the mouse
+                    info!("invalid inventory");
+                    mouse.clear();
+                    return;
+                };
+                let desired_move_count = match trigger.button {
+                    PointerButton::Primary => u32::MAX,
+                    PointerButton::Secondary => 1,
+                    PointerButton::Middle => inventory
+                        .get(selected.slot)
+                        .map(|stack| stack.size.div_ceil(2))
+                        .unwrap_or(0),
+                }
+                .min(selected.stack.size);
+                moved_out_of_mouse = inventory.move_items(
+                    selected.slot,
+                    target_slot.slot,
+                    desired_move_count,
+                    &stack_query,
+                );
+            } else {
+                // swapping between two inventories
+                let Ok([_target_inventory, _mouse_inventory]) =
+                    inventory_query.get_many_mut([target_slot.inventory, selected.inventory])
+                else {
+                    //invalid inventory, clear the mouse
+                    mouse.clear();
+                    return;
+                };
+                todo!("Inventory UI needs to support multiple inventories");
+            }
+        }
+        None => {
+            let Ok(target_inventory) = inventory_query.get(target_slot.inventory) else {
+                //invalid inventory, clear the mouse
+                mouse.clear();
+                return;
+            };
+            if let Some(stack) = target_inventory.get(target_slot.slot) {
+                //mouse is empty, pick up whole stack if left click, half if right click
+                mouse.selected = Some(MouseInventorySelected {
+                    slot: target_slot.slot,
+                    stack: ItemStack {
+                        size: match trigger.button {
+                            PointerButton::Primary => stack.size,
+                            PointerButton::Secondary => stack.size / 2,
+                            PointerButton::Middle => 1,
+                        },
+                        ..stack
+                    },
+                    inventory: target_slot.inventory,
+                });
+            }
+        }
+    }
+
+    if moved_out_of_mouse > 0 {
+        mouse.selected = match mouse.selected {
+            Some(selected) => {
+                let new_size = selected.stack.size.saturating_sub(moved_out_of_mouse);
+                if new_size == 0 {
+                    None
+                } else {
+                    Some(MouseInventorySelected {
+                        stack: ItemStack::new(selected.stack.id, new_size),
+                        ..selected
+                    })
+                }
+            }
+            None => None,
+        };
+    }
 }

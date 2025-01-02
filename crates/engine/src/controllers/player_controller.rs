@@ -8,7 +8,7 @@ use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
     actors::*,
-    items::{inventory::Inventory, EquipItemEvent, UnequipItemEvent},
+    items::inventory::Inventory,
     physics::{
         collision::Aabb,
         grapple::Grappled,
@@ -324,8 +324,6 @@ pub fn player_use(
 
 pub fn player_scroll_inventory(
     mut query: Query<&mut Inventory, With<LocalPlayer>>,
-    mut equip_writer: EventWriter<EquipItemEvent>,
-    mut unequip_writer: EventWriter<UnequipItemEvent>,
     focused: Res<WindowFocused>,
     action: Res<ActionState<Action>>,
 ) {
@@ -343,10 +341,6 @@ pub fn player_scroll_inventory(
             0
         };
         let curr_slot = inv.selected_slot();
-        inv.select_slot(
-            curr_slot as i32 + slot_diff,
-            &mut equip_writer,
-            &mut unequip_writer,
-        );
+        inv.select_slot(curr_slot as i32 + slot_diff);
     }
 }
