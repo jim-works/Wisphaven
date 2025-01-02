@@ -223,7 +223,7 @@ impl Inventory {
         max_count: u32,
         data_query: &Query<&MaxStackSize>,
     ) -> u32 {
-        if max_count == 0 {
+        if max_count == 0 || from_slot == to_slot {
             // no items to move
             return 0;
         }
@@ -287,9 +287,7 @@ impl Inventory {
         max_drops: u32,
         drop_writer: &mut EventWriter<DropItemEvent>,
     ) -> Option<ItemStack> {
-        let Some((stack, _)) = self.items[slot] else {
-            return None;
-        };
+        let (stack, _) = self.items[slot].clone()?;
         descrease_slot_size(&mut self.items[slot], max_drops);
         let dropped_size = self.items[slot]
             .as_ref()

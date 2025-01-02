@@ -395,6 +395,7 @@ fn spawn_inventory(
                 },
                 ImageNode::new(resources.selection_image.clone()),
                 InventoryUISelector,
+                PickingBehavior::IGNORE,
             ));
         });
     info!("inventory spawned!")
@@ -502,7 +503,6 @@ fn update_icons(
                         clear_slot(&mut commands, &mut icon);
                         //render block item
                         //todo - despawn if dynamic
-                        info!("new block item!");
                         match block_mesh_query
                             .get(item.0)
                             .ok()
@@ -641,10 +641,10 @@ fn slot_clicked(
         return;
     };
     let mut moved_out_of_mouse = 0;
-    match mouse.selected {
+    match mouse.selected.as_mut() {
         Some(selected) => {
             // mouse has items, so we need to try to stack against the target slot
-            // left click = stack as many as possible
+            // left click = stack as many as possible (or swap items if not possible)
             // right click = stack one
             // middle click = stack half?
             // feels weird since middle/right click are reversed, but feel like it's more useful to pick up half a stack and drop one item at a time.
@@ -663,18 +663,37 @@ fn slot_clicked(
                     mouse.clear();
                     return;
                 }
+                let target_item = inventory.get(target_slot.slot);
                 let desired_move_count = match trigger.button {
                     PointerButton::Primary => u32::MAX,
                     PointerButton::Secondary => 1,
                     PointerButton::Middle => selected.stack.size.div_ceil(2),
                 }
                 .min(selected.stack.size);
-                moved_out_of_mouse = inventory.move_items(
-                    selected.slot,
-                    target_slot.slot,
-                    desired_move_count,
-                    &stack_query,
-                );
+                moved_out_of_mouse = if selected.slot != target_slot.slot {
+                    inventory.move_items(
+                        selected.slot,
+                        target_slot.slot,
+                        desired_move_count,
+                        &stack_query,
+                    )
+                } else {
+                    // if we're moving back to the spot we picked up from, we only have to update the mouse
+                    // the inventory will automatically update the icon in that spot
+                    selected.stack.size.min(desired_move_count)
+                };
+
+                if moved_out_of_mouse == 0 && trigger.button == PointerButton::Primary {
+                    //left click which couldn't stack, swap items
+                    inventory.swap_slots(selected.slot, target_slot.slot);
+                    if let Some(target) = target_item {
+                        selected.stack = target;
+                        selected.click_offset =
+                            cursor_offset.normalized.unwrap_or_default() * slot_node.size();
+                    } else {
+                        moved_out_of_mouse = u32::MAX;
+                    }
+                }
             } else {
                 // swapping between two inventories
                 let Ok([_target_inventory, _mouse_inventory]) =

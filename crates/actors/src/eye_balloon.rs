@@ -29,12 +29,11 @@ pub struct EyeBalloonPlugin;
 
 impl Plugin for EyeBalloonPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, load_resources)
-            .add_systems(
-                FixedUpdate,
-                spawn_eye_balloon.in_set(LevelSystemSet::PostTick),
-            )
-            .add_systems(OnEnter(LevelLoadState::Loaded), test_spawn);
+        app.add_systems(Startup, load_resources).add_systems(
+            FixedUpdate,
+            spawn_eye_balloon.in_set(LevelSystemSet::PostTick),
+        );
+        // .add_systems(OnEnter(LevelLoadState::Loaded), test_spawn);
 
         app.add_event::<SpawnEyeBalloonEvent>();
         app.add_actor::<SpawnEyeBalloonEvent>("eye_balloon".to_string());
