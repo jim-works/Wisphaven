@@ -15,6 +15,7 @@ pub struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
+        #[allow(state_scoped_entities)]
         let cam = app
             .world_mut()
             .spawn((
