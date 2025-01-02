@@ -223,6 +223,10 @@ impl Inventory {
         max_count: u32,
         data_query: &Query<&MaxStackSize>,
     ) -> u32 {
+        if max_count == 0 {
+            // no items to move
+            return 0;
+        }
         // block moving items if they are currently being used or on cooldown to avoid exploits
         let Some((from_stack, ItemAction::None)) = self.items[from_slot].clone() else {
             // no items to move
@@ -239,7 +243,7 @@ impl Inventory {
                 let moving = max_count
                     .min(from_stack.size)
                     .min(max_stack_size.0.saturating_sub(to_stack.size));
-                self.items[from_slot].as_mut().unwrap().0.size -= moving;
+                descrease_slot_size(&mut self.items[from_slot], moving);
                 self.items[to_slot].as_mut().unwrap().0.size += moving;
                 moving
             }
@@ -252,7 +256,7 @@ impl Inventory {
                     //we are only moving part of the stack
                     self.items[to_slot] =
                         Some((ItemStack::new(from_stack.id, moving), ItemAction::None));
-                    self.items[from_slot].as_mut().unwrap().0.size -= moving;
+                    descrease_slot_size(&mut self.items[from_slot], moving);
                 }
                 moving
             }
@@ -283,33 +287,22 @@ impl Inventory {
         max_drops: u32,
         drop_writer: &mut EventWriter<DropItemEvent>,
     ) -> Option<ItemStack> {
-        if let Some(item) = &mut self.items[slot] {
-            let to_drop = max_drops.min(item.0.size);
-            if to_drop == item.0.size {
-                drop_writer.send(DropItemEvent {
-                    user: self.owner,
-                    inventory_slot: slot,
-                    stack: item.0,
-                });
-                let ret = Some(item.0);
-                self.items[slot] = None;
-                ret
-            } else {
-                item.0.size -= to_drop;
-                let dropped = ItemStack {
-                    id: item.0.id,
-                    size: to_drop,
-                };
-                drop_writer.send(DropItemEvent {
-                    user: self.owner,
-                    inventory_slot: slot,
-                    stack: dropped,
-                });
-                Some(dropped)
-            }
-        } else {
-            None
-        }
+        let Some((stack, _)) = self.items[slot] else {
+            return None;
+        };
+        descrease_slot_size(&mut self.items[slot], max_drops);
+        let dropped_size = self.items[slot]
+            .as_ref()
+            .map(|(new_stack, _)| stack.size - new_stack.size)
+            .unwrap_or(stack.size);
+        let dropped_stack = ItemStack::new(stack.id, dropped_size);
+        drop_writer.send(DropItemEvent {
+            user: self.owner,
+            inventory_slot: slot,
+            stack: dropped_stack,
+        });
+
+        Some(dropped_stack)
     }
     pub fn use_item(&mut self, slot: usize, target: ItemTargetPosition) {
         if let Some((_, action)) = &mut self.items[slot] {
@@ -334,6 +327,17 @@ impl Inventory {
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
+}
+
+fn descrease_slot_size(stack_opt: &mut Option<(ItemStack, ItemAction)>, max_amount: u32) {
+    *stack_opt = stack_opt.as_ref().and_then(|(stack, act)| {
+        let new_size = stack.size.saturating_sub(max_amount);
+        if new_size == 0 {
+            None
+        } else {
+            Some((ItemStack::new(stack.id, new_size), act.clone()))
+        }
+    });
 }
 
 pub fn tick_item_timers(
