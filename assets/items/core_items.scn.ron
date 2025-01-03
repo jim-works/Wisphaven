@@ -10,6 +10,7 @@
         "engine::items::NamedItemIcon": (
             path: "dagger.png"
         ),
+        "engine::items::MaxStackSize": (1),
         "items::weapons::MeleeWeaponItem": (
             damage: Damage (amount: 5.0),
             knockback: 1.0,
@@ -36,6 +37,7 @@
         "engine::items::NamedItemIcon": (
             path: "ruby_pickaxe.png"
         ),
+        "engine::items::MaxStackSize": (1),
         "items::tools::Tool": (
             pickaxe: 3,
             shovel: 2,
@@ -62,6 +64,7 @@
         "engine::items::NamedItemIcon": (
             path: "ruby_axe.png"
         ),
+        "engine::items::MaxStackSize": (1),
         "items::tools::Tool": (
             axe: 3
         ),
@@ -91,6 +94,7 @@
         "engine::items::NamedItemIcon": (
             path: "ruby_shovel.png"
         ),
+        "engine::items::MaxStackSize": (1),
         "items::tools::Tool": (
             shovel: 3
         ),
@@ -120,6 +124,7 @@
         "engine::items::NamedItemIcon": (
             path: "glowjelly_jar.png"
         ),
+        "engine::items::MaxStackSize": (9999),
         "items::actor_items::SpawnActorItem": (ActorName(
           namespace: "core",
           name: "glowjelly",
@@ -146,6 +151,7 @@
         "engine::items::NamedItemIcon": (
             path: "world_anchor.png"
         ),
+        "engine::items::MaxStackSize": (9999),
         "items::actor_items::SpawnActorItem": (ActorName(
           namespace: "core",
           name: "world_anchor",
@@ -172,6 +178,7 @@
         "engine::items::NamedItemIcon": (
             path: "moon.png"
         ),
+        "engine::items::MaxStackSize": (9999),
         "items::time_items::SkipToNightItem": (),
         "engine::items::item_attributes::ItemUseSpeed": (
             windup: (
@@ -194,6 +201,7 @@
         "engine::items::NamedItemIcon": (
             path: "coin.png"
         ),
+        "engine::items::MaxStackSize": (9999),
         "items::weapons::ProjectileLauncherItem": (
           name: "coin",
           speed: 1,
@@ -221,6 +229,7 @@
         "engine::items::NamedItemIcon": (
             path: "spike_ball.png"
         ),
+        "engine::items::MaxStackSize": (9999),
         "items::weapons::ProjectileLauncherItem": (
           name: "spike_ball",
           speed: 2,
@@ -249,12 +258,36 @@
         "engine::items::NamedItemIcon": (
             path: "grapple.png"
         ),
+        "engine::items::MaxStackSize": (1),
         "items::grapple_item::GrappleItem": (
           max_speed: 0.5,
           strength: 0.1,
           length: 25.0,
           remove_distance: Some(2.0)
         ),
+        "engine::items::item_attributes::ItemUseSpeed": (
+            windup: (
+                secs: 0,
+                nanos: 0
+            ),
+            backswing: (
+                secs: 0,
+                nanos: 500000000,
+            )
+        ),
+      },
+    ),
+    4294967308: (
+      components: {
+        "engine::items::ItemName": (
+          namespace: "core",
+          name: "suicide_pill",
+        ),
+        "engine::items::NamedItemIcon": (
+            path: "suicide_pill.png"
+        ),
+        "engine::items::MaxStackSize": (1),
+        "items::debug::SuicidePill": (),
         "engine::items::item_attributes::ItemUseSpeed": (
             windup: (
                 secs: 0,

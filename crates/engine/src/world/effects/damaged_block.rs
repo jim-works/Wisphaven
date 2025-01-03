@@ -10,7 +10,8 @@ pub struct DamagedBlockPlugin;
 impl Plugin for DamagedBlockPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, update_damaged_block_effect)
-            .add_systems(Startup, init);
+            .add_systems(Startup, init)
+            .add_systems(OnEnter(GameState::Game), clear_damages);
     }
 }
 
@@ -50,6 +51,10 @@ fn init(
         phases,
         mesh,
     })
+}
+
+fn clear_damages(mut res: ResMut<DamagedBlockResources>) {
+    res.damages.clear();
 }
 
 fn damage_to_phase(damage: BlockDamage) -> usize {

@@ -22,6 +22,7 @@ pub struct PlayerStatsUiPlugin;
 impl Plugin for PlayerStatsUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, init)
+            .add_systems(OnEnter(GameState::Game), spawn_ui)
             .add_systems(
                 PostUpdate,
                 (
@@ -159,6 +160,9 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
             ..default()
         },
     });
+}
+
+fn spawn_ui(mut commands: Commands) {
     commands
         .spawn((
             StateScoped(GameState::Game),

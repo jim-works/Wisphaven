@@ -47,7 +47,8 @@ pub enum LevelSystemSet {
     PostTick,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, States, Default)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, SubStates, Default)]
+#[source(GameState = GameState::Game)]
 pub enum LevelLoadState {
     #[default]
     NotLoaded,
@@ -122,7 +123,7 @@ impl Plugin for LevelPlugin {
             util::LevelUtilsPlugin,
             atmosphere::AtmospherePlugin,
         ))
-        .init_state::<LevelLoadState>()
+        .add_sub_state::<LevelLoadState>()
         .enable_state_scoped_entities::<LevelLoadState>()
         .add_event::<ChunkBoundaryCrossedEvent>()
         //needed for NamedBlockMesh

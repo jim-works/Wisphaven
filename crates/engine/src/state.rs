@@ -30,7 +30,6 @@ fn detect_game_over(
     player_query: Query<(), With<Player>>,
     respawning_player: Res<RespawningPlayer>,
 ) {
-    info!("detect game over running!");
     if player_query.is_empty() && respawning_player.0.is_none() {
         next_state.set(GameState::GameOver);
         info!("Game Over!");

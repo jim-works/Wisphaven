@@ -15,7 +15,7 @@ use leafwing_input_manager::prelude::ActionState;
 
 use engine::{
     actors::{LocalPlayer, LocalPlayerSpawnedEvent},
-    controllers::{player_controller::WindowFocused, Action},
+    controllers::{player_controller::CursorLocked, Action},
     debug::TextStyle,
     items::{block_item::BlockItem, inventory::Inventory, ItemIcon, ItemStack, MaxStackSize},
     mesher::{extended_materials::TextureArrayExtension, ChunkMaterial},
@@ -636,7 +636,11 @@ fn slot_clicked(
     mut inventory_query: Query<&mut Inventory>,
     mut mouse: ResMut<MouseInventory>,
     stack_query: Query<&MaxStackSize>,
+    focused: Res<CursorLocked>,
 ) {
+    if focused.0 {
+        return;
+    }
     let Ok((target_slot, cursor_offset, slot_node)) = slot_query.get(trigger.entity()) else {
         return;
     };
@@ -755,7 +759,7 @@ fn slot_clicked(
 
 pub fn player_scroll_inventory(
     mut query: Query<&mut Inventory, With<LocalPlayer>>,
-    focused: Res<WindowFocused>,
+    focused: Res<CursorLocked>,
     action: Res<ActionState<Action>>,
 ) {
     if !focused.0 {

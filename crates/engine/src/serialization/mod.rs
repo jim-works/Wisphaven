@@ -9,7 +9,6 @@ use crate::{
     net::NetworkType,
     world::{
         chunk::{ArrayChunk, ChunkCoord, ChunkTrait, BLOCKS_PER_CHUNK},
-        events::LoadLevelEvent,
         util::BlockPalette,
         BlockId, BlockRegistry, BlockType, Id, LevelSystemSet,
     },
@@ -41,14 +40,10 @@ impl Plugin for SerializationPlugin {
                     .in_set(LevelSystemSet::AfterLoadingAndMain)
                     .run_if(not(in_state(NetworkType::Client))),
             )
-            .add_systems(
-                Update,
-                create_level.run_if(in_state(state::GameLoadState::CreatingLevel)),
-            )
             .add_event::<SaveChunkEvent>()
             .add_event::<db::DataFromDBEvent>()
             .insert_resource(SaveTimer(Timer::from_seconds(0.1, TimerMode::Repeating)))
-            .init_resource::<LevelName>();
+            .init_resource::<LevelCreationInput>();
     }
 }
 
@@ -56,32 +51,23 @@ impl Plugin for SerializationPlugin {
 pub struct SavedLevels(pub Vec<SavedLevelInfo>);
 
 pub struct SavedLevelInfo {
-    pub name: LevelName,
+    pub name: &'static str,
     pub modified_time: std::time::SystemTime,
 }
 
 #[derive(Resource)]
-pub struct LevelName(pub &'static str);
-
-impl Default for LevelName {
-    fn default() -> Self {
-        Self("level")
-    }
+pub struct LevelCreationInput {
+    pub name: &'static str,
+    pub seed: Option<u64>,
 }
 
-fn create_level(
-    mut writer: EventWriter<LoadLevelEvent>,
-    network_type: Res<State<NetworkType>>,
-    level_name: Res<LevelName>,
-    mut next_state: ResMut<NextState<state::GameLoadState>>,
-) {
-    writer.send(LoadLevelEvent {
-        name: level_name.0,
-        seed: None,
-        network_type: *network_type.get(),
-    });
-    next_state.set(state::GameLoadState::Done);
-    info!("Sent create level event!");
+impl Default for LevelCreationInput {
+    fn default() -> Self {
+        Self {
+            name: "level",
+            seed: None,
+        }
+    }
 }
 
 #[derive(Resource)]

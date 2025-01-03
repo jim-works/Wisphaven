@@ -22,7 +22,7 @@ impl Plugin for ActorItemsPlugin {
             Update,
             do_spawn_actors.in_set(ItemSystemSet::UsageProcessing),
         )
-        .add_systems(Startup, setup)
+        .add_systems(OnEnter(GameState::Game), setup)
         .register_type::<SpawnActorItem>();
     }
 }

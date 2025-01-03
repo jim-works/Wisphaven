@@ -1,5 +1,3 @@
-use crate::net::NetworkType;
-
 use super::{
     chunk::ChunkCoord, BlockCoord, BlockDamage, BlockId, BlockResources, Id, Level, LevelSystemSet,
 };
@@ -9,27 +7,13 @@ pub struct WorldEventsPlugin;
 
 impl Plugin for WorldEventsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<LoadLevelEvent>()
-            .add_event::<OpenLevelEvent>()
-            .add_event::<ExplosionEvent>()
+        app.add_event::<ExplosionEvent>()
             .add_event::<BlockUsedEvent>()
             .add_event::<BlockDamageSetEvent>()
             .add_event::<BlockHitEvent>()
             .add_event::<ChunkUpdatedEvent>()
             .add_systems(Update, process_explosions.in_set(LevelSystemSet::Main));
     }
-}
-
-#[derive(Event)]
-pub struct LoadLevelEvent {
-    pub name: &'static str,
-    pub seed: Option<u64>,
-    pub network_type: NetworkType,
-}
-
-#[derive(Event)]
-pub struct OpenLevelEvent {
-    pub name: &'static str,
 }
 
 #[derive(Event)]

@@ -14,7 +14,6 @@ pub enum GameLoadState {
     #[default]
     Preloading,
     LoadingAssets,
-    CreatingLevel,
     Done,
 }
 
@@ -66,6 +65,6 @@ pub fn check_load_state(
 ) {
     if block_textures.0 && block_types.is_some() && item_types.is_some() && skybox.is_some() {
         info!("Finished loading!");
-        next.set(GameLoadState::CreatingLevel)
+        next.set(GameLoadState::Done);
     }
 }

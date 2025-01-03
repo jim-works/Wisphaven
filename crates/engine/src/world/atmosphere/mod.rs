@@ -35,6 +35,15 @@ impl GameTime {
     }
 }
 
+impl std::fmt::Display for GameTime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // 40 seconds equals one in-game hour
+        let total_seconds = self.time.as_secs_f32();
+        let in_game_hours = total_seconds / 40.;
+        write!(f, "{} days and {:.2} hours", self.day, in_game_hours)
+    }
+}
+
 impl PartialOrd for GameTime {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
@@ -89,10 +98,12 @@ impl Calendar {
         self.time.time += amount;
         if was_in_day && !self.in_day() {
             night_writer.send(NightStartedEvent);
+            info!("night started!")
         } else if self.time.time >= self.total_day_length() {
             self.time.day += 1;
             self.time.time -= self.total_day_length();
             day_writer.send(DayStartedEvent);
+            info!("day started!");
         }
     }
 
@@ -173,7 +184,10 @@ pub struct SpeedupCalendarEvent(pub GameTime);
 
 impl Plugin for AtmospherePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_environment)
+        app.add_systems(Startup, (setup_environment, setup_calendar))
+            .add_systems(OnEnter(GameState::Game), setup_calendar)
+            .add_systems(OnEnter(GameState::Menu), spawn_sun)
+            .add_systems(OnEnter(GameState::Game), spawn_sun)
             .add_systems(
                 Update,
                 load_skybox.run_if(resource_exists::<LoadingSkyboxCubemap>),
@@ -186,15 +200,6 @@ impl Plugin for AtmospherePlugin {
             .add_event::<DayStartedEvent>()
             .add_event::<NightStartedEvent>()
             .add_event::<SpeedupCalendarEvent>()
-            .insert_resource(CalendarSpeed {
-                fast_forward_timescale: 200.0,
-                target: GameTime::default(),
-            })
-            .insert_resource(Calendar {
-                day_length: Duration::from_secs(600),
-                night_length: Duration::from_secs(300),
-                time: GameTime::new(0, Duration::from_secs(100)),
-            })
             .insert_resource(AmbientLight {
                 brightness: 100.,
                 ..default()
@@ -270,6 +275,19 @@ fn update_sky(
     }
 }
 
+fn setup_calendar(mut commands: Commands) {
+    commands.insert_resource(CalendarSpeed {
+        fast_forward_timescale: 200.0,
+        target: GameTime::default(),
+    });
+    // 40 seconds per in-game hour,so this is 24 hours split to 2/3 day and 1/3 night
+    commands.insert_resource(Calendar {
+        day_length: Duration::from_secs(640),
+        night_length: Duration::from_secs(320),
+        time: GameTime::new(0, Duration::from_secs(100)),
+    });
+}
+
 fn update_calendar(
     time: Res<Time>,
     mut calendar: ResMut<Calendar>,
@@ -303,8 +321,19 @@ fn speedup_time(mut reader: EventReader<SpeedupCalendarEvent>, mut speed: ResMut
 }
 
 fn setup_environment(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let skybox = asset_server.load("textures/skybox.png");
+    commands.insert_resource(LoadingSkyboxCubemap(skybox));
+}
+
+fn spawn_sun(mut commands: Commands, sun_query: Query<Entity, With<Sun>>) {
+    for entity in sun_query.iter() {
+        if let Some(mut ec) = commands.get_entity(entity) {
+            ec.despawn();
+        }
+    }
+    //want sun on main menu too, but want to reset it every time we transition game states
+    #[allow(state_scoped_entities)]
     commands.spawn((
-        StateScoped(GameState::Game),
         DirectionalLight {
             shadows_enabled: true,
             ..default()
@@ -312,7 +341,4 @@ fn setup_environment(mut commands: Commands, asset_server: Res<AssetServer>) {
         Sun { strength: 7500.0 }, // Marks the light as Sun
         Name::new("Sun"),
     ));
-
-    let skybox = asset_server.load("textures/skybox.png");
-    commands.insert_resource(LoadingSkyboxCubemap(skybox));
 }

@@ -41,6 +41,7 @@ impl Plugin for WorldAnchorPlugin {
             .add_systems(Update, spawn_world_anchor)
             .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
             .add_systems(OnExit(LevelLoadState::Loaded), cleanup)
+            .add_observer(on_world_anchor_destroyed)
             .add_event::<SpawnWorldAnchorEvent>();
     }
 }
@@ -67,6 +68,7 @@ fn trigger_spawning(mut writer: EventWriter<SpawnWorldAnchorEvent>, level: Res<L
 }
 
 fn cleanup(mut commands: Commands) {
+    info!("cleanup called");
     commands.remove_resource::<ActiveWorldAnchor>();
     commands.remove_resource::<WorldAnchorHasSpawned>();
 }
@@ -107,21 +109,31 @@ pub fn spawn_world_anchor(
     }
 }
 
-fn on_death(
+fn clear_resources(mut commands: Commands) {
+    commands.remove_resource::<ActiveWorldAnchor>();
+    commands.remove_resource::<WorldAnchorHasSpawned>();
+}
+
+fn on_world_anchor_destroyed(
+    trigger: Trigger<OnRemove, WorldAnchor>,
     mut commands: Commands,
     mut active: ResMut<ActiveWorldAnchor>,
-    mut removed: RemovedComponents<WorldAnchor>,
     query: Query<Entity, With<WorldAnchor>>,
 ) {
-    if removed.is_empty() {
-        return;
+    let mut new_anchor = None;
+
+    for entity in query.iter() {
+        if entity != trigger.entity() {
+            //there was another world anchor (somehow), promote it to be active
+            new_anchor = Some(entity);
+            break;
+        }
     }
-    removed.clear();
-    if let Some(entity) = query.iter().next() {
-        //there was another world anchor (somehow), promote it to be active
+    if let Some(entity) = new_anchor {
+        info!("new world anchor {:?}!!!!!!", entity);
         active.0 = entity;
     } else {
-        //no more world anchors, remove the resource
+        info!("world anchor destroyed!!!!!!");
         commands.remove_resource::<ActiveWorldAnchor>();
     }
 }

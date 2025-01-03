@@ -10,16 +10,18 @@ pub struct WavesPlugin;
 
 impl Plugin for WavesPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, init).add_systems(
-            Update,
-            (
-                spawn_wave_indicators,
-                update_ui_visibility,
-                update_progress_bar,
-            )
-                .run_if(resource_exists::<Assault>)
-                .run_if(resource_exists::<Calendar>),
-        );
+        app.add_systems(Startup, init)
+            .add_systems(OnEnter(GameState::Game), spawn_ui)
+            .add_systems(
+                Update,
+                (
+                    spawn_wave_indicators,
+                    update_ui_visibility,
+                    update_progress_bar,
+                )
+                    .run_if(resource_exists::<Assault>)
+                    .run_if(resource_exists::<Calendar>),
+            );
     }
 }
 
@@ -64,6 +66,9 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(WaveUIResources {
         wave_indicator_texture: asset_server.load("textures/ui/exclamation.png"),
     });
+}
+
+fn spawn_ui(mut commands: Commands) {
     let margin = UiRect::all(Val::Px(2.));
     commands
         .spawn((
