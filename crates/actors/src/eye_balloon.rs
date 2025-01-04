@@ -11,12 +11,12 @@ use engine::{
         movement::{GravityMult, Mass},
         PhysicsBundle,
     },
-    world::{LevelLoadState, LevelSystemSet},
+    world::LevelSystemSet,
 };
 use util::{plugin::SmoothLookTo, third_party::scene_hook::SceneHook};
 
 use crate::{
-    spawning::{BuildActorRegistry, DefaultSpawnArgs, SpawnActorEvent},
+    spawning::{BuildActorRegistry, DefaultSpawnArgs},
     util::SmoothLookToAggroTarget,
 };
 
@@ -33,7 +33,6 @@ impl Plugin for EyeBalloonPlugin {
             FixedUpdate,
             spawn_eye_balloon.in_set(LevelSystemSet::PostTick),
         );
-        // .add_systems(OnEnter(LevelLoadState::Loaded), test_spawn);
 
         app.add_event::<SpawnEyeBalloonEvent>();
         app.add_actor::<SpawnEyeBalloonEvent>("eye_balloon".to_string());
@@ -65,14 +64,14 @@ struct EyeBalloonTentacleSegment;
 #[derive(Component)]
 struct EyeBalloonIris;
 
-fn test_spawn(mut writer: EventWriter<SpawnActorEvent>) {
-    writer.send(SpawnActorEvent {
-        name: std::sync::Arc::new("eye_balloon".to_string()),
-        args: DefaultSpawnArgs {
-            transform: Transform::from_translation(Vec3::new(0., 20., 0.)),
-        },
-    });
-}
+// fn test_spawn(mut writer: EventWriter<SpawnActorEvent>) {
+//     writer.send(SpawnActorEvent {
+//         name: std::sync::Arc::new("eye_balloon".to_string()),
+//         args: DefaultSpawnArgs {
+//             transform: Transform::from_translation(Vec3::new(0., 20., 0.)),
+//         },
+//     });
+// }
 
 fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(EyeBalloonResources {

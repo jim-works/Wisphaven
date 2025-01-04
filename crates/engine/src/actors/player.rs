@@ -155,6 +155,7 @@ fn respawn_players(
         .map(|respawn_time| time.elapsed() >= respawn_time)
         .unwrap_or(false)
     {
+        info!("Respawning player!");
         writer.send(SpawnLocalPlayerEvent);
         respawning.0 = None;
     }
@@ -286,6 +287,17 @@ pub fn spawn_local_player(
                 resources
                     .registry
                     .get_basic(&ItemName::core("grapple"))
+                    .unwrap(),
+                1,
+            ),
+            &item_query,
+            &mut pickup_item,
+        );
+        inventory.pickup_item(
+            ItemStack::new(
+                resources
+                    .registry
+                    .get_basic(&ItemName::core("suicide_pill"))
                     .unwrap(),
                 1,
             ),

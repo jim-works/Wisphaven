@@ -18,10 +18,10 @@ use crate::serialization::db::{LevelDB, LevelDBErr};
 use crate::serialization::queries::{
     CREATE_CHUNK_TABLE, CREATE_WORLD_INFO_TABLE, INSERT_WORLD_INFO, LOAD_WORLD_INFO,
 };
-use crate::serialization::{LevelName, LoadingBlocks, LoadingItems, SavedLevelInfo};
+use crate::serialization::{LevelCreationInput, LoadingBlocks, LoadingItems, SavedLevelInfo};
 use crate::util::string::Version;
 use crate::world::settings::GraphicsSettings;
-use crate::world::{events::LoadLevelEvent, settings::Settings, Level};
+use crate::world::{settings::Settings, Level};
 use crate::world::{
     BlockId, BlockName, BlockNameIdMap, BlockRegistry, BlockResources, Id, LevelData,
     LevelLoadState, NamedBlockMesh,
@@ -75,7 +75,9 @@ impl Plugin for SetupPlugin {
             .add_systems(
                 Update,
                 on_level_created.run_if(
-                    in_state(state::GameLoadState::Done).and(in_state(LevelLoadState::NotLoaded)),
+                    in_state(state::GameLoadState::Done)
+                        .and(in_state(LevelLoadState::NotLoaded))
+                        .and(in_state(GameState::Game)),
                 ),
             );
     }
@@ -351,7 +353,8 @@ pub fn load_item_registry(
 }
 
 pub fn on_level_created(
-    mut reader: EventReader<LoadLevelEvent>,
+    input: Res<LevelCreationInput>,
+    // network_type: Res<State<NetworkType>>,
     settings: Res<Settings>,
     block_resources: Res<BlockResources>,
     item_resources: Res<ItemResources>,
@@ -359,57 +362,54 @@ pub fn on_level_created(
     mut commands: Commands,
     mut next_game_state: ResMut<NextState<GameState>>,
 ) {
-    if let Some(event) = reader.read().next() {
-        info!("on level created event received");
-        fs::create_dir_all(settings.env_path).unwrap();
-        let db = LevelDB::new(
-            std::path::Path::new(settings.env_path)
-                .join(event.name.to_owned() + LEVEL_FILE_EXTENSION)
-                .as_path(),
-        );
-        match db {
-            Ok(mut db) => {
-                if let Some(err) =
-                    db.execute_command_sync(|sql| sql.execute(CREATE_CHUNK_TABLE, []))
-                {
-                    error!("Error creating chunk table: {:?}", err);
-                    next_game_state.set(GameState::Menu);
-                    return;
-                }
-                if let Some(err) =
-                    db.execute_command_sync(|sql| sql.execute(CREATE_WORLD_INFO_TABLE, []))
-                {
-                    error!("Error creating world info table: {:?}", err);
-                    next_game_state.set(GameState::Menu);
-                    return;
-                }
-                if let Err(err) = check_level_version(&mut db) {
-                    error!("Error checking level version: {:?}", err);
-                    next_game_state.set(GameState::Menu);
-                    return;
-                }
-                load_block_palette(&mut db, &mut commands, &block_resources.registry);
-                load_item_palette(&mut db, &mut commands, &item_resources.registry);
-                let default_seed = event.seed.unwrap_or(rand::thread_rng().next_u64());
-                match load_or_set_level_seed(&mut db, default_seed) {
-                    Ok(seed) => {
-                        commands.insert_resource(Level(Arc::new(LevelData::new(event.name, seed))));
-                    }
-                    Err(err) => {
-                        error!("Error reading level seed: {:?}", err);
-                        next_game_state.set(GameState::Menu);
-                        return;
-                    }
-                }
+    info!("creating level...");
 
-                commands.insert_resource(db);
-                next_state.set(LevelLoadState::Loading);
-                info!("in state loading!");
-            }
-            Err(e) => {
-                error!("couldn't open db {}", e);
+    fs::create_dir_all(settings.env_path).unwrap();
+    let db = LevelDB::new(
+        std::path::Path::new(settings.env_path)
+            .join(input.name.to_owned() + LEVEL_FILE_EXTENSION)
+            .as_path(),
+    );
+    match db {
+        Ok(mut db) => {
+            if let Some(err) = db.execute_command_sync(|sql| sql.execute(CREATE_CHUNK_TABLE, [])) {
+                error!("Error creating chunk table: {:?}", err);
                 next_game_state.set(GameState::Menu);
+                return;
             }
+            if let Some(err) =
+                db.execute_command_sync(|sql| sql.execute(CREATE_WORLD_INFO_TABLE, []))
+            {
+                error!("Error creating world info table: {:?}", err);
+                next_game_state.set(GameState::Menu);
+                return;
+            }
+            if let Err(err) = check_level_version(&mut db) {
+                error!("Error checking level version: {:?}", err);
+                next_game_state.set(GameState::Menu);
+                return;
+            }
+            load_block_palette(&mut db, &mut commands, &block_resources.registry);
+            load_item_palette(&mut db, &mut commands, &item_resources.registry);
+            let default_seed = input.seed.unwrap_or(rand::thread_rng().next_u64());
+            match load_or_set_level_seed(&mut db, default_seed) {
+                Ok(seed) => {
+                    commands.insert_resource(Level(Arc::new(LevelData::new(input.name, seed))));
+                }
+                Err(err) => {
+                    error!("Error reading level seed: {:?}", err);
+                    next_game_state.set(GameState::Menu);
+                    return;
+                }
+            }
+
+            commands.insert_resource(db);
+            next_state.set(LevelLoadState::Loading);
+            info!("in state loading!");
+        }
+        Err(e) => {
+            error!("couldn't open db {}", e);
+            next_game_state.set(GameState::Menu);
         }
     }
 }
@@ -751,7 +751,7 @@ fn load_saved_level_list(settings: Res<Settings>, mut commands: Commands) {
                     let name = capture.get(1).unwrap().as_str().to_string().leak();
                     info!("found level: {}", name);
                     Some(SavedLevelInfo {
-                        name: LevelName(name),
+                        name,
                         modified_time: time,
                     })
                 })

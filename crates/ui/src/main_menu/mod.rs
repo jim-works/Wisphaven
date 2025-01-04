@@ -3,9 +3,9 @@ use std::time::Duration;
 
 use bevy_simple_text_input::{TextInput, TextInputTextColor, TextInputTextFont, TextInputValue};
 use engine::{
-    actors::ghost::{GhostResources, Hand, HandState, Handed, OrbitParticle, SwingHand, UseHand},
+    actors::ghost::{GhostResources, Hand, HandState, Handed, OrbitParticle},
     effects::mesh_particles::MeshParticleEmitter,
-    serialization::{LevelName, SavedLevels},
+    serialization::{LevelCreationInput, SavedLevels},
     GameState,
 };
 use util::{iterators::even_distribution_on_sphere, lerp, LocalRepeatingTimer};
@@ -25,7 +25,6 @@ impl Plugin for MainMenuPlugin {
             .init_state::<SplashScreenState>()
             .add_event::<SpawnMainMenuGhostEvent>()
             .add_systems(OnEnter(GameState::Menu), menu_entered)
-            .add_systems(OnExit(GameState::Menu), menu_exited)
             .add_systems(
                 OnTransition {
                     exited: GameState::Setup,
@@ -36,6 +35,13 @@ impl Plugin for MainMenuPlugin {
             .add_systems(
                 OnTransition {
                     exited: GameState::Game,
+                    entered: GameState::Menu,
+                },
+                go_to_main_screen,
+            )
+            .add_systems(
+                OnTransition {
+                    exited: GameState::GameOver,
                     entered: GameState::Menu,
                 },
                 go_to_main_screen,
@@ -120,29 +126,10 @@ struct SpawnMainMenuGhostEvent {
 }
 
 fn menu_entered(mut commands: Commands, asset_server: Res<AssetServer>) {
+    info!("setting up menu...");
     setup_splash_screen(&mut commands, &asset_server);
     setup_main_screen(&mut commands, &asset_server);
     setup_world_select_screen(&mut commands, &asset_server);
-}
-
-fn menu_exited(
-    mut commands: Commands,
-    menu_query: Query<Entity, Or<(With<MenuRoot>, With<MainMenuElement>)>>,
-    ghost_query: Query<(Entity, &SwingHand, &UseHand), With<MainMenuGhost>>,
-) {
-    for entity in menu_query.iter() {
-        if let Some(ec) = commands.get_entity(entity) {
-            ec.despawn_recursive();
-        }
-    }
-    for (entity, hand1, hand2) in ghost_query.iter() {
-        let entities = [entity, hand1.hand, hand2.hand];
-        for e in entities {
-            if let Some(ec) = commands.get_entity(e) {
-                ec.despawn_recursive();
-            }
-        }
-    }
 }
 
 fn setup_splash_screen(commands: &mut Commands, asset_server: &Res<AssetServer>) {
@@ -448,11 +435,11 @@ fn spawn_world_select_items(
                 ))
                 .with_children(|components| {
                     components
-                        .spawn((WorldSelectLoadLevelButton(level.name.0), button.clone()))
+                        .spawn((WorldSelectLoadLevelButton(level.name), button.clone()))
                         .observe(load_level_clicked)
                         .with_children(|text| {
                             text.spawn((
-                                Text(level.name.0.into()),
+                                Text(level.name.into()),
                                 get_text_style(&asset_server).clone(),
                             ));
                         });
@@ -503,6 +490,7 @@ fn hide_splash_screen(mut container_query: Query<&mut Visibility, With<SplashScr
 
 fn go_to_main_screen(mut next_state: ResMut<NextState<MenuState>>) {
     next_state.set(MenuState::Main);
+    info!("going to main screen");
 }
 
 fn show_main_screen(
@@ -510,8 +498,10 @@ fn show_main_screen(
     ghost_query: Query<(), With<MainMenuGhost>>,
     mut ghost_spawner: EventWriter<SpawnMainMenuGhostEvent>,
 ) {
+    info!("in show_main_screen");
     for mut vis in container_query.iter_mut() {
         *vis = Visibility::Visible;
+        info!("it has been set to visible")
     }
     if ghost_query.is_empty() {
         ghost_spawner.send(SpawnMainMenuGhostEvent {
@@ -549,7 +539,7 @@ fn create_clicked(
     text_value: Query<&TextInputValue, With<WorldSelectCreateText>>,
     mut next_game_state: ResMut<NextState<GameState>>,
     mut next_menu_state: ResMut<NextState<MenuState>>,
-    mut level_name: ResMut<LevelName>,
+    mut level_name: ResMut<LevelCreationInput>,
 ) {
     let input_name = &text_value.get_single().unwrap().0;
     println!("{} was clicked. Textbox has {}", click.entity(), input_name);
@@ -567,7 +557,7 @@ fn load_level_clicked(
     button_query: Query<&WorldSelectLoadLevelButton>,
     mut next_game_state: ResMut<NextState<GameState>>,
     mut next_menu_state: ResMut<NextState<MenuState>>,
-    mut level_name: ResMut<LevelName>,
+    mut level_name: ResMut<LevelCreationInput>,
 ) {
     let input_name = button_query.get(click.entity()).unwrap().0;
     println!(
@@ -586,11 +576,11 @@ fn load_level_clicked(
 
 fn start_level(
     name: &'static str,
-    level_name: &mut ResMut<LevelName>,
+    level_name: &mut ResMut<LevelCreationInput>,
     next_game_state: &mut ResMut<NextState<GameState>>,
     next_menu_state: &mut ResMut<NextState<MenuState>>,
 ) {
-    level_name.0 = name;
+    level_name.name = name;
     next_game_state.set(GameState::Game);
     next_menu_state.set(MenuState::default());
 }

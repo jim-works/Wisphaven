@@ -43,7 +43,7 @@ impl Plugin for PlayerControllerPlugin {
                 .in_set(LevelSystemSet::Main),
         )
         .add_systems(Update, update_window_focused)
-        .insert_resource(WindowFocused(false));
+        .insert_resource(CursorLocked(false));
     }
 }
 
@@ -63,9 +63,9 @@ pub struct FollowPlayer {
 }
 
 #[derive(Resource)]
-pub struct WindowFocused(pub bool);
+pub struct CursorLocked(pub bool);
 
-fn update_window_focused(mut focused: ResMut<WindowFocused>, query: Query<&Window>) {
+fn update_window_focused(mut focused: ResMut<CursorLocked>, query: Query<&Window>) {
     focused.0 = query
         .get_single()
         .map(|w| w.cursor_options.grab_mode != CursorGrabMode::None)
@@ -175,7 +175,7 @@ pub fn dash_player(
 
 pub fn rotate_mouse(
     mut query: Query<(&mut Transform, &mut RotateWithMouse)>,
-    focused: Res<WindowFocused>,
+    focused: Res<CursorLocked>,
     settings: Res<Settings>,
     action: Res<ActionState<Action>>,
 ) {
@@ -226,7 +226,7 @@ pub fn player_punch(
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
     mut attack_punch_writer: EventWriter<AttackEvent>,
     mut block_hit_writer: EventWriter<BlockHitEvent>,
-    focused: Res<WindowFocused>,
+    focused: Res<CursorLocked>,
     level: Res<Level>,
     action: Res<ActionState<Action>>,
 ) {
@@ -279,7 +279,7 @@ pub fn player_punch(
 
 pub fn player_use(
     mut player_query: Query<(&mut Inventory, Entity, &GlobalTransform), With<LocalPlayer>>,
-    focused: Res<WindowFocused>,
+    focused: Res<CursorLocked>,
     level: Res<Level>,
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,

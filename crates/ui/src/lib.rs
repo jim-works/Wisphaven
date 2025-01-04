@@ -11,6 +11,7 @@
 #![feature(let_chains)]
 
 pub mod crosshair;
+mod game_over;
 pub mod inventory;
 pub mod main_menu;
 pub mod player_stats;
@@ -41,11 +42,13 @@ impl Plugin for UIPlugin {
                 player_stats::PlayerStatsUiPlugin,
                 waves::WavesPlugin,
                 main_menu::MainMenuPlugin,
-                bevy_simple_text_input::TextInputPlugin,
+                game_over::GameOverUIPlugin,
             ))
-            .add_systems(OnEnter(GameState::Game), state::on_load)
+            .add_plugins(bevy_simple_text_input::TextInputPlugin)
+            .add_systems(OnEnter(GameState::Game), (state::on_load, capture_mouse))
             .add_systems(OnEnter(state::UIState::Default), capture_mouse)
             .add_systems(OnEnter(state::UIState::Inventory), release_mouse)
+            .add_systems(OnExit(GameState::Game), release_mouse)
             .add_systems(Update, state::toggle_hidden.in_set(LevelSystemSet::Main))
             .add_systems(
                 Update,
@@ -59,6 +62,9 @@ impl Plugin for UIPlugin {
             .insert_resource(UiScale(2.0));
     }
 }
+
+#[derive(Resource)]
+struct PickingUIBlocker(Entity);
 
 #[derive(Component, Clone)]
 pub struct ButtonColors {
@@ -160,7 +166,7 @@ fn update_main_camera_ui(
 }
 
 /// Updates the scroll position of scrollable nodes in response to mouse input
-pub fn update_scroll_position(
+fn update_scroll_position(
     mut mouse_wheel_events: EventReader<MouseWheel>,
     hover_map: Res<HoverMap>,
     mut scrolled_node_query: Query<&mut ScrollPosition>,

@@ -57,10 +57,7 @@ impl Plugin for NetClientPlugin {
                     resource_exists::<QuinnetClient>
                         .and(resource_exists::<LocalClient>)
                         .and(in_state(ClientState::Started).or(in_state(ClientState::Ready)))
-                        .and(
-                            in_state(GameLoadState::CreatingLevel)
-                                .or(in_state(GameLoadState::Done)),
-                        ),
+                        .and(in_state(GameLoadState::Done)),
                 ),
         )
         // CoreSet::PostUpdate so that AppExit events generated in the previous stage are available

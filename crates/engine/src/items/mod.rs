@@ -44,6 +44,7 @@ impl Plugin for ItemsPlugin {
                 inventory::tick_item_timers.in_set(ItemSystemSet::Usage),
             )
             .register_type::<NamedItemIcon>()
+            .register_type::<MaxStackSize>()
             .register_type::<ItemName>();
     }
 }
