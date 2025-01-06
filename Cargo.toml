@@ -27,7 +27,7 @@ lto = true
 ahash = "0.8.3"
 #TODO: remove dynamic_linking/trace_tracy for releases (automate this)
 #TODO: maybe enable wayland feature?
-bevy = { version = "0.15.0", features = ["dynamic_linking", "serialize"] }
+bevy = { version = "0.15.1", features = ["dynamic_linking", "serialize"] }
 bracket-noise = "0.8.7"
 dashmap = "6.1.0"
 futures-lite = "2.5.0"
