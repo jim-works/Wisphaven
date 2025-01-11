@@ -22,7 +22,7 @@ rand = { workspace = true }
 rand_distr = { workspace = true }
 itertools = { workspace = true }
 futures-timer = { workspace = true }
-bevy_quinnet = { workspace = true }
+lightyear = { workspace = true }
 serde_with = { workspace = true }
 bevy_hanabi = { workspace = true }
 bitflags = { workspace = true }

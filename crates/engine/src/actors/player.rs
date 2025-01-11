@@ -2,7 +2,6 @@ use std::{f32::consts::PI, time::Duration};
 
 use ::util::SendEventCommand;
 use bevy::prelude::*;
-use bevy_quinnet::client::QuinnetClient;
 use player_controller::RotateWithMouse;
 
 use crate::{
@@ -16,12 +15,8 @@ use crate::{
         *,
     },
     mesher::item_mesher::HeldItemResources,
-    net::{
-        client::ClientState,
-        server::{SyncPosition, SyncVelocity},
-        ClientMessage, NetworkType, PlayerList, RemoteClient,
-    },
-    physics::{movement::*, *},
+    net::{NetworkType, PlayerList, RemoteClient},
+    physics::*,
     world::{settings::Settings, *},
 };
 
@@ -65,10 +60,6 @@ impl Plugin for PlayerPlugin {
                         .run_if(resource_exists::<HeldItemResources>),
                     handle_disconnect,
                 ),
-            )
-            .add_systems(
-                Update,
-                send_updated_position_client.run_if(in_state(ClientState::Ready)),
             )
             .add_systems(
                 FixedUpdate,
@@ -339,8 +330,6 @@ fn populate_player_entity(
             windup: Duration::ZERO,
             backswing: Duration::from_millis(100),
         },
-        SyncPosition,
-        SyncVelocity,
         Stamina::new(10.0),
         RestoreStaminaOnKill { amount: 1.0 },
         RestoreStaminaDuringDay {
@@ -380,30 +369,10 @@ fn populate_player_entity(
     commands.entity(right_hand).add_child(item_visualizer);
 }
 
-fn send_updated_position_client(
-    client: Res<QuinnetClient>,
-    query: Query<(&Transform, &Velocity), With<LocalPlayer>>,
-) {
-    for (tf, v) in query.iter() {
-        client
-            .connection()
-            .send_message_on(
-                0,
-                ClientMessage::UpdatePosition {
-                    transform: *tf,
-                    velocity: v.0,
-                },
-            )
-            .unwrap();
-    }
-}
-
 fn handle_disconnect(mut commands: Commands, mut removed: RemovedComponents<RemoteClient>) {
     for entity in removed.read() {
         //TODO: make this better
         commands.entity(entity).remove::<(
-            SyncPosition,
-            SyncVelocity,
             Name,
             Mesh3d,
             MeshMaterial3d<StandardMaterial>,

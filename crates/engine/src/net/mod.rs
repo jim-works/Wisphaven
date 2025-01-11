@@ -1,9 +1,6 @@
 use bevy::{prelude::*, utils::HashMap};
 
-use bevy_quinnet::shared::{
-    channels::{ChannelType, ChannelsConfiguration},
-    ClientId,
-};
+use lightyear::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -14,23 +11,23 @@ use crate::{
 use self::{client::ClientState, server::ServerState};
 
 pub mod client;
+pub mod config;
+mod protocol;
 pub mod server;
 
 pub struct NetPlugin;
 
 impl Plugin for NetPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((server::NetServerPlugin, client::NetClientPlugin))
-            .add_systems(
-                PostUpdate,
-                (process_transform_updates, process_velocity_updates),
-            )
-            .add_event::<UpdateEntityTransform>()
-            .add_event::<UpdateEntityVelocity>()
-            .init_state::<NetworkType>()
-            .enable_state_scoped_entities::<NetworkType>()
-            .insert_resource(PlayerList::default())
-            .insert_resource(ChannelsConfig::default());
+        app.add_systems(
+            PostUpdate,
+            (process_transform_updates, process_velocity_updates),
+        )
+        .add_event::<UpdateEntityTransform>()
+        .add_event::<UpdateEntityVelocity>()
+        .init_state::<NetworkType>()
+        .enable_state_scoped_entities::<NetworkType>()
+        .insert_resource(PlayerList::default());
     }
 }
 
@@ -71,28 +68,23 @@ pub enum NetworkType {
     Singleplayer,
     Server,
     Client,
+    Host,
 }
 
-#[derive(Resource, Clone)]
-pub struct ChannelsConfig {
-    pub config: ChannelsConfiguration,
-}
-
-impl Default for ChannelsConfig {
-    fn default() -> Self {
-        Self {
-            config: ChannelsConfiguration::from_types(vec![
-                ChannelType::Unreliable,
-                ChannelType::UnorderedReliable,
-                ChannelType::OrderedReliable,
-            ])
-            .unwrap(),
+impl NetworkType {
+    pub fn is_server(self) -> bool {
+        matches!(self, NetworkType::Server | NetworkType::Host)
+    }
+    pub fn is_client(self) -> bool {
+        matches!(self, NetworkType::Client | NetworkType::Host)
+    }
+    pub fn to_network_mode(self) -> Mode {
+        match self {
+            NetworkType::Host => Mode::HostServer,
+            _ => Mode::Separate,
         }
     }
 }
-pub const UNRELIABLE: u8 = 0;
-pub const UNORDERED_RELIABLE: u8 = 1;
-pub const ORDERED_RELIABLE: u8 = 2;
 
 // Messages from clients
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -151,7 +143,7 @@ pub enum ServerMessage {
 
 pub fn network_ready() -> impl Condition<()> {
     in_state(NetworkType::Singleplayer)
-        .or(in_state(NetworkType::Server).and(in_state(ServerState::Started)))
+        .or(in_state(NetworkType::Server).and(in_state(ServerState::Active)))
         .or(in_state(NetworkType::Client).and(in_state(ClientState::Ready)))
 }
 

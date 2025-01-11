@@ -43,7 +43,7 @@ rand = "0.8.5"
 rand_distr = "0.4.3"
 itertools = "0.13.0"
 futures-timer = "3.0.3"
-bevy_quinnet = "0.12.0"
+lightyear = "0.18.0"
 serde_with = "3.11.0"
 bevy_hanabi = "0.14.0"
 bitflags = "2.6.0"
@@ -69,7 +69,7 @@ rand = { workspace = true }
 rand_distr = { workspace = true }
 itertools = { workspace = true }
 futures-timer = { workspace = true }
-bevy_quinnet = { workspace = true }
+lightyear = { workspace = true }
 serde_with = { workspace = true }
 bevy_hanabi = { workspace = true }
 bitflags = { workspace = true }
