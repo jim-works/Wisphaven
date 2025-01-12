@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
+#[derive(PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect, Serialize, Deserialize)]
 pub enum Action {
     MoveForward,
     MoveBack,

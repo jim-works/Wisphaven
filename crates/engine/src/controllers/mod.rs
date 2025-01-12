@@ -7,6 +7,7 @@ mod pi_controllers;
 
 use bevy::prelude::*;
 
+use lightyear::prelude::LeafwingInputPlugin;
 use util::direction::DirectionFlags;
 
 use crate::{
@@ -19,7 +20,7 @@ pub struct ControllersPlugin;
 impl Plugin for ControllersPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            InputManagerPlugin::<Action>::default(),
+            LeafwingInputPlugin::<Action>::default(),
             pi_controllers::PIControllersPlugin,
             player_controller::PlayerControllerPlugin,
         ))

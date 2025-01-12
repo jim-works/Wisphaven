@@ -73,10 +73,12 @@ fn update_window_focused(mut focused: ResMut<CursorLocked>, query: Query<&Window
 }
 
 pub fn toggle_player_flight(
-    action: Res<ActionState<Action>>,
-    mut query: Query<(&mut MovementMode, &mut GravityMult), With<Player>>,
+    mut query: Query<
+        (&mut MovementMode, &mut GravityMult, &ActionState<Action>),
+        With<ControlledPlayer>,
+    >,
 ) {
-    for (mut mode, mut gravity) in query.iter_mut() {
+    for (mut mode, mut gravity, action) in query.iter_mut() {
         if action.just_pressed(&Action::ToggleFlight) {
             match *mode {
                 MovementMode::Flying => {
@@ -102,125 +104,103 @@ pub fn move_player(
             &MovementMode,
             &ActionState<Action>,
         ),
-        With<Player>,
+        With<ControlledPlayer>,
     >,
 ) {
-    for (tf, mut tm, mode, action) in query.iter_mut() {
-        apply_movement(tf, &mut tm, mode, action);
-    }
-}
-
-fn apply_movement(
-    tf: &Transform,
-    tm: &mut TickMovement,
-    mode: &MovementMode,
-    action: &ActionState<Action>,
-) {
-    let mut dv = Vec3::ZERO;
-    dv.z -= if action.pressed(&Action::MoveForward) {
-        1.0
-    } else {
-        0.0
-    };
-    dv.z += if action.pressed(&Action::MoveBack) {
-        1.0
-    } else {
-        0.0
-    };
-    dv.x += if action.pressed(&Action::MoveRight) {
-        1.0
-    } else {
-        0.0
-    };
-    dv.x -= if action.pressed(&Action::MoveLeft) {
-        1.0
-    } else {
-        0.0
-    };
-
-    let (y_rot, _, _) = tf.rotation.to_euler(EulerRot::YXZ);
-    tm.0 = Quat::from_axis_angle(Vec3::Y, y_rot) * dv;
-
-    if *mode == MovementMode::Flying {
-        tm.0.y += if action.pressed(&Action::MoveUp) {
+    info!("Matches: {}", query.iter().len());
+    for (tf, mut fm, mode, action) in query.iter_mut() {
+        let mut dv = Vec3::ZERO;
+        dv.z -= if action.pressed(&Action::MoveForward) {
             1.0
         } else {
             0.0
         };
-        tm.0.y -= if action.pressed(&Action::MoveDown) {
+        dv.z += if action.pressed(&Action::MoveBack) {
             1.0
         } else {
             0.0
         };
+        dv.x += if action.pressed(&Action::MoveRight) {
+            1.0
+        } else {
+            0.0
+        };
+        dv.x -= if action.pressed(&Action::MoveLeft) {
+            1.0
+        } else {
+            0.0
+        };
+
+        let (y_rot, _, _) = tf.rotation.to_euler(EulerRot::YXZ);
+        fm.0 = Quat::from_axis_angle(Vec3::Y, y_rot) * dv;
+
+        if *mode == MovementMode::Flying {
+            fm.0.y += if action.pressed(&Action::MoveUp) {
+                1.0
+            } else {
+                0.0
+            };
+            fm.0.y -= if action.pressed(&Action::MoveDown) {
+                1.0
+            } else {
+                0.0
+            };
+        }
     }
 }
 
 pub fn boost_float_player(
-    mut query: Query<(Entity, &mut FloatBoost, &MovementMode, &ActionState<Action>), With<Player>>,
+    mut query: Query<
+        (Entity, &mut FloatBoost, &MovementMode, &ActionState<Action>),
+        With<ControlledPlayer>,
+    >,
     mut commands: Commands,
 ) {
     for (entity, mut fb, mode, action) in query.iter_mut() {
-        apply_float(entity, &mut fb, mode, action, &mut commands);
-    }
-}
-
-fn apply_float(
-    entity: Entity,
-    fb: &mut FloatBoost,
-    mode: &MovementMode,
-    action: &ActionState<Action>,
-    commands: &mut Commands,
-) {
-    fb.enabled = *mode != MovementMode::Flying && action.pressed(&Action::Float);
-    if action.just_pressed(&Action::Float) {
-        if let Some(mut ec) = commands.get_entity(entity) {
-            ec.remove::<Grappled>();
+        fb.enabled = *mode != MovementMode::Flying && action.pressed(&Action::Float);
+        if action.just_pressed(&Action::Float) {
+            if let Some(mut ec) = commands.get_entity(entity) {
+                ec.remove::<Grappled>();
+            }
         }
     }
 }
 
 pub fn dash_player(
     mut query: Query<
-        (Entity, &Dash, &mut Stamina, &Velocity),
-        (With<Player>, Without<CurrentlyDashing>),
+        (Entity, &Dash, &mut Stamina, &Velocity, &ActionState<Action>),
+        (With<ControlledPlayer>, Without<CurrentlyDashing>),
     >,
     mut commands: Commands,
     time: Res<Time>,
-    action: Res<ActionState<Action>>,
-) {
-    for (entity, dash, mut stamina, v) in query.iter_mut() {
-        apply_dash(entity, dash, &mut stamina, v, &time, &action, &mut commands);
-    }
-}
-
-fn apply_dash(
-    entity: Entity,
-    dash: &Dash,
-    stamina: &mut Stamina,
-    v: &Velocity,
-    time: &Time,
-    action: &ActionState<Action>,
-    commands: &mut Commands,
 ) {
     let current_time = time.elapsed();
-    if action.just_pressed(&Action::Dash) && dash.stamina_cost.apply(stamina) {
-        if let Some(mut ec) = commands.get_entity(entity) {
-            ec.try_insert(CurrentlyDashing::new(*dash, current_time, v.0));
+    for (entity, dash, mut stamina, v, action) in query.iter_mut() {
+        if action.just_pressed(&Action::Dash) && dash.stamina_cost.apply(&mut stamina) {
+            if let Some(mut ec) = commands.get_entity(entity) {
+                ec.try_insert(CurrentlyDashing::new(*dash, current_time, v.0));
+            }
         }
     }
 }
 
 pub fn rotate_mouse(
-    mut query: Query<(&mut Transform, &mut RotateWithMouse)>,
+    mut query: Query<(
+        &mut Transform,
+        &mut RotateWithMouse,
+        &ActionState<Action>,
+        Option<&LocalPlayer>,
+    )>,
     focused: Res<CursorLocked>,
     settings: Res<Settings>,
-    action: Res<ActionState<Action>>,
 ) {
-    if !focused.0 {
-        return;
-    }
+    // todo - figure out what to do with settings. ideally, we'd have clients have complete control over rotation
     let sensitivity = settings.mouse_sensitivity;
-    for (mut tf, mut rotation) in query.iter_mut() {
+    for (mut tf, mut rotation, action, local) in query.iter_mut() {
+        if local.is_some() && !focused.0 {
+            // don't continue if we're in the inventory
+            continue;
+        }
         let delta = action.axis_pair(&Action::Look);
         if !rotation.lock_yaw {
             rotation.yaw -= delta.x * sensitivity;
@@ -257,7 +237,17 @@ pub fn follow_local_player(
 }
 
 pub fn player_punch(
-    mut player_query: Query<(Entity, &GlobalTransform, &Player, &mut Inventory), With<LocalPlayer>>,
+    mut player_query: Query<
+        (
+            Entity,
+            &GlobalTransform,
+            &Player,
+            &mut Inventory,
+            &ActionState<Action>,
+            Option<&LocalPlayer>,
+        ),
+        With<ControlledPlayer>,
+    >,
     combat_query: Query<&Combatant>,
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
@@ -265,12 +255,12 @@ pub fn player_punch(
     mut block_hit_writer: EventWriter<BlockHitEvent>,
     focused: Res<CursorLocked>,
     level: Res<Level>,
-    action: Res<ActionState<Action>>,
 ) {
-    if !focused.0 {
-        return;
-    }
-    if let Ok((player_entity, tf, player, mut inv)) = player_query.get_single_mut() {
+    for (player_entity, tf, player, mut inv, action, local) in player_query.iter_mut() {
+        if local.is_some() && !focused.0 {
+            // don't continue if we're in the inventory
+            continue;
+        }
         if action.pressed(&Action::Punch) {
             //first test if we punched a combatant
             let slot = inv.selected_slot();
@@ -315,19 +305,28 @@ pub fn player_punch(
 }
 
 pub fn player_use(
-    mut player_query: Query<(&mut Inventory, Entity, &GlobalTransform), With<LocalPlayer>>,
+    mut player_query: Query<
+        (
+            &mut Inventory,
+            Entity,
+            &GlobalTransform,
+            &ActionState<Action>,
+            Option<&LocalPlayer>,
+        ),
+        With<ControlledPlayer>,
+    >,
     focused: Res<CursorLocked>,
     level: Res<Level>,
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
     usable_block_query: Query<&UsableBlock>,
     mut block_use_writer: EventWriter<BlockUsedEvent>,
-    action: Res<ActionState<Action>>,
 ) {
-    if !focused.0 {
-        return;
-    }
-    if let Ok((mut inv, entity, tf)) = player_query.get_single_mut() {
+    for (mut inv, entity, tf, action, local) in player_query.iter_mut() {
+        if local.is_some() && !focused.0 {
+            // don't continue if we're in the inventory
+            continue;
+        }
         if action.just_pressed(&Action::Use) {
             //first test if we used a block
             if let Some(RaycastHit::Block(coord, _)) = query::raycast(

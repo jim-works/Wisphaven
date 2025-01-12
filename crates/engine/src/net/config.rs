@@ -6,6 +6,7 @@ use rand::RngCore;
 use std::net::*;
 use std::time::Duration;
 
+use crate::controllers::Action;
 use crate::net::protocol::ProtocolPlugin;
 
 use super::NetworkType;

@@ -106,8 +106,12 @@ fn handle_connections(
         // todo - we probably want to limit that to clients within load distance in the future
         let replicate = Replicate {
             sync: SyncTarget {
-                prediction: NetworkTarget::Single(client_id),
+                prediction: NetworkTarget::All,
                 interpolation: NetworkTarget::AllExceptSingle(client_id),
+            },
+            controlled_by: ControlledBy {
+                target: NetworkTarget::Single(client_id),
+                lifetime: Lifetime::SessionBased,
             },
             ..default()
         };

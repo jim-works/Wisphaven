@@ -3,7 +3,7 @@ use std::{f32::consts::PI, time::Duration};
 use ::util::SendEventCommand;
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
-use lightyear::prelude::client::Predicted;
+use lightyear::{prelude::client::Predicted, shared::replication::components::Controlled};
 use player_controller::RotateWithMouse;
 
 use crate::{
@@ -17,7 +17,7 @@ use crate::{
         *,
     },
     mesher::item_mesher::HeldItemResources,
-    net::{NetworkType, PlayerList, RemoteClient},
+    net::{NetworkType, RemoteClient},
     physics::*,
     world::{settings::Settings, *},
 };
@@ -38,8 +38,14 @@ pub struct Player {
     pub hit_damage: Damage,
 }
 
+// not synced over network. Basically the player for this device
 #[derive(Component)]
 pub struct LocalPlayer;
+
+// not synced over network. Any player we control. For all clients, this will be the same as local player,
+// but for server/host, all players will be ControlledPlayer
+#[derive(Component)]
+pub struct ControlledPlayer;
 
 #[derive(Event)]
 pub struct LocalPlayerSpawnedEvent(pub Entity);
@@ -80,7 +86,7 @@ impl Plugin for PlayerPlugin {
 
 fn spawn_remote_player(
     mut commands: Commands,
-    joined_query: Query<(Entity, &RemoteClient), (Without<Player>, Without<Predicted>)>,
+    joined_query: Query<(Entity, &RemoteClient), (Without<Player>, Without<Controlled>)>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     settings: Res<Settings>,
@@ -110,6 +116,8 @@ fn spawn_remote_player(
                     ..settings.player_loader.clone()
                 },
                 Name::new(format!("player_{:?}", client_id)),
+                ControlledPlayer,
+                ActionState::<Action>::default(),
             ));
         }
         populate_player_entity(
@@ -169,7 +177,8 @@ pub(crate) fn spawn_local_player(
     ghost_resources: Res<GhostResources>,
     held_item_resouces: Res<HeldItemResources>,
     player_query: Query<(), With<LocalPlayer>>,
-    client_player_query: Query<Entity, (With<Predicted>, Without<Player>)>,
+    // we want to use the `Predicted` entity for the local player on the clients.
+    client_player_query: Query<Entity, (With<Controlled>, Without<Player>, With<Predicted>)>,
     camera: Res<MainCamera>,
 ) {
     if !matches!(network_type.get(), NetworkType::Client) && spawn_reader.is_empty() {
@@ -181,7 +190,7 @@ pub(crate) fn spawn_local_player(
     }
     if matches!(network_type.get(), NetworkType::Client) && client_player_query.iter().len() != 1 {
         warn!(
-            "invalid clinet player count: {}",
+            "invalid client player count: {}",
             client_player_query.iter().len()
         );
         return;
@@ -206,24 +215,9 @@ pub(crate) fn spawn_local_player(
         StateScoped(LevelLoadState::Loaded),
         Name::new("local player"),
         LocalPlayer {},
-        CombatantBundle::<PlayerTeam> {
-            combatant: Combatant::new(10.0, 0.0),
-            death_info: DeathInfo {
-                death_type: crate::actors::DeathType::LocalPlayer,
-            },
-            invulnerability: Invulnerability::new(Duration::from_secs(1)),
-            ..default()
-        },
-        RotateWithMouse {
-            pitch_bound: PI * 0.49,
-            ..default()
-        },
-        ControllableBundle {
-            move_speed: MoveSpeed::new(0.5, 0.5, 0.10),
-            ..default()
-        },
-        FloatBoost::default().with_extra_height(3.0),
         ActionState::<Action>::default(),
+        ControlledPlayer,
+        get_input_map(),
         settings.player_loader.clone(),
     ));
     populate_player_entity(
@@ -364,6 +358,23 @@ fn populate_player_entity(
             per_tick: 1. / (64. * 16.),
         },
         Dash::new(0.5, Duration::from_secs_f32(0.5)),
+        CombatantBundle::<PlayerTeam> {
+            combatant: Combatant::new(10.0, 0.0),
+            death_info: DeathInfo {
+                death_type: crate::actors::DeathType::LocalPlayer,
+            },
+            invulnerability: Invulnerability::new(Duration::from_secs(1)),
+            ..default()
+        },
+        RotateWithMouse {
+            pitch_bound: PI * 0.49,
+            ..default()
+        },
+        ControllableBundle {
+            move_speed: MoveSpeed::new(0.5, 0.5, 0.10),
+            ..default()
+        },
+        FloatBoost::default().with_extra_height(3.0),
     ));
     //right hand
     let right_hand = spawn_ghost_hand(
