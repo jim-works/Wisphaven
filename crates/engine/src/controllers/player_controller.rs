@@ -95,61 +95,86 @@ pub fn toggle_player_flight(
 }
 
 pub fn move_player(
-    mut query: Query<(&Transform, &mut TickMovement, &MovementMode), With<Player>>,
-    action: Res<ActionState<Action>>,
+    mut query: Query<
+        (
+            &Transform,
+            &mut TickMovement,
+            &MovementMode,
+            &ActionState<Action>,
+        ),
+        With<Player>,
+    >,
 ) {
-    for (tf, mut fm, mode) in query.iter_mut() {
-        let mut dv = Vec3::ZERO;
-        dv.z -= if action.pressed(&Action::MoveForward) {
-            1.0
-        } else {
-            0.0
-        };
-        dv.z += if action.pressed(&Action::MoveBack) {
-            1.0
-        } else {
-            0.0
-        };
-        dv.x += if action.pressed(&Action::MoveRight) {
-            1.0
-        } else {
-            0.0
-        };
-        dv.x -= if action.pressed(&Action::MoveLeft) {
-            1.0
-        } else {
-            0.0
-        };
+    for (tf, mut tm, mode, action) in query.iter_mut() {
+        apply_movement(tf, &mut tm, mode, action);
+    }
+}
 
-        let (y_rot, _, _) = tf.rotation.to_euler(EulerRot::YXZ);
-        fm.0 = Quat::from_axis_angle(Vec3::Y, y_rot) * dv;
+fn apply_movement(
+    tf: &Transform,
+    tm: &mut TickMovement,
+    mode: &MovementMode,
+    action: &ActionState<Action>,
+) {
+    let mut dv = Vec3::ZERO;
+    dv.z -= if action.pressed(&Action::MoveForward) {
+        1.0
+    } else {
+        0.0
+    };
+    dv.z += if action.pressed(&Action::MoveBack) {
+        1.0
+    } else {
+        0.0
+    };
+    dv.x += if action.pressed(&Action::MoveRight) {
+        1.0
+    } else {
+        0.0
+    };
+    dv.x -= if action.pressed(&Action::MoveLeft) {
+        1.0
+    } else {
+        0.0
+    };
 
-        if *mode == MovementMode::Flying {
-            fm.0.y += if action.pressed(&Action::MoveUp) {
-                1.0
-            } else {
-                0.0
-            };
-            fm.0.y -= if action.pressed(&Action::MoveDown) {
-                1.0
-            } else {
-                0.0
-            };
-        }
+    let (y_rot, _, _) = tf.rotation.to_euler(EulerRot::YXZ);
+    tm.0 = Quat::from_axis_angle(Vec3::Y, y_rot) * dv;
+
+    if *mode == MovementMode::Flying {
+        tm.0.y += if action.pressed(&Action::MoveUp) {
+            1.0
+        } else {
+            0.0
+        };
+        tm.0.y -= if action.pressed(&Action::MoveDown) {
+            1.0
+        } else {
+            0.0
+        };
     }
 }
 
 pub fn boost_float_player(
-    mut query: Query<(Entity, &mut FloatBoost, &MovementMode), With<Player>>,
+    mut query: Query<(Entity, &mut FloatBoost, &MovementMode, &ActionState<Action>), With<Player>>,
     mut commands: Commands,
-    action: Res<ActionState<Action>>,
 ) {
-    for (entity, mut fb, mode) in query.iter_mut() {
-        fb.enabled = *mode != MovementMode::Flying && action.pressed(&Action::Float);
-        if action.just_pressed(&Action::Float) {
-            if let Some(mut ec) = commands.get_entity(entity) {
-                ec.remove::<Grappled>();
-            }
+    for (entity, mut fb, mode, action) in query.iter_mut() {
+        apply_float(entity, &mut fb, mode, action, &mut commands);
+    }
+}
+
+fn apply_float(
+    entity: Entity,
+    fb: &mut FloatBoost,
+    mode: &MovementMode,
+    action: &ActionState<Action>,
+    commands: &mut Commands,
+) {
+    fb.enabled = *mode != MovementMode::Flying && action.pressed(&Action::Float);
+    if action.just_pressed(&Action::Float) {
+        if let Some(mut ec) = commands.get_entity(entity) {
+            ec.remove::<Grappled>();
         }
     }
 }
@@ -163,12 +188,24 @@ pub fn dash_player(
     time: Res<Time>,
     action: Res<ActionState<Action>>,
 ) {
-    let current_time = time.elapsed();
     for (entity, dash, mut stamina, v) in query.iter_mut() {
-        if action.just_pressed(&Action::Dash) && dash.stamina_cost.apply(&mut stamina) {
-            if let Some(mut ec) = commands.get_entity(entity) {
-                ec.try_insert(CurrentlyDashing::new(*dash, current_time, v.0));
-            }
+        apply_dash(entity, dash, &mut stamina, v, &time, &action, &mut commands);
+    }
+}
+
+fn apply_dash(
+    entity: Entity,
+    dash: &Dash,
+    stamina: &mut Stamina,
+    v: &Velocity,
+    time: &Time,
+    action: &ActionState<Action>,
+    commands: &mut Commands,
+) {
+    let current_time = time.elapsed();
+    if action.just_pressed(&Action::Dash) && dash.stamina_cost.apply(stamina) {
+        if let Some(mut ec) = commands.get_entity(entity) {
+            ec.try_insert(CurrentlyDashing::new(*dash, current_time, v.0));
         }
     }
 }

@@ -43,7 +43,7 @@ rand = "0.8.5"
 rand_distr = "0.4.3"
 itertools = "0.13.0"
 futures-timer = "3.0.3"
-lightyear = "0.18.0"
+lightyear = { version = "0.18.0", features = ["leafwing"]}
 serde_with = "3.11.0"
 bevy_hanabi = "0.14.0"
 bitflags = "2.6.0"

@@ -1,9 +1,9 @@
 use std::{hash::Hash, net::IpAddr, thread::sleep, time::Duration};
 
 use bevy::{app::AppExit, prelude::*, utils::HashMap};
-use lightyear::prelude::client::ClientCommands;
 use lightyear::prelude::client::*;
 use lightyear::prelude::*;
+use lightyear::{prelude::client::ClientCommands, shared::events::components::MessageEvent};
 use rand::Rng;
 use rand_distr::Alphanumeric;
 
@@ -15,9 +15,10 @@ use crate::{
     GameState,
 };
 
+use super::protocol::{ClientInfoMessage, OrderedReliable};
 use super::{
-    ClientMessage, DisconnectedClient, NetworkType, PlayerInfo, PlayerList, RemoteClient,
-    ServerMessage, UpdateEntityTransform, UpdateEntityVelocity,
+    protocol::PlayerListMessage, ClientMessage, DisconnectedClient, NetworkType, PlayerInfo,
+    PlayerList, RemoteClient, ServerMessage, UpdateEntityTransform, UpdateEntityVelocity,
 };
 
 pub(crate) struct ClientPlugin {
@@ -28,7 +29,9 @@ impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<ClientState>()
             .enable_state_scoped_entities::<ClientState>()
-            .add_systems(OnEnter(GameState::Game), connect);
+            .add_systems(OnEnter(GameState::Game), connect)
+            .add_systems(OnEnter(NetworkingState::Connected), on_connected)
+            .add_systems(Update, on_server_ready);
 
         // .add_systems(
         //     Update,
@@ -106,6 +109,31 @@ pub enum ClientState {
 fn connect(mut commands: Commands) {
     info!("connecting client...");
     commands.connect_client();
+}
+
+fn on_connected(mut conn: ResMut<ClientConnectionManager>) {
+    info!("On connected running");
+    if let Err(e) =
+        conn.send_message::<OrderedReliable, ClientInfoMessage>(&mut ClientInfoMessage {
+            name: "jimbob".into(),
+        })
+    {
+        error!("Error sending name: {:?}", e);
+    }
+}
+
+fn on_server_ready(
+    mut state: ResMut<NextState<ClientState>>,
+    mut messages: EventReader<MessageEvent<PlayerListMessage>>,
+) {
+    for MessageEvent { message, .. } in messages.read() {
+        info!(
+            "There are {} players online: {:?}",
+            message.name.len(),
+            message.name
+        );
+        state.set(ClientState::Ready);
+    }
 }
 
 // fn handle_server_messages(

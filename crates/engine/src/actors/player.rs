@@ -2,6 +2,8 @@ use std::{f32::consts::PI, time::Duration};
 
 use ::util::SendEventCommand;
 use bevy::prelude::*;
+use leafwing_input_manager::prelude::ActionState;
+use lightyear::prelude::client::Predicted;
 use player_controller::RotateWithMouse;
 
 use crate::{
@@ -78,39 +80,42 @@ impl Plugin for PlayerPlugin {
 
 fn spawn_remote_player(
     mut commands: Commands,
-    joined_query: Query<(Entity, &RemoteClient), Added<RemoteClient>>,
+    joined_query: Query<(Entity, &RemoteClient), (Without<Player>, Without<Predicted>)>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    clients: Res<PlayerList>,
     settings: Res<Settings>,
     network_type: Res<State<NetworkType>>,
     ghost_resources: Res<GhostResources>,
     held_item_resouces: Res<HeldItemResources>,
     camera: Res<MainCamera>,
+    level: Res<Level>,
 ) {
     for (entity, RemoteClient(client_id)) in joined_query.iter() {
-        info!(
-            "Spawned remote player with username: {}",
-            &clients.get(*client_id).unwrap().username
-        );
+        info!("spawning remote player {:?}", client_id);
+        // info!(
+        //     "Spawned remote player with username: {}",
+        //     &clients.get(client_id).unwrap().username
+        // );
         commands.entity(entity).insert((
-            Name::new(clients.get(*client_id).cloned().unwrap().username),
             Mesh3d(meshes.add(Capsule3d::default())),
             MeshMaterial3d(materials.add(StandardMaterial {
                 base_color: Color::srgb(1.0, 0.0, 0.0),
                 ..default()
             })),
         ));
-        if let NetworkType::Server = network_type.get() {
-            commands.entity(entity).insert(ChunkLoader {
-                mesh: false,
-                ..settings.player_loader.clone()
-            });
+        if network_type.get().is_server() {
+            commands.entity(entity).insert((
+                ChunkLoader {
+                    mesh: false,
+                    ..settings.player_loader.clone()
+                },
+                Name::new(format!("player_{:?}", client_id)),
+            ));
         }
         populate_player_entity(
             entity,
             camera.0,
-            Vec3::ZERO,
+            level.get_spawn_point(),
             &ghost_resources,
             &held_item_resouces,
             &mut commands,
@@ -152,8 +157,9 @@ fn respawn_players(
     }
 }
 
-pub fn spawn_local_player(
+pub(crate) fn spawn_local_player(
     mut spawn_reader: EventReader<SpawnLocalPlayerEvent>,
+    network_type: Res<State<NetworkType>>,
     mut commands: Commands,
     settings: Res<Settings>,
     level: Res<Level>,
@@ -163,143 +169,165 @@ pub fn spawn_local_player(
     ghost_resources: Res<GhostResources>,
     held_item_resouces: Res<HeldItemResources>,
     player_query: Query<(), With<LocalPlayer>>,
+    client_player_query: Query<Entity, (With<Predicted>, Without<Player>)>,
     camera: Res<MainCamera>,
 ) {
-    for _ in spawn_reader.read() {
-        if !player_query.is_empty() {
-            info!("trying to spawn local player when there's already one!");
-        }
-        //adjust for ghost height
-        let spawn_point = level.get_spawn_point() + Vec3::new(0., 1.5, 0.);
-        info!("Spawning local player at {:?}", spawn_point);
-        let player_id = commands
-            .spawn((
-                StateScoped(LevelLoadState::Loaded),
-                Name::new("local player"),
-                LocalPlayer {},
-                CombatantBundle::<PlayerTeam> {
-                    combatant: Combatant::new(10.0, 0.0),
-                    death_info: DeathInfo {
-                        death_type: crate::actors::DeathType::LocalPlayer,
-                    },
-                    invulnerability: Invulnerability::new(Duration::from_secs(1)),
-                    ..default()
-                },
-                RotateWithMouse {
-                    pitch_bound: PI * 0.49,
-                    ..default()
-                },
-                ControllableBundle {
-                    move_speed: MoveSpeed::new(0.5, 0.5, 0.10),
-                    ..default()
-                },
-                FloatBoost::default().with_extra_height(3.0),
-                settings.player_loader.clone(),
-            ))
-            .id();
-        populate_player_entity(
-            player_id,
-            camera.0,
-            spawn_point,
-            &ghost_resources,
-            &held_item_resouces,
-            &mut commands,
-        );
-        let mut inventory = Inventory::new(player_id, 40);
-
-        inventory.pickup_item(
-            ItemStack::new(
-                resources
-                    .registry
-                    .get_basic(&ItemName::core("ruby_pickaxe"))
-                    .unwrap(),
-                1,
-            ),
-            &item_query,
-            &mut pickup_item,
-        );
-        inventory.pickup_item(
-            ItemStack::new(
-                resources
-                    .registry
-                    .get_basic(&ItemName::core("ruby_shovel"))
-                    .unwrap(),
-                1,
-            ),
-            &item_query,
-            &mut pickup_item,
-        );
-        inventory.pickup_item(
-            ItemStack::new(
-                resources
-                    .registry
-                    .get_basic(&ItemName::core("ruby_axe"))
-                    .unwrap(),
-                1,
-            ),
-            &item_query,
-            &mut pickup_item,
-        );
-        inventory.pickup_item(
-            ItemStack::new(
-                resources
-                    .registry
-                    .get_basic(&ItemName::core("moon"))
-                    .unwrap(),
-                1,
-            ),
-            &item_query,
-            &mut pickup_item,
-        );
-        inventory.pickup_item(
-            ItemStack::new(
-                resources
-                    .registry
-                    .get_basic(&ItemName::core("dagger"))
-                    .unwrap(),
-                100,
-            ),
-            &item_query,
-            &mut pickup_item,
-        );
-        inventory.pickup_item(
-            ItemStack::new(
-                resources
-                    .registry
-                    .get_basic(&ItemName::core("spike_ball_launcher"))
-                    .unwrap(),
-                100,
-            ),
-            &item_query,
-            &mut pickup_item,
-        );
-        inventory.pickup_item(
-            ItemStack::new(
-                resources
-                    .registry
-                    .get_basic(&ItemName::core("grapple"))
-                    .unwrap(),
-                1,
-            ),
-            &item_query,
-            &mut pickup_item,
-        );
-        inventory.pickup_item(
-            ItemStack::new(
-                resources
-                    .registry
-                    .get_basic(&ItemName::core("suicide_pill"))
-                    .unwrap(),
-                1,
-            ),
-            &item_query,
-            &mut pickup_item,
-        );
-
-        commands.entity(player_id).insert(inventory);
-        //makes sure that player is actually spawned before this occurs, since events fire at a different time than commands
-        commands.queue(SendEventCommand(LocalPlayerSpawnedEvent(player_id)));
+    if !matches!(network_type.get(), NetworkType::Client) && spawn_reader.is_empty() {
+        return;
     }
+    if matches!(network_type.get(), NetworkType::Client) && client_player_query.is_empty() {
+        // player already spawned
+        return;
+    }
+    if matches!(network_type.get(), NetworkType::Client) && client_player_query.iter().len() != 1 {
+        warn!(
+            "invalid clinet player count: {}",
+            client_player_query.iter().len()
+        );
+        return;
+    }
+    if !player_query.is_empty() {
+        info!("trying to spawn local player when there's already one!");
+    }
+    spawn_reader.clear();
+    //adjust for ghost height
+    let spawn_point = level.get_spawn_point() + Vec3::new(0., 1.5, 0.);
+    info!("Spawning local player at {:?}", spawn_point);
+    // decide if we need to spawn an entity or can use the one provided by the server
+    let player_id = if let Ok(e) = client_player_query.get_single() {
+        info!("using remote");
+        e
+    } else {
+        info!("using local");
+        commands.spawn_empty().id()
+    };
+    info!("network type: {:?}", network_type.get());
+    commands.entity(player_id).insert((
+        StateScoped(LevelLoadState::Loaded),
+        Name::new("local player"),
+        LocalPlayer {},
+        CombatantBundle::<PlayerTeam> {
+            combatant: Combatant::new(10.0, 0.0),
+            death_info: DeathInfo {
+                death_type: crate::actors::DeathType::LocalPlayer,
+            },
+            invulnerability: Invulnerability::new(Duration::from_secs(1)),
+            ..default()
+        },
+        RotateWithMouse {
+            pitch_bound: PI * 0.49,
+            ..default()
+        },
+        ControllableBundle {
+            move_speed: MoveSpeed::new(0.5, 0.5, 0.10),
+            ..default()
+        },
+        FloatBoost::default().with_extra_height(3.0),
+        ActionState::<Action>::default(),
+        settings.player_loader.clone(),
+    ));
+    populate_player_entity(
+        player_id,
+        camera.0,
+        spawn_point,
+        &ghost_resources,
+        &held_item_resouces,
+        &mut commands,
+    );
+    let mut inventory = Inventory::new(player_id, 40);
+
+    inventory.pickup_item(
+        ItemStack::new(
+            resources
+                .registry
+                .get_basic(&ItemName::core("ruby_pickaxe"))
+                .unwrap(),
+            1,
+        ),
+        &item_query,
+        &mut pickup_item,
+    );
+    inventory.pickup_item(
+        ItemStack::new(
+            resources
+                .registry
+                .get_basic(&ItemName::core("ruby_shovel"))
+                .unwrap(),
+            1,
+        ),
+        &item_query,
+        &mut pickup_item,
+    );
+    inventory.pickup_item(
+        ItemStack::new(
+            resources
+                .registry
+                .get_basic(&ItemName::core("ruby_axe"))
+                .unwrap(),
+            1,
+        ),
+        &item_query,
+        &mut pickup_item,
+    );
+    inventory.pickup_item(
+        ItemStack::new(
+            resources
+                .registry
+                .get_basic(&ItemName::core("moon"))
+                .unwrap(),
+            1,
+        ),
+        &item_query,
+        &mut pickup_item,
+    );
+    inventory.pickup_item(
+        ItemStack::new(
+            resources
+                .registry
+                .get_basic(&ItemName::core("dagger"))
+                .unwrap(),
+            100,
+        ),
+        &item_query,
+        &mut pickup_item,
+    );
+    inventory.pickup_item(
+        ItemStack::new(
+            resources
+                .registry
+                .get_basic(&ItemName::core("spike_ball_launcher"))
+                .unwrap(),
+            100,
+        ),
+        &item_query,
+        &mut pickup_item,
+    );
+    inventory.pickup_item(
+        ItemStack::new(
+            resources
+                .registry
+                .get_basic(&ItemName::core("grapple"))
+                .unwrap(),
+            1,
+        ),
+        &item_query,
+        &mut pickup_item,
+    );
+    inventory.pickup_item(
+        ItemStack::new(
+            resources
+                .registry
+                .get_basic(&ItemName::core("suicide_pill"))
+                .unwrap(),
+            1,
+        ),
+        &item_query,
+        &mut pickup_item,
+    );
+
+    commands.entity(player_id).insert(inventory);
+    //makes sure that player is actually spawned before this occurs, since events fire at a different time than commands
+    commands.queue(SendEventCommand(LocalPlayerSpawnedEvent(player_id)));
 }
 
 fn populate_player_entity(

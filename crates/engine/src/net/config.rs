@@ -18,11 +18,14 @@ pub fn setup(
     server_port: Option<u16>,
     client_addr: Option<String>,
 ) {
-    app.add_plugins(ProtocolPlugin);
     info!(
         "entering network setup with type {:?}, server_port {:?}, client_addr {:?}",
         network_type, server_port, client_addr
     );
+    app.world_mut()
+        .get_resource_mut::<NextState<NetworkType>>()
+        .unwrap()
+        .set(network_type);
     match network_type {
         NetworkType::Singleplayer | NetworkType::Inactive => {
             info!("skipping network setup");
@@ -106,5 +109,6 @@ pub fn setup(
         ));
         info!("added client plugins!");
     }
+    app.add_plugins(ProtocolPlugin);
     info!("done setting up network");
 }

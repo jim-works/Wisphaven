@@ -34,26 +34,21 @@ impl Plugin for NetPlugin {
 #[derive(Resource, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PlayerList {
     pub infos: HashMap<ClientId, PlayerInfo>,
-    pub server: Option<PlayerInfo>,
 }
 
 impl PlayerList {
-    //None for server's player
-    pub fn get(&self, id: Option<ClientId>) -> Option<&PlayerInfo> {
-        match id {
-            Some(id) => self.infos.get(&id),
-            None => self.server.as_ref(),
-        }
+    pub fn get(&self, id: &ClientId) -> Option<&PlayerInfo> {
+        self.infos.get(id)
     }
 }
 
 //if none, belongs to server
-#[derive(Component)]
-pub struct RemoteClient(pub Option<ClientId>);
+#[derive(Component, Serialize, Deserialize, Clone, Debug, PartialEq, Reflect)]
+pub struct RemoteClient(pub ClientId);
 
 //if none, belongs to server
 #[derive(Component)]
-pub struct DisconnectedClient(pub Option<ClientId>);
+pub struct DisconnectedClient(pub ClientId);
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PlayerInfo {

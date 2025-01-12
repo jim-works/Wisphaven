@@ -9,7 +9,10 @@ use server::ServerCommands;
 use crate::{
     actors::LocalPlayer,
     items::{inventory::Inventory, ItemRegistry, ItemResources, SwingItemEvent, UseItemEvent},
-    net::{DisconnectedClient, PlayerInfo, PlayerList, RemoteClient},
+    net::{
+        protocol::{OrderedReliable, PlayerListMessage},
+        DisconnectedClient, PlayerInfo, PlayerList, RemoteClient,
+    },
     physics::movement::Velocity,
     serialization::ChunkSaveFormat,
     util::LocalRepeatingTimer,
@@ -91,11 +94,13 @@ fn start_server(mut commands: Commands, mut state: ResMut<NextState<ServerState>
 }
 
 fn handle_connections(
-    mut connections: EventReader<ConnectEvent>,
+    mut incoming_connections: EventReader<ConnectEvent>,
     mut players: ResMut<NetworkPlayerMap>,
     mut commands: Commands,
+    mut conn: ResMut<ConnectionManager>,
+    mut player_list: ResMut<PlayerList>,
 ) {
-    for connection in connections.read() {
+    for connection in incoming_connections.read() {
         let client_id = connection.client_id;
         // by default, this replicates to all clients.
         // todo - we probably want to limit that to clients within load distance in the future
@@ -110,11 +115,30 @@ fn handle_connections(
             .spawn((
                 replicate,
                 StateScoped(GameState::Game),
-                RemoteClient(Some(client_id)),
+                RemoteClient(client_id),
             ))
             .id();
-        info!("player joined!");
+        player_list.infos.insert(
+            client_id,
+            PlayerInfo {
+                username: format!("Player_{:?}", client_id),
+                entity,
+            },
+        );
+        info!("player joined! {:?}", client_id);
         players.client_id_to_entity_id.insert(client_id, entity);
+        if let Err(e) = conn.send_message::<OrderedReliable, PlayerListMessage>(
+            client_id,
+            &mut PlayerListMessage {
+                name: player_list
+                    .infos
+                    .values()
+                    .map(|info| info.username.clone())
+                    .collect::<Vec<_>>(),
+            },
+        ) {
+            error!("Error sending player list message: {:?}", e);
+        }
     }
 }
 
