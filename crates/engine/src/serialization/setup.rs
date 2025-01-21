@@ -29,7 +29,7 @@ use crate::world::{
 use crate::GameState;
 
 use super::{
-    state, BlockTextureMap, ItemTextureMap, LoadedToSavedIdMap, LoadingRecipes, SavedLevels,
+    state, BlockTextureMap, ItemTextureMap, LoadedToSavedIdMap, RecipesScene, SavedLevels,
     SavedToLoadedIdMap,
 };
 
@@ -55,7 +55,7 @@ impl Plugin for SetupPlugin {
                     (|| (LoadingItems, "items"))
                         .pipe(start_loading_scene::<LoadingItemScenes>)
                         .run_if(resource_exists::<LoadingItemScenes>),
-                    (|| (LoadingRecipes, "recipes"))
+                    (|| (RecipesScene, "recipes"))
                         .pipe(start_loading_scene::<LoadingRecipeScenes>)
                         .run_if(resource_exists::<LoadingRecipeScenes>),
                     (|mut n: ResMut<NextState<state::GameLoadState>>| {

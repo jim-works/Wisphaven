@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::{inventory::Inventory, DropItemEvent, ItemSystemSet, UseEndEvent};
+use super::{inventory::Inventory, ItemSystemSet, UseEndEvent};
 
 pub struct ItemAttributesPlugin;
 
@@ -36,7 +36,6 @@ pub struct ItemUseSpeed {
 }
 
 fn consume_items(
-    mut drop_writer: EventWriter<DropItemEvent>,
     mut events: EventReader<UseEndEvent>,
     consumable_query: Query<&ConsumeItemOnHit>,
     mut inventory_query: Query<&mut Inventory>,
@@ -53,7 +52,7 @@ fn consume_items(
         }
         if let Some(slot_num) = inventory_slot {
             if let Ok(mut inv) = inventory_query.get_mut(*user) {
-                inv.drop_items(*slot_num, 1, &mut drop_writer);
+                inv.drop_items(*slot_num, 1);
             }
         }
     }

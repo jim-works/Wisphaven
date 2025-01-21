@@ -8,14 +8,18 @@
             ((
               namespace: "core",
               name: "spike_ball_launcher",
-            ), 2)
+            ), 11),
+            ((
+              namespace: "core",
+              name: "dagger",
+            ), 5)
           ],
           output: (
             (
               namespace: "core",
-              name: "spike_ball_launcher",
+              name: "ruby_axe",
             ),
-            4
+            1
           )
         ),
       },

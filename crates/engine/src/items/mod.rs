@@ -19,8 +19,6 @@ impl Plugin for ItemsPlugin {
         app.add_event::<StartUsingItemEvent>()
             .add_event::<UseItemEvent>()
             .add_event::<UseEndEvent>()
-            .add_event::<PickupItemEvent>()
-            .add_event::<DropItemEvent>()
             .add_event::<StartSwingingItemEvent>()
             .add_event::<SwingItemEvent>()
             .add_event::<SwingEndEvent>()
@@ -205,19 +203,6 @@ impl HitResult {
     }
 }
 
-#[derive(Event)]
-pub struct PickupItemEvent {
-    pub user: Entity,
-    //no slot because we can pick up items into multiple slots at once
-    pub stack: ItemStack,
-}
-#[derive(Event)]
-pub struct DropItemEvent {
-    pub user: Entity,
-    pub inventory_slot: usize,
-    pub stack: ItemStack,
-}
-
 #[derive(Component)]
 // place on blocks, actors, etc to denote that they are placed/spawned by the referenced item entity
 pub struct CreatorItem(pub Entity);
@@ -238,12 +223,12 @@ pub trait ItemGenerator: Send + Sync {
 pub struct ItemRegistry {
     pub basic_entities: Vec<Entity>,
     pub dynamic_generators: Vec<Box<dyn ItemGenerator>>,
-    //block ids may not be stable across program runs
+    //item ids may not be stable across program runs
     pub id_map: ItemNameIdMap,
 }
 
 impl ItemRegistry {
-    //inserts the corresponding BlockId component on the block
+    //inserts the corresponding id component on the item
     pub fn add_basic(&mut self, name: ItemName, entity: Entity, commands: &mut Commands) {
         info!("added id {:?}", name);
         let id = ItemId(Id::Basic(self.basic_entities.len() as u32));
@@ -279,7 +264,7 @@ impl ItemRegistry {
         match self.id_map.get(name) {
             Some(id) => *id,
             None => {
-                error!("Couldn't find block id for name {:?}", name);
+                error!("Couldn't find item id for name {:?}", name);
                 ItemId(Id::Empty)
             }
         }

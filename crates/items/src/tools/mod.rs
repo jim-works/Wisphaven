@@ -12,7 +12,7 @@ use engine::{
 
 use engine::items::{
     inventory::Inventory, CreatorItem, HitResult, ItemStack, ItemSystemSet, MaxStackSize,
-    PickupItemEvent, SwingEndEvent, SwingItemEvent,
+    SwingEndEvent, SwingItemEvent,
 };
 
 pub mod abilities;
@@ -123,7 +123,6 @@ fn deal_block_damage(
     mut player_query: Query<&mut Inventory, With<Player>>,
     block_query: Query<&CreatorItem>,
     data_query: Query<&MaxStackSize>,
-    mut pickup_writer: EventWriter<PickupItemEvent>,
     mut writer: EventWriter<BlockDamageSetEvent>,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
     mut commands: Commands,
@@ -157,7 +156,7 @@ fn deal_block_damage(
             ) {
                 if let Some(mut inv) = user.and_then(|e| player_query.get_mut(e).ok()) {
                     if let Ok(CreatorItem(item)) = block_query.get(broken) {
-                        inv.pickup_item(ItemStack::new(*item, 1), &data_query, &mut pickup_writer);
+                        inv.pickup_item(ItemStack::new(*item, 1), &data_query);
                     }
                 }
             }

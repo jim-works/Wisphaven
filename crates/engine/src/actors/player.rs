@@ -171,7 +171,6 @@ pub(crate) fn spawn_local_player(
     mut commands: Commands,
     settings: Res<Settings>,
     level: Res<Level>,
-    mut pickup_item: EventWriter<PickupItemEvent>,
     resources: Res<ItemResources>,
     item_query: Query<&MaxStackSize>,
     ghost_resources: Res<GhostResources>,
@@ -239,7 +238,6 @@ pub(crate) fn spawn_local_player(
             1,
         ),
         &item_query,
-        &mut pickup_item,
     );
     inventory.pickup_item(
         ItemStack::new(
@@ -250,7 +248,6 @@ pub(crate) fn spawn_local_player(
             1,
         ),
         &item_query,
-        &mut pickup_item,
     );
     inventory.pickup_item(
         ItemStack::new(
@@ -261,7 +258,6 @@ pub(crate) fn spawn_local_player(
             1,
         ),
         &item_query,
-        &mut pickup_item,
     );
     inventory.pickup_item(
         ItemStack::new(
@@ -272,7 +268,6 @@ pub(crate) fn spawn_local_player(
             1,
         ),
         &item_query,
-        &mut pickup_item,
     );
     inventory.pickup_item(
         ItemStack::new(
@@ -283,7 +278,6 @@ pub(crate) fn spawn_local_player(
             100,
         ),
         &item_query,
-        &mut pickup_item,
     );
     inventory.pickup_item(
         ItemStack::new(
@@ -294,7 +288,6 @@ pub(crate) fn spawn_local_player(
             100,
         ),
         &item_query,
-        &mut pickup_item,
     );
     inventory.pickup_item(
         ItemStack::new(
@@ -305,7 +298,6 @@ pub(crate) fn spawn_local_player(
             1,
         ),
         &item_query,
-        &mut pickup_item,
     );
     inventory.pickup_item(
         ItemStack::new(
@@ -316,7 +308,6 @@ pub(crate) fn spawn_local_player(
             1,
         ),
         &item_query,
-        &mut pickup_item,
     );
 
     commands.entity(player_id).insert(inventory);
