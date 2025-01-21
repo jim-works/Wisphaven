@@ -1,5 +1,5 @@
 use bevy::asset::LoadedFolder;
-pub use bevy::prelude::*;
+use bevy::prelude::*;
 use bevy::utils::HashMap;
 use itertools::Itertools;
 use rand::RngCore;
@@ -29,7 +29,8 @@ use crate::world::{
 use crate::GameState;
 
 use super::{
-    state, BlockTextureMap, ItemTextureMap, LoadedToSavedIdMap, SavedLevels, SavedToLoadedIdMap,
+    state, BlockTextureMap, ItemTextureMap, LoadedToSavedIdMap, LoadingRecipes, SavedLevels,
+    SavedToLoadedIdMap,
 };
 
 const LEVEL_FILE_EXTENSION: &str = ".db";
@@ -54,6 +55,9 @@ impl Plugin for SetupPlugin {
                     (|| (LoadingItems, "items"))
                         .pipe(start_loading_scene::<LoadingItemScenes>)
                         .run_if(resource_exists::<LoadingItemScenes>),
+                    (|| (LoadingRecipes, "recipes"))
+                        .pipe(start_loading_scene::<LoadingRecipeScenes>)
+                        .run_if(resource_exists::<LoadingRecipeScenes>),
                     (|mut n: ResMut<NextState<state::GameLoadState>>| {
                         info!("finished preloading, loading assets now!");
                         n.set(state::GameLoadState::LoadingAssets)
@@ -61,7 +65,8 @@ impl Plugin for SetupPlugin {
                     .run_if(not(resource_exists::<LoadingBlockTextures>))
                     .run_if(not(resource_exists::<LoadingItemTextures>))
                     .run_if(not(resource_exists::<LoadingBlockScenes>))
-                    .run_if(not(resource_exists::<LoadingItemScenes>)),
+                    .run_if(not(resource_exists::<LoadingItemScenes>))
+                    .run_if(not(resource_exists::<LoadingRecipeScenes>)),
                 )
                     .run_if(in_state(state::GameLoadState::Preloading)),
             )
@@ -84,27 +89,30 @@ impl Plugin for SetupPlugin {
 }
 
 #[derive(Resource, Deref, Clone)]
-pub struct LoadingBlockTextures(Handle<LoadedFolder>);
+struct LoadingBlockTextures(Handle<LoadedFolder>);
 
 #[derive(Resource, Deref, Clone)]
-pub struct LoadingItemTextures(Handle<LoadedFolder>);
+struct LoadingItemTextures(Handle<LoadedFolder>);
 
 #[derive(Resource, Deref, Clone)]
-pub struct LoadingBlockScenes(Handle<LoadedFolder>);
+struct LoadingBlockScenes(Handle<LoadedFolder>);
 
 #[derive(Resource, Deref, Clone)]
-pub struct LoadingItemScenes(Handle<LoadedFolder>);
+struct LoadingItemScenes(Handle<LoadedFolder>);
 
-pub fn load_settings() -> Settings {
+#[derive(Resource, Deref, Clone)]
+struct LoadingRecipeScenes(Handle<LoadedFolder>);
+
+fn load_settings() -> Settings {
     Settings::default()
 }
 
-pub fn load_graphics_settings() -> GraphicsSettings {
+fn load_graphics_settings() -> GraphicsSettings {
     GraphicsSettings::default()
 }
 
 //begins loading the terrain texture images and creates the filename->texture id map
-pub fn load_folders(mut commands: Commands, assets: Res<AssetServer>, settings: Res<Settings>) {
+fn load_folders(mut commands: Commands, assets: Res<AssetServer>, settings: Res<Settings>) {
     commands.insert_resource(LoadingBlockTextures(
         assets.load_folder(settings.block_tex_path),
     ));
@@ -117,9 +125,12 @@ pub fn load_folders(mut commands: Commands, assets: Res<AssetServer>, settings: 
     commands.insert_resource(LoadingItemScenes(
         assets.load_folder(settings.item_type_path),
     ));
+    commands.insert_resource(LoadingRecipeScenes(
+        assets.load_folder(settings.recipe_path),
+    ));
 }
 
-pub fn load_block_textures(
+fn load_block_textures(
     mut commands: Commands,
     assets: Res<Assets<LoadedFolder>>,
     settings: Res<Settings>,
@@ -168,7 +179,7 @@ pub fn load_block_textures(
 }
 
 //begins loading the item texture images and creates the filename->texture id map
-pub fn load_item_textures(
+fn load_item_textures(
     mut commands: Commands,
     assets: Res<Assets<LoadedFolder>>,
     settings: Res<Settings>,
@@ -215,7 +226,7 @@ pub fn load_item_textures(
     }
 }
 
-pub fn start_loading_scene<Scene: Resource + std::ops::Deref<Target = Handle<LoadedFolder>>>(
+fn start_loading_scene<Scene: Resource + std::ops::Deref<Target = Handle<LoadedFolder>>>(
     input: In<(impl Bundle + Clone, &'static str)>,
     mut commands: Commands,
     assets: Res<Assets<LoadedFolder>>,
@@ -250,7 +261,7 @@ pub fn start_loading_scene<Scene: Resource + std::ops::Deref<Target = Handle<Loa
     }
 }
 
-pub fn load_block_registry(
+fn load_block_registry(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     texture_map: Res<BlockTextureMap>,
@@ -299,7 +310,7 @@ pub fn load_block_registry(
     });
 }
 
-pub fn load_item_registry(
+fn load_item_registry(
     mut commands: Commands,
     mut generate_item_mesh: EventWriter<GenerateItemMeshEvent>,
     texture_map: Res<ItemTextureMap>,
@@ -352,7 +363,7 @@ pub fn load_item_registry(
     });
 }
 
-pub fn on_level_created(
+fn on_level_created(
     input: Res<LevelCreationInput>,
     // network_type: Res<State<NetworkType>>,
     settings: Res<Settings>,

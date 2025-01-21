@@ -28,7 +28,7 @@ pub fn setup(
         .unwrap()
         .set(network_type);
     match network_type {
-        NetworkType::Singleplayer | NetworkType::Inactive => {
+        NetworkType::Inactive => {
             info!("skipping network setup");
             return;
         }

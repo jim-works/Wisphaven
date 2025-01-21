@@ -60,7 +60,6 @@ pub struct PlayerInfo {
 pub enum NetworkType {
     #[default]
     Inactive,
-    Singleplayer,
     Server,
     Client,
     Host,
@@ -137,7 +136,9 @@ pub enum ServerMessage {
 }
 
 pub fn network_ready() -> impl Condition<()> {
-    in_state(NetworkType::Singleplayer)
+    in_state(NetworkType::Host)
+        .and(in_state(ServerState::Active))
+        .and(in_state(ServerState::Active))
         .or(in_state(NetworkType::Server).and(in_state(ServerState::Active)))
         .or(in_state(NetworkType::Client).and(in_state(ClientState::Ready)))
 }

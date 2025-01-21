@@ -25,6 +25,7 @@ fn main() {
     //todo - do better parsing
     let args: Vec<String> = env::args().collect();
     let mut server_port = None;
+    const DEFAULT_SERVER_PORT: u16 = 15155;
     let mut skip_menu = false;
     let mut client_connection_string = None;
     println!("ARGS: {:?}", args);
@@ -66,6 +67,7 @@ fn main() {
         ::actors::ActorsPlugin,
         waves::GameplayPlugin,
         ::items::ItemsPlugin,
+        crafting::RecipePlugin,
     ));
 
     if server_port.is_some() {
@@ -90,11 +92,13 @@ fn main() {
             },
         );
     } else {
+        // start in host mode so we can both host and join games later
+        net::config::setup(&mut app, NetworkType::Host, Some(DEFAULT_SERVER_PORT), None);
         app.add_systems(
             Startup,
             move |mut next_state: ResMut<NextState<NetworkType>>,
                   mut next_game_state: ResMut<NextState<GameState>>| {
-                next_state.set(NetworkType::Singleplayer);
+                next_state.set(NetworkType::Host);
                 next_game_state.set(if skip_menu {
                     GameState::Game
                 } else {

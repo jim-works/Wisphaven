@@ -82,6 +82,7 @@ ui = { path = "crates/ui" }
 actors = { path = "crates/actors" }
 waves = { path = "crates/waves" }
 items = { path = "crates/items" }
+crafting = { path = "crates/crafting" }
 
 [workspace.metadata.dylint]
 libraries = [

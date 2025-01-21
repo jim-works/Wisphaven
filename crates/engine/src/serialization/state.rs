@@ -7,7 +7,7 @@ use crate::{
     GameState,
 };
 
-use super::ItemTextureMap;
+use super::{ItemTextureMap, LoadingRecipes};
 
 #[derive(States, Default, Debug, Hash, Eq, PartialEq, Clone)]
 pub enum GameLoadState {
@@ -62,8 +62,14 @@ pub fn check_load_state(
     item_types: Option<Res<ItemResources>>,
     block_textures: Res<TexturesLoaded>,
     skybox: Option<Res<SkyboxCubemap>>,
+    loading_recipes: Query<(), With<LoadingRecipes>>,
 ) {
-    if block_textures.0 && block_types.is_some() && item_types.is_some() && skybox.is_some() {
+    if block_textures.0
+        && block_types.is_some()
+        && item_types.is_some()
+        && skybox.is_some()
+        && loading_recipes.is_empty()
+    {
         info!("Finished loading!");
         next.set(GameLoadState::Done);
     }

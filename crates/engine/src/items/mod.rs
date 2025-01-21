@@ -249,6 +249,11 @@ impl ItemRegistry {
         let id = ItemId(Id::Basic(self.basic_entities.len() as u32));
         commands.entity(entity).insert(id);
         self.basic_entities.push(entity);
+        if self.id_map.contains_key(&name) {
+            error!("duplicate item: {:?}", name);
+            #[cfg(debug_assertions)]
+            panic!("duplicate item: {:?}", name);
+        }
         self.id_map.insert(name, id);
     }
     pub fn add_dynamic(&mut self, name: ItemName, generator: Box<dyn ItemGenerator>) {

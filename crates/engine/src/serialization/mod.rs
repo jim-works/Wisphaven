@@ -132,6 +132,9 @@ pub struct LoadingBlocks;
 #[derive(Component, Clone, Copy)]
 pub struct LoadingItems;
 
+#[derive(Component, Clone, Copy)]
+pub struct LoadingRecipes;
+
 #[derive(Resource)]
 pub struct SaveTimer(Timer);
 
