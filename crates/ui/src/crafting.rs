@@ -1,6 +1,7 @@
+use ahash::HashMap;
 use bevy::prelude::*;
 use crafting::*;
-use engine::{actors::LocalPlayer, world::LevelSystemSet, GameState};
+use engine::{actors::LocalPlayer, items::inventory::Inventory, world::LevelSystemSet, GameState};
 
 use crate::{
     inventory::{default_slot_background, InventoryResources},
@@ -13,63 +14,39 @@ pub struct CraftingUIPlugin;
 
 impl Plugin for CraftingUIPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, spawn_crafting_ui.in_set(LevelSystemSet::Main))
-            .add_systems(OnEnter(UIState::Inventory), show)
-            .add_systems(OnExit(UIState::Inventory), hide);
+        app.add_systems(
+            Update,
+            (spawn_crafting_ui, update_available_recipes)
+                .chain()
+                .in_set(LevelSystemSet::Main),
+        )
+        .add_systems(OnEnter(UIState::Inventory), show)
+        .add_systems(OnExit(UIState::Inventory), hide);
     }
 }
 
-fn spawn_crafting_ui(
-    mut commands: Commands,
-    recipes: Query<Entity, With<CachedEntityRecipe>>,
-    ui_query: Query<(), With<CraftingUI>>,
-) {
+fn spawn_crafting_ui(mut commands: Commands, ui_query: Query<(), With<CraftingUI>>) {
     if !ui_query.is_empty() {
         return;
     }
-    commands
-        .spawn((
-            Node {
-                justify_self: JustifySelf::End,
-                position_type: PositionType::Relative,
-                width: Val::Px(360.),
-                height: Val::Percent(100.),
-                border: UiRect::all(Val::Px(2.)),
-                display: Display::Flex,
-                flex_direction: FlexDirection::Column,
-                overflow: Overflow::scroll_y(),
-                ..default()
-            },
-            Visibility::Hidden,
-            BackgroundColor(Color::hsla(0., 0., 0.5, 0.7)),
-            BorderColor(Color::hsla(0., 0., 0.3, 1.0)),
-            CraftingUI,
-            StateScoped(GameState::Game),
-        ))
-        .with_children(|rows| {
-            for recipe in recipes.iter() {
-                rows.spawn((
-                    Node {
-                        height: Val::Px(34.),
-                        margin: UiRect::all(Val::Px(4.)),
-                        padding: UiRect::all(Val::Px(2.)),
-                        align_items: AlignItems::Center,
-                        align_content: AlignContent::SpaceBetween,
-                        flex_direction: FlexDirection::Row,
-                        ..default()
-                    },
-                    BackgroundColor(Color::hsla(0., 0., 0.2, 1.0)),
-                    RecipeRow {
-                        cached_recipe: recipe,
-                    },
-                    PickingBehavior {
-                        // want to be able to scroll the background
-                        should_block_lower: false,
-                        is_hoverable: true,
-                    },
-                ));
-            }
-        });
+    commands.spawn((
+        Node {
+            justify_self: JustifySelf::End,
+            position_type: PositionType::Relative,
+            width: Val::Px(360.),
+            height: Val::Percent(100.),
+            border: UiRect::all(Val::Px(2.)),
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            overflow: Overflow::scroll_y(),
+            ..default()
+        },
+        Visibility::Hidden,
+        BackgroundColor(Color::hsla(0., 0., 0.5, 0.7)),
+        BorderColor(Color::hsla(0., 0., 0.3, 1.0)),
+        CraftingUI,
+        StateScoped(GameState::Game),
+    ));
 }
 
 #[derive(Component)]
@@ -174,6 +151,67 @@ impl Component for RecipeRow {
                     );
             });
         });
+    }
+}
+
+fn update_available_recipes(
+    recipe_query: Query<(Entity, &CachedEntityRecipe)>,
+    inv_query: Query<&Inventory, (With<LocalPlayer>, Changed<Inventory>)>,
+    recipe_row_query: Query<(Entity, &RecipeRow)>,
+    ui_root_query: Query<Entity, With<CraftingUI>>,
+    mut commands: Commands,
+    mut current_recipe_list: Local<HashMap<Entity, Entity>>,
+) {
+    let Ok(inv) = inv_query.get_single() else {
+        return;
+    };
+    let Ok(ui_root) = ui_root_query.get_single() else {
+        warn!("crafting menu not found!");
+        return;
+    };
+    current_recipe_list.clear();
+    // map from recipe to UI element
+    current_recipe_list.extend(
+        recipe_row_query
+            .iter()
+            .map(|(entity, recipe)| (recipe.cached_recipe, entity)),
+    );
+    // display a recipe when we have any input
+    let available_recipes = recipe_query
+        .iter()
+        .filter(|(_, r)| r.has_any_input(inv))
+        .map(|(recipe_entity, _)| recipe_entity);
+    //the idea is to remove all found recipes, so that current_recipe_list will contain excess recipes for us to remove at the end
+    let mut root_ec = commands.entity(ui_root);
+    for recipe in available_recipes {
+        if current_recipe_list.remove(&recipe).is_none() {
+            //UI row for recipe wasn't found, spawn it
+            root_ec.with_child((
+                Node {
+                    height: Val::Px(34.),
+                    margin: UiRect::all(Val::Px(4.)),
+                    padding: UiRect::all(Val::Px(2.)),
+                    align_items: AlignItems::Center,
+                    align_content: AlignContent::SpaceBetween,
+                    flex_direction: FlexDirection::Row,
+                    ..default()
+                },
+                BackgroundColor(Color::hsla(0., 0., 0.2, 1.0)),
+                RecipeRow {
+                    cached_recipe: recipe,
+                },
+                PickingBehavior {
+                    // want to be able to scroll the background
+                    should_block_lower: false,
+                    is_hoverable: true,
+                },
+            ));
+        }
+    }
+
+    // now current_recipe_list contains all the excess recipes, so we can despawn them all
+    for (_, ui) in current_recipe_list.drain() {
+        commands.entity(ui).despawn_recursive();
     }
 }
 

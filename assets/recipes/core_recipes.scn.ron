@@ -8,18 +8,18 @@
             ((
               namespace: "core",
               name: "spike_ball_launcher",
-            ), 11),
+            ), 1),
             ((
               namespace: "core",
               name: "dagger",
-            ), 5)
+            ), 1)
           ],
           output: (
             (
               namespace: "core",
-              name: "ruby_axe",
+              name: "coin_launcher",
             ),
-            1
+            10
           )
         ),
       },
@@ -30,17 +30,13 @@
           inputs: [
             ((
               namespace: "core",
-              name: "spike_ball_launcher",
-            ), 11),
-            ((
-              namespace: "core",
-              name: "dagger",
-            ), 5)
+              name: "coin_launcher",
+            ), 1),
           ],
           output: (
             (
               namespace: "core",
-              name: "ruby_axe",
+              name: "suicide_pill",
             ),
             1
           )
@@ -53,206 +49,22 @@
           inputs: [
             ((
               namespace: "core",
-              name: "spike_ball_launcher",
-            ), 11),
+              name: "suicide_pill",
+            ), 2),
             ((
               namespace: "core",
-              name: "dagger",
-            ), 5)
+              name: "moon",
+            ), 1)
           ],
           output: (
             (
               namespace: "core",
-              name: "ruby_axe",
+              name: "moon",
             ),
-            1
+            5
           )
         ),
       },
-    ),
-    4294967299: (
-      components: {
-        "crafting::Recipe": (
-          inputs: [
-            ((
-              namespace: "core",
-              name: "spike_ball_launcher",
-            ), 11),
-            ((
-              namespace: "core",
-              name: "dagger",
-            ), 5)
-          ],
-          output: (
-            (
-              namespace: "core",
-              name: "ruby_axe",
-            ),
-            1
-          )
-        ),
-      },
-    ),
-    4294967300: (
-      components: {
-        "crafting::Recipe": (
-          inputs: [
-            ((
-              namespace: "core",
-              name: "spike_ball_launcher",
-            ), 11),
-            ((
-              namespace: "core",
-              name: "dagger",
-            ), 5)
-          ],
-          output: (
-            (
-              namespace: "core",
-              name: "ruby_axe",
-            ),
-            1
-          )
-        ),
-      },
-    ),
-    4294967301: (
-      components: {
-        "crafting::Recipe": (
-          inputs: [
-            ((
-              namespace: "core",
-              name: "spike_ball_launcher",
-            ), 11),
-            ((
-              namespace: "core",
-              name: "dagger",
-            ), 5)
-          ],
-          output: (
-            (
-              namespace: "core",
-              name: "ruby_axe",
-            ),
-            1
-          )
-        ),
-      },
-    ),
-    4294967302: (
-      components: {
-        "crafting::Recipe": (
-          inputs: [
-            ((
-              namespace: "core",
-              name: "spike_ball_launcher",
-            ), 11),
-            ((
-              namespace: "core",
-              name: "dagger",
-            ), 5)
-          ],
-          output: (
-            (
-              namespace: "core",
-              name: "ruby_axe",
-            ),
-            1
-          )
-        ),
-      },
-    ),
-    4294967303: (
-      components: {
-        "crafting::Recipe": (
-          inputs: [
-            ((
-              namespace: "core",
-              name: "spike_ball_launcher",
-            ), 11),
-            ((
-              namespace: "core",
-              name: "dagger",
-            ), 5)
-          ],
-          output: (
-            (
-              namespace: "core",
-              name: "ruby_axe",
-            ),
-            1
-          )
-        ),
-      },
-    ),
-    4294967304: (
-      components: {
-        "crafting::Recipe": (
-          inputs: [
-            ((
-              namespace: "core",
-              name: "spike_ball_launcher",
-            ), 11),
-            ((
-              namespace: "core",
-              name: "dagger",
-            ), 5)
-          ],
-          output: (
-            (
-              namespace: "core",
-              name: "ruby_axe",
-            ),
-            1
-          )
-        ),
-      },
-    ),
-    4294967305: (
-      components: {
-        "crafting::Recipe": (
-          inputs: [
-            ((
-              namespace: "core",
-              name: "spike_ball_launcher",
-            ), 11),
-            ((
-              namespace: "core",
-              name: "dagger",
-            ), 5)
-          ],
-          output: (
-            (
-              namespace: "core",
-              name: "ruby_axe",
-            ),
-            1
-          )
-        ),
-      },
-    ),
-    4294967306: (
-      components: {
-        "crafting::Recipe": (
-          inputs: [
-            ((
-              namespace: "core",
-              name: "spike_ball_launcher",
-            ), 11),
-            ((
-              namespace: "core",
-              name: "dagger",
-            ), 5)
-          ],
-          output: (
-            (
-              namespace: "core",
-              name: "ruby_axe",
-            ),
-            1
-          )
-        ),
-      },
-    ),
+    )
   }
 )

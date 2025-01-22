@@ -71,6 +71,12 @@ impl CachedEntityRecipe {
         }
     }
 
+    pub fn has_any_input(&self, inventory: &Inventory) -> bool {
+        self.inputs
+            .iter()
+            .any(|stack| inventory.number_of_type(stack.id) >= stack.size)
+    }
+
     pub fn has_inputs(&self, inventory: &Inventory) -> bool {
         self.inputs
             .iter()
