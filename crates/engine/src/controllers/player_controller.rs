@@ -107,7 +107,7 @@ pub fn move_player(
         With<ControlledPlayer>,
     >,
 ) {
-    info!("Matches: {}", query.iter().len());
+    // info!("Matches: {}", query.iter().len());
     for (tf, mut fm, mode, action) in query.iter_mut() {
         let mut dv = Vec3::ZERO;
         dv.z -= if action.pressed(&Action::MoveForward) {

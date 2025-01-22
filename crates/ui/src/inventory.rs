@@ -66,8 +66,8 @@ impl Plugin for InventoryPlugin {
     }
 }
 
-#[derive(Resource)]
-struct InventoryResources {
+#[derive(Resource, Clone)]
+pub(crate) struct InventoryResources {
     item_counts: TextStyle,
     slot_background: Handle<Image>,
     selection_image: Handle<Image>,
@@ -76,7 +76,7 @@ struct InventoryResources {
 #[derive(Component)]
 struct InventoryUI;
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 #[require(RelativeCursorPosition)]
 struct InventoryUISlotBackground {
     inventory: Entity,
@@ -251,22 +251,13 @@ fn hide_inventory<const HIDE_HOTBAR: bool>(
     }
 }
 
-fn spawn_inventory(
-    commands: &mut Commands,
-    owner: Entity,
-    slots: usize,
-    resources: &InventoryResources,
-) {
-    let background = Node {
-        aspect_ratio: Some(1.0),
-        margin: UiRect::all(Val::Px(1.0)),
-        width: Val::Px(SLOT_PX),
-        height: Val::Px(SLOT_PX),
-        position_type: PositionType::Absolute,
-        align_items: AlignItems::Center,
-        justify_content: JustifyContent::Center,
-        ..default()
-    };
+pub(crate) fn spawn_item_slot<'a>(
+    mut ec: EntityCommands<'a>,
+    background_node: Node,
+    background_bundle: impl Bundle,
+    children_bundle: impl Bundle + Clone,
+    resources: &'_ InventoryResources,
+) -> EntityCommands<'a> {
     let icon = (
         Node {
             width: Val::Px(SLOT_PX),
@@ -298,31 +289,65 @@ fn spawn_inventory(
         Visibility::Hidden,
         InventoryUISlotText::default(),
     );
-    commands
-        .spawn((
+    ec.insert((
+        background_node,
+        background_bundle,
+        ImageNode::new(resources.slot_background.clone()),
+    ))
+    .with_children(|slot_content| {
+        //spawn the slot content - this is where the item images go
+        slot_content.spawn((icon.clone(), children_bundle.clone()));
+        //this is the stack size label
+        //making a parent to anchor the label to the bottom right
+        slot_content
+            .spawn(count_parent.clone())
+            .with_children(|label| {
+                label.spawn((count.clone(), children_bundle.clone()));
+            });
+    });
+    ec
+}
+
+pub(crate) fn default_slot_background() -> Node {
+    Node {
+        aspect_ratio: Some(1.0),
+        margin: UiRect::all(Val::Px(1.0)),
+        width: Val::Px(SLOT_PX),
+        height: Val::Px(SLOT_PX),
+        position_type: PositionType::Absolute,
+        align_items: AlignItems::Center,
+        justify_content: JustifyContent::Center,
+        ..default()
+    }
+}
+
+fn spawn_inventory(
+    commands: &mut Commands,
+    owner: Entity,
+    slots: usize,
+    resources: &InventoryResources,
+) {
+    let background = default_slot_background();
+    // mouse inventory
+    spawn_item_slot(
+        commands.spawn(StateScoped(GameState::Game)),
+        Node {
+            position_type: PositionType::Absolute,
+            ..background.clone()
+        },
+        (
             MouseInventoryVisual,
-            Node {
-                position_type: PositionType::Absolute,
-                ..background.clone()
-            },
             Visibility::Inherited,
             PickingBehavior::IGNORE,
-            StateScoped(GameState::Game),
             MainCameraUIRoot,
             Name::new("Mouse inventory"),
             GlobalZIndex(1),
-        ))
-        .with_children(|slot_content| {
-            //spawn the slot content - this is where the item images go
-            slot_content.spawn((icon.clone(), InventoryUISlot::Mouse));
-            //this is the stack size label
-            //making a parent to anchor the label to the bottom right
-            slot_content
-                .spawn(count_parent.clone())
-                .with_children(|label| {
-                    label.spawn((count.clone(), InventoryUISlot::Mouse));
-                });
-        });
+        ),
+        InventoryUISlot::Mouse,
+        resources,
+    )
+    .remove::<ImageNode>();
+    // main inventory
     commands
         .spawn((
             StateScoped(GameState::Game),
@@ -344,45 +369,26 @@ fn spawn_inventory(
             //spawn rows - round up number of rows
             for slot in 0..slots {
                 let slot_coords = get_slot_coords(slot, 0.0);
-                slot_background
-                    .spawn((
-                        Node {
-                            left: slot_coords.left,
-                            right: slot_coords.right,
-                            top: slot_coords.top,
-                            bottom: slot_coords.bottom,
-                            ..background.clone()
-                        },
-                        ImageNode::new(resources.slot_background.clone()),
-                        InventoryUISlotBackground {
-                            slot,
-                            inventory: owner,
-                        },
-                    ))
-                    .observe(slot_clicked)
-                    .with_children(|slot_content| {
-                        //spawn the slot content - this is where the item images go
-                        slot_content.spawn((
-                            icon.clone(),
-                            InventoryUISlot::Entity {
-                                inventory: owner,
-                                slot,
-                            },
-                        ));
-                        //this is the stack size label
-                        //making a parent to anchor the label to the bottom right
-                        slot_content
-                            .spawn(count_parent.clone())
-                            .with_children(|label| {
-                                label.spawn((
-                                    count.clone(),
-                                    InventoryUISlot::Entity {
-                                        inventory: owner,
-                                        slot,
-                                    },
-                                ));
-                            });
-                    });
+                spawn_item_slot(
+                    slot_background.spawn_empty(),
+                    Node {
+                        left: slot_coords.left,
+                        right: slot_coords.right,
+                        top: slot_coords.top,
+                        bottom: slot_coords.bottom,
+                        ..background.clone()
+                    },
+                    (InventoryUISlotBackground {
+                        slot,
+                        inventory: owner,
+                    },),
+                    InventoryUISlot::Entity {
+                        slot,
+                        inventory: owner,
+                    },
+                    resources,
+                )
+                .observe(slot_clicked);
             }
         })
         .with_children(|selector| {
@@ -757,7 +763,7 @@ fn slot_clicked(
     }
 }
 
-pub fn player_scroll_inventory(
+fn player_scroll_inventory(
     mut query: Query<&mut Inventory, With<LocalPlayer>>,
     focused: Res<CursorLocked>,
     action: Res<ActionState<Action>>,

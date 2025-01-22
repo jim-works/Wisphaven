@@ -237,7 +237,7 @@ impl Inventory {
                 }
             }
         }
-        return item.size - to_remove;
+        item.size - to_remove
     }
 
     pub fn set_slot_no_events(&mut self, slot: usize, item: ItemStack) {

@@ -10,6 +10,7 @@
 #![feature(assert_matches)]
 #![feature(let_chains)]
 
+mod crafting;
 pub mod crosshair;
 mod game_over;
 pub mod inventory;
@@ -43,6 +44,7 @@ impl Plugin for UIPlugin {
                 waves::WavesPlugin,
                 main_menu::MainMenuPlugin,
                 game_over::GameOverUIPlugin,
+                crafting::CraftingUIPlugin,
             ))
             .add_plugins(bevy_simple_text_input::TextInputPlugin)
             .add_systems(OnEnter(GameState::Game), (state::on_load, capture_mouse))

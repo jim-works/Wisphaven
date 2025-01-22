@@ -7,6 +7,7 @@
           namespace: "core",
           name: "dagger",
         ),
+        "bevy_core::name::Name": "Dagger",
         "engine::items::NamedItemIcon": (
             path: "dagger.png"
         ),
@@ -34,6 +35,7 @@
           namespace: "core",
           name: "ruby_pickaxe",
         ),
+        "bevy_core::name::Name": "Ruby Pickaxe",
         "engine::items::NamedItemIcon": (
             path: "ruby_pickaxe.png"
         ),
@@ -61,6 +63,7 @@
           namespace: "core",
           name: "ruby_axe",
         ),
+        "bevy_core::name::Name": "Ruby Axe",
         "engine::items::NamedItemIcon": (
             path: "ruby_axe.png"
         ),
@@ -91,6 +94,7 @@
           namespace: "core",
           name: "ruby_shovel",
         ),
+        "bevy_core::name::Name": "Ruby Shovel",
         "engine::items::NamedItemIcon": (
             path: "ruby_shovel.png"
         ),
@@ -121,6 +125,7 @@
           namespace: "core",
           name: "glowjelly_jar",
         ),
+        "bevy_core::name::Name": "Glowjelly Jar",
         "engine::items::NamedItemIcon": (
             path: "glowjelly_jar.png"
         ),
@@ -148,6 +153,7 @@
           namespace: "core",
           name: "world_anchor",
         ),
+        "bevy_core::name::Name": "World Anchor",
         "engine::items::NamedItemIcon": (
             path: "world_anchor.png"
         ),
@@ -175,6 +181,7 @@
           namespace: "core",
           name: "moon",
         ),
+        "bevy_core::name::Name": "Moon Amulet",
         "engine::items::NamedItemIcon": (
             path: "moon.png"
         ),
@@ -198,6 +205,7 @@
           namespace: "core",
           name: "coin_launcher",
         ),
+        "bevy_core::name::Name": "Coin Boing",
         "engine::items::NamedItemIcon": (
             path: "coin.png"
         ),
@@ -226,6 +234,7 @@
           namespace: "core",
           name: "spike_ball_launcher",
         ),
+        "bevy_core::name::Name": "Spike Ball",
         "engine::items::NamedItemIcon": (
             path: "spike_ball.png"
         ),
@@ -255,6 +264,7 @@
           namespace: "core",
           name: "grapple",
         ),
+        "bevy_core::name::Name": "Grapple",
         "engine::items::NamedItemIcon": (
             path: "grapple.png"
         ),
@@ -283,6 +293,7 @@
           namespace: "core",
           name: "suicide_pill",
         ),
+        "bevy_core::name::Name": "Suicide Pill",
         "engine::items::NamedItemIcon": (
             path: "suicide_pill.png"
         ),

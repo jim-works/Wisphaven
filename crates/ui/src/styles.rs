@@ -9,7 +9,7 @@ pub fn init(asset_server: Res<AssetServer>, mut commands: Commands) {
 }
 
 //asset_server.load caches, so should be fine
-pub fn get_large_text_style(asset_server: &Res<AssetServer>) -> TextStyle {
+pub fn get_large_text_style(asset_server: &AssetServer) -> TextStyle {
     (
         TextColor::WHITE,
         TextFont {
@@ -21,7 +21,7 @@ pub fn get_large_text_style(asset_server: &Res<AssetServer>) -> TextStyle {
     )
 }
 
-pub fn get_text_style(asset_server: &Res<AssetServer>) -> TextStyle {
+pub fn get_text_style(asset_server: &AssetServer) -> TextStyle {
     (
         TextColor::WHITE,
         TextFont {
@@ -33,7 +33,7 @@ pub fn get_text_style(asset_server: &Res<AssetServer>) -> TextStyle {
     )
 }
 
-pub fn get_small_text_style(asset_server: &Res<AssetServer>) -> TextStyle {
+pub fn get_small_text_style(asset_server: &AssetServer) -> TextStyle {
     (
         TextColor::WHITE,
         TextFont {

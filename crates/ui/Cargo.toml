@@ -13,6 +13,7 @@ bevy_simple_text_input = { workspace = true }
 engine = { path = "../engine" }
 util = { path = "../util" }
 waves = { path = "../waves" }
+crafting = { path = "../crafting" }
 
 [lints]
 workspace = true
