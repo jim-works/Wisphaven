@@ -1,3 +1,4 @@
+use ahash::HashMap;
 use bevy::{
     pbr::ExtendedMaterial,
     prelude::*,
@@ -32,7 +33,7 @@ pub const HOTBAR_SLOTS: usize = SLOTS_PER_ROW;
 pub const BACKGROUND_COLOR: Color = Color::srgba(0.15, 0.15, 0.15, 0.25);
 
 const MARGIN_PX: f32 = 1.0;
-const SLOT_PX: f32 = 32.0;
+pub const SLOT_PX: f32 = 32.0;
 const SELECTOR_PADDING_PX: f32 = 1.0;
 const STACK_SIZE_LABEL_PADDING_PX: f32 = 3.0;
 
@@ -58,6 +59,8 @@ impl Plugin for InventoryPlugin {
             )
                 .in_set(LevelSystemSet::Main),
         )
+        .add_systems(Update, update_icon.in_set(LevelSystemSet::PostUpdate))
+        .add_event::<SetIconEvent>()
         .init_resource::<MouseInventory>()
         .add_systems(OnEnter(UIState::Inventory), show_inventory)
         .add_systems(OnEnter(UIState::Default), hide_inventory::<false>)
@@ -313,6 +316,7 @@ pub(crate) fn default_slot_background() -> Node {
         aspect_ratio: Some(1.0),
         margin: UiRect::all(Val::Px(1.0)),
         width: Val::Px(SLOT_PX),
+        min_width: Val::Px(SLOT_PX),
         height: Val::Px(SLOT_PX),
         position_type: PositionType::Absolute,
         align_items: AlignItems::Center,
@@ -459,58 +463,72 @@ fn update_counts(
 }
 
 fn update_icons(
-    mut label_query: Query<(
+    mut icon_query: Query<(
+        Entity,
         &mut Visibility,
-        &mut ImageNode,
         &InventoryUISlot,
         &mut InventoryUISlotIcon,
     )>,
-    mut images: ResMut<Assets<Image>>,
     inventory_query: Query<&Inventory>,
-    icon_query: Query<&ItemIcon>,
-    block_item_query: Query<&BlockItem>,
-    block_mesh_query: Query<&BlockMesh>,
-    block_preview_query: Query<&BlockPreview>,
-    materials: Res<ChunkMaterial>,
     mouse: Res<MouseInventory>,
-    mut commands: Commands,
+    mut set_icon_writer: EventWriter<SetIconEvent>,
 ) {
-    fn clear_slot(commands: &mut Commands, icon: &mut InventoryUISlotIcon) {
-        if let Some(stored_entity) = icon.0 {
-            if let Some(ec) = commands.get_entity(stored_entity) {
-                ec.despawn_recursive();
-            }
-            icon.0 = None;
-        }
-    }
-    for (index, (mut vis, mut image, ui_slot, mut icon)) in label_query.iter_mut().enumerate() {
+    for (ui_entity, mut vis, ui_slot, mut icon) in icon_query.iter_mut() {
         let Some(stack) = ui_slot.get_stack(&mouse, &inventory_query) else {
-            clear_slot(&mut commands, &mut icon);
+            icon.0 = None;
             *vis.as_mut() = Visibility::Hidden;
             continue;
         };
-        match icon_query.get(stack.id) {
+        if let Some(old_item) = icon.0
+            && old_item == stack.id
+        {
+            continue;
+        }
+        set_icon_writer.send(SetIconEvent {
+            item: stack.id,
+            ui_image: ui_entity,
+        });
+    }
+}
+
+#[derive(Event, Clone, Copy)]
+pub struct SetIconEvent {
+    pub item: Entity,
+    pub ui_image: Entity,
+}
+
+fn update_icon(
+    mut reader: EventReader<SetIconEvent>,
+    mut ui_query: Query<(&mut Visibility, &mut ImageNode)>,
+    mut images: ResMut<Assets<Image>>,
+    icon_query: Query<&ItemIcon>,
+    block_item_query: Query<&BlockItem>,
+    block_mesh_query: Query<&BlockMesh>,
+    materials: Res<ChunkMaterial>,
+    mut commands: Commands,
+    mut cache: Local<HashMap<Entity, Handle<Image>>>,
+) {
+    for SetIconEvent { item, ui_image } in reader.read().copied() {
+        let Ok((mut vis, mut image)) = ui_query.get_mut(ui_image) else {
+            return;
+        };
+        if let Some(cached_icon) = cache.get(&item) {
+            *vis.as_mut() = Visibility::Inherited;
+            image.image = cached_icon.clone();
+            continue;
+        }
+        match icon_query.get(item) {
             Ok(icon) => {
                 *vis.as_mut() = Visibility::Inherited;
                 image.image = icon.0.clone();
             }
             Err(_) => {
-                //todo - cache these
-                match block_item_query.get(stack.id) {
-                    Ok(item) => {
-                        if let Some(old_icon) = icon.0
-                            && let Ok(old_preview) = block_preview_query.get(old_icon)
-                            && old_preview.0 == item.0
-                        {
-                            //we already have a block preview for this block, no need to re-render
-                            continue;
-                        }
-                        //despawn old block item
-                        clear_slot(&mut commands, &mut icon);
+                match block_item_query.get(item) {
+                    Ok(block_item) => {
                         //render block item
                         //todo - despawn if dynamic
                         match block_mesh_query
-                            .get(item.0)
+                            .get(block_item.0)
                             .ok()
                             .and_then(|block_mesh| block_mesh.single_mesh.as_ref())
                         {
@@ -519,15 +537,16 @@ fn update_icons(
                                 //this way they (probably) won't end up in the shadow of some terrain
                                 const PREVIEW_ORIGIN: Vec3 =
                                     Vec3::new(1_000_000.0, 1_000_000.0, 1_000_000.0);
-                                let (preview_entity, preview) = spawn_block_preview(
+                                let (_preview_entity, preview) = spawn_block_preview(
                                     &mut commands,
                                     &mut images,
                                     mesh.clone(),
                                     materials.opaque_material.clone().unwrap(),
-                                    Vec3::new(index as f32 * 5.0, 0.0, 0.0) + PREVIEW_ORIGIN,
-                                    item.0,
+                                    Vec3::new(cache.len() as f32 * 5.0, 0.0, 0.0) + PREVIEW_ORIGIN,
+                                    block_item.0,
                                 );
-                                icon.0 = Some(preview_entity);
+                                // commands.entity(preview_entity).despawn_recursive();
+                                cache.insert(item, preview.clone());
                                 image.image = preview;
                                 *vis.as_mut() = Visibility::Inherited;
                             }
@@ -551,6 +570,7 @@ fn spawn_block_preview(
 ) -> (Entity, Handle<Image>) {
     // This code for rendering to a texture is taken from one of the Bevy examples,
     // https://github.com/bevyengine/bevy/blob/main/examples/3d/render_to_texture.rs
+    info!("spawning preview");
     let size = Extent3d {
         width: SLOT_PX as u32,
         height: SLOT_PX as u32,

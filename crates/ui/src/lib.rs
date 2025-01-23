@@ -59,6 +59,7 @@ impl Plugin for UIPlugin {
                     change_button_colors,
                     update_main_camera_ui,
                     update_scroll_position,
+                    expand_on_hover,
                 ),
             )
             .insert_resource(UiScale(2.0));
@@ -67,6 +68,13 @@ impl Plugin for UIPlugin {
 
 #[derive(Resource)]
 struct PickingUIBlocker(Entity);
+
+#[derive(Component, Clone, Copy)]
+struct ExpandOnHover {
+    base_height_px: f32,
+    extra_height_px: f32,
+    speed: f32,
+}
 
 #[derive(Component, Clone)]
 pub struct ButtonColors {
@@ -115,6 +123,40 @@ fn change_button_colors(
             PickingInteraction::None => {
                 background.0 = color.default_background;
                 border.0 = color.default_border;
+            }
+        }
+    }
+}
+
+fn expand_on_hover(
+    mut interaction_query: Query<(&PickingInteraction, &ExpandOnHover, &mut Node)>,
+    time: Res<Time>,
+) {
+    for (interaction, expansion, mut node) in &mut interaction_query {
+        match *interaction {
+            PickingInteraction::Hovered | PickingInteraction::Pressed => {
+                if let Val::Px(curr_px) = node.height {
+                    //smooth
+                    node.height = Val::Px(curr_px.interpolate_stable(
+                        &(expansion.base_height_px + expansion.extra_height_px),
+                        expansion.speed * time.delta_secs(),
+                    ));
+                } else {
+                    //idk what happens here but just make it px
+                    node.height = Val::Px(expansion.base_height_px + expansion.extra_height_px);
+                }
+            }
+            PickingInteraction::None => {
+                if let Val::Px(curr_px) = node.height {
+                    //smooth
+                    node.height = Val::Px(curr_px.interpolate_stable(
+                        &expansion.base_height_px,
+                        expansion.speed * time.delta_secs(),
+                    ));
+                } else {
+                    //idk what happens here but just make it px
+                    node.height = Val::Px(expansion.base_height_px);
+                }
             }
         }
     }
