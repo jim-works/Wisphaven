@@ -5,7 +5,7 @@ use crate::{
         block_item::BlockItem,
         item_attributes::ConsumeItemOnHit,
         loot::{LootTable, LootTableDrop},
-        CreatorItem, ItemBundle, ItemName, MaxStackSize,
+        CreatorItem, ItemBundle, ItemName, ItemRegistry, MaxStackSize,
     },
     mesher::item_mesher::ItemMesh,
     physics::collision::Aabb,
@@ -254,9 +254,10 @@ impl Default for BlockDamage {
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct BlockResources {
-    pub registry: Arc<BlockRegistry>,
+    pub registry: BlockRegistry,
+    pub loaded: bool,
 }
 
 pub type BlockNameIdMap = HashMap<BlockName, BlockId>;
@@ -264,7 +265,7 @@ pub type BlockNameIdMap = HashMap<BlockName, BlockId>;
 #[derive(Default)]
 pub struct BlockRegistry {
     pub basic_entities: Vec<Entity>,
-    pub dynamic_generators: Vec<Box<dyn BlockGenerator>>,
+    pub dynamic_generators: Vec<Arc<dyn BlockGenerator>>,
     //block ids may not be stable across program runs
     pub id_map: BlockNameIdMap,
 }
@@ -275,6 +276,7 @@ impl BlockRegistry {
         &mut self,
         name: BlockName,
         item_mesh: Option<Handle<Mesh>>,
+        items: &mut ItemRegistry,
         entity: Entity,
         commands: &mut Commands,
     ) {
@@ -285,13 +287,14 @@ impl BlockRegistry {
         let item = commands
             .spawn((
                 ItemBundle {
-                    name: item_name,
+                    name: item_name.clone(),
                     max_stack_size: MaxStackSize(999),
                 },
                 BlockItem(entity),
                 ConsumeItemOnHit,
             ))
             .id();
+        items.add_basic(item_name, item, commands);
         if let Some(mesh) = item_mesh {
             info!("added item mesh for {:?}", name);
             commands.entity(item).insert(ItemMesh {
@@ -310,7 +313,7 @@ impl BlockRegistry {
         self.basic_entities.push(entity);
         self.id_map.insert(name, id);
     }
-    pub fn add_dynamic(&mut self, name: BlockName, generator: Box<dyn BlockGenerator>) {
+    pub fn add_dynamic(&mut self, name: BlockName, generator: Arc<dyn BlockGenerator>) {
         let id = BlockId(Id::Dynamic(self.dynamic_generators.len() as u32));
         self.dynamic_generators.push(generator);
         self.id_map.insert(name, id);

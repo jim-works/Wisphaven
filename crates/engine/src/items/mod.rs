@@ -207,9 +207,10 @@ impl HitResult {
 // place on blocks, actors, etc to denote that they are placed/spawned by the referenced item entity
 pub struct CreatorItem(pub Entity);
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct ItemResources {
-    pub registry: Arc<ItemRegistry>,
+    pub registry: ItemRegistry,
+    pub loaded: bool,
 }
 
 pub type ItemNameIdMap = HashMap<ItemName, ItemId>;
@@ -222,7 +223,7 @@ pub trait ItemGenerator: Send + Sync {
 #[derive(Default)]
 pub struct ItemRegistry {
     pub basic_entities: Vec<Entity>,
-    pub dynamic_generators: Vec<Box<dyn ItemGenerator>>,
+    pub dynamic_generators: Vec<Arc<dyn ItemGenerator>>,
     //item ids may not be stable across program runs
     pub id_map: ItemNameIdMap,
 }
@@ -241,7 +242,7 @@ impl ItemRegistry {
         }
         self.id_map.insert(name, id);
     }
-    pub fn add_dynamic(&mut self, name: ItemName, generator: Box<dyn ItemGenerator>) {
+    pub fn add_dynamic(&mut self, name: ItemName, generator: Arc<dyn ItemGenerator>) {
         let id = ItemId(Id::Dynamic(self.dynamic_generators.len() as u32));
         self.dynamic_generators.push(generator);
         self.id_map.insert(name, id);

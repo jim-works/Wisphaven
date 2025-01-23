@@ -58,15 +58,15 @@ pub fn check_textures(
 
 pub fn check_load_state(
     mut next: ResMut<NextState<GameLoadState>>,
-    block_types: Option<Res<BlockResources>>,
-    item_types: Option<Res<ItemResources>>,
+    block_types: Res<BlockResources>,
+    item_types: Res<ItemResources>,
     block_textures: Res<TexturesLoaded>,
     skybox: Option<Res<SkyboxCubemap>>,
     recipes_scene: Query<(), With<RecipesScene>>,
 ) {
     if block_textures.0
-        && block_types.is_some()
-        && item_types.is_some()
+        && block_types.loaded
+        && item_types.loaded
         && skybox.is_some()
         && !recipes_scene.is_empty()
     {

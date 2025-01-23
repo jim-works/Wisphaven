@@ -41,6 +41,8 @@ impl Plugin for SetupPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(load_settings())
             .insert_resource(load_graphics_settings())
+            .init_resource::<BlockResources>()
+            .init_resource::<ItemResources>()
             //instantiate entities that we need to load
             .add_systems(PreStartup, (load_folders, load_saved_level_list).chain())
             //initiate loading of each type of scene
@@ -268,17 +270,18 @@ fn load_block_registry(
     loading_blocks: Query<(Entity, Option<&Children>), With<LoadingBlocks>>,
     block_name_query: Query<&BlockName>,
     name_resolution_query: Query<&NamedBlockMesh>,
-    block_resources: Option<Res<BlockResources>>,
+    mut block_resources: ResMut<BlockResources>,
+    mut items: ResMut<ItemResources>,
 ) {
     //make sure there are no still loading block scenes before we make the registry
-    if block_resources.is_some()
+    if block_resources.loaded
         || loading_blocks
             .iter()
             .any(|(_, opt_children)| opt_children.is_none())
     {
         return;
     }
-    let mut registry = BlockRegistry::default();
+    let registry = &mut block_resources.registry;
     registry
         .id_map
         .insert(BlockName::core("empty"), BlockId(Id::Empty));
@@ -298,16 +301,24 @@ fn load_block_registry(
                     .remove::<NamedBlockMesh>();
             }
             match block_name_query.get(*child) {
-                Ok(name) => registry.add_basic(name.clone(), single_mesh, *child, &mut commands),
+                Ok(name) => registry.add_basic(
+                    name.clone(),
+                    single_mesh,
+                    &mut items.registry,
+                    *child,
+                    &mut commands,
+                ),
                 Err(e) => warn!("Block doesn't have a name! Error {:?}", e),
             }
         }
     }
 
     info!("Finished loading {} block types", registry.id_map.len());
-    commands.insert_resource(BlockResources {
-        registry: std::sync::Arc::new(registry),
-    });
+    block_resources.loaded = true;
+    info!(
+        "There are now {} block types",
+        block_resources.registry.id_map.len()
+    );
 }
 
 fn load_item_registry(
@@ -317,17 +328,17 @@ fn load_item_registry(
     loading_items: Query<(Entity, Option<&Children>), With<LoadingItems>>,
     item_name_query: Query<&ItemName>,
     name_resolution_query: Query<&NamedItemIcon>,
-    item_resources: Option<Res<ItemResources>>,
+    mut item_resources: ResMut<ItemResources>,
 ) {
     //make sure there are no still loading block scenes before we make the registry
-    if item_resources.is_some()
+    if item_resources.loaded
         || loading_items
             .iter()
             .any(|(_, opt_children)| opt_children.is_none())
     {
         return;
     }
-    let mut registry = ItemRegistry::default();
+    let registry = &mut item_resources.registry;
     for (scene_entity, children) in loading_items.iter() {
         info!("Loading item scene");
         commands.entity(scene_entity).remove::<LoadingItems>();
@@ -358,9 +369,7 @@ fn load_item_registry(
     }
 
     info!("Finished loading {} item types", registry.id_map.len());
-    commands.insert_resource(ItemResources {
-        registry: std::sync::Arc::new(registry),
-    });
+    item_resources.loaded = true;
 }
 
 fn on_level_created(
