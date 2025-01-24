@@ -324,30 +324,32 @@ fn populate_player_entity(
     commands: &mut Commands,
 ) {
     commands.entity(entity).insert((
-        Player {
-            hit_damage: Damage::new(1.0),
-        },
-        Transform::from_translation(spawn_point),
-        Visibility::default(),
-        Float::default(),
-        PhysicsBundle {
-            collider: collision::Aabb::centered(Vec3::new(0.8, 1.0, 0.8))
-                .add_offset(Vec3::new(0.0, -0.3, 0.0)),
-            ..default()
-        },
-        ItemUseSpeed {
-            windup: Duration::ZERO,
-            backswing: Duration::from_millis(100),
-        },
-        ItemSwingSpeed {
-            windup: Duration::ZERO,
-            backswing: Duration::from_millis(100),
-        },
-        Stamina::new(10.0),
-        RestoreStaminaOnKill { amount: 1.0 },
-        RestoreStaminaDuringDay {
-            per_tick: 1. / (64. * 16.),
-        },
+        (
+            Player {
+                hit_damage: Damage::new(1.0),
+            },
+            Transform::from_translation(spawn_point),
+            Visibility::default(),
+            Float::default(),
+            PhysicsBundle {
+                collider: collision::Aabb::centered(Vec3::new(0.8, 1.0, 0.8))
+                    .add_offset(Vec3::new(0.0, -0.3, 0.0)),
+                ..default()
+            },
+            ItemUseSpeed {
+                windup: Duration::ZERO,
+                backswing: Duration::from_millis(100),
+            },
+            ItemSwingSpeed {
+                windup: Duration::ZERO,
+                backswing: Duration::from_millis(100),
+            },
+            Stamina::new(10.0),
+            RestoreStaminaOnKill { amount: 1.0 },
+            RestoreStaminaDuringDay {
+                per_tick: 5. / (64. * 16.),
+            },
+        ),
         Dash::new(0.5, Duration::from_secs_f32(0.5)),
         CombatantBundle::<PlayerTeam> {
             combatant: Combatant::new(10.0, 0.0),
@@ -366,6 +368,7 @@ fn populate_player_entity(
             ..default()
         },
         FloatBoost::default().with_extra_height(3.0),
+        DroppedItemPickerUpper { radius: 3. },
     ));
     //right hand
     let right_hand = spawn_ghost_hand(

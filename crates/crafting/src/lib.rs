@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use engine::{
-    actors::LocalPlayer,
     items::{inventory::Inventory, ItemName, ItemResources, ItemStack, MaxStackSize},
     world::LevelSystemSet,
 };
@@ -16,8 +15,7 @@ impl Plugin for RecipePlugin {
             .add_systems(
                 FixedPreUpdate,
                 cache_recipe_entities.run_if(resource_exists::<ItemResources>),
-            )
-            .add_systems(Update, test_crafting.in_set(LevelSystemSet::Main));
+            );
     }
 }
 
@@ -86,26 +84,6 @@ impl CachedEntityRecipe {
     // accounts for having recipe inputs and having the output slot available
     pub fn can_craft(&self, inventory: &Inventory, pickup_query: &Query<&MaxStackSize>) -> bool {
         inventory.can_pickup_item(self.output, pickup_query) && self.has_inputs(inventory)
-    }
-}
-
-fn test_crafting(
-    craft_button: Res<ButtonInput<KeyCode>>,
-    mut writer: EventWriter<CraftEvent>,
-    player_query: Query<Entity, With<LocalPlayer>>,
-    recipes: Query<&CachedEntityRecipe>,
-) {
-    let Ok(player) = player_query.get_single() else {
-        return;
-    };
-    if craft_button.just_pressed(KeyCode::KeyT) {
-        for recipe in recipes.iter() {
-            info!("crafting! {:?}", recipe);
-            writer.send(CraftEvent {
-                crafter: player,
-                recipe: recipe.clone(),
-            });
-        }
     }
 }
 

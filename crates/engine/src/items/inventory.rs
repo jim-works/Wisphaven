@@ -171,7 +171,7 @@ impl Inventory {
                     }
                     let picking_up = item
                         .size
-                        .min(data_query.get(item.id).unwrap().0 - item.size);
+                        .min(data_query.get(item.id).unwrap().0.saturating_sub(item.size));
                     if picking_up > 0 {
                         item.size -= picking_up;
                         stack.0.size += picking_up;
@@ -203,7 +203,7 @@ impl Inventory {
                     }
                     let picking_up = item
                         .size
-                        .min(data_query.get(item.id).unwrap().0 - item.size);
+                        .min(data_query.get(item.id).unwrap().0.saturating_sub(item.size));
                     if picking_up > 0 {
                         item.size -= picking_up;
                     }

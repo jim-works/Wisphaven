@@ -108,6 +108,7 @@ fn visualize_held_item(
     item_query: Query<&ItemMesh>,
     res: Res<HeldItemResources>,
 ) {
+    // note: this code is kinda duplicated for dropped items but i think it's fine
     //color materials
     for (entity, held, mut mesh) in color_held_query.iter_mut() {
         if let Ok(inv) = inv_query.get(held.inventory) {

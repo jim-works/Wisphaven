@@ -22,6 +22,7 @@ impl Plugin for ItemsPlugin {
             .add_event::<StartSwingingItemEvent>()
             .add_event::<SwingItemEvent>()
             .add_event::<SwingEndEvent>()
+            .add_event::<SpawnDroppedItemEvent>()
             .configure_sets(
                 Update,
                 (
@@ -139,6 +140,23 @@ pub fn create_raw_item<T: Bundle>(info: ItemBundle, bundle: T, commands: &mut Co
 
 #[derive(Component)]
 pub struct ItemIcon(pub Handle<Image>);
+
+#[derive(Component, Clone, Copy)]
+pub struct DroppedItem {
+    pub stack: ItemStack,
+}
+
+#[derive(Component, Clone, Copy)]
+pub struct DroppedItemPickerUpper {
+    pub radius: f32,
+}
+
+#[derive(Event)]
+pub struct SpawnDroppedItemEvent {
+    pub postion: Vec3,
+    pub velocity: Vec3,
+    pub stack: ItemStack,
+}
 
 #[derive(Event)]
 pub struct StartUsingItemEvent {
