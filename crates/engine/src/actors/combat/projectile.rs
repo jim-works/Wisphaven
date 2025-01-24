@@ -7,10 +7,7 @@ use crate::{
         movement::Velocity,
         query::test_box,
     },
-    world::{
-        events::{BlockDamageSetEvent, ChunkUpdatedEvent},
-        BlockCoord, BlockId, Level, LevelSystemSet,
-    },
+    world::{events::DealBlockDamageEvent, LevelSystemSet},
 };
 use bevy::prelude::*;
 
@@ -114,30 +111,49 @@ fn test_projectile_hit<T: Team>(
     >,
     mut attack_writer: EventWriter<AttackEvent>,
     mut commands: Commands,
-    level: Res<Level>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb), T::Targets>,
-    id_query: Query<&BlockId>,
-    mut damage_writer: EventWriter<BlockDamageSetEvent>,
-    mut update_writer: EventWriter<ChunkUpdatedEvent>,
+    mut damage_writer: EventWriter<DealBlockDamageEvent>,
 ) {
     for (proj_entity, tf, proj, v, opt_in_entity, colliding_blocks, aabb) in query.iter() {
         let opt_hit_entity = test_box::<T>(tf.translation(), *aabb, &object_query, &[proj_entity]);
         if opt_hit_entity.is_some() || !colliding_blocks.is_empty() {
             let hit_blocks = colliding_blocks.iter().map(|&(coord, _, _)| coord);
-            proj_hit(
-                &mut attack_writer,
-                &mut commands,
-                proj_entity,
-                hit_blocks,
-                proj,
-                v,
-                opt_hit_entity,
-                opt_in_entity,
-                &level,
-                &id_query,
-                &mut damage_writer,
-                &mut update_writer,
-            );
+            if let Some(&ProjectileSpawnedInEntity(ignore)) = opt_in_entity {
+                //don't want to hit the entity we spawn in
+                if opt_hit_entity.map(|t| ignore == t).unwrap_or(false) {
+                    return;
+                }
+            }
+            if let Some(hit) = opt_hit_entity {
+                attack_writer.send(AttackEvent {
+                    attacker: proj.owner,
+                    target: hit,
+                    damage: proj.damage,
+                    knockback: v.map_or(Vec3::ZERO, |v| v.0 * proj.knockback_mult),
+                });
+            }
+
+            if let Some(ref on_hit) = proj.on_hit {
+                on_hit(
+                    ProjectileHit {
+                        hit: opt_hit_entity,
+                        projectile: proj_entity,
+                    },
+                    &mut commands,
+                );
+            }
+            for block_position in hit_blocks {
+                damage_writer.send(DealBlockDamageEvent {
+                    block_position,
+                    damage: proj.terrain_damage,
+                    damager: Some(proj_entity),
+                });
+            }
+
+            match proj.hit_behavior {
+                ProjecileHitBehavior::Despawn => commands.entity(proj_entity).despawn_recursive(),
+                ProjecileHitBehavior::None => (),
+            }
         } else if opt_hit_entity.is_none() {
             //can remove spawned in entity since we are outside of all entities
             if opt_in_entity.is_some() {
@@ -146,61 +162,5 @@ fn test_projectile_hit<T: Team>(
                     .remove::<ProjectileSpawnedInEntity>();
             }
         }
-    }
-}
-
-fn proj_hit(
-    writer: &mut EventWriter<AttackEvent>,
-    commands: &mut Commands,
-    proj_entity: Entity,
-    proj_hit_blocks: impl Iterator<Item = BlockCoord>,
-    proj: &Projectile,
-    v: Option<&Velocity>,
-    target: Option<Entity>,
-    opt_in_entity: Option<&ProjectileSpawnedInEntity>,
-    level: &Level,
-    id_query: &Query<&BlockId>,
-    damage_writer: &mut EventWriter<BlockDamageSetEvent>,
-    update_writer: &mut EventWriter<ChunkUpdatedEvent>,
-) {
-    if let Some(&ProjectileSpawnedInEntity(ignore)) = opt_in_entity {
-        //don't want to hit the entity we spawn in
-        if target.map(|t| ignore == t).unwrap_or(false) {
-            return;
-        }
-    }
-    if let Some(hit) = target {
-        writer.send(AttackEvent {
-            attacker: proj.owner,
-            target: hit,
-            damage: proj.damage,
-            knockback: v.map_or(Vec3::ZERO, |v| v.0 * proj.knockback_mult),
-        });
-    }
-
-    if let Some(ref on_hit) = proj.on_hit {
-        on_hit(
-            ProjectileHit {
-                hit: target,
-                projectile: proj_entity,
-            },
-            commands,
-        );
-    }
-    for block_coord in proj_hit_blocks {
-        level.damage_block(
-            block_coord,
-            proj.terrain_damage,
-            Some(proj_entity),
-            id_query,
-            damage_writer,
-            update_writer,
-            commands,
-        );
-    }
-
-    match proj.hit_behavior {
-        ProjecileHitBehavior::Despawn => commands.entity(proj_entity).despawn_recursive(),
-        ProjecileHitBehavior::None => (),
     }
 }

@@ -46,7 +46,7 @@ pub struct LevelData {
     pub seed: u64,
     chunks: DashMap<ChunkCoord, ChunkType, ahash::RandomState>,
     buffers: DashMap<ChunkCoord, Box<[BlockType; BLOCKS_PER_CHUNK]>, ahash::RandomState>,
-    block_damages: DashMap<BlockCoord, BlockDamage, ahash::RandomState>,
+    pub block_damages: DashMap<BlockCoord, BlockDamage, ahash::RandomState>,
     lod_chunks:
         DashMap<usize, DashMap<ChunkCoord, LODChunkType, ahash::RandomState>, ahash::RandomState>,
     spawn_point: Vec3,
@@ -92,71 +92,7 @@ impl LevelData {
             container.set(pos, self.get_block(pos.into()));
         }
     }
-    //adds damage to the block at `key`. damage ranges from 0-1, with 1 destroying the block
-    //returns the block's entity if it's destroyed
-    //will not do anything if damage = 0
-    pub fn damage_block(
-        &self,
-        key: BlockCoord,
-        amount: f32,
-        damager: Option<Entity>, //the item, block, or other entity that damaged the block. not the player
-        id_query: &Query<&BlockId>,
-        writer: &mut EventWriter<BlockDamageSetEvent>,
-        update_writer: &mut EventWriter<ChunkUpdatedEvent>,
-        commands: &mut Commands,
-    ) -> Option<Entity> {
-        let mut remove_block = false;
-        let mut remove_damage = false;
-        let entity = self.get_block_entity(key);
-        if entity.is_none() || amount == 0.0 {
-            return None; //can't damage an empty block, or we did literally no damage
-        }
-        match self.block_damages.get_mut(&key) {
-            Some(mut dam) => {
-                let mut damage = dam.value().with_time_reset();
-                damage.damage = (damage.damage + amount).clamp(0.0, 1.0);
-                *dam.value_mut() = damage;
-                if damage.damage == 1.0 {
-                    //total damage = 1, remove the block
-                    remove_block = true;
-                } else if damage.damage == 0.0 {
-                    //no more damage, so remove the damage value
-                    remove_damage = true;
-                }
-                writer.send(BlockDamageSetEvent {
-                    block_position: key,
-                    damage,
-                    damager,
-                });
-            }
-            None => {
-                if amount < 1.0 {
-                    let damage = BlockDamage::new(amount);
-                    self.block_damages.insert(key, damage);
-                    writer.send(BlockDamageSetEvent {
-                        block_position: key,
-                        damage,
-                        damager,
-                    });
-                } else {
-                    remove_block = true;
-                    writer.send(BlockDamageSetEvent {
-                        block_position: key,
-                        damage: BlockDamage::new(1.0),
-                        damager,
-                    });
-                }
-            }
-        }
-        if remove_block || remove_damage {
-            self.block_damages.remove(&key);
-        }
-        if remove_block {
-            self.set_block_entity(key, BlockType::Empty, id_query, update_writer, commands);
-            return entity;
-        }
-        None
-    }
+
     //heals all block damages by amount
     pub fn heal_block_damages(
         &self,

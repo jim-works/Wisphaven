@@ -14,6 +14,7 @@ pub enum Action {
     Dash,
     Punch,
     Use,
+    DropItem,
     Look,
     Scroll,
     ToggleInventory,
@@ -48,6 +49,7 @@ pub fn get_input_map() -> InputMap<Action> {
         .with(Action::ToggleFlight, KeyCode::KeyF)
         .with(Action::Punch, MouseButton::Left)
         .with(Action::Use, MouseButton::Right)
+        .with(Action::DropItem, KeyCode::KeyG)
         .with_dual_axis(Action::Look, MouseMove::default())
         .with_axis(Action::Scroll, MouseScrollAxis::Y)
         .with(Action::ToggleInventory, KeyCode::Escape)

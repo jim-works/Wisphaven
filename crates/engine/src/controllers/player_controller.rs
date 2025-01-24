@@ -8,7 +8,7 @@ use leafwing_input_manager::prelude::ActionState;
 
 use crate::{
     actors::*,
-    items::inventory::Inventory,
+    items::{inventory::Inventory, SpawnDroppedItemEvent},
     physics::{
         collision::Aabb,
         grapple::Grappled,
@@ -39,6 +39,7 @@ impl Plugin for PlayerControllerPlugin {
                 player_punch,
                 player_use,
                 toggle_player_flight,
+                player_drop_item,
             )
                 .in_set(LevelSystemSet::Main),
         )
@@ -353,6 +354,27 @@ pub fn player_use(
                 slot,
                 crate::items::inventory::ItemTargetPosition::Entity(entity),
             );
+        }
+    }
+}
+
+pub fn player_drop_item(
+    mut query: Query<
+        (&mut Inventory, &Transform, &Velocity, &ActionState<Action>),
+        With<ControlledPlayer>,
+    >,
+    mut drop: EventWriter<SpawnDroppedItemEvent>,
+) {
+    for (mut inv, tf, v, action) in query.iter_mut() {
+        if action.just_pressed(&Action::DropItem) {
+            let slot = inv.selected_slot();
+            if let Some(stack) = inv.drop_items(slot, 1) {
+                drop.send(SpawnDroppedItemEvent {
+                    postion: tf.translation,
+                    velocity: v.0 + tf.forward().as_vec3() * 0.2,
+                    stack,
+                });
+            }
         }
     }
 }

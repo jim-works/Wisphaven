@@ -2,18 +2,14 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use engine::{
-    actors::Player,
     physics::{collision::Aabb, query},
     world::{
-        events::{BlockDamageSetEvent, BlockHitEvent, ChunkUpdatedEvent},
-        BlockId, BlockPhysics, Level,
+        events::{BlockHitEvent, DealBlockDamageEvent},
+        BlockPhysics, Level,
     },
 };
 
-use engine::items::{
-    inventory::Inventory, CreatorItem, HitResult, ItemStack, ItemSystemSet, MaxStackSize,
-    SwingEndEvent, SwingItemEvent,
-};
+use engine::items::{HitResult, ItemSystemSet, SwingEndEvent, SwingItemEvent};
 
 pub mod abilities;
 
@@ -119,13 +115,7 @@ fn deal_block_damage(
     resistance_query: Query<&ToolResistance>,
     tool_query: Query<&Tool>,
     level: Res<Level>,
-    id_query: Query<&BlockId>,
-    mut player_query: Query<&mut Inventory, With<Player>>,
-    block_query: Query<&CreatorItem>,
-    data_query: Query<&MaxStackSize>,
-    mut writer: EventWriter<BlockDamageSetEvent>,
-    mut update_writer: EventWriter<ChunkUpdatedEvent>,
-    mut commands: Commands,
+    mut damage_writer: EventWriter<DealBlockDamageEvent>,
 ) {
     for BlockHitEvent {
         item,
@@ -144,22 +134,11 @@ fn deal_block_damage(
                         .copied() //entity that hit the block had tool power
                         .unwrap_or_default(),
                 ); //...or nothing and use default tool
-                   //todo - remove this once item drops are entities
-            if let Some(broken) = level.damage_block(
-                *block_position,
-                calc_block_damage(resistance, tool),
-                *item,
-                &id_query,
-                &mut writer,
-                &mut update_writer,
-                &mut commands,
-            ) {
-                if let Some(mut inv) = user.and_then(|e| player_query.get_mut(e).ok()) {
-                    if let Ok(CreatorItem(item)) = block_query.get(broken) {
-                        inv.pickup_item(ItemStack::new(*item, 1), &data_query);
-                    }
-                }
-            }
+            damage_writer.send(DealBlockDamageEvent {
+                block_position: *block_position,
+                damage: calc_block_damage(resistance, tool),
+                damager: *item,
+            });
         }
     }
 }

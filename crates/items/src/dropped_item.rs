@@ -8,7 +8,11 @@ use engine::{
         ItemStack, MaxStackSize, SpawnDroppedItemEvent,
     },
     mesher::item_mesher::{HeldItemResources, ItemMesh},
-    physics::{collision::Aabb, movement::Velocity, PhysicsBundle},
+    physics::{
+        collision::{Aabb, Friction},
+        movement::Velocity,
+        FrictionBundle, PhysicsBundle,
+    },
     world::LevelSystemSet,
 };
 
@@ -26,7 +30,6 @@ impl Plugin for DroppedItemPlugin {
                 .chain()
                 .in_set(LevelSystemSet::PostTick),
         );
-        app.add_systems(Update, test_spawning.in_set(LevelSystemSet::Main));
     }
 }
 
@@ -52,6 +55,11 @@ fn spawn_dropped_item(
             PhysicsBundle {
                 velocity: Velocity(spawn.velocity),
                 collider: Aabb::new(Vec3::splat(SCALE), Vec3::ZERO),
+                friction: FrictionBundle {
+                    // todo - @polish maybe this could be set according to the friction of the block? so ice slides far
+                    friction: Friction(1.5),
+                    ..default()
+                },
                 ..default()
             },
             InactiveDroppedItem {
@@ -120,35 +128,5 @@ fn pickup_dropped_item(
                 }
             }
         }
-    }
-}
-
-fn test_spawning(
-    button: Res<ButtonInput<KeyCode>>,
-    mut writer: EventWriter<SpawnDroppedItemEvent>,
-    player_query: Query<&Transform, With<LocalPlayer>>,
-    items: Res<ItemResources>,
-) {
-    let Ok(player) = player_query.get_single() else {
-        return;
-    };
-    let pick = items
-        .registry
-        .get_basic(&ItemName::core("ruby_pickaxe"))
-        .unwrap();
-    let log = items.registry.get_basic(&ItemName::core("log")).unwrap();
-    if button.just_pressed(KeyCode::KeyT) {
-        writer.send(SpawnDroppedItemEvent {
-            postion: player.translation,
-            velocity: 0.2 * (player.forward().as_vec3() + Vec3::Y),
-            stack: ItemStack::new(pick, 5),
-        });
-    }
-    if button.just_pressed(KeyCode::KeyY) {
-        writer.send(SpawnDroppedItemEvent {
-            postion: player.translation,
-            velocity: 0.2 * (player.forward().as_vec3() + Vec3::Y),
-            stack: ItemStack::new(log, 5),
-        });
     }
 }

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use util::direction::Direction;
 
 use engine::world::{
-    events::{BlockDamageSetEvent, BlockHitEvent, ChunkUpdatedEvent},
+    events::{BlockHitEvent, DealBlockDamageEvent},
     BlockCoord, BlockId, Level, LevelSystemSet,
 };
 
@@ -56,9 +56,7 @@ fn axe_ability_system(
     resistance_query: Query<&ToolResistance>,
     id_query: Query<&BlockId>,
     target_query: Query<&AxeAbilityTarget>,
-    mut commands: Commands,
-    mut writer: EventWriter<BlockDamageSetEvent>,
-    mut update_writer: EventWriter<ChunkUpdatedEvent>,
+    mut damage_writer: EventWriter<DealBlockDamageEvent>,
 ) {
     for BlockHitEvent {
         item,
@@ -89,6 +87,7 @@ fn axe_ability_system(
                     do_axe_ability(
                         &level,
                         damage * damage_mult,
+                        &mut damage_writer,
                         *block_position,
                         *max_blocks,
                         *search_radius,
@@ -96,9 +95,6 @@ fn axe_ability_system(
                         &target_query,
                         *item,
                         &mut HashSet::new(),
-                        &mut commands,
-                        &mut writer,
-                        &mut update_writer,
                     );
                 }
             }
@@ -111,6 +107,7 @@ fn axe_ability_system(
 fn do_axe_ability(
     level: &Level,
     damage: f32,
+    damage_writer: &mut EventWriter<DealBlockDamageEvent>,
     initial_pos: BlockCoord,
     max_blocks: usize,
     search_radius: i32,
@@ -118,9 +115,6 @@ fn do_axe_ability(
     target_query: &Query<&AxeAbilityTarget>,
     tool: Entity,
     hits: &mut HashSet<BlockCoord>,
-    commands: &mut Commands,
-    writer: &mut EventWriter<BlockDamageSetEvent>,
-    update_writer: &mut EventWriter<ChunkUpdatedEvent>,
 ) -> usize {
     //ya know sometimes you just gotta ident a lot
     for square_radius in 0..search_radius + 1 {
@@ -132,19 +126,16 @@ fn do_axe_ability(
                         if target_query.contains(block) {
                             if hits.insert(pos) {
                                 if pos != initial_pos {
-                                    level.damage_block(
-                                        pos,
+                                    damage_writer.send(DealBlockDamageEvent {
+                                        block_position: pos,
                                         damage,
-                                        Some(tool),
-                                        id_query,
-                                        writer,
-                                        update_writer,
-                                        commands,
-                                    );
+                                        damager: Some(tool),
+                                    });
                                 }
                                 do_axe_ability(
                                     level,
                                     damage,
+                                    damage_writer,
                                     pos,
                                     max_blocks,
                                     search_radius,
@@ -152,9 +143,6 @@ fn do_axe_ability(
                                     target_query,
                                     tool,
                                     hits,
-                                    commands,
-                                    writer,
-                                    update_writer,
                                 );
                             }
                             if hits.len() >= max_blocks {
@@ -176,19 +164,16 @@ fn do_axe_ability(
                         if target_query.contains(block) {
                             if hits.insert(pos) {
                                 if pos != initial_pos {
-                                    level.damage_block(
-                                        pos,
+                                    damage_writer.send(DealBlockDamageEvent {
+                                        block_position: pos,
                                         damage,
-                                        None,
-                                        id_query,
-                                        writer,
-                                        update_writer,
-                                        commands,
-                                    );
+                                        damager: Some(tool),
+                                    });
                                 }
                                 do_axe_ability(
                                     level,
                                     damage,
+                                    damage_writer,
                                     pos,
                                     max_blocks,
                                     search_radius,
@@ -196,9 +181,6 @@ fn do_axe_ability(
                                     target_query,
                                     tool,
                                     hits,
-                                    commands,
-                                    writer,
-                                    update_writer,
                                 );
                             }
                             if hits.len() >= max_blocks {
@@ -216,13 +198,10 @@ fn do_axe_ability(
 fn shovel_ability_system(
     level: Res<Level>,
     mut reader: EventReader<BlockHitEvent>,
+    mut damage_writer: EventWriter<DealBlockDamageEvent>,
     shovel_ability_query: Query<(&Tool, &ShovelAbility)>,
     resistance_query: Query<&ToolResistance>,
-    id_query: Query<&BlockId>,
     target_query: Query<&ShovelAbilityTarget>,
-    mut commands: Commands,
-    mut writer: EventWriter<BlockDamageSetEvent>,
-    mut update_writer: EventWriter<ChunkUpdatedEvent>,
 ) {
     for BlockHitEvent {
         item,
@@ -243,7 +222,6 @@ fn shovel_ability_system(
             {
                 let direction = Direction::from(*hit_forward);
                 let axis = BlockCoord::from(direction);
-                info!("axis: {:?}", axis);
                 for len in 0..(*length as i32) {
                     direction.for_each_in_plane(*radius as i32, |offset| {
                         let coord = axis * len + offset.into() + *block_position;
@@ -255,15 +233,11 @@ fn shovel_ability_system(
                                 resistance_query.get(block).copied().unwrap_or_default(),
                                 *tool,
                             ) * damage_mult;
-                            level.damage_block(
-                                coord,
+                            damage_writer.send(DealBlockDamageEvent {
+                                block_position: coord,
                                 damage,
-                                Some(*item),
-                                &id_query,
-                                &mut writer,
-                                &mut update_writer,
-                                &mut commands,
-                            );
+                                damager: Some(*item),
+                            });
                         }
                     });
                 }
