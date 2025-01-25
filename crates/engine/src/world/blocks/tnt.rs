@@ -47,7 +47,7 @@ pub fn process_tnt(
                 &mut commands,
             );
             explosions.send(SpawnFallingBlockEvent {
-                position: used.block_position.center(),
+                position: used.block_position.to_vec3(),
                 initial_velocity: Vec3::ZERO,
                 falling_block: FallingBlock {
                     block: used.block_used,

@@ -2,10 +2,9 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use engine::{
-    actors::LocalPlayer,
     items::{
-        inventory::Inventory, DroppedItem, DroppedItemPickerUpper, ItemName, ItemResources,
-        ItemStack, MaxStackSize, SpawnDroppedItemEvent,
+        inventory::Inventory, DroppedItem, DroppedItemPickerUpper, MaxStackSize,
+        SpawnDroppedItemEvent,
     },
     mesher::item_mesher::{HeldItemResources, ItemMesh},
     physics::{
@@ -14,6 +13,7 @@ use engine::{
         FrictionBundle, PhysicsBundle,
     },
     world::LevelSystemSet,
+    GameState,
 };
 
 pub(crate) struct DroppedItemPlugin;
@@ -51,6 +51,7 @@ fn spawn_dropped_item(
     let inactive_duration: Duration = Duration::from_secs_f32(0.5);
     for spawn in reader.read() {
         let mut ec = commands.spawn((
+            StateScoped(GameState::Game),
             Transform::from_translation(spawn.postion).with_scale(Vec3::splat(SCALE)),
             PhysicsBundle {
                 velocity: Velocity(spawn.velocity),

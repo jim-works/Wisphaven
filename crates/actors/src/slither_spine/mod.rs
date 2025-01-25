@@ -10,6 +10,10 @@ use engine::{
     },
     chunk_loading::ChunkLoader,
     controllers::{ControllableBundle, TickMovement},
+    items::{
+        loot::{ItemLootTable, ItemLootTableDrop},
+        ItemName,
+    },
     physics::{
         collision::{Aabb, CollidingDirections, IgnoreTerrainCollision, TerrainQueryPoint},
         movement::{Drag, GravityMult, LookInMovementDirection, Velocity},
@@ -240,6 +244,13 @@ fn spawn_segement(
                 ..default()
             },
             ContactDamage::new(Damage::new(1.0)),
+            ItemLootTable {
+                drops: vec![ItemLootTableDrop {
+                    item: ItemName::core("tnt"),
+                    drop_chance: 1.0,
+                    drop_count_range: (1, 5),
+                }],
+            },
         ))
         .id()
 }

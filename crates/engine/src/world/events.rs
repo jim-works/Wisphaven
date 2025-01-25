@@ -1,4 +1,4 @@
-use crate::items::SpawnDroppedItemEvent;
+use crate::items::{loot::CachedLootTable, CreatorItem, SpawnDroppedItemEvent};
 
 use super::{
     chunk::ChunkCoord, BlockCoord, BlockDamage, BlockId, BlockResources, BlockType, Id, Level,
@@ -106,7 +106,7 @@ fn process_block_damages(
     mut damage_reader: EventReader<DealBlockDamageEvent>,
     id_query: Query<&BlockId>,
     level: Res<Level>,
-    block_query: Query<&crate::items::CreatorItem>,
+    block_query: Query<(&CreatorItem, Option<&CachedLootTable<Entity>>)>,
     mut damage_writer: EventWriter<BlockDamageSetEvent>,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
     mut drop_writer: EventWriter<SpawnDroppedItemEvent>,
@@ -168,13 +168,22 @@ fn process_block_damages(
             level.block_damages.remove(&block_position);
         }
         if remove_block {
-            if let Ok(crate::items::CreatorItem(item)) = block_query.get(entity) {
-                let random_v = util::sample_sphere_surface(&mut rng) * 0.05;
-                drop_writer.send(SpawnDroppedItemEvent {
-                    postion: block_position.center(),
-                    velocity: random_v + Vec3::Y * 0.1,
-                    stack: crate::items::ItemStack::new(*item, 1),
-                });
+            match block_query.get(entity) {
+                Ok((_, Some(loot_table))) => {
+                    info!("dropping from loot table");
+                    loot_table.drop_items(block_position.center(), &mut drop_writer, &mut rng);
+                }
+                Ok((CreatorItem(creator_item), None)) => {
+                    info!("dropping from creator item");
+                    let random_v = util::sample_sphere_surface(&mut rng) * 0.05;
+                    let random_strength = util::random_proportion(&mut rng) + 0.5;
+                    drop_writer.send(SpawnDroppedItemEvent {
+                        postion: block_position.center(),
+                        velocity: random_strength * (random_v + Vec3::Y * 0.1),
+                        stack: crate::items::ItemStack::new(*creator_item, 1),
+                    });
+                }
+                Err(_) => warn!("no block drop for {:?}", entity),
             }
             level.set_block_entity(
                 block_position,

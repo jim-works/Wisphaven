@@ -1,8 +1,10 @@
 use core::f32;
 
 use bevy::prelude::*;
+use rand::{thread_rng, Rng};
 
 use crate::{
+    items::{loot::CachedLootTable, SpawnDroppedItemEvent},
     physics::movement::{Mass, Velocity},
     world::atmosphere::DayStartedEvent,
 };
@@ -130,28 +132,68 @@ fn apply_knockback(
 
 pub fn do_death(
     mut death_reader: EventReader<DeathEvent>,
-    death_type: Query<(&DeathInfo, Option<&Name>)>,
-    child_query: Query<(Entity, &Combatant, &DeathInfo)>,
+    death_type: Query<(
+        &DeathInfo,
+        &Transform,
+        Option<&Name>,
+        Option<&CachedLootTable<Entity>>,
+    )>,
+    child_query: Query<(
+        Entity,
+        &Transform,
+        &Combatant,
+        &DeathInfo,
+        Option<&CachedLootTable<Entity>>,
+    )>,
     parent_query: Query<&Combatant>,
+    mut drop_writer: EventWriter<SpawnDroppedItemEvent>,
     mut commands: Commands,
 ) {
+    let mut rng = thread_rng();
     for event in death_reader.read() {
         let dying_entity = event.final_blow.target;
         //todo - this is really inefficient. relations!!
         //  or just maintain a list of children for each combatant (bleh)
-        for (child_entity, combatant, death) in child_query.iter() {
+        for (child_entity, tf, combatant, death, drops) in child_query.iter() {
             if combatant.has_ancestor(dying_entity, &parent_query) {
-                entity_die(child_entity, death, &mut commands);
+                entity_die(
+                    child_entity,
+                    tf.translation,
+                    death,
+                    drops,
+                    &mut rng,
+                    &mut drop_writer,
+                    &mut commands,
+                );
             }
         }
-        if let Ok((death, name)) = death_type.get(dying_entity) {
+        if let Ok((death, tf, name, drops)) = death_type.get(dying_entity) {
             info!("{:?} died", name);
-            entity_die(dying_entity, death, &mut commands);
+            entity_die(
+                dying_entity,
+                tf.translation,
+                death,
+                drops,
+                &mut rng,
+                &mut drop_writer,
+                &mut commands,
+            );
         }
     }
 }
 
-fn entity_die(entity: Entity, death: &DeathInfo, commands: &mut Commands) {
+fn entity_die(
+    entity: Entity,
+    position: Vec3,
+    death: &DeathInfo,
+    drops: Option<&CachedLootTable<Entity>>,
+    rng: &mut impl Rng,
+    drop_writer: &mut EventWriter<SpawnDroppedItemEvent>,
+    commands: &mut Commands,
+) {
+    if let Some(loot) = drops {
+        loot.drop_items(position, drop_writer, rng);
+    }
     match death.death_type {
         DeathType::Default => commands.entity(entity).despawn_recursive(),
         DeathType::LocalPlayer => {

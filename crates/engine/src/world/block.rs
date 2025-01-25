@@ -2,10 +2,8 @@ use std::{ops::AddAssign, path::PathBuf, sync::Arc};
 
 use crate::{
     items::{
-        block_item::BlockItem,
-        item_attributes::ConsumeItemOnHit,
-        loot::{LootTable, LootTableDrop},
-        CreatorItem, ItemBundle, ItemName, ItemRegistry, MaxStackSize,
+        block_item::BlockItem, item_attributes::ConsumeItemOnHit, CreatorItem, ItemBundle,
+        ItemName, ItemRegistry, MaxStackSize,
     },
     mesher::item_mesher::ItemMesh,
     physics::collision::Aabb,
@@ -302,14 +300,7 @@ impl BlockRegistry {
                 material: crate::mesher::item_mesher::ItemMeshMaterial::TextureArray,
             });
         }
-        commands.entity(entity).insert((
-            id,
-            LootTable {
-                drops: vec![LootTableDrop::Item(item)],
-                ..default()
-            },
-            CreatorItem(item),
-        ));
+        commands.entity(entity).insert((id, CreatorItem(item)));
         self.basic_entities.push(entity);
         self.id_map.insert(name, id);
     }

@@ -172,6 +172,20 @@
         "engine::world::block::NamedBlockMesh": (
             shape: Uniform("cactus.png"),
         ),
+        "engine::items::loot::ItemLootTable": (
+            drops: [
+              (
+                item: (namespace: "core", name: "cactus"),
+                drop_chance: 1.0,
+                drop_count_range: (1, 1)
+              ),
+              (
+                item: (namespace: "core", name: "tnt"),
+                drop_chance: 0.5,
+                drop_count_range: (3, 5)
+              )
+            ]
+        ),
         "items::tools::abilities::AxeAbilityTarget": (),
       },
     ),

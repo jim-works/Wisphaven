@@ -9,6 +9,7 @@
 #![allow(dead_code)]
 #![feature(assert_matches)]
 #![feature(let_chains)]
+#![feature(trivial_bounds)]
 
 pub mod actors;
 pub mod camera;
