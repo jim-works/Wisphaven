@@ -2,12 +2,11 @@ use bevy::prelude::*;
 
 use util::direction::DirectionFlags;
 
-use crate::{
-    actors::block_actors::{FallingBlock, SpawnFallingBlockEvent},
-    world::{
-        events::{BlockUsedEvent, ChunkUpdatedEvent},
-        BlockId, BlockType, Level, LevelSystemSet,
-    },
+use actors::block_actors::{FallingBlock, SpawnFallingBlockEvent};
+
+use engine::world::{
+    events::{BlockUsedEvent, ChunkUpdatedEvent},
+    BlockId, BlockType, Level, LevelSystemSet,
 };
 
 pub struct FallPlugin;

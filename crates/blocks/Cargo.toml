@@ -1,0 +1,15 @@
+[package]
+name = "blocks"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { workspace = true }
+serde = { workspace = true }
+
+engine = { path = "../engine" }
+util = { path = "../util" }
+actors = { path = "../actors" }
+
+[lints]
+workspace = true

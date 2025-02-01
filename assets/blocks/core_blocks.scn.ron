@@ -87,7 +87,7 @@
           name: "tnt",
         ),
         "engine::world::block::BlockPhysics": Solid,
-        "engine::world::blocks::tnt::TNTBlock": (
+        "blocks::tnt::TNTBlock": (
           explosion_strength: 10.0,
         ),
         "engine::world::block::UsableBlock": (),

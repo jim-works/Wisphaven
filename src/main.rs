@@ -68,6 +68,7 @@ fn main() {
         waves::GameplayPlugin,
         ::items::ItemsPlugin,
         crafting::RecipePlugin,
+        blocks::BlocksPlugin,
     ));
 
     if server_port.is_some() {

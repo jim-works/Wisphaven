@@ -19,7 +19,6 @@ use self::chunk::ChunkCoord;
 
 pub mod atmosphere;
 
-pub mod blocks;
 pub mod effects;
 pub mod events;
 pub mod settings;
@@ -119,7 +118,6 @@ impl Plugin for LevelPlugin {
         .add_plugins((
             effects::EffectsPlugin,
             events::WorldEventsPlugin,
-            blocks::BlocksPlugin,
             util::LevelUtilsPlugin,
             atmosphere::AtmospherePlugin,
         ))

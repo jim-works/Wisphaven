@@ -18,6 +18,9 @@ split-debuginfo="unpacked"
 [profile.dev.package."*"]
 opt-level = 3
 
+[profile.dev.build-override]
+opt-level = 3
+
 #also look into this: https://nnethercote.github.io/perf-book/build-configuration.html#link-time-optimization
 [profile.release]
 lto = true
@@ -83,6 +86,7 @@ actors = { path = "crates/actors" }
 waves = { path = "crates/waves" }
 items = { path = "crates/items" }
 crafting = { path = "crates/crafting" }
+blocks = { path = "crates/blocks" }
 
 [workspace.metadata.dylint]
 libraries = [

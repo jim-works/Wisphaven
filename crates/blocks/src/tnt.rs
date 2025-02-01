@@ -1,14 +1,11 @@
 use bevy::prelude::*;
 
-use util::direction::DirectionFlags;
-
-use crate::{
-    actors::block_actors::{FallingBlock, LandedFallingBlockEvent, SpawnFallingBlockEvent},
-    world::{
-        events::{BlockUsedEvent, ChunkUpdatedEvent, ExplosionEvent},
-        BlockId, BlockType, Level, LevelSystemSet,
-    },
+use actors::block_actors::{FallingBlock, LandedFallingBlockEvent, SpawnFallingBlockEvent};
+use engine::world::{
+    events::{BlockUsedEvent, ChunkUpdatedEvent, ExplosionEvent},
+    BlockId, BlockType, Level, LevelSystemSet,
 };
+use util::direction::DirectionFlags;
 
 pub struct TNTPlugin;
 
