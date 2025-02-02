@@ -1,0 +1,14 @@
+[package]
+name = "interfaces"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { workspace = true }
+lightyear = { workspace = true }
+serde = { workspace = true }
+
+materials = { path = "../materials" }
+
+[lints]
+workspace = true

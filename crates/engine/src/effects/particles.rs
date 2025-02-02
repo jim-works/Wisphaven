@@ -1,9 +1,8 @@
 use bevy::prelude::*;
 use bevy_hanabi::prelude::*;
 
-use crate::{
-    actors::DamageTakenEvent, effects::EFFECT_GRAVITY, util::bevy_utils::TimedDespawner, GameState,
-};
+use crate::{actors::DamageTakenEvent, effects::EFFECT_GRAVITY, util::bevy_utils::TimedDespawner};
+use interfaces::scheduling::GameState;
 
 pub struct ParticlesPlugin;
 

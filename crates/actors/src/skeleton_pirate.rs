@@ -11,9 +11,9 @@ use engine::{
         DefaultAnimation, Jump, MoveSpeed, UninitializedActor,
     },
     controllers::{ControllableBundle, JumpBundle},
-    physics::{collision::Aabb, movement::Velocity, PhysicsBundle, GRAVITY},
-    world::LevelLoadState,
 };
+use interfaces::scheduling::LevelLoadState;
+use physics::{collision::Aabb, movement::Velocity, PhysicsBundle, GRAVITY};
 use util::{physics::aim_projectile_straight_fallback, plugin::SmoothLookTo, SendEventCommand};
 
 use crate::spawning::{DefaultSpawnArgs, ProjectileSpawnArgs};

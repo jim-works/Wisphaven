@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use engine::debug::TextStyle;
+use debug::TextStyle;
 
 #[derive(Resource)]
 pub struct UIFont(TextStyle);

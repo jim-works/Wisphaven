@@ -10,10 +10,9 @@ use bevy::prelude::*;
 use lightyear::prelude::LeafwingInputPlugin;
 use util::direction::DirectionFlags;
 
-use crate::{
-    actors::{abilities::dash::CurrentlyDashing, ghost::FloatBoost, Jump, MoveSpeed},
-    physics::{collision::CollidingDirections, PhysicsSystemSet},
-};
+use crate::actors::{abilities::dash::CurrentlyDashing, ghost::FloatBoost, Jump, MoveSpeed};
+use interfaces::scheduling::*;
+use physics::collision::CollidingDirections;
 
 pub struct ControllersPlugin;
 
@@ -82,7 +81,7 @@ fn do_tick_movement(
     mut query: Query<
         (
             &TickMovement,
-            &mut crate::physics::movement::Velocity,
+            &mut physics::movement::Velocity,
             &MoveSpeed,
             &MovementMode,
             Option<&CollidingDirections>,
@@ -169,7 +168,7 @@ fn do_tick_movement(
 fn do_jump(
     mut query: Query<(
         &mut FrameJump,
-        &mut crate::physics::movement::Velocity,
+        &mut physics::movement::Velocity,
         &mut Jump,
         &CollidingDirections,
     )>,

@@ -1,24 +1,32 @@
 use std::{array, f32::consts::PI};
 
 use bevy::{math::primitives, prelude::*};
-use util::{iterators::*, plugin::SmoothLookTo, *};
+use util::{
+    ease_in_back, ease_in_out_quad, iterators::*, lerp, plugin::SmoothLookTo, SendEventCommand,
+};
+
+use world::{level::Level, settings::GraphicsSettings, FixedUpdateBlockGizmos};
+
+use physics::{
+    collision::{Aabb, BlockPhysics},
+    movement::{GravityMult, Mass, Velocity},
+    PhysicsBundle,
+};
+
+use interfaces::{
+    components::{Hand, HandState, SwingHand, UseHand},
+    resources::HeldItemResources,
+    scheduling::*,
+};
 
 use crate::{
     actors::team::PlayerTeam,
-    debug::FixedUpdateBlockGizmos,
     items::{
         inventory::Inventory,
         item_attributes::{ItemSwingSpeed, ItemUseSpeed},
         HitResult, ItemName, ItemResources, ItemStack, StartSwingingItemEvent, StartUsingItemEvent,
         SwingEndEvent, UseEndEvent,
     },
-    mesher::item_mesher::HeldItemResources,
-    physics::{
-        collision::Aabb,
-        movement::{GravityMult, Mass, Velocity},
-        PhysicsBundle, PhysicsLevelSet,
-    },
-    world::{settings::GraphicsSettings, BlockPhysics, Level, LevelLoadState, LevelSystemSet},
 };
 
 use super::{
@@ -99,52 +107,6 @@ impl FloatBoost {
             ..self
         }
     }
-}
-
-#[derive(Component)]
-pub struct Hand {
-    pub owner: Entity,
-    pub offset: Vec3,
-    pub scale: f32,
-    pub rotation: Quat,
-    pub windup_offset: Vec3,
-    pub state: HandState,
-}
-
-#[derive(Component)]
-pub struct SwingHand {
-    pub hand: Entity,
-    //offset to play hit animation at if the swing misses
-    miss_offset: Vec3,
-}
-
-#[derive(Component)]
-pub struct UseHand {
-    pub hand: Entity,
-    //offset to play hit animation at if the item doesn't have a use coord (e.g. throwing a coin or not placing a block)
-    miss_offset: Vec3,
-}
-
-#[derive(Debug)]
-pub enum HandState {
-    Following,
-    Windup {
-        start_pos: Vec3,
-        windup_time: f32,
-        time_remaining: f32,
-    },
-    Hitting {
-        start_pos: Vec3,
-        target: Vec3,
-        hit_time: f32,
-        return_time: f32,
-        hit_time_remaining: f32,
-    },
-    Returning {
-        start_pos: Vec3,
-        return_time: f32,
-        return_time_remaining: f32,
-    },
 }
 
 #[derive(Component, Clone, Copy)]
@@ -421,11 +383,10 @@ fn spawn_ghost(
             right_hand_entity,
             &mut commands,
         );
-        let item_visualizer = crate::mesher::item_mesher::create_held_item_visualizer(
+        let item_visualizer = held_item_resources.create_held_item_visualizer(
             &mut commands,
             ghost_entity,
             Transform::from_scale(Vec3::splat(4.0)).with_translation(Vec3::new(0.0, -1.0, -3.4)),
-            &held_item_resources,
         );
         commands
             .entity(right_hand_entity)

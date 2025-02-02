@@ -3,7 +3,8 @@ use std::{path::PathBuf, sync::Arc};
 use bevy::{prelude::*, utils::HashMap};
 use serde::{Deserialize, Serialize};
 
-use crate::world::{Id, LevelSystemSet};
+use interfaces::components::Id;
+use interfaces::scheduling::ItemSystemSet;
 
 use self::item_attributes::ItemAttributesPlugin;
 
@@ -23,16 +24,6 @@ impl Plugin for ItemsPlugin {
             .add_event::<SwingItemEvent>()
             .add_event::<SwingEndEvent>()
             .add_event::<SpawnDroppedItemEvent>()
-            .configure_sets(
-                Update,
-                (
-                    ItemSystemSet::Usage.in_set(LevelSystemSet::Main),
-                    ItemSystemSet::UsageProcessing.in_set(LevelSystemSet::Main),
-                    ItemSystemSet::DropPickup.in_set(LevelSystemSet::Main),
-                    ItemSystemSet::DropPickupProcessing.in_set(LevelSystemSet::Main),
-                )
-                    .chain(),
-            )
             .add_plugins((ItemAttributesPlugin, loot::LootPlugin))
             .add_systems(
                 Update,
@@ -46,14 +37,6 @@ impl Plugin for ItemsPlugin {
             .register_type::<MaxStackSize>()
             .register_type::<ItemName>();
     }
-}
-
-#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
-pub enum ItemSystemSet {
-    Usage,
-    UsageProcessing,
-    DropPickup,
-    DropPickupProcessing,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

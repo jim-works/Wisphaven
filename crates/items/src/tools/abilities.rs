@@ -3,9 +3,11 @@ use serde::{Deserialize, Serialize};
 
 use util::direction::Direction;
 
-use engine::world::{
+use interfaces::scheduling::LevelSystemSet;
+use world::{
+    block::{BlockCoord, BlockId},
     events::{BlockHitEvent, DealBlockDamageEvent},
-    BlockCoord, BlockId, Level, LevelSystemSet,
+    level::Level,
 };
 
 use super::{calc_block_damage, Tool, ToolResistance};

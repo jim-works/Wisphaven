@@ -1,8 +1,6 @@
 use bevy::prelude::*;
-use engine::{
-    items::{inventory::Inventory, ItemName, ItemResources, ItemStack, MaxStackSize},
-    world::LevelSystemSet,
-};
+use engine::items::{inventory::Inventory, ItemName, ItemResources, ItemStack, MaxStackSize};
+use interfaces::scheduling::LevelSystemSet;
 use serde::{Deserialize, Serialize};
 
 pub struct RecipePlugin;

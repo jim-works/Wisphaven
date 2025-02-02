@@ -4,9 +4,8 @@ use crafting::*;
 use engine::{
     actors::LocalPlayer,
     items::{inventory::Inventory, ItemStack},
-    world::LevelSystemSet,
-    GameState,
 };
+use interfaces::scheduling::{GameState, LevelSystemSet};
 
 use crate::{
     inventory::{default_slot_background, InventoryResources, SetIconEvent, SLOT_PX},

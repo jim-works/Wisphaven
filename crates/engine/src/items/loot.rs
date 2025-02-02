@@ -5,7 +5,7 @@ use rand_distr::Uniform;
 use serde::{Deserialize, Serialize};
 use util::random_proportion;
 
-use crate::world::LevelSystemSet;
+use interfaces::scheduling::LevelSystemSet;
 
 use super::{ItemName, ItemRegistry, ItemResources, ItemStack, SpawnDroppedItemEvent};
 

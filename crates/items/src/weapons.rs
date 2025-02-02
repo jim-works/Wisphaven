@@ -2,21 +2,18 @@ use std::sync::Arc;
 
 use bevy::prelude::*;
 
-use engine::{
-    actors::{team::PlayerTeam, AttackEvent, Combatant, CombatantBundle, Damage},
-    physics::{
-        collision::Aabb,
-        movement::Velocity,
-        query::{self, RaycastHit},
-    },
-    world::{BlockPhysics, Level},
+use engine::actors::{team::PlayerTeam, AttackEvent, Combatant, CombatantBundle, Damage};
+use interfaces::scheduling::ItemSystemSet;
+use physics::{
+    collision::{Aabb, BlockPhysics},
+    movement::Velocity,
+    query::{self, RaycastHit},
 };
+use world::level::Level;
 
 use actors::spawning::{ProjectileSpawnArgs, SpawnProjectileEvent};
 
-use engine::items::{
-    HitResult, ItemSystemSet, SwingEndEvent, SwingItemEvent, UseEndEvent, UseItemEvent,
-};
+use engine::items::{HitResult, SwingEndEvent, SwingItemEvent, UseEndEvent, UseItemEvent};
 
 pub struct WeaponItemPlugin;
 

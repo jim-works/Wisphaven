@@ -2,15 +2,12 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use engine::{
-    actors::{
-        abilities::stamina::{send_stamina_updated_events, Stamina, StaminaUpdatedEvent},
-        Combatant, DamageTakenEvent, LocalPlayer, LocalPlayerSpawnedEvent,
-    },
-    world::LevelLoadState,
-    GameState,
+use engine::actors::{
+    abilities::stamina::{send_stamina_updated_events, Stamina, StaminaUpdatedEvent},
+    Combatant, DamageTakenEvent, LocalPlayer, LocalPlayerSpawnedEvent,
 };
 
+use interfaces::scheduling::{GameState, LevelLoadState};
 use util::inverse_lerp;
 
 use crate::MainCameraUIRoot;

@@ -29,6 +29,9 @@ bitflags = { workspace = true }
 regex = { workspace = true }
 #internal deps
 util = { path = "../util" }
+world = { path = "../world" }
+physics = { path = "../physics" }
+interfaces = { path = "../interfaces" }
 
 [lints]
 workspace = true

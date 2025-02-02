@@ -1,11 +1,10 @@
 use bevy::prelude::*;
 
-use engine::{
-    items::HitResult,
-    world::atmosphere::{Calendar, SpeedupCalendarEvent},
-};
+use engine::items::HitResult;
+use interfaces::scheduling::ItemSystemSet;
+use world::atmosphere::{Calendar, SpeedupCalendarEvent};
 
-use engine::items::{ItemSystemSet, UseEndEvent, UseItemEvent};
+use engine::items::{UseEndEvent, UseItemEvent};
 
 pub struct TimeItemsPlugin;
 

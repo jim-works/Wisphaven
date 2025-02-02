@@ -7,10 +7,15 @@ edition = "2021"
 bevy = { workspace = true }
 bevy_hanabi = { workspace = true }
 serde = { workspace = true }
+rand = { workspace = true }
 
 engine = { path = "../engine" }
 util = { path = "../util" }
 actors = { path = "../actors" }
+world = { path = "../world" }
+interfaces = { path = "../interfaces" }
+physics = { path = "../physics" }
+materials = { path = "../materials" }
 
 [lints]
 workspace = true

@@ -187,7 +187,6 @@ use bevy::{
     scene::SceneInstance,
 };
 
-use crate::plugin::UtilSystemSet;
 #[derive(Component, Debug)]
 pub struct SceneHooked;
 
@@ -226,6 +225,9 @@ fn run_hooks(
 pub(crate) struct HookPlugin;
 impl Plugin for HookPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(FixedUpdate, run_hooks.in_set(UtilSystemSet));
+        app.add_systems(
+            FixedUpdate,
+            run_hooks.in_set(interfaces::scheduling::UtilSystemSet),
+        );
     }
 }

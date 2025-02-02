@@ -1,15 +1,13 @@
 use std::time::Duration;
 
-use crate::{
-    all_teams_system,
-    physics::{
-        collision::{Aabb, CollidingBlocks},
-        movement::Velocity,
-        query::test_box,
-    },
-    world::{events::DealBlockDamageEvent, LevelSystemSet},
-};
+use crate::all_teams_system;
 use bevy::prelude::*;
+use interfaces::scheduling::*;
+use physics::{
+    collision::{Aabb, CollidingBlocks},
+    movement::Velocity,
+};
+use world::events::DealBlockDamageEvent;
 
 use super::*;
 

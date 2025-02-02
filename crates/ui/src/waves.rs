@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-use engine::{world::atmosphere::Calendar, GameState};
+use interfaces::scheduling::GameState;
+use world::atmosphere::Calendar;
 
 use waves::waves::{Assault, AssaultStartedEvent};
 

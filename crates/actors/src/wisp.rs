@@ -1,10 +1,7 @@
 use bevy::prelude::*;
 
-use engine::{
-    physics::{collision::Aabb, movement::GravityMult, PhysicsBundle},
-    world::LevelLoadState,
-};
-
+use interfaces::scheduling::LevelLoadState;
+use physics::{collision::Aabb, movement::GravityMult, PhysicsBundle};
 use util::{plugin::SmoothLookTo, SendEventCommand};
 
 use engine::actors::{

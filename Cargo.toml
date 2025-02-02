@@ -87,6 +87,13 @@ waves = { path = "crates/waves" }
 items = { path = "crates/items" }
 crafting = { path = "crates/crafting" }
 blocks = { path = "crates/blocks" }
+world = { path = "crates/world" }
+physics = { path = "crates/physics" }
+interfaces = { path = "crates/interfaces" }
+debug = { path = "crates/debug" }
+materials = { path = "crates/materials" }
+net = { path = "crates/net" }
+serialization = { path = "crates/serialization" }
 
 [workspace.metadata.dylint]
 libraries = [

@@ -1,13 +1,11 @@
 use bevy::prelude::*;
 
-use crate::{
-    actors::{
-        world_anchor::{ActiveWorldAnchor, WorldAnchorHasSpawned},
-        Player, RespawningPlayer,
-    },
-    world::LevelSystemSet,
-    GameState,
+use crate::actors::{
+    world_anchor::{ActiveWorldAnchor, WorldAnchorHasSpawned},
+    Player, RespawningPlayer,
 };
+
+use interfaces::scheduling::{GameState, LevelSystemSet};
 
 pub(crate) struct GameStatePlugin;
 
@@ -19,9 +17,7 @@ impl Plugin for GameStatePlugin {
                 .in_set(LevelSystemSet::PostTick)
                 .run_if(resource_exists::<WorldAnchorHasSpawned>)
                 .run_if(not(resource_exists::<ActiveWorldAnchor>)),
-        )
-        .init_state::<GameState>()
-        .enable_state_scoped_entities::<GameState>();
+        );
     }
 }
 

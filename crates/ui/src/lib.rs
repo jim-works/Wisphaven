@@ -25,11 +25,10 @@ use bevy::picking::focus::{HoverMap, PickingInteraction};
 use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
 use engine::camera::MainCamera;
+use interfaces::scheduling::{GameState, LevelSystemSet};
 use leafwing_input_manager::action_state::ActionState;
 
 use engine::controllers::Action;
-use engine::world::LevelSystemSet;
-use engine::GameState;
 
 pub struct UIPlugin;
 

@@ -3,11 +3,10 @@ use core::f32;
 use bevy::prelude::*;
 use rand::{thread_rng, Rng};
 
-use crate::{
-    items::{loot::CachedLootTable, SpawnDroppedItemEvent},
-    physics::movement::{Mass, Velocity},
-    world::atmosphere::DayStartedEvent,
-};
+use crate::items::{loot::CachedLootTable, SpawnDroppedItemEvent};
+
+use physics::movement::{Mass, Velocity};
+use world::atmosphere::DayStartedEvent;
 
 use super::*;
 

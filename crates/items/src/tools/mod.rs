@@ -1,15 +1,17 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use engine::{
-    physics::{collision::Aabb, query},
-    world::{
-        events::{BlockHitEvent, DealBlockDamageEvent},
-        BlockPhysics, Level,
-    },
+use physics::{
+    collision::{Aabb, BlockPhysics},
+    query,
+};
+use world::{
+    events::{BlockHitEvent, DealBlockDamageEvent},
+    level::Level,
 };
 
-use engine::items::{HitResult, ItemSystemSet, SwingEndEvent, SwingItemEvent};
+use engine::items::{HitResult, SwingEndEvent, SwingItemEvent};
+use interfaces::scheduling::ItemSystemSet;
 
 pub mod abilities;
 

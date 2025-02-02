@@ -4,10 +4,13 @@ use util::direction::DirectionFlags;
 
 use actors::block_actors::{FallingBlock, SpawnFallingBlockEvent};
 
-use engine::world::{
+use world::{
+    block::{BlockId, BlockType},
     events::{BlockUsedEvent, ChunkUpdatedEvent},
-    BlockId, BlockType, Level, LevelSystemSet,
+    level::Level,
 };
+
+use interfaces::scheduling::LevelSystemSet;
 
 pub struct FallPlugin;
 

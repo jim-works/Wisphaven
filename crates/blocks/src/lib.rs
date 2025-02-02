@@ -2,7 +2,8 @@ use bevy::prelude::*;
 
 use util::LocalRepeatingTimer;
 
-use engine::world::{events::BlockDamageSetEvent, Level, LevelSystemSet};
+use interfaces::scheduling::LevelSystemSet;
+use world::{events::BlockDamageSetEvent, level::Level};
 
 pub struct BlocksPlugin;
 

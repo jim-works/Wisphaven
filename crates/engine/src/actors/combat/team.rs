@@ -1,6 +1,7 @@
 use bevy::{ecs::query::QueryFilter, prelude::*};
 
-use crate::physics::collision::Aabb;
+use physics::collision::{Aabb, BlockPhysics};
+use world::{block::BlockCoord, level::Level};
 
 use super::Combatant;
 
@@ -125,4 +126,61 @@ pub fn get_colliding_allies<'a, T: Team>(
             origin,
         )
     })
+}
+
+//todo improve this
+pub fn test_point<T: Team>(
+    point: Vec3,
+    level: &Level,
+    physics_query: &Query<&BlockPhysics>,
+    object_query: &Query<(Entity, &GlobalTransform, &Aabb), T::Targets>,
+    exclude: &[Entity],
+) -> Option<Entity> {
+    //test entity
+    for (entity, tf, col) in object_query.iter() {
+        if exclude.contains(&entity) {
+            continue;
+        }
+        if col.intersects_point(tf.translation(), point) {
+            //our point intersects an entity
+            return Some(entity);
+        }
+    }
+    //test block
+    let test_block_coord = BlockCoord::from(point);
+    if let Some(block_entity) = level.get_block_entity(test_block_coord) {
+        if !exclude.contains(&block_entity) {
+            if let Some(collider) = physics_query
+                .get(block_entity)
+                .ok()
+                .and_then(Aabb::from_block)
+            {
+                if collider.intersects_point(test_block_coord.to_vec3(), point) {
+                    //our point intersects the block
+                    return Some(block_entity);
+                }
+            }
+        }
+    }
+    None
+}
+
+//todo improve this
+pub fn test_box<T: crate::actors::team::Team>(
+    point: Vec3,
+    aabb: Aabb,
+    object_query: &Query<(Entity, &GlobalTransform, &Aabb), T::Targets>,
+    exclude: &[Entity],
+) -> Option<Entity> {
+    //test entity
+    for (entity, tf, col) in object_query.iter() {
+        if exclude.contains(&entity) {
+            continue;
+        }
+        if aabb.intersects_aabb(point, *col, tf.translation()) {
+            //our point intersects an entity
+            return Some(entity);
+        }
+    }
+    None
 }

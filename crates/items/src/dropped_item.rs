@@ -1,19 +1,18 @@
 use std::time::Duration;
 
+use crate::item_mesher::{ItemMesh, ItemMeshMaterial};
 use bevy::prelude::*;
-use engine::{
-    items::{
-        inventory::Inventory, DroppedItem, DroppedItemPickerUpper, MaxStackSize,
-        SpawnDroppedItemEvent,
-    },
-    mesher::item_mesher::{HeldItemResources, ItemMesh},
-    physics::{
-        collision::{Aabb, Friction},
-        movement::Velocity,
-        FrictionBundle, PhysicsBundle,
-    },
-    world::LevelSystemSet,
-    GameState,
+use engine::items::{
+    inventory::Inventory, DroppedItem, DroppedItemPickerUpper, MaxStackSize, SpawnDroppedItemEvent,
+};
+use interfaces::{
+    resources::HeldItemResources,
+    scheduling::{GameState, LevelSystemSet},
+};
+use physics::{
+    collision::{Aabb, Friction},
+    movement::Velocity,
+    FrictionBundle, PhysicsBundle,
 };
 
 pub(crate) struct DroppedItemPlugin;
@@ -70,10 +69,10 @@ fn spawn_dropped_item(
         ));
         let mesh = if let Ok(item_mesh) = item_query.get(spawn.stack.id) {
             match item_mesh.material {
-                engine::mesher::item_mesher::ItemMeshMaterial::ColorArray => {
+                ItemMeshMaterial::ColorArray => {
                     ec.insert(MeshMaterial3d(held_item_resources.color_material.clone()))
                 }
-                engine::mesher::item_mesher::ItemMeshMaterial::TextureArray => {
+                ItemMeshMaterial::TextureArray => {
                     ec.insert(MeshMaterial3d(held_item_resources.texture_material.clone()))
                 }
             };

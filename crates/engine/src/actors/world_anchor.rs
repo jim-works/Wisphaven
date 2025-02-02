@@ -1,12 +1,10 @@
 use core::f32;
 
-use crate::{
-    chunk_loading::ChunkLoader,
-    physics::{collision::Aabb, movement::Mass, PhysicsBundle},
-    util::SendEventCommand,
-    world::{settings::Settings, Level, LevelLoadState},
-};
+use crate::util::SendEventCommand;
 use bevy::prelude::*;
+use interfaces::scheduling::*;
+use physics::{collision::Aabb, movement::Mass, PhysicsBundle};
+use world::{atmosphere::Calendar, chunk_loading::ChunkLoader, level::Level, settings::Settings};
 
 use super::{team::PlayerTeam, ActorName, ActorResources, Combatant, CombatantBundle};
 
@@ -119,6 +117,7 @@ fn on_world_anchor_destroyed(
     mut commands: Commands,
     mut active: ResMut<ActiveWorldAnchor>,
     query: Query<Entity, With<WorldAnchor>>,
+    mut calendar: ResMut<Calendar>,
 ) {
     let mut new_anchor = None;
 
@@ -134,6 +133,7 @@ fn on_world_anchor_destroyed(
         active.0 = entity;
     } else {
         info!("world anchor destroyed!!!!!!");
+        calendar.eternal_night = true;
         commands.remove_resource::<ActiveWorldAnchor>();
     }
 }

@@ -16,9 +16,7 @@ use std::env;
 
 use bevy::{prelude::*, window::WindowResolution};
 use bevy_hanabi::HanabiPlugin;
-
-use engine::net::NetworkType;
-use engine::{net, GameState};
+use interfaces::scheduling::{GameState, NetworkType};
 
 fn main() {
     //todo - this should be in GUI
@@ -62,6 +60,7 @@ fn main() {
     .add_plugins(HanabiPlugin)
     .add_plugins(bevy_inspector_egui::quick::WorldInspectorPlugin::new())
     .add_plugins((
+        interfaces::InterfacesPlugin,
         engine::EnginePlugin,
         ui::UIPlugin,
         ::actors::ActorsPlugin,
@@ -69,6 +68,11 @@ fn main() {
         ::items::ItemsPlugin,
         crafting::RecipePlugin,
         blocks::BlocksPlugin,
+        net::NetPlugin,
+        serialization::SerializationPlugin,
+        world::LevelPlugin,
+        debug::DebugUIPlugin,
+        physics::PhysicsPlugin,
     ));
 
     if server_port.is_some() {

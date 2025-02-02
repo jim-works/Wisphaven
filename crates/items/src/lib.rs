@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 
 mod actor_items;
+pub mod block_items;
 mod debug;
 mod dropped_item;
 mod grapple_item;
+pub mod item_mesher;
 mod time_items;
 mod tools;
 mod weapons;
@@ -20,6 +22,8 @@ impl Plugin for ItemsPlugin {
             tools::ToolsPlugin,
             debug::DebugItems,
             dropped_item::DroppedItemPlugin,
+            item_mesher::ItemMesherPlugin,
+            block_items::BlockItemsPlugin,
         ));
     }
 }

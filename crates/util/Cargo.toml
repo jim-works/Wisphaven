@@ -11,5 +11,7 @@ rand = { workspace = true }
 rand_distr = { workspace = true }
 bracket-noise = { workspace = true }
 
+interfaces = { path = "../interfaces" }
+
 [lints]
 workspace = true

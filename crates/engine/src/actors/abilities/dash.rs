@@ -5,10 +5,10 @@ use bevy::prelude::*;
 use crate::{
     actors::MoveSpeed,
     controllers::TickMovement,
-    physics::movement::Velocity,
     util::{ease_out_quad, inverse_lerp, lerp},
-    world::LevelSystemSet,
 };
+use interfaces::scheduling::LevelSystemSet;
+use physics::movement::Velocity;
 
 use super::stamina::StaminaCost;
 

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use engine::GameState;
+use interfaces::scheduling::GameState;
 
 use crate::MainCameraUIRoot;
 

@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 
 use actors::block_actors::{FallingBlock, LandedFallingBlockEvent, SpawnFallingBlockEvent};
-use engine::world::{
-    events::{BlockUsedEvent, ChunkUpdatedEvent, ExplosionEvent},
-    BlockId, BlockType, Level, LevelSystemSet,
-};
+use interfaces::scheduling::LevelSystemSet;
 use util::direction::DirectionFlags;
+use world::{
+    block::{BlockId, BlockType},
+    events::{BlockUsedEvent, ChunkUpdatedEvent, ExplosionEvent},
+    level::Level,
+};
 
 pub struct TNTPlugin;
 

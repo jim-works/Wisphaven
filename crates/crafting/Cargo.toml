@@ -11,6 +11,7 @@ serde = { workspace = true }
 engine = { path = "../engine" }
 util = { path = "../util" }
 items = { path = "../items" }
+interfaces = { path = "../interfaces" }
 
 [lints]
 workspace = true

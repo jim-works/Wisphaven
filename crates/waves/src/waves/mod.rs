@@ -4,12 +4,11 @@ use bevy::prelude::*;
 use itertools::Itertools;
 use rand::{thread_rng, RngCore};
 
-use engine::{
-    actors::world_anchor::{ActiveWorldAnchor, WorldAnchor},
-    world::{
-        atmosphere::{Calendar, NightStartedEvent},
-        BlockCoord, BlockType, Level,
-    },
+use engine::actors::world_anchor::{ActiveWorldAnchor, WorldAnchor};
+use world::{
+    atmosphere::{Calendar, NightStartedEvent},
+    block::{BlockCoord, BlockType},
+    level::Level,
 };
 
 use spawns::DefaultSpawn;

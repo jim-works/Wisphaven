@@ -12,17 +12,17 @@ use bevy::{
     ui::RelativeCursorPosition,
     window::PrimaryWindow,
 };
+use interfaces::scheduling::{GameState, LevelSystemSet};
 use leafwing_input_manager::prelude::ActionState;
 
+use debug::TextStyle;
 use engine::{
     actors::{LocalPlayer, LocalPlayerSpawnedEvent},
     controllers::{player_controller::CursorLocked, Action},
-    debug::TextStyle,
     items::{block_item::BlockItem, inventory::Inventory, ItemIcon, ItemStack, MaxStackSize},
-    mesher::{extended_materials::TextureArrayExtension, ChunkMaterial},
-    world::{BlockMesh, LevelSystemSet},
-    GameState,
 };
+use materials::TextureArrayExtension;
+use world::{block::BlockMesh, mesher::ChunkMaterial};
 
 use crate::MainCameraUIRoot;
 
@@ -59,7 +59,7 @@ impl Plugin for InventoryPlugin {
             )
                 .in_set(LevelSystemSet::Main),
         )
-        .add_systems(Update, update_icon.in_set(LevelSystemSet::PostUpdate))
+        .add_systems(PostUpdate, update_icon.in_set(LevelSystemSet::PostUpdate))
         .add_event::<SetIconEvent>()
         .init_resource::<MouseInventory>()
         .add_systems(OnEnter(UIState::Inventory), show_inventory)
@@ -540,7 +540,7 @@ fn update_icon(
                                 let (_preview_entity, preview) = spawn_block_preview(
                                     &mut commands,
                                     &mut images,
-                                    mesh.clone(),
+                                    mesh.0.clone(),
                                     materials.opaque_material.clone().unwrap(),
                                     Vec3::new(cache.len() as f32 * 5.0, 0.0, 0.0) + PREVIEW_ORIGIN,
                                     block_item.0,

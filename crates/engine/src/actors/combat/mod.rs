@@ -9,7 +9,8 @@ pub mod projectile;
 #[macro_use]
 pub mod team;
 
-use crate::{physics::collision::Aabb, world::LevelSystemSet};
+use interfaces::scheduling::*;
+use physics::collision::Aabb;
 
 use super::Player;
 

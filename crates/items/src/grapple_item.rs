@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 
-use engine::physics::{grapple::ShootGrappleEvent, query::Raycast};
+use interfaces::scheduling::ItemSystemSet;
+use physics::{grapple::ShootGrappleEvent, query::Raycast};
 
-use engine::items::{HitResult, ItemSystemSet, UseEndEvent, UseItemEvent};
+use engine::items::{HitResult, UseEndEvent, UseItemEvent};
 
 pub struct GrappleItemPlugin;
 

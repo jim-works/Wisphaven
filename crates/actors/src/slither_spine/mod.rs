@@ -8,19 +8,20 @@ use engine::{
         team::EnemyTeam, AggroPlayer, AggroTargets, Combatant, CombatantBundle, ContactDamage,
         Damage, MoveSpeed,
     },
-    chunk_loading::ChunkLoader,
     controllers::{ControllableBundle, TickMovement},
     items::{
         loot::{ItemLootTable, ItemLootTableDrop},
         ItemName,
     },
-    physics::{
-        collision::{Aabb, CollidingDirections, IgnoreTerrainCollision, TerrainQueryPoint},
-        movement::{Drag, GravityMult, LookInMovementDirection, Velocity},
-        PhysicsBundle, PhysicsLevelSet,
-    },
-    world::{chunk::ChunkCoord, LevelLoadState, LevelSystemSet},
 };
+
+use interfaces::scheduling::{LevelLoadState, LevelSystemSet, PhysicsLevelSet};
+use physics::{
+    collision::{Aabb, CollidingDirections, IgnoreTerrainCollision, TerrainQueryPoint},
+    movement::{Drag, GravityMult, LookInMovementDirection, Velocity},
+    PhysicsBundle,
+};
+use world::{chunk::ChunkCoord, chunk_loading::ChunkLoader};
 
 pub struct SlitherSpinePlugin;
 

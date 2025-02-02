@@ -7,9 +7,10 @@ edition = "2021"
 bevy = { workspace = true }
 serde = { workspace = true }
 
-engine = { path = "../engine" }
 util = { path = "../util" }
 actors = { path = "../actors" }
+world = { path = "../world" }
+interfaces = { path = "../interfaces" }
 
 [lints]
 workspace = true

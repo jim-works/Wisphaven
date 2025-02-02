@@ -9,17 +9,12 @@ use player_controller::RotateWithMouse;
 use crate::{
     actors::{ghost::FloatBoost, team::PlayerTeam, Invulnerability, MoveSpeed},
     camera::MainCamera,
-    chunk_loading::ChunkLoader,
     controllers::*,
     items::{
         inventory::Inventory,
         item_attributes::{ItemSwingSpeed, ItemUseSpeed},
         *,
     },
-    mesher::item_mesher::HeldItemResources,
-    net::{NetworkType, RemoteClient},
-    physics::*,
-    world::{settings::Settings, *},
 };
 
 use super::{
@@ -32,6 +27,11 @@ use super::{
     world_anchor::ActiveWorldAnchor,
     Combatant, CombatantBundle, Damage, DeathInfo,
 };
+use interfaces::components::RemoteClient;
+use interfaces::resources::HeldItemResources;
+use interfaces::scheduling::*;
+use physics::*;
+use world::{chunk_loading::ChunkLoader, level::Level, settings::Settings};
 
 #[derive(Component)]
 pub struct Player {
@@ -393,12 +393,12 @@ fn populate_player_entity(
         commands,
     );
     Handed::Right.assign_hands(entity, right_hand, right_hand, commands);
-    let item_visualizer = crate::mesher::item_mesher::create_held_item_visualizer(
+    let item_visualizer = held_item_resources.create_held_item_visualizer(
         commands,
         entity,
         Transform::from_scale(Vec3::splat(4.0)).with_translation(Vec3::new(0.0, -1.0, -3.4)),
-        held_item_resources,
     );
+
     commands.entity(right_hand).add_child(item_visualizer);
 }
 

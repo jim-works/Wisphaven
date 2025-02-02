@@ -3,7 +3,8 @@ use std::time::Duration;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::{inventory::Inventory, ItemSystemSet, UseEndEvent};
+use super::{inventory::Inventory, UseEndEvent};
+use interfaces::scheduling::ItemSystemSet;
 
 pub struct ItemAttributesPlugin;
 

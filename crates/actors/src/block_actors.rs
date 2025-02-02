@@ -2,17 +2,17 @@ use bevy::prelude::*;
 
 use util::direction::DirectionFlags;
 
-use engine::{
+use interfaces::scheduling::{LevelLoadState, LevelSystemSet};
+use physics::{
+    collision::{Aabb, BlockPhysics, CollidingDirections},
+    movement::Velocity,
+    PhysicsBundle,
+};
+use world::{
+    block::{BlockCoord, BlockId, BlockMesh, BlockType},
+    events::ChunkUpdatedEvent,
+    level::Level,
     mesher::ChunkMaterial,
-    physics::{
-        collision::{Aabb, CollidingDirections},
-        movement::Velocity,
-        PhysicsBundle,
-    },
-    world::{
-        events::ChunkUpdatedEvent, BlockCoord, BlockId, BlockMesh, BlockPhysics, BlockType, Level,
-        LevelLoadState, LevelSystemSet,
-    },
 };
 
 const HALF_SIDE: f32 = 0.45;
@@ -72,7 +72,7 @@ fn falling_block_spawner(
                             ..default()
                         },
                         Transform::from_translation(event.position),
-                        Mesh3d(mesh),
+                        Mesh3d(mesh.0),
                         MeshMaterial3d(if block_mesh.use_transparent_shader {
                             materials.transparent_material.clone().unwrap()
                         } else {
