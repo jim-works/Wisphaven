@@ -12,3 +12,4 @@ engine = { path = "../engine" }
 world = { path = "../world" }
 util = { path = "../util" }
 actors = { path = "../actors" }
+interfaces = { path = "../interfaces" }

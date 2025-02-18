@@ -311,5 +311,32 @@
         ),
       },
     ),
+    4294967309: (
+      components: {
+        "engine::items::ItemName": (
+          namespace: "core",
+          name: "skeleton_summoner",
+        ),
+        "bevy_core::name::Name": "Crossed Bones",
+        "engine::items::NamedItemIcon": (
+            path: "skeleton_summoner.png"
+        ),
+        "engine::items::MaxStackSize": (1),
+        "items::assault_items::AssaultSummonerItem": (
+            strength: 5
+        ),
+        "engine::items::item_attributes::ItemUseSpeed": (
+            windup: (
+                secs: 0,
+                nanos: 0
+            ),
+            backswing: (
+                secs: 2,
+                nanos: 0,
+            )
+        ),
+        "engine::items::item_attributes::ConsumeItemOnSucess": ()
+      },
+    ),
   },
 )

@@ -529,7 +529,9 @@ fn swing_hand(
                         start_pos: tf.translation(),
                         target: match event.result {
                             HitResult::Hit(pos) => pos,
-                            HitResult::Miss => tf.transform_point(swing_hand.miss_offset),
+                            HitResult::Miss | HitResult::Fail => {
+                                tf.transform_point(swing_hand.miss_offset)
+                            }
                         },
                         hit_time: settings.hand_hit_animation_duration,
                         return_time: (swing_speed.backswing.as_secs_f32()
@@ -561,7 +563,9 @@ fn use_hand(
                         start_pos: tf.translation(),
                         target: match event.result {
                             HitResult::Hit(p) => p,
-                            HitResult::Miss => tf.transform_point(use_hand.miss_offset),
+                            HitResult::Miss | HitResult::Fail => {
+                                tf.transform_point(use_hand.miss_offset)
+                            }
                         },
                         hit_time: settings.hand_hit_animation_duration,
                         return_time: (use_speed.backswing.as_secs_f32()

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 mod actor_items;
+mod assault_items;
 pub mod block_items;
 mod debug;
 mod dropped_item;
@@ -24,6 +25,7 @@ impl Plugin for ItemsPlugin {
             dropped_item::DroppedItemPlugin,
             item_mesher::ItemMesherPlugin,
             block_items::BlockItemsPlugin,
+            assault_items::AssaultSummonerPlugin,
         ));
     }
 }

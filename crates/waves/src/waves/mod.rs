@@ -1,6 +1,7 @@
 use std::{f32::consts::PI, sync::Arc, time::Duration};
 
 use bevy::prelude::*;
+use interfaces::scheduling::LevelSystemSet;
 use itertools::Itertools;
 use rand::{thread_rng, RngCore};
 
@@ -17,60 +18,43 @@ use util::{
     iterators::{Volume, VolumeContainer},
 };
 
-use self::spawns::SkeletonPirateSpawn;
-
 pub mod spawns;
 
 pub struct WavesPlugin;
 
 impl Plugin for WavesPlugin {
     fn build(&self, app: &mut App) {
-        let mut spawns = vec![
-            SpawnableEntity {
-                strength: 1.,
-                action: Box::new(SkeletonPirateSpawn),
-            },
-            SpawnableEntity {
-                strength: 10.,
-                action: Box::new(DefaultSpawn(Arc::new("slither_spine".to_string()))),
-            },
-        ];
-        spawns.sort_by(|a, b| a.strength.total_cmp(&b.strength));
         app.add_systems(
-            Update,
+            FixedUpdate,
             (
                 trigger_assault.run_if(resource_exists::<ActiveWorldAnchor>),
-                spawn_wave.run_if(resource_exists::<Assault>),
-                send_wave_started_event
-                    .after(trigger_assault)
-                    .run_if(resource_exists::<Assault>),
-            ),
+                spawn_wave,
+            )
+                .chain()
+                .in_set(LevelSystemSet::PreTick),
         )
-        .insert_resource(Assault {
-            to_spawn: Vec::new(),
-            compiled: Vec::new(),
-            possible_spawns: spawns,
-            spawn_points: Vec::new(),
-        })
-        .add_event::<AssaultStartedEvent>()
+        .add_systems(
+            FixedUpdate,
+            despawn_assaults.in_set(LevelSystemSet::PostTick),
+        )
         .add_event::<WaveStartedEvent>();
     }
 }
 
 #[derive(Event)]
-pub struct AssaultStartedEvent;
+pub struct WaveStartedEvent(pub Entity, pub usize);
 
-#[derive(Event)]
-pub struct WaveStartedEvent(pub usize);
-
-#[derive(Resource)]
+#[derive(Component, Default)]
 pub struct Assault {
-    pub to_spawn: Vec<WaveInfo>,
+    pub waves: Vec<WaveInfo>,
     //create by calling .compile(), sorted in descending time order (so you can pop)
-    compiled: Vec<CompiledSpawn>,
+    pub compiled: Vec<CompiledSpawn>,
     pub possible_spawns: Vec<SpawnableEntity>,
     pub spawn_points: Vec<SpawnPoint>,
 }
+
+#[derive(Component, Default)]
+pub struct ActiveAssault;
 
 impl Assault {
     //assumes possible_spawns is sorted in ascending order
@@ -83,9 +67,9 @@ impl Assault {
             .map(|(i, _)| i)
     }
 
-    fn compile(&self) -> Vec<CompiledSpawn> {
+    pub fn compile(&self) -> Vec<CompiledSpawn> {
         let mut spawns = Vec::new();
-        for wave in self.to_spawn.iter() {
+        for wave in self.waves.iter() {
             spawns.append(&mut wave.compile(self));
         }
         spawns.sort_unstable_by(|a, b| b.spawn_time.cmp(&a.spawn_time));
@@ -102,8 +86,9 @@ pub struct WaveInfo {
     pub strength_mult: f32,
     pub start_time: Duration,
     pub visible: bool,
+    pub spawned: bool,
     //sorted in ascending time order
-    spawns: Vec<WaveSpawn>,
+    pub spawns: Vec<WaveSpawn>,
 }
 
 impl WaveInfo {
@@ -118,10 +103,10 @@ impl WaveInfo {
 }
 
 #[derive(Clone, Debug)]
-struct WaveSpawn {
-    start_offset: Duration,
-    spawn: WaveSpawnType,
-    strategy: SpawnStrategy,
+pub struct WaveSpawn {
+    pub start_offset: Duration,
+    pub spawn: WaveSpawnType,
+    pub strategy: SpawnStrategy,
 }
 
 impl WaveSpawn {
@@ -149,19 +134,19 @@ impl WaveSpawn {
 }
 
 #[derive(Clone, Debug)]
-enum WaveSpawnType {
+pub enum WaveSpawnType {
     Recursive(Box<WaveSpawn>),
     Strength(f32),
 }
 
 #[derive(Clone, Copy, Debug)]
-enum SpawnStrategy {
+pub enum SpawnStrategy {
     Burst { count: u32 },
     Stream { count: u32, delay: Duration },
 }
 
 impl SpawnStrategy {
-    fn compile(self, start_time: Duration, mut spawner: impl FnMut(Duration)) {
+    pub fn compile(self, start_time: Duration, mut spawner: impl FnMut(Duration)) {
         match self {
             SpawnStrategy::Burst { count } => {
                 for _ in 0..count {
@@ -178,7 +163,7 @@ impl SpawnStrategy {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct CompiledSpawn {
+pub struct CompiledSpawn {
     spawn_time: Duration,
     spawn_index: usize,
 }
@@ -193,176 +178,94 @@ pub struct SpawnableEntity {
 }
 
 fn trigger_assault(
-    mut assault: ResMut<Assault>,
-    mut night_event: EventReader<NightStartedEvent>,
-    mut assault_event: EventWriter<AssaultStartedEvent>,
+    mut assaults: Query<(Entity, &mut Assault), Without<ActiveAssault>>,
     calendar: Res<Calendar>,
     level: Res<Level>,
-    anchor_query: Query<&GlobalTransform, With<WorldAnchor>>,
+    anchor_query: Query<&GlobalTransform, (With<WorldAnchor>, Without<Assault>)>,
+    mut commands: Commands,
 ) {
-    if night_event.is_empty() {
-        return;
+    if !calendar.in_night() {
+        return; //only trigger these bad boys at night
     }
-    night_event.clear();
-    assault.spawn_points.clear();
-    if let Ok(tf) = anchor_query.get_single() {
-        info!("triggering assault...");
-        //TODO: should check for a clear area instead of a single block (and be improved in general)
-        //      ++ should check downwards so that they don't spawn in the air
-        //spawn in circle, check vertical until we find an empty block to spawn on
-        const COUNT: i32 = 5;
-        const RADIUS: f32 = 25.0;
-        const MAX_CHECK: i32 = 100;
-        const DELTA_ANGLE: f32 = 2.0 * PI / COUNT as f32;
-        const REQUIRED_VOLUME_HALF_EXTENTS: BlockCoord = BlockCoord::new(2, 2, 2);
-        let center = tf.translation();
-        for i in 0..COUNT {
-            let search_origin = BlockCoord::from(
-                center
-                    + RADIUS
-                        * Vec3::new(
-                            (i as f32 * DELTA_ANGLE).cos(),
-                            0.0,
-                            (i as f32 * DELTA_ANGLE).sin(),
-                        ),
-            );
-            let mut container = VolumeContainer::new(Volume::new(
-                BlockCoord::new(0, 0, 0).into(),
-                BlockCoord::new(0, 0, 0).into(),
-            ));
-            //try searching up or down to find a potential spawn point
-            let potential_spawn_spot = search_for_spawn_volume(
-                &mut container,
-                search_origin,
-                BlockCoord::new(0, 1, 0),
-                true,
-                REQUIRED_VOLUME_HALF_EXTENTS,
-                MAX_CHECK,
-                &level,
-            )
-            .or(search_for_spawn_volume(
-                &mut container,
-                search_origin,
-                BlockCoord::new(0, 1, 0),
-                true,
-                REQUIRED_VOLUME_HALF_EXTENTS,
-                MAX_CHECK,
-                &level,
-            ));
-            if let Some(unrefined_spawn_spot) = potential_spawn_spot {
-                //now refine it by searching downward for the lowest possible spawn point
-                let spawn_spot = search_for_spawn_volume(
+    for (assault_entity, mut assault) in assaults.iter_mut() {
+        assault.spawn_points.clear();
+        if let Ok(tf) = anchor_query.get_single() {
+            info!("triggering assault...");
+            //TODO: should check for a clear area instead of a single block (and be improved in general)
+            //      ++ should check downwards so that they don't spawn in the air
+            //spawn in circle, check vertical until we find an empty block to spawn on
+            const COUNT: i32 = 5;
+            const RADIUS: f32 = 25.0;
+            const MAX_CHECK: i32 = 100;
+            const DELTA_ANGLE: f32 = 2.0 * PI / COUNT as f32;
+            const REQUIRED_VOLUME_HALF_EXTENTS: BlockCoord = BlockCoord::new(2, 2, 2);
+            let center = tf.translation();
+            for i in 0..COUNT {
+                let search_origin = BlockCoord::from(
+                    center
+                        + RADIUS
+                            * Vec3::new(
+                                (i as f32 * DELTA_ANGLE).cos(),
+                                0.0,
+                                (i as f32 * DELTA_ANGLE).sin(),
+                            ),
+                );
+                let mut container = VolumeContainer::new(Volume::new(
+                    BlockCoord::new(0, 0, 0).into(),
+                    BlockCoord::new(0, 0, 0).into(),
+                ));
+                //try searching up or down to find a potential spawn point
+                let potential_spawn_spot = search_for_spawn_volume(
                     &mut container,
-                    BlockCoord::from(unrefined_spawn_spot),
-                    BlockCoord::new(0, -1, 0),
-                    false,
+                    search_origin,
+                    BlockCoord::new(0, 1, 0),
+                    true,
                     REQUIRED_VOLUME_HALF_EXTENTS,
                     MAX_CHECK,
                     &level,
                 )
-                .unwrap_or(unrefined_spawn_spot);
+                .or(search_for_spawn_volume(
+                    &mut container,
+                    search_origin,
+                    BlockCoord::new(0, 1, 0),
+                    true,
+                    REQUIRED_VOLUME_HALF_EXTENTS,
+                    MAX_CHECK,
+                    &level,
+                ));
+                if let Some(unrefined_spawn_spot) = potential_spawn_spot {
+                    //now refine it by searching downward for the lowest possible spawn point
+                    let spawn_spot = search_for_spawn_volume(
+                        &mut container,
+                        BlockCoord::from(unrefined_spawn_spot),
+                        BlockCoord::new(0, -1, 0),
+                        false,
+                        REQUIRED_VOLUME_HALF_EXTENTS,
+                        MAX_CHECK,
+                        &level,
+                    )
+                    .unwrap_or(unrefined_spawn_spot);
 
-                assault.spawn_points.push(SpawnPoint {
-                    location: spawn_spot,
-                });
-                info!("created spawn point at {:?}!", spawn_spot);
-            } else {
-                //there was no potential spawn point
-                warn!(
-                    "Couldn't find a spawn point for search origin: {:?}",
-                    search_origin
-                );
+                    assault.spawn_points.push(SpawnPoint {
+                        location: spawn_spot,
+                    });
+                    info!("created spawn point at {:?}!", spawn_spot);
+                } else {
+                    //there was no potential spawn point
+                    warn!(
+                        "Couldn't find a spawn point for search origin: {:?}",
+                        search_origin
+                    );
+                }
             }
+            commands.entity(assault_entity).insert(ActiveAssault);
+            info!("Assault begins on night {}!", calendar.time.day);
+        } else {
+            //failed to start assault due to missing world anchor
+            warn!("Failed to start assault due to missing world anchor");
+            commands.entity(assault_entity).despawn();
         }
     }
-    info!("Assault begins on night {}!", calendar.time.day);
-    assault.to_spawn.clear();
-    let strength_mult = get_wave_strength(&calendar);
-    let start_time = calendar.time.time;
-    assault.to_spawn.push(WaveInfo {
-        strength_mult,
-        start_time,
-        visible: true,
-        spawns: vec![
-            WaveSpawn {
-                start_offset: Duration::ZERO,
-                spawn: WaveSpawnType::Strength(10.),
-                strategy: SpawnStrategy::Burst { count: 3 },
-            },
-            WaveSpawn {
-                start_offset: Duration::ZERO,
-                spawn: WaveSpawnType::Recursive(Box::new(WaveSpawn {
-                    start_offset: Duration::from_secs(1),
-                    spawn: WaveSpawnType::Strength(1.),
-                    strategy: SpawnStrategy::Burst { count: 2 },
-                })),
-                strategy: SpawnStrategy::Stream {
-                    count: 10,
-                    delay: Duration::from_secs(5),
-                },
-            },
-        ],
-    });
-    assault.to_spawn.push(WaveInfo {
-        strength_mult,
-        start_time: start_time + Duration::from_secs(120),
-        visible: true,
-        spawns: vec![WaveSpawn {
-            start_offset: Duration::ZERO,
-            spawn: WaveSpawnType::Strength(10.),
-            strategy: SpawnStrategy::Burst { count: 1 },
-        }],
-    });
-    assault.to_spawn.push(WaveInfo {
-        strength_mult,
-        start_time: start_time + Duration::from_secs(220),
-        visible: true,
-        spawns: vec![
-            WaveSpawn {
-                start_offset: Duration::ZERO,
-                spawn: WaveSpawnType::Strength(10.),
-                strategy: SpawnStrategy::Burst { count: 1 },
-            },
-            WaveSpawn {
-                start_offset: Duration::ZERO,
-                spawn: WaveSpawnType::Recursive(Box::new(WaveSpawn {
-                    start_offset: Duration::from_secs(1),
-                    spawn: WaveSpawnType::Strength(1.),
-                    strategy: SpawnStrategy::Burst { count: 5 },
-                })),
-                strategy: SpawnStrategy::Stream {
-                    count: 2,
-                    delay: Duration::from_secs(1),
-                },
-            },
-        ],
-    });
-    assault.to_spawn.push(WaveInfo {
-        strength_mult,
-        start_time: start_time + Duration::from_secs(400),
-        visible: true,
-        spawns: vec![
-            WaveSpawn {
-                start_offset: Duration::ZERO,
-                spawn: WaveSpawnType::Strength(1.),
-                strategy: SpawnStrategy::Burst { count: 0 },
-            },
-            WaveSpawn {
-                start_offset: Duration::ZERO,
-                spawn: WaveSpawnType::Recursive(Box::new(WaveSpawn {
-                    start_offset: Duration::from_secs(1),
-                    spawn: WaveSpawnType::Strength(1.),
-                    strategy: SpawnStrategy::Burst { count: 5 },
-                })),
-                strategy: SpawnStrategy::Stream {
-                    count: 0,
-                    delay: Duration::from_secs(10),
-                },
-            },
-        ],
-    });
-    assault.compiled = assault.compile();
-    assault_event.send(AssaultStartedEvent);
 }
 
 fn search_for_spawn_volume(
@@ -405,63 +308,62 @@ fn get_wave_strength(calendar: &Calendar) -> f32 {
     calendar.time.day as f32 + 5.
 }
 
-fn spawn_wave(mut assault: ResMut<Assault>, mut commands: Commands, calendar: Res<Calendar>) {
+fn spawn_wave(
+    mut assaults: Query<(Entity, &mut Assault), With<ActiveAssault>>,
+    mut wave_event: EventWriter<WaveStartedEvent>,
+    mut commands: Commands,
+    calendar: Res<Calendar>,
+) {
     if !calendar.in_night() {
         //only spawn at night
         return;
     }
     let current_time = calendar.time.time;
-    let spawn_opt = if assault
-        .compiled
-        .last()
-        .is_some_and(|spawn| spawn.spawn_time < current_time)
-    {
-        assault.compiled.pop()
-    } else {
-        None
-    };
-    let Some(spawn_info) = spawn_opt else {
-        return;
-    };
-    let mut rng = thread_rng();
-    let Some(spawnpoint) = get_wrapping(&assault.spawn_points, rng.next_u32() as usize) else {
-        warn!("no spawnpoint!");
-        return;
-    };
-    if let Some(spawn) = assault.possible_spawns.get(spawn_info.spawn_index) {
-        info!("spawning entity with strength {}", spawn.strength);
-        spawn.action.spawn(&mut commands, spawnpoint.location);
+    for (assault_entity, mut assault) in assaults.iter_mut() {
+        // send wave started events if needed
+        for (i, wave) in assault.waves.iter_mut().enumerate() {
+            if wave.spawned {
+                continue;
+            }
+            if wave.start_time < current_time {
+                //wave just spawned
+                wave.spawned = true;
+                wave_event.send(WaveStartedEvent(assault_entity, i));
+                info!("wave {} spawned", i);
+            }
+        }
+        let spawn_opt = if assault
+            .compiled
+            .last()
+            .is_some_and(|spawn| spawn.spawn_time < current_time)
+        {
+            assault.compiled.pop()
+        } else {
+            None
+        };
+        let Some(spawn_info) = spawn_opt else {
+            return;
+        };
+        let mut rng = thread_rng();
+        let Some(spawnpoint) = get_wrapping(&assault.spawn_points, rng.next_u32() as usize) else {
+            warn!("no spawnpoint!");
+            return;
+        };
+        if let Some(spawn) = assault.possible_spawns.get(spawn_info.spawn_index) {
+            info!("spawning entity with strength {}", spawn.strength);
+            spawn.action.spawn(&mut commands, spawnpoint.location);
+        }
     }
 }
 
-fn send_wave_started_event(
-    assault: Res<Assault>,
+fn despawn_assaults(
+    query: Query<Entity, With<ActiveAssault>>,
+    mut commands: Commands,
     calendar: Res<Calendar>,
-    mut assault_event: EventReader<AssaultStartedEvent>,
-    mut wave_event: EventWriter<WaveStartedEvent>,
-    mut waves_spawned: Local<Vec<bool>>,
-    mut all_spawned: Local<bool>,
 ) {
-    if !assault_event.is_empty() {
-        assault_event.clear();
-        waves_spawned.clear();
-        waves_spawned.resize(assault.to_spawn.len(), false);
-        *all_spawned = false;
-    }
-    if *all_spawned {
-        return;
-    }
-    let current_time = calendar.time.time;
-    for (i, wave) in assault.to_spawn.iter().enumerate() {
-        if !waves_spawned.get(i).unwrap_or(&true) && wave.start_time < current_time {
-            //wave just spawned
-            waves_spawned[i] = true;
-            wave_event.send(WaveStartedEvent(i));
-            info!("wave {} spawned", i);
-            if waves_spawned.iter().all(|spawned| *spawned) {
-                *all_spawned = true;
-                info!("all waves spawned!");
-            }
+    if !calendar.in_night() {
+        for assault_entity in query.iter() {
+            commands.entity(assault_entity).despawn();
         }
     }
 }

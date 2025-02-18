@@ -16,6 +16,7 @@ world = { path = "../world" }
 interfaces = { path = "../interfaces" }
 physics = { path = "../physics" }
 materials = { path = "../materials" }
+waves = { path = "../waves" }
 
 [lints]
 workspace = true

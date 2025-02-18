@@ -193,6 +193,7 @@ pub struct SwingEndEvent {
 pub enum HitResult {
     Hit(Vec3),
     Miss,
+    Fail,
 }
 
 impl HitResult {
@@ -201,6 +202,9 @@ impl HitResult {
     }
     pub fn is_miss(self) -> bool {
         matches!(self, HitResult::Miss)
+    }
+    pub fn is_fail(self) -> bool {
+        matches!(self, HitResult::Fail)
     }
 }
 
