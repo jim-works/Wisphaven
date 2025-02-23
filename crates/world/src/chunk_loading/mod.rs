@@ -4,7 +4,7 @@ pub use entity_loader::ChunkLoader;
 
 use bevy::prelude::*;
 
-use crate::{level::Level, settings::Settings};
+use crate::{level::Level, settings::Settings, spawn_point::SpawnPoint};
 use interfaces::scheduling::*;
 use util::LocalRepeatingTimer;
 
@@ -47,8 +47,8 @@ impl Plugin for ChunkLoaderPlugin {
 #[derive(Component)]
 pub struct InitialLoader;
 
-pub fn on_load_level(mut commands: Commands, settings: Res<Settings>, level: Res<Level>) {
-    let spawn_point = Transform::from_translation(level.get_initial_spawn_point());
+pub fn on_load_level(mut commands: Commands, settings: Res<Settings>, spawn: Res<SpawnPoint>) {
+    let spawn_point = Transform::from_translation(spawn.base_point);
     info!(
         "creating inital loader at {:?} loader: {:?}",
         spawn_point, settings.init_loader

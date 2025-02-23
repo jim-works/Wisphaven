@@ -24,14 +24,15 @@ use super::{
     },
     death_effects::RestoreStaminaOnKill,
     ghost::{spawn_ghost_hand, Float, GhostResources, Handed},
-    world_anchor::ActiveWorldAnchor,
     Combatant, CombatantBundle, Damage, DeathInfo,
 };
 use interfaces::components::RemoteClient;
 use interfaces::resources::HeldItemResources;
 use interfaces::scheduling::*;
 use physics::*;
-use world::{chunk_loading::ChunkLoader, level::Level, settings::Settings};
+use world::{
+    chunk_loading::ChunkLoader, level::Level, settings::Settings, spawn_point::SpawnPoint,
+};
 
 #[derive(Component)]
 pub struct Player {
@@ -71,10 +72,7 @@ impl Plugin for PlayerPlugin {
             )
             .add_systems(
                 FixedUpdate,
-                (
-                    queue_players_for_respawn.run_if(resource_exists::<ActiveWorldAnchor>),
-                    respawn_players,
-                )
+                (queue_players_for_respawn, respawn_players)
                     .chain()
                     .in_set(LevelSystemSet::PreTick),
             )
@@ -95,6 +93,7 @@ fn spawn_remote_player(
     held_item_resouces: Res<HeldItemResources>,
     camera: Res<MainCamera>,
     level: Res<Level>,
+    spawn_point: Res<SpawnPoint>,
 ) {
     for (entity, RemoteClient(client_id)) in joined_query.iter() {
         info!("spawning remote player {:?}", client_id);
@@ -123,7 +122,7 @@ fn spawn_remote_player(
         populate_player_entity(
             entity,
             camera.0,
-            level.get_spawn_point(),
+            spawn_point.get_spawn_point(&level),
             &ghost_resources,
             &held_item_resouces,
             &mut commands,
@@ -171,6 +170,7 @@ pub(crate) fn spawn_local_player(
     mut commands: Commands,
     settings: Res<Settings>,
     level: Res<Level>,
+    spawn_point: Res<SpawnPoint>,
     resources: Res<ItemResources>,
     item_query: Query<&MaxStackSize>,
     ghost_resources: Res<GhostResources>,
@@ -199,7 +199,7 @@ pub(crate) fn spawn_local_player(
     }
     spawn_reader.clear();
     //adjust for ghost height
-    let spawn_point = level.get_spawn_point() + Vec3::new(0., 1.5, 0.);
+    let spawn_point = spawn_point.get_spawn_point(&level) + Vec3::new(0., 1.5, 0.);
     info!("Spawning local player at {:?}", spawn_point);
     // decide if we need to spawn an entity or can use the one provided by the server
     let player_id = if let Ok(e) = client_player_query.get_single() {

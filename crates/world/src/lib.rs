@@ -9,6 +9,7 @@ pub mod events;
 pub mod level;
 pub mod mesher;
 pub mod settings;
+pub mod spawn_point;
 pub mod util;
 pub mod worldgen;
 
@@ -34,6 +35,7 @@ impl Plugin for LevelPlugin {
                 chunk_loading::ChunkLoaderPlugin,
                 mesher::MesherPlugin,
                 worldgen::WorldGenPlugin,
+                spawn_point::SpawnPointPlugin,
             ))
             .insert_resource(FixedUpdateBlockGizmos::default())
             .add_event::<ChunkBoundaryCrossedEvent>()

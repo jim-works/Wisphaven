@@ -5,7 +5,7 @@ use interfaces::scheduling::LevelSystemSet;
 use itertools::Itertools;
 use rand::{thread_rng, RngCore};
 
-use engine::actors::world_anchor::{ActiveWorldAnchor, WorldAnchor};
+use engine::actors::world_anchor::ActiveWorldAnchor;
 use world::{
     atmosphere::{Calendar, NightStartedEvent},
     block::{BlockCoord, BlockType},
@@ -26,10 +26,7 @@ impl Plugin for WavesPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             FixedUpdate,
-            (
-                trigger_assault.run_if(resource_exists::<ActiveWorldAnchor>),
-                spawn_wave,
-            )
+            (trigger_assault, spawn_wave)
                 .chain()
                 .in_set(LevelSystemSet::PreTick),
         )
@@ -181,7 +178,7 @@ fn trigger_assault(
     mut assaults: Query<(Entity, &mut Assault), Without<ActiveAssault>>,
     calendar: Res<Calendar>,
     level: Res<Level>,
-    anchor_query: Query<&GlobalTransform, (With<WorldAnchor>, Without<Assault>)>,
+    anchor_query: Query<&GlobalTransform, (With<ActiveWorldAnchor>, Without<Assault>)>,
     mut commands: Commands,
 ) {
     if !calendar.in_night() {
@@ -189,8 +186,9 @@ fn trigger_assault(
     }
     for (assault_entity, mut assault) in assaults.iter_mut() {
         assault.spawn_points.clear();
-        if let Ok(tf) = anchor_query.get_single() {
-            info!("triggering assault...");
+        info!("triggering assault..");
+        for tf in anchor_query.iter() {
+            info!("creating spawn points...");
             //TODO: should check for a clear area instead of a single block (and be improved in general)
             //      ++ should check downwards so that they don't spawn in the air
             //spawn in circle, check vertical until we find an empty block to spawn on
@@ -260,10 +258,6 @@ fn trigger_assault(
             }
             commands.entity(assault_entity).insert(ActiveAssault);
             info!("Assault begins on night {}!", calendar.time.day);
-        } else {
-            //failed to start assault due to missing world anchor
-            warn!("Failed to start assault due to missing world anchor");
-            commands.entity(assault_entity).despawn();
         }
     }
 }
@@ -302,10 +296,6 @@ fn valid_spawn_volume(volume: &VolumeContainer<BlockType>) -> bool {
         b.map(|btype| matches!(btype, BlockType::Empty))
             .unwrap_or(true)
     })
-}
-
-fn get_wave_strength(calendar: &Calendar) -> f32 {
-    calendar.time.day as f32 + 5.
 }
 
 fn spawn_wave(
@@ -358,10 +348,11 @@ fn spawn_wave(
 
 fn despawn_assaults(
     query: Query<Entity, With<ActiveAssault>>,
+    anchor_query: Query<(), With<ActiveWorldAnchor>>,
     mut commands: Commands,
     calendar: Res<Calendar>,
 ) {
-    if !calendar.in_night() {
+    if !calendar.in_night() || anchor_query.is_empty() {
         for assault_entity in query.iter() {
             commands.entity(assault_entity).despawn();
         }
