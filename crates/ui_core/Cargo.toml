@@ -1,0 +1,14 @@
+[package]
+name = "ui_core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { workspace = true }
+leafwing-input-manager = { workspace = true }
+bevy_simple_text_input = { workspace = true }
+
+engine = { path = "../engine" }
+util = { path = "../util" }
+interfaces = { path = "../interfaces" }
+debug = { path = "../debug" }

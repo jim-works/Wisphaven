@@ -103,7 +103,7 @@ pub struct ShaperSettings<
     pub lower_density: Vec2,
 }
 
-pub(crate) struct OreGenerator {
+pub struct OreGenerator {
     pub ore_block: BlockId,
     pub can_replace: Vec<BlockId>,
     pub rarity: (u64, u64), //(numerator, denominator) proportion of chunks to generate a vein in

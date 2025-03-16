@@ -1,3 +1,5 @@
+#![allow(dead_code)] //may add more effects to health later
+
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -10,9 +12,9 @@ use engine::actors::{
 use interfaces::scheduling::{GameState, LevelLoadState};
 use util::inverse_lerp;
 
-use crate::MainCameraUIRoot;
+use ui_core::MainCameraUIRoot;
 
-use super::state::UIState;
+use ui_state::UIState;
 
 pub struct PlayerStatsUiPlugin;
 
@@ -40,14 +42,14 @@ impl Plugin for PlayerStatsUiPlugin {
 #[derive(Resource)]
 struct PlayerHealthUiResources {
     heart: Handle<Image>,
-    broken_heart: Handle<Image>,
+    _broken_heart: Handle<Image>,
     flash_heart: Handle<Image>,
     empty_heart: Handle<Image>,
-    happy_ghost: Handle<Image>,
-    sad_ghost: Handle<Image>,
+    _happy_ghost: Handle<Image>,
+    _sad_ghost: Handle<Image>,
     heart_style: Node,
     heart_overlay_style: Node,
-    ghost_style: Node,
+    _ghost_style: Node,
 }
 
 #[derive(Resource)]
@@ -112,11 +114,11 @@ pub struct PlayerStaminaContainer;
 fn init(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(PlayerHealthUiResources {
         heart: assets.load("textures/ui/heart.png"),
-        broken_heart: assets.load("textures/ui/broken_heart.png"),
+        _broken_heart: assets.load("textures/ui/broken_heart.png"),
         flash_heart: assets.load("textures/ui/heart_flash.png"),
         empty_heart: assets.load("textures/ui/empty_heart.png"),
-        happy_ghost: assets.load("textures/ghosts/happy_ghost.png"),
-        sad_ghost: assets.load("textures/ghosts/sad_ghost.png"),
+        _happy_ghost: assets.load("textures/ghosts/happy_ghost.png"),
+        _sad_ghost: assets.load("textures/ghosts/sad_ghost.png"),
         heart_style: Node {
             width: Val::Px(16.0),
             height: Val::Px(16.0),
@@ -131,7 +133,7 @@ fn init(mut commands: Commands, assets: Res<AssetServer>) {
             position_type: PositionType::Absolute,
             ..default()
         },
-        ghost_style: Node {
+        _ghost_style: Node {
             width: Val::Px(32.0),
             height: Val::Px(32.0),
             aspect_ratio: Some(1.0),

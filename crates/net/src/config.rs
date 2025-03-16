@@ -42,7 +42,6 @@ pub fn setup(
         server_replication_send_interval: REPLICATION_INTERVAL,
         tick: TickConfig::new(Duration::from_secs_f64(1. / physics::TPS)),
         mode: network_type.to_network_mode(),
-        ..default()
     };
 
     if matches!(network_type, NetworkType::Server | NetworkType::Host) {

@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 use interfaces::scheduling::GameState;
 
-use crate::MainCameraUIRoot;
+use ui_core::MainCameraUIRoot;
 
-use super::state::UIState;
+use ui_state::UIState;
 
 pub struct CrosshairPlugin;
 

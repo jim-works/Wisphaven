@@ -5,7 +5,7 @@ use world::atmosphere::Calendar;
 
 use waves::waves::{ActiveAssault, Assault};
 
-use crate::MainCameraUIRoot;
+use ui_core::MainCameraUIRoot;
 
 pub struct WavesPlugin;
 
@@ -47,10 +47,6 @@ struct WaveUIProgressBarBackground;
 #[derive(Component, Clone, Copy)]
 #[component(storage = "SparseSet")]
 struct WaveUIProgressBarForeground;
-
-#[derive(Component, Clone, Copy)]
-#[component(storage = "SparseSet")]
-struct WaveUIProgressLabel;
 
 #[derive(Component, Clone, Copy)]
 #[component(storage = "SparseSet")]

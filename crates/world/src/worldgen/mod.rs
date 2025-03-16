@@ -8,7 +8,7 @@ use util::{noise::get_next_prng, noise::SplineNoise, spline::Spline};
 
 mod generator;
 pub mod pipeline;
-use pipeline::{ChunkNeedsGenerated, GeneratedChunk, ShaperSettings};
+use pipeline::ShaperSettings;
 
 use self::{biomes::UsedBiomeMap, pipeline::OreGenerator};
 

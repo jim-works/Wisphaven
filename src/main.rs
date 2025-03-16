@@ -16,7 +16,7 @@ use std::env;
 
 use bevy::{prelude::*, window::WindowResolution};
 use bevy_hanabi::HanabiPlugin;
-use interfaces::scheduling::{GameState, NetworkType};
+use interfaces::scheduling::{DebugUIState, GameState, NetworkType};
 
 fn main() {
     //todo - this should be in GUI
@@ -58,7 +58,10 @@ fn main() {
             }),
     )
     .add_plugins(HanabiPlugin)
-    .add_plugins(bevy_inspector_egui::quick::WorldInspectorPlugin::new())
+    .add_plugins(
+        bevy_inspector_egui::quick::WorldInspectorPlugin::default()
+            .run_if(in_state(DebugUIState::Shown)),
+    )
     .add_plugins((
         interfaces::InterfacesPlugin,
         engine::EnginePlugin,

@@ -27,12 +27,12 @@ impl Plugin for BlockItemsPlugin {
 fn create_block_item(
     mut items: ResMut<ItemResources>,
     block_query: Query<
-        (Entity, &BlockId, &BlockName, Option<&SingleBlockMesh>),
+        (Entity, &BlockName, Option<&SingleBlockMesh>),
         (Added<BlockId>, Without<CreatorItem>),
     >,
     mut commands: Commands,
 ) {
-    for (entity, id, name, item_mesh) in block_query.iter() {
+    for (entity, name, item_mesh) in block_query.iter() {
         let item_name = ItemName::core(name.name.clone());
         #[allow(state_scoped_entities)]
         let item = commands

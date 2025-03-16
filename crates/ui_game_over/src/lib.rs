@@ -2,14 +2,11 @@ use bevy::prelude::*;
 use interfaces::scheduling::GameState;
 use world::atmosphere::Calendar;
 
-use crate::{
-    styles::{self, get_large_text_style, get_text_style},
-    ButtonColors,
-};
+use ui_core::{get_large_text_style, get_text_style, ButtonColors, TRANSLUCENT_PANEL_BACKGROUND};
 
-pub(crate) struct GameOverUIPlugin;
+pub struct UIGameOverPlugin;
 
-impl Plugin for GameOverUIPlugin {
+impl Plugin for UIGameOverPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::GameOver), create_game_over_ui);
     }
@@ -36,7 +33,7 @@ fn create_game_over_ui(
                 ..default()
             },
             PickingBehavior::IGNORE,
-            BackgroundColor(styles::TRANSLUCENT_PANEL_BACKGROUND),
+            BackgroundColor(TRANSLUCENT_PANEL_BACKGROUND),
         ))
         .with_children(|sections| {
             sections
@@ -52,7 +49,7 @@ fn create_game_over_ui(
                     Text::new("Game Over!"),
                     TextLayout::new_with_justify(JustifyText::Center),
                     get_large_text_style(&asset_server),
-                    BackgroundColor(styles::TRANSLUCENT_PANEL_BACKGROUND),
+                    BackgroundColor(TRANSLUCENT_PANEL_BACKGROUND),
                 ));
             // time survived label
             sections.spawn((

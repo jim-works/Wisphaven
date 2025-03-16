@@ -1,0 +1,15 @@
+[package]
+name = "ui_crafting"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ahash = { workspace = true }
+bevy = { workspace = true }
+
+engine = { path = "../engine" }
+interfaces = { path = "../interfaces" }
+crafting = { path = "../crafting" }
+ui_core = { path = "../ui_core" }
+ui_state = { path = "../ui_state" }
+ui_inventory = { path = "../ui_inventory" }

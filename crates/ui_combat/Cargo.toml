@@ -1,0 +1,13 @@
+[package]
+name = "ui_combat"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { workspace = true }
+
+engine = { path = "../engine" }
+util = { path = "../util" }
+interfaces = { path = "../interfaces" }
+ui_core = { path = "../ui_core" }
+ui_state = { path = "../ui_state" }

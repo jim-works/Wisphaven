@@ -1,4 +1,4 @@
-use std::{f32::consts::PI, sync::Arc, time::Duration};
+use std::{f32::consts::PI, time::Duration};
 
 use bevy::prelude::*;
 use interfaces::scheduling::LevelSystemSet;
@@ -7,12 +7,11 @@ use rand::{thread_rng, RngCore};
 
 use engine::actors::world_anchor::ActiveWorldAnchor;
 use world::{
-    atmosphere::{Calendar, NightStartedEvent},
+    atmosphere::Calendar,
     block::{BlockCoord, BlockType},
     level::Level,
 };
 
-use spawns::DefaultSpawn;
 use util::{
     get_wrapping,
     iterators::{Volume, VolumeContainer},

@@ -4,21 +4,23 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ahash = { workspace = true }
 bevy = { workspace = true }
 leafwing-input-manager = { workspace = true }
-regex = { workspace = true }
 bevy_simple_text_input = { workspace = true }
 
 engine = { path = "../engine" }
-util = { path = "../util" }
-waves = { path = "../waves" }
-crafting = { path = "../crafting" }
 interfaces = { path = "../interfaces" }
-world = { path = "../world" }
-debug = { path = "../debug" }
-materials = { path = "../materials" }
-serialization = { path = "../serialization" }
+
+# UI sub-crates
+ui_core = { path = "../ui_core" }
+ui_state = { path = "../ui_state" }
+ui_inventory = { path = "../ui_inventory" }
+ui_combat = { path = "../ui_combat" }
+ui_crafting = { path = "../ui_crafting" }
+ui_menu = { path = "../ui_menu" }
+ui_crosshair = { path = "../ui_crosshair" }
+ui_waves = { path = "../ui_waves" }
+ui_game_over = { path = "../ui_game_over" }
 
 [lints]
 workspace = true

@@ -40,9 +40,6 @@ impl Deref for Level {
     }
 }
 
-//entity is the cracked visual
-struct DamagedBlock(BlockDamage, Entity);
-
 pub struct LevelData {
     pub name: &'static str,
     pub seed: u64,

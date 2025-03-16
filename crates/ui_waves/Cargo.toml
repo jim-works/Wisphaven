@@ -1,0 +1,14 @@
+[package]
+name = "ui_waves"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { workspace = true }
+
+engine = { path = "../engine" }
+interfaces = { path = "../interfaces" }
+world = { path = "../world" }
+waves = { path = "../waves" }
+ui_core = { path = "../ui_core" }
+ui_state = { path = "../ui_state" }

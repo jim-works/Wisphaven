@@ -5,7 +5,7 @@ use util::direction::Direction;
 
 use interfaces::scheduling::LevelSystemSet;
 use world::{
-    block::{BlockCoord, BlockId},
+    block::BlockCoord,
     events::{BlockHitEvent, DealBlockDamageEvent},
     level::Level,
 };
@@ -56,7 +56,6 @@ fn axe_ability_system(
     mut reader: EventReader<BlockHitEvent>,
     axe_ability_query: Query<(&Tool, &AxeAbility)>,
     resistance_query: Query<&ToolResistance>,
-    id_query: Query<&BlockId>,
     target_query: Query<&AxeAbilityTarget>,
     mut damage_writer: EventWriter<DealBlockDamageEvent>,
 ) {
@@ -93,7 +92,6 @@ fn axe_ability_system(
                         *block_position,
                         *max_blocks,
                         *search_radius,
-                        &id_query,
                         &target_query,
                         *item,
                         &mut HashSet::new(),
@@ -113,7 +111,6 @@ fn do_axe_ability(
     initial_pos: BlockCoord,
     max_blocks: usize,
     search_radius: i32,
-    id_query: &Query<&BlockId>,
     target_query: &Query<&AxeAbilityTarget>,
     tool: Entity,
     hits: &mut HashSet<BlockCoord>,
@@ -141,7 +138,6 @@ fn do_axe_ability(
                                     pos,
                                     max_blocks,
                                     search_radius,
-                                    id_query,
                                     target_query,
                                     tool,
                                     hits,
@@ -179,7 +175,6 @@ fn do_axe_ability(
                                     pos,
                                     max_blocks,
                                     search_radius,
-                                    id_query,
                                     target_query,
                                     tool,
                                     hits,

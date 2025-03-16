@@ -90,15 +90,6 @@ pub trait BlockGenerator: Send + Sync {
     fn default(&self, block: Entity, commands: &mut Commands);
 }
 
-//marker for components to look for on a BlockEntity
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum BlockData {
-    Storage,
-}
-
-#[derive(Component)]
-pub struct BlockEntity(Vec<BlockData>);
-
 #[derive(Component, Clone, PartialEq, Default, Reflect)]
 //controls visuals
 //loaded from file, converted to BlockMesh for use in game

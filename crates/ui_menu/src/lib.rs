@@ -13,12 +13,7 @@ use engine::{
 };
 use util::{iterators::even_distribution_on_sphere, lerp, LocalRepeatingTimer};
 
-use crate::styles::{self, TRANSLUCENT_PANEL_BACKGROUND};
-
-use super::{
-    styles::{get_large_text_style, get_text_style},
-    ButtonColors,
-};
+use ui_core::{get_large_text_style, get_text_style, ButtonColors, TRANSLUCENT_PANEL_BACKGROUND};
 
 pub struct MainMenuPlugin;
 
@@ -333,7 +328,7 @@ fn setup_world_select_screen(commands: &mut Commands, asset_server: &Res<AssetSe
                                     justify_content: JustifyContent::Start,
                                     ..default()
                                 },
-                                BackgroundColor(styles::TRANSLUCENT_PANEL_BACKGROUND),
+                                BackgroundColor(TRANSLUCENT_PANEL_BACKGROUND),
                             ))
                             .with_children(|items| {
                                 // text input
@@ -430,7 +425,7 @@ fn spawn_world_select_items(
                         justify_content: JustifyContent::Start,
                         ..default()
                     },
-                    BackgroundColor(styles::TRANSLUCENT_PANEL_BACKGROUND),
+                    BackgroundColor(TRANSLUCENT_PANEL_BACKGROUND),
                     PickingBehavior {
                         should_block_lower: false,
                         ..default()

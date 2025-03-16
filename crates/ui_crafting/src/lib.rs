@@ -6,17 +6,13 @@ use engine::{
     items::{inventory::Inventory, ItemStack},
 };
 use interfaces::scheduling::{GameState, LevelSystemSet};
+use ui_core::{get_text_style, ButtonColors, ExpandOnHover};
+use ui_inventory::{default_slot_background, InventoryResources, SetIconEvent, SLOT_PX};
+use ui_state::UIState;
 
-use crate::{
-    inventory::{default_slot_background, InventoryResources, SetIconEvent, SLOT_PX},
-    state::UIState,
-    styles::get_text_style,
-    ButtonColors, ExpandOnHover,
-};
+pub struct UICraftingPlugin;
 
-pub struct CraftingUIPlugin;
-
-impl Plugin for CraftingUIPlugin {
+impl Plugin for UICraftingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
@@ -188,7 +184,7 @@ impl Component for RecipeRow {
                     },
                 ))
                 .with_children(|children| {
-                    super::inventory::spawn_item_slot(
+                    ui_inventory::spawn_item_slot(
                         children.spawn_empty(),
                         Node {
                             position_type: PositionType::Relative,
@@ -279,7 +275,7 @@ impl Component for RecipeRow {
                 ))
                 .with_children(|inputs| {
                     for input in cached_recipe.inputs.iter() {
-                        super::inventory::spawn_item_slot(
+                        ui_inventory::spawn_item_slot(
                             inputs.spawn_empty(),
                             Node {
                                 position_type: PositionType::Relative,

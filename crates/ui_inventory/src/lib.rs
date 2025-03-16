@@ -1,3 +1,5 @@
+#![feature(let_chains)]
+
 use ahash::HashMap;
 use bevy::{
     pbr::ExtendedMaterial,
@@ -24,9 +26,10 @@ use engine::{
 use materials::TextureArrayExtension;
 use world::{block::BlockMesh, mesher::ChunkMaterial};
 
-use crate::MainCameraUIRoot;
+use ui_core::MainCameraUIRoot;
 
-use super::{state::UIState, styles::get_small_text_style};
+use ui_core::get_small_text_style;
+use ui_state::UIState;
 
 pub const SLOTS_PER_ROW: usize = 10;
 pub const HOTBAR_SLOTS: usize = SLOTS_PER_ROW;
@@ -39,12 +42,12 @@ const STACK_SIZE_LABEL_PADDING_PX: f32 = 3.0;
 
 pub const BLOCK_PREVIEW_LAYER: RenderLayers = RenderLayers::layer(1);
 
-pub struct InventoryPlugin;
+pub struct UIInventoryPlugin;
 
 #[derive(Component)]
-pub struct BlockPreview(Entity);
+pub struct BlockPreview(pub Entity);
 
-impl Plugin for InventoryPlugin {
+impl Plugin for UIInventoryPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
@@ -70,7 +73,7 @@ impl Plugin for InventoryPlugin {
 }
 
 #[derive(Resource, Clone)]
-pub(crate) struct InventoryResources {
+pub struct InventoryResources {
     item_counts: TextStyle,
     slot_background: Handle<Image>,
     selection_image: Handle<Image>,
@@ -254,7 +257,7 @@ fn hide_inventory<const HIDE_HOTBAR: bool>(
     }
 }
 
-pub(crate) fn spawn_item_slot<'a>(
+pub fn spawn_item_slot<'a>(
     mut ec: EntityCommands<'a>,
     background_node: Node,
     background_bundle: impl Bundle,
@@ -311,7 +314,7 @@ pub(crate) fn spawn_item_slot<'a>(
     ec
 }
 
-pub(crate) fn default_slot_background() -> Node {
+pub fn default_slot_background() -> Node {
     Node {
         aspect_ratio: Some(1.0),
         margin: UiRect::all(Val::Px(1.0)),

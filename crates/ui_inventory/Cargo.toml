@@ -1,0 +1,18 @@
+[package]
+name = "ui_inventory"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ahash = { workspace = true }
+bevy = { workspace = true }
+leafwing-input-manager = { workspace = true }
+
+engine = { path = "../engine" }
+util = { path = "../util" }
+interfaces = { path = "../interfaces" }
+materials = { path = "../materials" }
+world = { path = "../world" }
+ui_core = { path = "../ui_core" }
+ui_state = { path = "../ui_state" }
+debug = { path = "../debug" }
