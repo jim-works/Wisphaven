@@ -4,15 +4,15 @@ use bevy_hanabi::prelude::*;
 use engine::{
     actors::{ActorName, ActorResources},
     items::HitResult,
-    physics::{
-        collision::Aabb,
-        query::{self, Raycast, RaycastHit},
-    },
-    world::{BlockPhysics, Level},
-    GameState,
 };
+use world::level::Level;
 
-use engine::items::{ItemSystemSet, UseEndEvent, UseItemEvent};
+use engine::items::{UseEndEvent, UseItemEvent};
+use interfaces::scheduling::{GameState, ItemSystemSet};
+use physics::{
+    collision::{Aabb, BlockPhysics},
+    query::{self, Raycast, RaycastHit},
+};
 
 pub struct ActorItemsPlugin;
 

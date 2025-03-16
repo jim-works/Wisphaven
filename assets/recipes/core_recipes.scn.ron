@@ -1,0 +1,108 @@
+(
+  resources: {},
+  entities: {
+    4294967296: (
+      components: {
+        "crafting::Recipe": (
+          inputs: [
+            ((
+              namespace: "core",
+              name: "spike_ball_launcher",
+            ), 1),
+            ((
+              namespace: "core",
+              name: "dagger",
+            ), 1)
+          ],
+          output: (
+            (
+              namespace: "core",
+              name: "coin_launcher",
+            ),
+            10
+          )
+        ),
+      },
+    ),
+    4294967297: (
+      components: {
+        "crafting::Recipe": (
+          inputs: [
+            ((
+              namespace: "core",
+              name: "coin_launcher",
+            ), 1),
+          ],
+          output: (
+            (
+              namespace: "core",
+              name: "suicide_pill",
+            ),
+            1
+          )
+        ),
+      },
+    ),
+    4294967298: (
+      components: {
+        "crafting::Recipe": (
+          inputs: [
+            ((
+              namespace: "core",
+              name: "suicide_pill",
+            ), 2),
+            ((
+              namespace: "core",
+              name: "sand",
+            ), 1)
+          ],
+          output: (
+            (
+              namespace: "core",
+              name: "moon",
+            ),
+            5
+          )
+        ),
+      },
+    ),
+    4294967299: (
+      components: {
+        "crafting::Recipe": (
+          inputs: [
+            ((
+              namespace: "core",
+              name: "log",
+            ), 2)
+          ],
+          output: (
+            (
+              namespace: "core",
+              name: "ruby_pickaxe",
+            ),
+            1
+          )
+        ),
+      },
+    ),
+    4294967300: (
+      components: {
+        "crafting::Recipe": (
+          inputs: [
+            ((
+              namespace: "core",
+              name: "log",
+            ), 2)
+          ],
+          output: (
+            (
+              namespace: "core",
+              name: "skeleton_summoner",
+            ),
+            1
+          )
+        ),
+      },
+    )
+  }
+)

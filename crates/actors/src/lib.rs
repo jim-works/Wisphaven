@@ -1,3 +1,4 @@
+pub mod block_actors;
 pub mod coin;
 mod eye_balloon;
 pub mod skeleton_pirate;
@@ -22,6 +23,7 @@ impl Plugin for ActorsPlugin {
             spike_ball::SpikeBallPlugin,
             eye_balloon::EyeBalloonPlugin,
             util::ActorUtilPlugin,
+            block_actors::BlockActorPlugin,
         ));
     }
 }

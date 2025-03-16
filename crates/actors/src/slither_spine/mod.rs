@@ -8,15 +8,20 @@ use engine::{
         team::EnemyTeam, AggroPlayer, AggroTargets, Combatant, CombatantBundle, ContactDamage,
         Damage, MoveSpeed,
     },
-    chunk_loading::ChunkLoader,
     controllers::{ControllableBundle, TickMovement},
-    physics::{
-        collision::{Aabb, CollidingDirections, IgnoreTerrainCollision, TerrainQueryPoint},
-        movement::{Drag, GravityMult, LookInMovementDirection, Velocity},
-        PhysicsBundle, PhysicsLevelSet,
+    items::{
+        loot::{ItemLootTable, ItemLootTableDrop},
+        ItemName,
     },
-    world::{chunk::ChunkCoord, LevelLoadState, LevelSystemSet},
 };
+
+use interfaces::scheduling::{LevelLoadState, LevelSystemSet, PhysicsLevelSet};
+use physics::{
+    collision::{Aabb, CollidingDirections, IgnoreTerrainCollision, TerrainQueryPoint},
+    movement::{Drag, GravityMult, LookInMovementDirection, Velocity},
+    PhysicsBundle,
+};
+use world::{chunk::ChunkCoord, chunk_loading::ChunkLoader};
 
 pub struct SlitherSpinePlugin;
 
@@ -240,6 +245,13 @@ fn spawn_segement(
                 ..default()
             },
             ContactDamage::new(Damage::new(1.0)),
+            ItemLootTable {
+                drops: vec![ItemLootTableDrop {
+                    item: ItemName::core("tnt"),
+                    drop_chance: 1.0,
+                    drop_count_range: (1, 5),
+                }],
+            },
         ))
         .id()
 }

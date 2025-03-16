@@ -3,7 +3,8 @@ use std::{path::PathBuf, sync::Arc};
 use bevy::{prelude::*, utils::HashMap};
 use serde::{Deserialize, Serialize};
 
-use crate::world::{Id, LevelSystemSet};
+use interfaces::components::Id;
+use interfaces::scheduling::ItemSystemSet;
 
 use self::item_attributes::ItemAttributesPlugin;
 
@@ -19,21 +20,10 @@ impl Plugin for ItemsPlugin {
         app.add_event::<StartUsingItemEvent>()
             .add_event::<UseItemEvent>()
             .add_event::<UseEndEvent>()
-            .add_event::<PickupItemEvent>()
-            .add_event::<DropItemEvent>()
             .add_event::<StartSwingingItemEvent>()
             .add_event::<SwingItemEvent>()
             .add_event::<SwingEndEvent>()
-            .configure_sets(
-                Update,
-                (
-                    ItemSystemSet::Usage.in_set(LevelSystemSet::Main),
-                    ItemSystemSet::UsageProcessing.in_set(LevelSystemSet::Main),
-                    ItemSystemSet::DropPickup.in_set(LevelSystemSet::Main),
-                    ItemSystemSet::DropPickupProcessing.in_set(LevelSystemSet::Main),
-                )
-                    .chain(),
-            )
+            .add_event::<SpawnDroppedItemEvent>()
             .add_plugins((ItemAttributesPlugin, loot::LootPlugin))
             .add_systems(
                 Update,
@@ -47,14 +37,6 @@ impl Plugin for ItemsPlugin {
             .register_type::<MaxStackSize>()
             .register_type::<ItemName>();
     }
-}
-
-#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
-pub enum ItemSystemSet {
-    Usage,
-    UsageProcessing,
-    DropPickup,
-    DropPickupProcessing,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -142,6 +124,23 @@ pub fn create_raw_item<T: Bundle>(info: ItemBundle, bundle: T, commands: &mut Co
 #[derive(Component)]
 pub struct ItemIcon(pub Handle<Image>);
 
+#[derive(Component, Clone, Copy)]
+pub struct DroppedItem {
+    pub stack: ItemStack,
+}
+
+#[derive(Component, Clone, Copy)]
+pub struct DroppedItemPickerUpper {
+    pub radius: f32,
+}
+
+#[derive(Event)]
+pub struct SpawnDroppedItemEvent {
+    pub postion: Vec3,
+    pub velocity: Vec3,
+    pub stack: ItemStack,
+}
+
 #[derive(Event)]
 pub struct StartUsingItemEvent {
     pub user: Entity,
@@ -194,6 +193,7 @@ pub struct SwingEndEvent {
 pub enum HitResult {
     Hit(Vec3),
     Miss,
+    Fail,
 }
 
 impl HitResult {
@@ -203,28 +203,19 @@ impl HitResult {
     pub fn is_miss(self) -> bool {
         matches!(self, HitResult::Miss)
     }
-}
-
-#[derive(Event)]
-pub struct PickupItemEvent {
-    pub user: Entity,
-    //no slot because we can pick up items into multiple slots at once
-    pub stack: ItemStack,
-}
-#[derive(Event)]
-pub struct DropItemEvent {
-    pub user: Entity,
-    pub inventory_slot: usize,
-    pub stack: ItemStack,
+    pub fn is_fail(self) -> bool {
+        matches!(self, HitResult::Fail)
+    }
 }
 
 #[derive(Component)]
 // place on blocks, actors, etc to denote that they are placed/spawned by the referenced item entity
 pub struct CreatorItem(pub Entity);
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct ItemResources {
-    pub registry: Arc<ItemRegistry>,
+    pub registry: ItemRegistry,
+    pub loaded: bool,
 }
 
 pub type ItemNameIdMap = HashMap<ItemName, ItemId>;
@@ -237,21 +228,26 @@ pub trait ItemGenerator: Send + Sync {
 #[derive(Default)]
 pub struct ItemRegistry {
     pub basic_entities: Vec<Entity>,
-    pub dynamic_generators: Vec<Box<dyn ItemGenerator>>,
-    //block ids may not be stable across program runs
+    pub dynamic_generators: Vec<Arc<dyn ItemGenerator>>,
+    //item ids may not be stable across program runs
     pub id_map: ItemNameIdMap,
 }
 
 impl ItemRegistry {
-    //inserts the corresponding BlockId component on the block
+    //inserts the corresponding id component on the item
     pub fn add_basic(&mut self, name: ItemName, entity: Entity, commands: &mut Commands) {
         info!("added id {:?}", name);
         let id = ItemId(Id::Basic(self.basic_entities.len() as u32));
         commands.entity(entity).insert(id);
         self.basic_entities.push(entity);
+        if self.id_map.contains_key(&name) {
+            error!("duplicate item: {:?}", name);
+            #[cfg(debug_assertions)]
+            panic!("duplicate item: {:?}", name);
+        }
         self.id_map.insert(name, id);
     }
-    pub fn add_dynamic(&mut self, name: ItemName, generator: Box<dyn ItemGenerator>) {
+    pub fn add_dynamic(&mut self, name: ItemName, generator: Arc<dyn ItemGenerator>) {
         let id = ItemId(Id::Dynamic(self.dynamic_generators.len() as u32));
         self.dynamic_generators.push(generator);
         self.id_map.insert(name, id);
@@ -274,7 +270,7 @@ impl ItemRegistry {
         match self.id_map.get(name) {
             Some(id) => *id,
             None => {
-                error!("Couldn't find block id for name {:?}", name);
+                error!("Couldn't find item id for name {:?}", name);
                 ItemId(Id::Empty)
             }
         }

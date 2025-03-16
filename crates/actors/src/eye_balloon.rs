@@ -6,12 +6,12 @@ use engine::{
         CombatantBundle, Defense, Health, MoveSpeed,
     },
     controllers::ControllableBundle,
-    physics::{
-        collision::{Aabb, IgnoreTerrainCollision},
-        movement::{GravityMult, Mass},
-        PhysicsBundle,
-    },
-    world::LevelSystemSet,
+};
+use interfaces::scheduling::LevelSystemSet;
+use physics::{
+    collision::{Aabb, IgnoreTerrainCollision},
+    movement::{GravityMult, Mass},
+    PhysicsBundle,
 };
 use util::{plugin::SmoothLookTo, third_party::scene_hook::SceneHook};
 

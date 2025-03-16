@@ -1,19 +1,17 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use engine::{
-    actors::Player,
-    physics::{collision::Aabb, query},
-    world::{
-        events::{BlockDamageSetEvent, BlockHitEvent, ChunkUpdatedEvent},
-        BlockId, BlockPhysics, Level,
-    },
+use physics::{
+    collision::{Aabb, BlockPhysics},
+    query,
+};
+use world::{
+    events::{BlockHitEvent, DealBlockDamageEvent},
+    level::Level,
 };
 
-use engine::items::{
-    inventory::Inventory, CreatorItem, HitResult, ItemStack, ItemSystemSet, MaxStackSize,
-    PickupItemEvent, SwingEndEvent, SwingItemEvent,
-};
+use engine::items::{HitResult, SwingEndEvent, SwingItemEvent};
+use interfaces::scheduling::ItemSystemSet;
 
 pub mod abilities;
 
@@ -119,14 +117,7 @@ fn deal_block_damage(
     resistance_query: Query<&ToolResistance>,
     tool_query: Query<&Tool>,
     level: Res<Level>,
-    id_query: Query<&BlockId>,
-    mut player_query: Query<&mut Inventory, With<Player>>,
-    block_query: Query<&CreatorItem>,
-    data_query: Query<&MaxStackSize>,
-    mut pickup_writer: EventWriter<PickupItemEvent>,
-    mut writer: EventWriter<BlockDamageSetEvent>,
-    mut update_writer: EventWriter<ChunkUpdatedEvent>,
-    mut commands: Commands,
+    mut damage_writer: EventWriter<DealBlockDamageEvent>,
 ) {
     for BlockHitEvent {
         item,
@@ -145,22 +136,11 @@ fn deal_block_damage(
                         .copied() //entity that hit the block had tool power
                         .unwrap_or_default(),
                 ); //...or nothing and use default tool
-                   //todo - remove this once item drops are entities
-            if let Some(broken) = level.damage_block(
-                *block_position,
-                calc_block_damage(resistance, tool),
-                *item,
-                &id_query,
-                &mut writer,
-                &mut update_writer,
-                &mut commands,
-            ) {
-                if let Some(mut inv) = user.and_then(|e| player_query.get_mut(e).ok()) {
-                    if let Ok(CreatorItem(item)) = block_query.get(broken) {
-                        inv.pickup_item(ItemStack::new(*item, 1), &data_query, &mut pickup_writer);
-                    }
-                }
-            }
+            damage_writer.send(DealBlockDamageEvent {
+                block_position: *block_position,
+                damage: calc_block_damage(resistance, tool),
+                damager: *item,
+            });
         }
     }
 }

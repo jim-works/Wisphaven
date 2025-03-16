@@ -1,11 +1,9 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use engine::{
-    all_teams_function, all_teams_system,
-    physics::{collision::Aabb, PhysicsBundle},
-    world::LevelLoadState,
-};
+use engine::{all_teams_function, all_teams_system};
+use interfaces::scheduling::LevelLoadState;
+use physics::{collision::Aabb, PhysicsBundle};
 
 use engine::actors::{
     projectile::{Projectile, ProjectileBundle},

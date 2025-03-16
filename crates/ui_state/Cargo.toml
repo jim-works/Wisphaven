@@ -1,0 +1,12 @@
+[package]
+name = "ui_state"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { workspace = true }
+leafwing-input-manager = { workspace = true }
+
+engine = { path = "../engine" }
+interfaces = { path = "../interfaces" }
+ui_core = { path = "../ui_core" }

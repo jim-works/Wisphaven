@@ -6,8 +6,10 @@ use big_brain::prelude::*;
 use crate::{
     controllers::{FrameJump, TickMovement},
     util::plugin::SmoothLookTo,
-    world::{BlockCoord, BlockPhysics, Level, LevelSystemSet},
 };
+use interfaces::scheduling::*;
+use physics::collision::BlockPhysics;
+use world::{block::BlockCoord, level::Level};
 
 use super::AggroTargets;
 

@@ -12,21 +12,20 @@
 //lints created using dylint will give a warning
 #![allow(unknown_lints)]
 
-use std::{env, net::Ipv4Addr};
+use std::env;
 
 use bevy::{prelude::*, window::WindowResolution};
 use bevy_hanabi::HanabiPlugin;
-
-use engine::net::{client::ClientConfig, server::ServerConfig, NetworkType};
-use engine::GameState;
+use interfaces::scheduling::{DebugUIState, GameState, NetworkType};
 
 fn main() {
     //todo - this should be in GUI
     //todo - do better parsing
     let args: Vec<String> = env::args().collect();
     let mut server_port = None;
-    let mut client_connection_ip = None;
+    const DEFAULT_SERVER_PORT: u16 = 15155;
     let mut skip_menu = false;
+    let mut client_connection_string = None;
     println!("ARGS: {:?}", args);
     if args.len() == 2 && args[1] == "skip-menu" {
         skip_menu = true;
@@ -41,12 +40,9 @@ fn main() {
         server_port = Some(args[2].parse::<u16>().unwrap());
         println!("Need to start server on port {}", server_port.unwrap());
     }
-    if args.len() == 4 && args[1] == "join" {
-        client_connection_ip = Some((
-            args[2].parse::<std::net::IpAddr>().unwrap(),
-            args[3].parse::<u16>().unwrap(),
-        ));
-        println!("Need to connect client to {:?}", client_connection_ip);
+    if args.len() == 3 && args[1] == "join" {
+        client_connection_string = Some(args[2].clone());
+        println!("Need to connect client to {:?}", args[2]);
     }
     let mut app = App::new();
     app.add_plugins(
@@ -62,53 +58,55 @@ fn main() {
             }),
     )
     .add_plugins(HanabiPlugin)
-    .add_plugins(bevy_inspector_egui::quick::WorldInspectorPlugin::new())
+    .add_plugins(
+        bevy_inspector_egui::quick::WorldInspectorPlugin::default()
+            .run_if(in_state(DebugUIState::Shown)),
+    )
     .add_plugins((
+        interfaces::InterfacesPlugin,
         engine::EnginePlugin,
         ui::UIPlugin,
         ::actors::ActorsPlugin,
         waves::GameplayPlugin,
         ::items::ItemsPlugin,
+        crafting::RecipePlugin,
+        blocks::BlocksPlugin,
+        net::NetPlugin,
+        serialization::SerializationPlugin,
+        world::LevelPlugin,
+        debug::DebugUIPlugin,
+        physics::PhysicsPlugin,
     ));
 
-    if let Some(port) = server_port {
+    if server_port.is_some() {
+        net::config::setup(&mut app, NetworkType::Host, server_port, None);
         app.add_systems(
             Startup,
-            move |mut commands: Commands,
-                  mut next_state: ResMut<NextState<NetworkType>>,
-                  mut next_game_state: ResMut<NextState<GameState>>| {
-                info!("Creating server config on port {}", port);
-                commands.insert_resource(ServerConfig {
-                    bind_addr: std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-                    bind_port: port,
-                });
-                next_state.set(NetworkType::Server);
+            |mut next_game_state: ResMut<NextState<GameState>>| {
                 next_game_state.set(GameState::Game);
             },
         );
-    } else if let Some((ip, port)) = client_connection_ip {
+    } else if client_connection_string.is_some() {
+        net::config::setup(
+            &mut app,
+            NetworkType::Client,
+            None,
+            client_connection_string,
+        );
         app.add_systems(
             Startup,
-            move |mut commands: Commands,
-                  mut next_state: ResMut<NextState<NetworkType>>,
-                  mut next_game_state: ResMut<NextState<GameState>>| {
-                info!("Creating client config, connecting to {}:{}", ip, port);
-                commands.insert_resource(ClientConfig {
-                    server_ip: ip,
-                    server_port: port,
-                    local_ip: std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-                    local_port: 0,
-                });
-                next_state.set(NetworkType::Client);
+            |mut next_game_state: ResMut<NextState<GameState>>| {
                 next_game_state.set(GameState::Game);
             },
         );
     } else {
+        // start in host mode so we can both host and join games later
+        net::config::setup(&mut app, NetworkType::Host, Some(DEFAULT_SERVER_PORT), None);
         app.add_systems(
             Startup,
             move |mut next_state: ResMut<NextState<NetworkType>>,
                   mut next_game_state: ResMut<NextState<GameState>>| {
-                next_state.set(NetworkType::Singleplayer);
+                next_state.set(NetworkType::Host);
                 next_game_state.set(if skip_menu {
                     GameState::Game
                 } else {

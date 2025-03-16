@@ -4,12 +4,9 @@ use bevy::{
     render::{camera::CameraProjection, primitives::Frustum},
 };
 
-use crate::{
-    actors::LocalPlayer,
-    effects::camera::CameraEffectsBundle,
-    world::atmosphere::{LoadingSkyboxCubemap, SkyboxCubemap},
-    GameState,
-};
+use crate::{actors::LocalPlayer, effects::camera::CameraEffectsBundle};
+use interfaces::scheduling::GameState;
+use world::atmosphere::{LoadingSkyboxCubemap, SkyboxCubemap};
 
 pub struct CameraPlugin;
 

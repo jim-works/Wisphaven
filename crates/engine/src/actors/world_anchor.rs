@@ -1,14 +1,17 @@
 use core::f32;
 
-use crate::{
-    chunk_loading::ChunkLoader,
-    physics::{collision::Aabb, movement::Mass, PhysicsBundle},
-    util::SendEventCommand,
-    world::{settings::Settings, Level, LevelLoadState},
-};
+use crate::util::SendEventCommand;
 use bevy::prelude::*;
+use interfaces::scheduling::*;
+use physics::{collision::Aabb, movement::Mass, PhysicsBundle};
+use world::{
+    atmosphere::Calendar, chunk_loading::ChunkLoader, level::Level, settings::Settings,
+    spawn_point::SpawnPoint,
+};
 
-use super::{team::PlayerTeam, ActorName, ActorResources, Combatant, CombatantBundle};
+use super::{
+    team::PlayerTeam, ActorName, ActorResources, Combatant, CombatantBundle, DeathEvent, DeathInfo,
+};
 
 #[derive(Resource)]
 pub struct WorldAnchorResources {
@@ -19,14 +22,8 @@ pub struct WorldAnchorResources {
 #[derive(Component, Default, Clone, Copy)]
 pub struct WorldAnchor;
 
-#[derive(Resource, Clone, Copy)]
-pub struct ActiveWorldAnchor(pub Entity);
-
-#[derive(Resource, Clone, Copy)]
-pub struct WorldAnchorHasSpawned;
-
 #[derive(Component)]
-pub struct WorldAnchorScene;
+pub struct ActiveWorldAnchor;
 
 #[derive(Event)]
 pub struct SpawnWorldAnchorEvent {
@@ -39,8 +36,11 @@ impl Plugin for WorldAnchorPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (load_resources, add_to_registry))
             .add_systems(Update, spawn_world_anchor)
+            .add_systems(
+                FixedUpdate,
+                (active_on_day, set_spawn_on_add).in_set(LevelSystemSet::PostTick),
+            )
             .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
-            .add_systems(OnExit(LevelLoadState::Loaded), cleanup)
             .add_observer(on_world_anchor_destroyed)
             .add_event::<SpawnWorldAnchorEvent>();
     }
@@ -61,16 +61,14 @@ pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     });
 }
 
-fn trigger_spawning(mut writer: EventWriter<SpawnWorldAnchorEvent>, level: Res<Level>) {
+fn trigger_spawning(
+    mut writer: EventWriter<SpawnWorldAnchorEvent>,
+    spawn_point: Res<SpawnPoint>,
+    level: Res<Level>,
+) {
     writer.send(SpawnWorldAnchorEvent {
-        location: Transform::from_translation(level.get_spawn_point()),
+        location: Transform::from_translation(spawn_point.get_spawn_point(&level)),
     });
-}
-
-fn cleanup(mut commands: Commands) {
-    info!("cleanup called");
-    commands.remove_resource::<ActiveWorldAnchor>();
-    commands.remove_resource::<WorldAnchorHasSpawned>();
 }
 
 pub fn spawn_world_anchor(
@@ -81,7 +79,7 @@ pub fn spawn_world_anchor(
     _children_query: Query<&Children>,
 ) {
     for spawn in spawn_requests.read() {
-        let anchor = commands
+        commands
             .spawn((
                 StateScoped(LevelLoadState::Loaded),
                 SceneRoot(res.scene.clone_weak()),
@@ -89,6 +87,9 @@ pub fn spawn_world_anchor(
                 Name::new("world anchor"),
                 CombatantBundle::<PlayerTeam> {
                     combatant: Combatant::new(10., 0.),
+                    death_info: DeathInfo {
+                        death_type: super::DeathType::Immortal,
+                    },
                     ..default()
                 },
                 PhysicsBundle {
@@ -98,42 +99,81 @@ pub fn spawn_world_anchor(
                     ..default()
                 },
                 WorldAnchor,
+                ActiveWorldAnchor,
                 ChunkLoader {
                     mesh: false,
                     ..settings.init_loader.clone()
                 }, //no UninitializedActor b/c we don't have to do any setup
             ))
-            .id();
-        commands.insert_resource(ActiveWorldAnchor(anchor));
-        commands.insert_resource(WorldAnchorHasSpawned);
+            .observe(observe_death);
     }
 }
 
-fn clear_resources(mut commands: Commands) {
-    commands.remove_resource::<ActiveWorldAnchor>();
-    commands.remove_resource::<WorldAnchorHasSpawned>();
+fn active_on_day(
+    calendar: Res<Calendar>,
+    query: Query<Entity, (With<WorldAnchor>, Without<ActiveWorldAnchor>)>,
+    mut commands: Commands,
+    mut prev_is_day: Local<bool>,
+) {
+    let is_day = calendar.in_day();
+    if is_day && !*prev_is_day {
+        for entity in query.iter() {
+            commands.entity(entity).insert(ActiveWorldAnchor);
+        }
+    }
+    *prev_is_day = is_day;
+}
+
+fn observe_death(trigger: Trigger<DeathEvent>, mut commands: Commands) {
+    if let Some(mut ec) = commands.get_entity(trigger.entity()) {
+        ec.remove::<ActiveWorldAnchor>();
+    }
 }
 
 fn on_world_anchor_destroyed(
-    trigger: Trigger<OnRemove, WorldAnchor>,
-    mut commands: Commands,
-    mut active: ResMut<ActiveWorldAnchor>,
-    query: Query<Entity, With<WorldAnchor>>,
+    _trigger: Trigger<OnRemove, WorldAnchor>,
+    active_query: Query<&GlobalTransform, With<ActiveWorldAnchor>>,
+    inactive_query: Query<&GlobalTransform, (With<WorldAnchor>, Without<ActiveWorldAnchor>)>,
+    mut spawn: ResMut<SpawnPoint>,
 ) {
-    let mut new_anchor = None;
-
-    for entity in query.iter() {
-        if entity != trigger.entity() {
-            //there was another world anchor (somehow), promote it to be active
-            new_anchor = Some(entity);
-            break;
+    info!("world anchor destoryed (probably picked up!!!!!");
+    if !active_query.is_empty() {
+        //set spawn point to some other query
+        for gtf in active_query.iter() {
+            info!(
+                "world anchor destroyed, spawn point updated to active anchor at {:?}",
+                gtf.translation()
+            );
+            spawn.base_point = gtf.translation();
         }
-    }
-    if let Some(entity) = new_anchor {
-        info!("new world anchor {:?}!!!!!!", entity);
-        active.0 = entity;
+    } else if !inactive_query.is_empty() {
+        //set spawn point to some other query
+        for gtf in inactive_query.iter() {
+            info!(
+                "world anchor destroyed, spawn point updated to inactive anchor at {:?}",
+                gtf.translation()
+            );
+            spawn.base_point = gtf.translation();
+        }
     } else {
-        info!("world anchor destroyed!!!!!!");
-        commands.remove_resource::<ActiveWorldAnchor>();
+        // reset
+        *spawn = SpawnPoint::default();
+        info!(
+            "world anchor destroyed, spawn point updated to default at {:?}",
+            spawn.base_point
+        );
+    }
+}
+
+fn set_spawn_on_add(
+    query: Query<&GlobalTransform, Added<ActiveWorldAnchor>>,
+    mut spawn: ResMut<SpawnPoint>,
+) {
+    for gtf in query.iter() {
+        info!(
+            "world anchor spawned, spawn point updated to {:?}",
+            gtf.translation()
+        );
+        spawn.base_point = gtf.translation();
     }
 }

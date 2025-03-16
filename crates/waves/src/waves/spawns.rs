@@ -8,7 +8,7 @@ use util::SendEventCommand;
 
 use super::SpawnAction;
 
-pub(crate) struct SkeletonPirateSpawn;
+pub struct SkeletonPirateSpawn;
 
 impl SpawnAction for SkeletonPirateSpawn {
     fn spawn(&self, commands: &mut Commands, translation: Vec3) {
@@ -18,7 +18,7 @@ impl SpawnAction for SkeletonPirateSpawn {
     }
 }
 
-pub(crate) struct DefaultSpawn(pub(crate) Arc<String>);
+pub struct DefaultSpawn(pub Arc<String>);
 
 impl SpawnAction for DefaultSpawn {
     fn spawn(&self, commands: &mut Commands, translation: Vec3) {

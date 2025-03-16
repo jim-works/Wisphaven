@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use rand::{thread_rng, Rng};
 use util::bevy_utils::TimedDespawner;
 
-use crate::physics::{
+use physics::{
     collision::IgnoreTerrainCollision,
     movement::{Drag, GravityMult, Velocity},
     PhysicsBundle,

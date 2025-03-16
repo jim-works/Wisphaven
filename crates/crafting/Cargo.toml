@@ -1,0 +1,17 @@
+[package]
+name = "crafting"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { workspace = true }
+bevy_hanabi = { workspace = true }
+serde = { workspace = true }
+
+engine = { path = "../engine" }
+util = { path = "../util" }
+items = { path = "../items" }
+interfaces = { path = "../interfaces" }
+
+[lints]
+workspace = true

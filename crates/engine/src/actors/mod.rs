@@ -12,7 +12,6 @@ use crate::util::{ease_out_quad, inverse_lerp, lerp};
 
 pub mod abilities;
 pub mod ai;
-pub mod block_actors;
 pub mod ghost;
 pub mod world_anchor;
 
@@ -23,7 +22,6 @@ impl Plugin for ActorPlugin {
         app.add_plugins((
             CombatPlugin,
             BigBrainPlugin::new(PreUpdate),
-            block_actors::BlockActorPlugin,
             world_anchor::WorldAnchorPlugin,
             player::PlayerPlugin,
             ai::AIPlugin,

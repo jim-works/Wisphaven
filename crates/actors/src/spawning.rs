@@ -5,9 +5,9 @@ use bevy::prelude::*;
 use engine::{
     actors::{team::*, Combatant, CombatantBundle, Damage},
     all_teams_function, all_teams_system,
-    physics::movement::Velocity,
-    world::LevelSystemSet,
 };
+use interfaces::scheduling::LevelSystemSet;
+use physics::movement::Velocity;
 use util::SendEventCommand;
 
 pub struct SpawningPlugin;

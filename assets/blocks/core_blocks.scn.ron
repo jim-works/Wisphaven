@@ -3,12 +3,12 @@
   entities: {
     4294967296: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "grass",
         ),
-        "engine::world::block::BlockPhysics": Solid,
-        "engine::world::block::NamedBlockMesh": (
+        "physics::collision::BlockPhysics": Solid,
+        "world::block::NamedBlockMesh": (
             shape: MultiTexture(("grass_side.png", "grass_top.png", "grass_side.png", "grass_side.png", "dirt.png", "grass_side.png")),
         ),
         "items::tools::ToolResistance": Pickaxe(0),
@@ -17,12 +17,12 @@
     ),
     4294967297: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "dirt",
         ),
-        "engine::world::block::BlockPhysics": Solid,
-        "engine::world::block::NamedBlockMesh": (
+        "physics::collision::BlockPhysics": Solid,
+        "world::block::NamedBlockMesh": (
             shape: Uniform("dirt.png"),
         ),
         "items::tools::abilities::ShovelAbilityTarget": (),
@@ -30,24 +30,24 @@
     ),
     4294967298: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "stone",
         ),
-        "engine::world::block::BlockPhysics": Solid,
-        "engine::world::block::NamedBlockMesh": (
+        "physics::collision::BlockPhysics": Solid,
+        "world::block::NamedBlockMesh": (
             shape: Uniform("stone.png"),
         )
       },
     ),
     4294967299: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "log",
         ),
-        "engine::world::block::BlockPhysics": Solid,
-        "engine::world::block::NamedBlockMesh": (
+        "physics::collision::BlockPhysics": Solid,
+        "world::block::NamedBlockMesh": (
             shape: MultiTexture(("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
         ),
         "items::tools::abilities::AxeAbilityTarget": (),
@@ -55,55 +55,55 @@
     ),
     4294967300: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "leaves",
         ),
-        "engine::world::block::BlockPhysics": Solid,
-        "engine::world::block::NamedBlockMesh": (
+        "physics::collision::BlockPhysics": Solid,
+        "world::block::NamedBlockMesh": (
             shape: Uniform("leaves.png"),
         )
       },
     ),
     4294967301: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "log_slab",
         ),
-        "engine::world::block::BlockPhysics": Aabb(Aabb (
+        "physics::collision::BlockPhysics": Aabb(Aabb (
           size: (1.0, 0.5, 1.0),
           offset: (0.0, 0.0, 0.0)
         )),
-        "engine::world::block::NamedBlockMesh": (
+        "world::block::NamedBlockMesh": (
             shape: BottomSlab(0.5, ("log_side.png", "log_top.png", "log_side.png", "log_side.png", "log_top.png", "log_side.png")),
         )
       },
     ),
     4294967302: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "tnt",
         ),
-        "engine::world::block::BlockPhysics": Solid,
-        "engine::world::blocks::tnt::TNTBlock": (
+        "physics::collision::BlockPhysics": Solid,
+        "blocks::tnt::TNTBlock": (
           explosion_strength: 10.0,
         ),
-        "engine::world::block::UsableBlock": (),
-        "engine::world::block::NamedBlockMesh": (
+        "world::block::UsableBlock": (),
+        "world::block::NamedBlockMesh": (
             shape: MultiTexture(("tnt_side.png", "tnt_top.png", "tnt_side.png", "tnt_side.png", "tnt_top.png", "tnt_side.png")),
         )
       },
     ),
     4294967303: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "snow",
         ),
-        "engine::world::block::BlockPhysics": Solid,
-        "engine::world::block::NamedBlockMesh": (
+        "physics::collision::BlockPhysics": Solid,
+        "world::block::NamedBlockMesh": (
             shape: Uniform("snow.png"),
         ),
         "items::tools::abilities::ShovelAbilityTarget": (),
@@ -111,14 +111,14 @@
     ),
     4294967304: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "snow_sheet",
         ),
-        "engine::world::block::NamedBlockMesh": (
+        "world::block::NamedBlockMesh": (
             shape: BottomSlab(0.25, ("snow.png", "snow.png", "snow.png", "snow.png", "snow.png", "snow.png")),
         ),
-        "engine::world::block::BlockPhysics": Aabb(Aabb (
+        "physics::collision::BlockPhysics": Aabb(Aabb (
           size: (1.0, 0.25, 1.0),
           offset: (0.0, 0.0, 0.0),
         )),
@@ -127,36 +127,36 @@
     ),
     4294967305: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "ruby_ore",
         ),
-        "engine::world::block::BlockPhysics": Solid,
-        "engine::world::block::NamedBlockMesh": (
+        "physics::collision::BlockPhysics": Solid,
+        "world::block::NamedBlockMesh": (
             shape: Uniform("ruby_ore.png"),
         )
       },
     ),
     4294967306: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "moldavite_ore",
         ),
-        "engine::world::block::BlockPhysics": Solid,
-        "engine::world::block::NamedBlockMesh": (
+        "physics::collision::BlockPhysics": Solid,
+        "world::block::NamedBlockMesh": (
             shape: Uniform("moldavite_ore.png"),
         )
       },
     ),
     4294967307: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "sand",
         ),
-        "engine::world::block::BlockPhysics": Solid,
-        "engine::world::block::NamedBlockMesh": (
+        "physics::collision::BlockPhysics": Solid,
+        "world::block::NamedBlockMesh": (
             shape: Uniform("sand.png"),
         ),
         "items::tools::abilities::ShovelAbilityTarget": (),
@@ -164,25 +164,39 @@
     ),
   4294967308: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "cactus",
         ),
-        "engine::world::block::BlockPhysics": Solid,
-        "engine::world::block::NamedBlockMesh": (
+        "physics::collision::BlockPhysics": Solid,
+        "world::block::NamedBlockMesh": (
             shape: Uniform("cactus.png"),
+        ),
+        "engine::items::loot::ItemLootTable": (
+            drops: [
+              (
+                item: (namespace: "core", name: "cactus"),
+                drop_chance: 1.0,
+                drop_count_range: (1, 1)
+              ),
+              (
+                item: (namespace: "core", name: "tnt"),
+                drop_chance: 0.5,
+                drop_count_range: (3, 5)
+              )
+            ]
         ),
         "items::tools::abilities::AxeAbilityTarget": (),
       },
     ),
     4294967309: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "cactus_flower",
         ),
-        "engine::world::block::BlockPhysics": Solid,
-        "engine::world::block::NamedBlockMesh": (
+        "physics::collision::BlockPhysics": Solid,
+        "world::block::NamedBlockMesh": (
             shape: Uniform("cactus_flower.png"),
         ),
         "items::tools::abilities::AxeAbilityTarget": (),
@@ -190,12 +204,12 @@
     ),
     4294967310: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "water",
         ),
-        "engine::world::block::BlockPhysics": Solid,
-        "engine::world::block::NamedBlockMesh": (
+        "physics::collision::BlockPhysics": Solid,
+        "world::block::NamedBlockMesh": (
             shape: Uniform("water.png"),
             use_transparent_shader: true
         )
@@ -203,11 +217,11 @@
     ),
     4294967311: (
       components: {
-        "engine::world::block::BlockName": (
+        "world::block::BlockName": (
           namespace: "core",
           name: "lily",
         ),
-        "engine::world::block::NamedBlockMesh": (
+        "world::block::NamedBlockMesh": (
             shape: Cross(("lily.png","lily.png")),
             use_transparent_shader: true
         ),

@@ -140,30 +140,27 @@ impl Inventory {
             }
         })
     }
-    pub fn count_type(&self, item: Entity) -> usize {
+    pub fn number_of_type(&self, item: Entity) -> u32 {
         self.items
             .iter()
-            .filter(|x| {
-                if let Some(ref stack) = x {
-                    stack.0.id == item
+            .map(|x| {
+                if let Some(ref stack) = x
+                    && stack.0.id == item
+                {
+                    stack.0.size
                 } else {
-                    false
+                    0
                 }
             })
-            .count()
+            .sum()
     }
     //returns what's left (if any) of the item stack after picking up
     pub fn pickup_item(
         &mut self,
         mut item: ItemStack,
         data_query: &Query<&MaxStackSize>,
-        pickup_writer: &mut EventWriter<PickupItemEvent>,
     ) -> Option<ItemStack> {
-        let initial_size = item.size;
         for i in 0..self.items.len() {
-            if item.size == 0 {
-                return None;
-            }
             let stacks = &mut self.items[i];
 
             match stacks {
@@ -174,41 +171,75 @@ impl Inventory {
                     }
                     let picking_up = item
                         .size
-                        .min(data_query.get(item.id).unwrap().0 - item.size);
+                        .min(data_query.get(item.id).unwrap().0.saturating_sub(item.size));
                     if picking_up > 0 {
                         item.size -= picking_up;
                         stack.0.size += picking_up;
                     }
-                    pickup_writer.send(PickupItemEvent {
-                        user: self.owner,
-                        stack: item,
-                    });
                 }
                 None => {
                     //pick up the whole stack into an empty slot
                     *stacks = Some((item, default()));
-                    pickup_writer.send(PickupItemEvent {
-                        user: self.owner,
-                        stack: item,
-                    });
                     item.size = 0;
                     return None;
                 }
             }
-        }
-        let picked_up = item.size - initial_size;
-        if picked_up > 0 {
-            let stack = ItemStack {
-                id: item.id,
-                size: picked_up,
-            };
-            pickup_writer.send(PickupItemEvent {
-                user: self.owner,
-                stack,
-            });
+            if item.size == 0 {
+                return None;
+            }
         }
         Some(item)
     }
+
+    pub fn can_pickup_item(&self, mut item: ItemStack, data_query: &Query<&MaxStackSize>) -> bool {
+        for i in 0..self.items.len() {
+            let stacks = &self.items[i];
+
+            match stacks {
+                Some(stack) => {
+                    //pick up part of the stack
+                    if stack.0.id != item.id {
+                        continue;
+                    }
+                    let picking_up = item
+                        .size
+                        .min(data_query.get(item.id).unwrap().0.saturating_sub(item.size));
+                    if picking_up > 0 {
+                        item.size -= picking_up;
+                    }
+                }
+                None => {
+                    //can pick up the whole stack into an empty slot
+                    return true;
+                }
+            }
+            if item.size == 0 {
+                return true;
+            }
+        }
+        //there's some items remaining, so we can't pick it all up
+        false
+    }
+
+    // returns the number of items removed
+    pub fn remove_items(&mut self, item: ItemStack) -> u32 {
+        let mut to_remove = item.size;
+        if item.size == 0 {
+            return 0;
+        }
+        for stack in self.iter_mut() {
+            if let Some((inv_item, _)) = stack.clone()
+                && inv_item.id == item.id
+            {
+                to_remove -= descrease_slot_size(stack, to_remove);
+                if to_remove == 0 {
+                    break;
+                }
+            }
+        }
+        item.size - to_remove
+    }
+
     pub fn set_slot_no_events(&mut self, slot: usize, item: ItemStack) {
         self.items[slot] = Some((item, default()));
     }
@@ -263,30 +294,14 @@ impl Inventory {
         }
     }
     //returns the dropped items
-    pub fn drop_slot(
-        &mut self,
-        slot: usize,
-        drop_writer: &mut EventWriter<DropItemEvent>,
-    ) -> Option<ItemStack> {
+    pub fn drop_slot(&mut self, slot: usize) -> Option<ItemStack> {
         let item = self.items[slot].clone();
         self.items[slot] = None;
         let dropped = item.map(|(stack, _)| stack);
-        if let Some(stack) = dropped {
-            drop_writer.send(DropItemEvent {
-                user: self.owner,
-                inventory_slot: slot,
-                stack,
-            });
-        }
         dropped
     }
     //returns the dropped items
-    pub fn drop_items(
-        &mut self,
-        slot: usize,
-        max_drops: u32,
-        drop_writer: &mut EventWriter<DropItemEvent>,
-    ) -> Option<ItemStack> {
+    pub fn drop_items(&mut self, slot: usize, max_drops: u32) -> Option<ItemStack> {
         let (stack, _) = self.items[slot].clone()?;
         descrease_slot_size(&mut self.items[slot], max_drops);
         let dropped_size = self.items[slot]
@@ -294,11 +309,6 @@ impl Inventory {
             .map(|(new_stack, _)| stack.size - new_stack.size)
             .unwrap_or(stack.size);
         let dropped_stack = ItemStack::new(stack.id, dropped_size);
-        drop_writer.send(DropItemEvent {
-            user: self.owner,
-            inventory_slot: slot,
-            stack: dropped_stack,
-        });
 
         Some(dropped_stack)
     }
@@ -327,15 +337,18 @@ impl Inventory {
     }
 }
 
-fn descrease_slot_size(stack_opt: &mut Option<(ItemStack, ItemAction)>, max_amount: u32) {
+fn descrease_slot_size(stack_opt: &mut Option<(ItemStack, ItemAction)>, max_amount: u32) -> u32 {
+    let mut removed = 0;
     *stack_opt = stack_opt.as_ref().and_then(|(stack, act)| {
         let new_size = stack.size.saturating_sub(max_amount);
+        removed = stack.size - new_size;
         if new_size == 0 {
             None
         } else {
             Some((ItemStack::new(stack.id, new_size), act.clone()))
         }
     });
+    removed
 }
 
 pub fn tick_item_timers(

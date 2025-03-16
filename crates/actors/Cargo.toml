@@ -10,6 +10,9 @@ big-brain = { workspace = true }
 
 engine = { path = "../engine" }
 util = { path = "../util" }
+interfaces = { path = "../interfaces" }
+physics = { path = "../physics" }
+world = { path = "../world" }
 
 [lints]
 workspace = true

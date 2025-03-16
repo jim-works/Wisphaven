@@ -1,0 +1,36 @@
+[package]
+name = "physics"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+#external deps
+ahash = { workspace = true }
+bevy = { workspace = true }
+bracket-noise = { workspace = true }
+dashmap = { workspace = true }
+futures-lite = { workspace = true }
+serde = { workspace = true }
+leafwing-input-manager = { workspace = true }
+bevy-inspector-egui = { workspace = true }
+big-brain = { workspace = true }
+bincode = { workspace = true }
+rusqlite = { workspace = true }
+r2d2_sqlite = { workspace = true }
+r2d2 = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+itertools = { workspace = true }
+futures-timer = { workspace = true }
+lightyear = { workspace = true }
+serde_with = { workspace = true }
+bevy_hanabi = { workspace = true }
+bitflags = { workspace = true }
+regex = { workspace = true }
+#internal deps
+interfaces = { path = "../interfaces" }
+util = { path = "../util" }
+world = { path = "../world" }
+
+[lints]
+workspace = true

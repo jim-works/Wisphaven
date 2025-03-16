@@ -2,9 +2,9 @@ use bevy::prelude::*;
 
 use crate::{
     actors::MoveSpeed,
-    physics::movement::Velocity,
     util::{inverse_lerp, lerp, lerp_delta_time, DEG_TO_RAD},
 };
+use physics::movement::Velocity;
 
 pub struct CameraEffectsPlugin;
 
@@ -31,7 +31,7 @@ pub struct CameraFOVEffect {
 impl Default for CameraFOVEffect {
     fn default() -> Self {
         Self {
-            extra_fov_rad: 30.0*DEG_TO_RAD,
+            extra_fov_rad: 30.0 * DEG_TO_RAD,
             min_ms_mult: 1.5,
             max_ms_mult: 20.0,
             change_speed: 0.9,

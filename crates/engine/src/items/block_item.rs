@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 
-use crate::{
-    physics::{
-        collision::Aabb,
-        query::{self, Raycast, RaycastHit},
-    },
-    world::{events::ChunkUpdatedEvent, BlockId, BlockPhysics, BlockType, Level},
+use physics::{
+    collision::{Aabb, BlockPhysics},
+    query::{self, Raycast, RaycastHit},
+};
+use world::{
+    block::{BlockId, BlockType},
+    events::ChunkUpdatedEvent,
+    level::Level,
 };
 
 use super::{HitResult, UseEndEvent, UseItemEvent};

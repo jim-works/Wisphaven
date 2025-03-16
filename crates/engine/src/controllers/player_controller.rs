@@ -1,25 +1,26 @@
+use crate::{
+    actors::*,
+    items::{inventory::Inventory, SpawnDroppedItemEvent},
+};
 use abilities::{
     dash::{CurrentlyDashing, Dash},
     stamina::Stamina,
 };
 use bevy::{prelude::*, window::CursorGrabMode};
 use ghost::FloatBoost;
+use interfaces::scheduling::*;
 use leafwing_input_manager::prelude::ActionState;
-
-use crate::{
-    actors::*,
-    items::inventory::Inventory,
-    physics::{
-        collision::Aabb,
-        grapple::Grappled,
-        movement::{GravityMult, Velocity},
-        query::{self, Raycast, RaycastHit},
-    },
-    world::{
-        events::{BlockHitEvent, BlockUsedEvent},
-        settings::Settings,
-        BlockPhysics, Level, LevelSystemSet, UsableBlock,
-    },
+use physics::{
+    collision::{Aabb, BlockPhysics},
+    grapple::Grappled,
+    movement::{GravityMult, Velocity},
+    query::{self, Raycast, RaycastHit},
+};
+use world::{
+    block::UsableBlock,
+    events::{BlockHitEvent, BlockUsedEvent},
+    level::Level,
+    settings::Settings,
 };
 
 use super::{Action, MovementMode, TickMovement};
@@ -39,6 +40,7 @@ impl Plugin for PlayerControllerPlugin {
                 player_punch,
                 player_use,
                 toggle_player_flight,
+                player_drop_item,
             )
                 .in_set(LevelSystemSet::Main),
         )
@@ -73,10 +75,12 @@ fn update_window_focused(mut focused: ResMut<CursorLocked>, query: Query<&Window
 }
 
 pub fn toggle_player_flight(
-    action: Res<ActionState<Action>>,
-    mut query: Query<(&mut MovementMode, &mut GravityMult), With<Player>>,
+    mut query: Query<
+        (&mut MovementMode, &mut GravityMult, &ActionState<Action>),
+        With<ControlledPlayer>,
+    >,
 ) {
-    for (mut mode, mut gravity) in query.iter_mut() {
+    for (mut mode, mut gravity, action) in query.iter_mut() {
         if action.just_pressed(&Action::ToggleFlight) {
             match *mode {
                 MovementMode::Flying => {
@@ -95,10 +99,18 @@ pub fn toggle_player_flight(
 }
 
 pub fn move_player(
-    mut query: Query<(&Transform, &mut TickMovement, &MovementMode), With<Player>>,
-    action: Res<ActionState<Action>>,
+    mut query: Query<
+        (
+            &Transform,
+            &mut TickMovement,
+            &MovementMode,
+            &ActionState<Action>,
+        ),
+        With<ControlledPlayer>,
+    >,
 ) {
-    for (tf, mut fm, mode) in query.iter_mut() {
+    // info!("Matches: {}", query.iter().len());
+    for (tf, mut fm, mode, action) in query.iter_mut() {
         let mut dv = Vec3::ZERO;
         dv.z -= if action.pressed(&Action::MoveForward) {
             1.0
@@ -140,11 +152,13 @@ pub fn move_player(
 }
 
 pub fn boost_float_player(
-    mut query: Query<(Entity, &mut FloatBoost, &MovementMode), With<Player>>,
+    mut query: Query<
+        (Entity, &mut FloatBoost, &MovementMode, &ActionState<Action>),
+        With<ControlledPlayer>,
+    >,
     mut commands: Commands,
-    action: Res<ActionState<Action>>,
 ) {
-    for (entity, mut fb, mode) in query.iter_mut() {
+    for (entity, mut fb, mode, action) in query.iter_mut() {
         fb.enabled = *mode != MovementMode::Flying && action.pressed(&Action::Float);
         if action.just_pressed(&Action::Float) {
             if let Some(mut ec) = commands.get_entity(entity) {
@@ -156,15 +170,14 @@ pub fn boost_float_player(
 
 pub fn dash_player(
     mut query: Query<
-        (Entity, &Dash, &mut Stamina, &Velocity),
-        (With<Player>, Without<CurrentlyDashing>),
+        (Entity, &Dash, &mut Stamina, &Velocity, &ActionState<Action>),
+        (With<ControlledPlayer>, Without<CurrentlyDashing>),
     >,
     mut commands: Commands,
     time: Res<Time>,
-    action: Res<ActionState<Action>>,
 ) {
     let current_time = time.elapsed();
-    for (entity, dash, mut stamina, v) in query.iter_mut() {
+    for (entity, dash, mut stamina, v, action) in query.iter_mut() {
         if action.just_pressed(&Action::Dash) && dash.stamina_cost.apply(&mut stamina) {
             if let Some(mut ec) = commands.get_entity(entity) {
                 ec.try_insert(CurrentlyDashing::new(*dash, current_time, v.0));
@@ -174,16 +187,22 @@ pub fn dash_player(
 }
 
 pub fn rotate_mouse(
-    mut query: Query<(&mut Transform, &mut RotateWithMouse)>,
+    mut query: Query<(
+        &mut Transform,
+        &mut RotateWithMouse,
+        &ActionState<Action>,
+        Option<&LocalPlayer>,
+    )>,
     focused: Res<CursorLocked>,
     settings: Res<Settings>,
-    action: Res<ActionState<Action>>,
 ) {
-    if !focused.0 {
-        return;
-    }
+    // todo - figure out what to do with settings. ideally, we'd have clients have complete control over rotation
     let sensitivity = settings.mouse_sensitivity;
-    for (mut tf, mut rotation) in query.iter_mut() {
+    for (mut tf, mut rotation, action, local) in query.iter_mut() {
+        if local.is_some() && !focused.0 {
+            // don't continue if we're in the inventory
+            continue;
+        }
         let delta = action.axis_pair(&Action::Look);
         if !rotation.lock_yaw {
             rotation.yaw -= delta.x * sensitivity;
@@ -220,7 +239,17 @@ pub fn follow_local_player(
 }
 
 pub fn player_punch(
-    mut player_query: Query<(Entity, &GlobalTransform, &Player, &mut Inventory), With<LocalPlayer>>,
+    mut player_query: Query<
+        (
+            Entity,
+            &GlobalTransform,
+            &Player,
+            &mut Inventory,
+            &ActionState<Action>,
+            Option<&LocalPlayer>,
+        ),
+        With<ControlledPlayer>,
+    >,
     combat_query: Query<&Combatant>,
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
@@ -228,12 +257,12 @@ pub fn player_punch(
     mut block_hit_writer: EventWriter<BlockHitEvent>,
     focused: Res<CursorLocked>,
     level: Res<Level>,
-    action: Res<ActionState<Action>>,
 ) {
-    if !focused.0 {
-        return;
-    }
-    if let Ok((player_entity, tf, player, mut inv)) = player_query.get_single_mut() {
+    for (player_entity, tf, player, mut inv, action, local) in player_query.iter_mut() {
+        if local.is_some() && !focused.0 {
+            // don't continue if we're in the inventory
+            continue;
+        }
         if action.pressed(&Action::Punch) {
             //first test if we punched a combatant
             let slot = inv.selected_slot();
@@ -278,19 +307,28 @@ pub fn player_punch(
 }
 
 pub fn player_use(
-    mut player_query: Query<(&mut Inventory, Entity, &GlobalTransform), With<LocalPlayer>>,
+    mut player_query: Query<
+        (
+            &mut Inventory,
+            Entity,
+            &GlobalTransform,
+            &ActionState<Action>,
+            Option<&LocalPlayer>,
+        ),
+        With<ControlledPlayer>,
+    >,
     focused: Res<CursorLocked>,
     level: Res<Level>,
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
     usable_block_query: Query<&UsableBlock>,
     mut block_use_writer: EventWriter<BlockUsedEvent>,
-    action: Res<ActionState<Action>>,
 ) {
-    if !focused.0 {
-        return;
-    }
-    if let Ok((mut inv, entity, tf)) = player_query.get_single_mut() {
+    for (mut inv, entity, tf, action, local) in player_query.iter_mut() {
+        if local.is_some() && !focused.0 {
+            // don't continue if we're in the inventory
+            continue;
+        }
         if action.just_pressed(&Action::Use) {
             //first test if we used a block
             if let Some(RaycastHit::Block(coord, _)) = query::raycast(
@@ -317,6 +355,27 @@ pub fn player_use(
                 slot,
                 crate::items::inventory::ItemTargetPosition::Entity(entity),
             );
+        }
+    }
+}
+
+pub fn player_drop_item(
+    mut query: Query<
+        (&mut Inventory, &Transform, &Velocity, &ActionState<Action>),
+        With<ControlledPlayer>,
+    >,
+    mut drop: EventWriter<SpawnDroppedItemEvent>,
+) {
+    for (mut inv, tf, v, action) in query.iter_mut() {
+        if action.just_pressed(&Action::DropItem) {
+            let slot = inv.selected_slot();
+            if let Some(stack) = inv.drop_items(slot, 1) {
+                drop.send(SpawnDroppedItemEvent {
+                    postion: tf.translation,
+                    velocity: v.0 + tf.forward().as_vec3() * 0.2,
+                    stack,
+                });
+            }
         }
     }
 }

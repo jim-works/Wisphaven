@@ -1,19 +1,16 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use engine::{
-    all_teams_function, all_teams_system,
-    physics::{
-        collision::Aabb,
-        movement::{Drag, Restitution},
-        PhysicsBundle,
-    },
-    world::LevelLoadState,
-};
-
 use engine::actors::{
     projectile::{Projectile, ProjectileBundle},
     team::*,
+};
+use engine::{all_teams_function, all_teams_system};
+use interfaces::scheduling::LevelLoadState;
+use physics::{
+    collision::Aabb,
+    movement::{Drag, Restitution},
+    PhysicsBundle,
 };
 
 use crate::spawning::{BuildProjectileRegistry, DefaultSpawnArgs, ProjectileSpawnArgs};
