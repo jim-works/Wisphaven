@@ -1,6 +1,6 @@
 use std::{ops::AddAssign, path::PathBuf, sync::Arc};
 
-use super::chunk::{ChunkCoord, ChunkIdx, CHUNK_SIZE_I32};
+use super::chunk::{CHUNK_SIZE_I32, ChunkCoord, ChunkIdx};
 use bevy::{prelude::*, utils::HashMap};
 use interfaces::components::*;
 use serde::{Deserialize, Serialize};
@@ -278,9 +278,9 @@ impl BlockRegistry {
         match block_id {
             BlockId(Id::Empty) => None,
             BlockId(Id::Basic(id)) => self.basic_entities.get(id as usize).copied(),
-            BlockId(Id::Dynamic(id)) => self.dynamic_generators.get(id as usize).map(|gen| {
+            BlockId(Id::Dynamic(id)) => self.dynamic_generators.get(id as usize).map(|generator| {
                 let id = Self::setup_block(block_id, commands);
-                gen.default(id, commands);
+                generator.default(id, commands);
                 id
             }),
         }
@@ -294,9 +294,9 @@ impl BlockRegistry {
         match block_id {
             BlockId(Id::Empty) => None,
             BlockId(Id::Basic(id)) => self.basic_entities.get(id as usize).copied(),
-            BlockId(Id::Dynamic(id)) => self.dynamic_generators.get(id as usize).map(|gen| {
+            BlockId(Id::Dynamic(id)) => self.dynamic_generators.get(id as usize).map(|generator| {
                 let id = Self::setup_block(block_id, commands);
-                gen.generate(id, position, commands);
+                generator.generate(id, position, commands);
                 id
             }),
         }

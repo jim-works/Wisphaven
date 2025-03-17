@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     actors::MoveSpeed,
-    util::{inverse_lerp, lerp, lerp_delta_time, DEG_TO_RAD},
+    util::{DEG_TO_RAD, inverse_lerp, lerp, lerp_delta_time},
 };
 use physics::movement::Velocity;
 
@@ -45,7 +45,7 @@ fn do_camera_fov_effect(
     time: Res<Time>,
 ) {
     for (mut projection_type, mut effect, v, ms) in query.iter_mut() {
-        let Projection::Perspective(ref mut projection) = projection_type.as_mut() else {
+        let Projection::Perspective(projection) = projection_type.as_mut() else {
             continue;
         };
         let effect_progress = inverse_lerp(

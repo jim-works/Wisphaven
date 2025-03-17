@@ -4,17 +4,17 @@ use bevy::prelude::{Vec2, Vec3};
 use bracket_noise::prelude::*;
 
 use crate::{
-    chunk::{ChunkIdx, GeneratingChunk},
     BlockCoord, BlockId, BlockName, BlockRegistry,
+    chunk::{ChunkIdx, GeneratingChunk},
 };
-use util::{noise::prng_3d, noise::SplineNoise, spline::Spline, Buckets};
+use util::{Buckets, noise::SplineNoise, noise::prng_3d, spline::Spline};
 
 use super::{
     get_next_seed,
     structures::{
+        LargeStructureGenerator, StructureGenerator,
         fauna::FauanaGenerator,
         trees::{get_cactus, get_short_tree},
-        LargeStructureGenerator, StructureGenerator,
     },
 };
 
@@ -113,7 +113,7 @@ impl UsedBiomeMap {
             fallback_generator: Some(BiomeStructureGenerator {
                 structures: vec![
                     BiomeStructure {
-                        gen: get_short_tree(
+                        generator: get_short_tree(
                             get_next_seed(&mut seed),
                             Range { start: 4, end: 8 },
                             Range { start: 8, end: 15 },
@@ -123,7 +123,7 @@ impl UsedBiomeMap {
                         rolls_per_chunk: 5,
                     },
                     BiomeStructure {
-                        gen: Box::new(FauanaGenerator {
+                        generator: Box::new(FauanaGenerator {
                             to_spawn: registry.get_id(&BlockName::core("lily")),
                             spawn_on: registry.get_id(&BlockName::core("grass")),
                         }),
@@ -138,7 +138,7 @@ impl UsedBiomeMap {
             soil_depth: 15,
             fallback_generator: Some(BiomeStructureGenerator {
                 structures: vec![BiomeStructure {
-                    gen: get_cactus(
+                    generator: get_cactus(
                         get_next_seed(&mut seed),
                         Range { start: 3, end: 8 },
                         0.5,
@@ -200,7 +200,7 @@ impl UsedBiomeMap {
 }
 
 pub struct BiomeStructure {
-    gen: Box<dyn StructureGenerator + Sync + Send>,
+    generator: Box<dyn StructureGenerator + Sync + Send>,
     pub rolls_per_chunk: i32,
 }
 
@@ -225,7 +225,7 @@ impl StructureGenerator for BiomeStructureGenerator {
             for _ in 0..structure.rolls_per_chunk {
                 let coord = prng_3d(world_seed, world_pos.into());
                 let pos = ChunkIdx::from(BlockCoord::from(coord));
-                structure.gen.generate(
+                structure.generator.generate(
                     buffer,
                     world_seed,
                     BlockCoord::from(chunk.position)

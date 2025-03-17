@@ -1,7 +1,7 @@
 [package]
 name = "wisphaven"
-version = "0.2.1"  #will have game saves be compatible if major/minor versions are equal
-edition = "2021"
+version = "0.2.2"  #will have game saves be compatible if major/minor versions are equal
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [workspace]
@@ -94,6 +94,8 @@ debug = { path = "crates/debug" }
 materials = { path = "crates/materials" }
 net = { path = "crates/net" }
 serialization = { path = "crates/serialization" }
+citizens = { path = "crates/citizens" }
+#new internal crates go here
 
 [workspace.metadata.dylint]
 libraries = [

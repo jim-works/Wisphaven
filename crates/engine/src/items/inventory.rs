@@ -133,7 +133,7 @@ impl Inventory {
     }
     pub fn has_item(&self, item: Entity) -> bool {
         self.items.iter().any(|x| {
-            if let Some(ref stack) = x {
+            if let Some(stack) = x {
                 stack.0.id == item
             } else {
                 false
@@ -144,7 +144,7 @@ impl Inventory {
         self.items
             .iter()
             .map(|x| {
-                if let Some(ref stack) = x
+                if let Some(stack) = x
                     && stack.0.id == item
                 {
                     stack.0.size

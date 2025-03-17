@@ -320,14 +320,14 @@ impl ActorRegistry {
     }
     pub fn spawn(&self, actor: &ActorName, commands: &mut Commands, spawn_tf: Transform) {
         if let Some(actor_id) = self.get_id(actor) {
-            if let Some(gen) = self.dynamic_generators.get(actor_id.0) {
-                gen(commands, spawn_tf);
+            if let Some(generator) = self.dynamic_generators.get(actor_id.0) {
+                generator(commands, spawn_tf);
             }
         }
     }
     pub fn spawn_id(&self, actor_id: ActorId, commands: &mut Commands, spawn_tf: Transform) {
-        if let Some(gen) = self.dynamic_generators.get(actor_id.0) {
-            gen(commands, spawn_tf);
+        if let Some(generator) = self.dynamic_generators.get(actor_id.0) {
+            generator(commands, spawn_tf);
         }
     }
 }

@@ -279,9 +279,9 @@ impl ItemRegistry {
         match item_id {
             ItemId(Id::Empty) => None,
             ItemId(Id::Basic(id)) => self.basic_entities.get(id as usize).copied(),
-            ItemId(Id::Dynamic(id)) => self.dynamic_generators.get(id as usize).map(|gen| {
+            ItemId(Id::Dynamic(id)) => self.dynamic_generators.get(id as usize).map(|generator| {
                 let id = Self::setup_item(item_id, commands);
-                gen.generate(id, commands);
+                generator.generate(id, commands);
                 id
             }),
         }

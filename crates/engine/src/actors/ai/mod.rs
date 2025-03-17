@@ -445,7 +445,7 @@ fn fly_to_current_target_action(
         look_opt: &mut Option<Mut<SmoothLookTo>>,
         fm: &mut TickMovement,
     ) {
-        if let Some(ref mut look) = look_opt
+        if let Some(look) = look_opt
             && action.look_in_direction
         {
             look.enabled = false;

@@ -63,19 +63,23 @@ fn main() {
             .run_if(in_state(DebugUIState::Shown)),
     )
     .add_plugins((
-        interfaces::InterfacesPlugin,
-        engine::EnginePlugin,
-        ui::UIPlugin,
-        ::actors::ActorsPlugin,
-        waves::GameplayPlugin,
-        ::items::ItemsPlugin,
-        crafting::RecipePlugin,
-        blocks::BlocksPlugin,
-        net::NetPlugin,
-        serialization::SerializationPlugin,
-        world::LevelPlugin,
-        debug::DebugUIPlugin,
-        physics::PhysicsPlugin,
+        (
+            interfaces::InterfacesPlugin,
+            engine::EnginePlugin,
+            ui::UIPlugin,
+            ::actors::ActorsPlugin,
+            waves::GameplayPlugin,
+            ::items::ItemsPlugin,
+            crafting::RecipePlugin,
+            blocks::BlocksPlugin,
+            net::NetPlugin,
+            serialization::SerializationPlugin,
+            world::LevelPlugin,
+            debug::DebugUIPlugin,
+            physics::PhysicsPlugin,
+        ),
+        citizens::CitizensPlugin,
+        // new internal crates go here
     ));
 
     if server_port.is_some() {

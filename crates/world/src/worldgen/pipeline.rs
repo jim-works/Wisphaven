@@ -3,24 +3,24 @@ use futures_timer::Delay;
 use std::time::{Duration, Instant};
 
 use crate::{
+    BlockId, BlockName, BlockResources, SavedBlockId,
     block_buffer::BlockBuffer,
     chunk::*,
     events::ChunkUpdatedEvent,
     level::{Level, LevelData},
     mesher::NeedsMesh,
     worldgen::generator,
-    BlockId, BlockName, BlockResources, SavedBlockId,
 };
 use bevy::{
     prelude::*,
     tasks::{AsyncComputeTaskPool, Task},
 };
 use interfaces::components::*;
-use util::{noise::get_next_prng, noise::SplineNoise};
+use util::{noise::SplineNoise, noise::get_next_prng};
 
 use super::{
-    structures, DecorationResources, GenerationPhase, UsedShaperResources, ADD_TIME_BUDGET_MS,
-    QUEUE_GEN_TIME_BUDGET_MS,
+    ADD_TIME_BUDGET_MS, DecorationResources, GenerationPhase, QUEUE_GEN_TIME_BUDGET_MS,
+    UsedShaperResources, structures,
 };
 
 #[derive(Component)]
@@ -353,7 +353,7 @@ pub(crate) fn poll_structure_waiters(
                             Delay::new(POLL_INTERVAL).await;
                         }
                         let mut c = structure_requirements.unwrap();
-                        if let ChunkType::Generating(_, ref mut chunk) = c.value_mut() {
+                        if let ChunkType::Generating(_, chunk) = c.value_mut() {
                             let buf = structures::gen_structures(
                                 chunk,
                                 level.seed,

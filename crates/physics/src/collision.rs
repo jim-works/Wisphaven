@@ -12,7 +12,7 @@ use world::{block::BlockCoord, block::BlockType, level::Level};
 
 use crate::DebugBlockHitboxes;
 
-use super::{movement::*, PhysicsLevelSet};
+use super::{PhysicsLevelSet, movement::*};
 
 pub struct CollisionPlugin;
 

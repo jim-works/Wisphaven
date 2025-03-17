@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{block_buffer::BlockBuffer, chunk::*, BlockCoord, BlockId};
+use crate::{BlockCoord, BlockId, block_buffer::BlockBuffer, chunk::*};
 
 use super::{biomes::UsedBiomeMap, pipeline::ColumnBiomes};
 
@@ -33,8 +33,8 @@ pub(crate) fn gen_structures(
     let _my_span = info_span!("gen_small_structures", name = "gen_small_structures").entered();
     let mut buf = BlockBuffer::default();
     let biome = biome_map.get(biomes.0[0][0]);
-    if let Some(gen) = &biome.fallback_generator {
-        gen.generate(
+    if let Some(generator) = &biome.fallback_generator {
+        generator.generate(
             &mut buf,
             seed,
             chunk.position.into(),

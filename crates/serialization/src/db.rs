@@ -71,7 +71,7 @@ impl LevelDB {
     pub fn execute_command_sync(
         &mut self,
         f: impl FnOnce(PooledConnection<SqliteConnectionManager>) -> Result<usize, rusqlite::Error>
-            + Send,
+        + Send,
     ) -> Option<LevelDBErr> {
         match self.pool.get() {
             Ok(conn) => f(conn).map_err(LevelDBErr::Sqlite).err(),
@@ -186,7 +186,7 @@ fn do_loading(
 //if there is no current task or it's finished, it will start a new task from the db's command queue
 pub fn tick_db(mut db: ResMut<LevelDB>, mut load_writer: EventWriter<DataFromDBEvent>) {
     let mut finished = false;
-    if let Some(ref mut task) = &mut db.current_task {
+    if let Some(task) = &mut db.current_task {
         if let Some(data) = future::block_on(future::poll_once(task)) {
             //previous task is done
             //output result
@@ -223,8 +223,8 @@ fn assign_db_work(
     conn_result: Result<PooledConnection<SqliteConnectionManager>, r2d2::Error>,
     db: &mut ResMut<'_, LevelDB>,
     f: impl FnOnce(PooledConnection<SqliteConnectionManager>) -> Result<LevelDBResult, LevelDBErr>
-        + Send
-        + 'static,
+    + Send
+    + 'static,
 ) {
     //work in background
     let pool = AsyncComputeTaskPool::get();

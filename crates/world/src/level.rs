@@ -1,10 +1,10 @@
 use crate::{
+    BlockcastHit, GameState,
     mesher::NeedsMesh,
     worldgen::{
-        pipeline::{ChunkNeedsGenerated, GeneratedChunk},
         GenerationPhase,
+        pipeline::{ChunkNeedsGenerated, GeneratedChunk},
     },
-    BlockcastHit, GameState,
 };
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use dashmap::DashMap;
@@ -16,10 +16,10 @@ use util::{
 };
 
 use super::{
+    BlockCoord, BlockDamage, BlockId, BlockRegistry, BlockType, UsableBlock,
     block_buffer::BlockBuffer,
     chunk::*,
     events::{BlockDamageSetEvent, BlockUsedEvent, ChunkUpdatedEvent},
-    BlockCoord, BlockDamage, BlockId, BlockRegistry, BlockType, UsableBlock,
 };
 use interfaces::components::*;
 
@@ -145,7 +145,7 @@ impl LevelData {
         commands: &mut Commands,
     ) -> Option<Entity> {
         if let Some(mut r) = self.get_chunk_mut(ChunkCoord::from(key)) {
-            if let ChunkType::Full(ref mut chunk) = r.value_mut() {
+            if let ChunkType::Full(chunk) = r.value_mut() {
                 let block = match registry.generate_entity(val, key, commands) {
                     Some(entity) => BlockType::Filled(entity),
                     None => BlockType::Empty,
@@ -166,7 +166,7 @@ impl LevelData {
         commands: &mut Commands,
     ) -> Option<Entity> {
         if let Some(mut r) = self.get_chunk_mut(ChunkCoord::from(key)) {
-            if let ChunkType::Full(ref mut chunk) = r.value_mut() {
+            if let ChunkType::Full(chunk) = r.value_mut() {
                 BlockRegistry::remove_entity(id_query, chunk[ChunkIdx::from(key)], commands);
                 ChunkTrait::set_block(chunk, ChunkIdx::from(key).into(), val);
                 return Some(chunk.entity);
@@ -416,7 +416,7 @@ impl LevelData {
         for (coord, buf) in buffer.buf {
             //if the chunk is already generated, add the contents of the buffer to the chunk
             if let Some(mut chunk_ref) = self.get_chunk_mut(coord) {
-                if let ChunkType::Full(ref mut c) = chunk_ref.value_mut() {
+                if let ChunkType::Full(c) = chunk_ref.value_mut() {
                     buf.apply_to(c.blocks.as_mut());
                     Self::update_chunk_only::<true>(c.entity, c.position, commands, update_writer);
                     //self.update_chunk_neighbors_only(c.position, commands);
@@ -443,7 +443,7 @@ impl LevelData {
         let _my_span = info_span!("add_array_buffer", name = "add_array_buffer").entered();
         //if the chunk is already generated, add the contents of the buffer to the chunk
         if let Some(mut chunk_ref) = self.get_chunk_mut(coord) {
-            if let ChunkType::Full(ref mut c) = chunk_ref.value_mut() {
+            if let ChunkType::Full(c) = chunk_ref.value_mut() {
                 let mut start = 0;
                 for (block, run) in buf {
                     if !matches!(*block, BlockType::Empty) {
@@ -558,7 +558,7 @@ impl LevelData {
         self.chunks.insert(key, chunk);
     }
     pub fn apply_buffer(&self, chunk: &mut ChunkType) {
-        if let ChunkType::Full(ref mut c) = chunk {
+        if let ChunkType::Full(c) = chunk {
             if let Some((_, buf)) = self.buffers.remove(&c.position) {
                 for i in 0..BLOCKS_PER_CHUNK {
                     if !matches!(buf[i], BlockType::Empty) {

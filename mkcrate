@@ -1,0 +1,88 @@
+#!/bin/bash
+
+# Exit on any error
+set -e
+
+# Check if a name was provided
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <crate-name>"
+    exit 1
+fi
+
+CRATE_NAME=$1
+# Create the PascalCase version of the name for the plugin
+PLUGIN_NAME="$(echo ${CRATE_NAME:0:1} | tr '[:lower:]' '[:upper:]')${CRATE_NAME:1}"
+CRATE_PATH="crates/$CRATE_NAME"
+
+# Step 2: Create a new library crate
+echo "Creating new library crate: $CRATE_NAME"
+cargo new --lib "$CRATE_PATH"
+
+# Step 3 & 4: Modify the Cargo.toml file to add bevy dependency and lints
+echo "Updating $CRATE_PATH/Cargo.toml"
+# Create a temporary file
+TMP_FILE=$(mktemp)
+
+# Process the Cargo.toml file
+cat "$CRATE_PATH/Cargo.toml" | awk -v name="$CRATE_NAME" '
+BEGIN {print_mode=1}
+/\[dependencies\]/ {
+    print $0;
+    print "bevy = { workspace = true }";
+    print_mode=0;
+    next;
+}
+{
+    if (print_mode) print $0;
+}
+END {
+    if (!print_mode) print "";
+    print "[lints]";
+    print "workspace = true";
+}' > "$TMP_FILE"
+
+# Replace the original file
+mv "$TMP_FILE" "$CRATE_PATH/Cargo.toml"
+
+# Step 5: Replace the default lib.rs file
+echo "Updating $CRATE_PATH/src/lib.rs"
+cat > "$CRATE_PATH/src/lib.rs" << EOF
+use bevy::prelude::*;
+
+pub struct ${PLUGIN_NAME}Plugin;
+
+impl Plugin for ${PLUGIN_NAME}Plugin {
+    fn build(&self, app: &mut App) {}
+}
+EOF
+
+# Step 6: Add as a dependency to the main Cargo.toml
+echo "Adding dependency to main Cargo.toml"
+TMP_FILE=$(mktemp)
+awk -v name="$CRATE_NAME" '
+/^#new internal crates go here/ {
+    print name " = { path = \"crates/" name "\" }";
+    print $0;
+    next;
+}
+{ print $0; }
+' Cargo.toml > "$TMP_FILE"
+mv "$TMP_FILE" Cargo.toml
+
+# Step 7: Add plugin to main.rs
+echo "Adding plugin to main.rs"
+TMP_FILE=$(mktemp)
+awk -v name="$CRATE_NAME" -v plugin_name="$PLUGIN_NAME" '
+/[[:space:]]*\/\/ new internal crates go here/ {
+    # Preserve the same indentation as the comment line
+    match($0, /^[[:space:]]*/);
+    indent = substr($0, RSTART, RLENGTH);
+    print indent name "::" plugin_name "Plugin,";
+    print $0;
+    next;
+}
+{ print $0; }
+' src/main.rs > "$TMP_FILE"
+mv "$TMP_FILE" src/main.rs
+
+echo "Successfully created and integrated the $CRATE_NAME crate!"
