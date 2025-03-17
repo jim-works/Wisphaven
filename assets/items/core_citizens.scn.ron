@@ -1,0 +1,33 @@
+(
+  resources: {},
+  entities: {
+    4294967296: (
+      components: {
+        "engine::items::ItemName": (
+          namespace: "core",
+          name: "summon_wisp",
+        ),
+        "bevy_core::name::Name": "Summon Wisp",
+        "engine::items::NamedItemIcon": (
+            path: "summon_wisp.png"
+        ),
+        "engine::items::MaxStackSize": (9999),
+        "items::actor_items::SpawnActorItem": (ActorName(
+          namespace: "core",
+          name: "wisp",
+        )),
+        "engine::items::item_attributes::ConsumeItemOnHit": (),
+        "engine::items::item_attributes::ItemUseSpeed": (
+            windup: (
+                secs: 0,
+                nanos: 250000000,
+            ),
+            backswing: (
+                secs: 0,
+                nanos: 500000000,
+            )
+        ),
+      },
+    ),
+  }
+)

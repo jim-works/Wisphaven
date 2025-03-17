@@ -1,0 +1,24 @@
+(
+  resources: {},
+  entities: {
+    4294967296: (
+      components: {
+        "crafting::Recipe": (
+          inputs: [
+            ((
+              namespace: "core",
+              name: "spike_ball_launcher",
+            ), 1),
+          ],
+          output: (
+            (
+              namespace: "core",
+              name: "summon_wisp",
+            ),
+            10
+          )
+        ),
+      },
+    ),
+  }
+)

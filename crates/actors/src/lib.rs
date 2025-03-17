@@ -6,7 +6,6 @@ pub mod slither_spine;
 pub mod spawning;
 pub mod spike_ball;
 mod util;
-mod wisp;
 
 use bevy::prelude::*;
 
@@ -19,7 +18,6 @@ impl Plugin for ActorsPlugin {
             slither_spine::SlitherSpinePlugin,
             coin::CoinPlugin,
             skeleton_pirate::SkeletonPiratePlugin,
-            wisp::WispPlugin,
             spike_ball::SpikeBallPlugin,
             eye_balloon::EyeBalloonPlugin,
             util::ActorUtilPlugin,
