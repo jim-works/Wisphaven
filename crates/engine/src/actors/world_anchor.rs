@@ -10,7 +10,7 @@ use world::{
 };
 
 use super::{
-    ActorName, ActorResources, BuildActorRegistry, Combatant, CombatantBundle, DeathEvent,
+    ActorName, ActorResources, BuildActorRegistry, Combatant, CombatantBundle, DeathTrigger,
     DeathInfo, SpawnActorEvent,
 };
 
@@ -120,7 +120,7 @@ fn active_on_day(
     *prev_is_day = is_day;
 }
 
-fn observe_death(trigger: Trigger<DeathEvent>, mut commands: Commands) {
+fn observe_death(trigger: Trigger<DeathTrigger>, mut commands: Commands) {
     if let Some(mut ec) = commands.get_entity(trigger.entity()) {
         ec.remove::<ActiveWorldAnchor>();
     }

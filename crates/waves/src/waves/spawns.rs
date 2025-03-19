@@ -14,10 +14,11 @@ impl SpawnAction for DefaultSpawn {
     fn spawn(&self, commands: &mut Commands, translation: Vec3) {
         commands.queue(SendEventCommand(SpawnNamedActorEvent {
             name: self.0.clone(),
-            event: SpawnActorEvent::<()> {
+            spawn_args: SpawnActorEvent::<()> {
                 transform: Transform::from_translation(translation),
                 event: (),
             },
+            json_args: None,
         }));
     }
 }

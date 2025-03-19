@@ -24,7 +24,7 @@ impl Plugin for CombatPlugin {
             damage::DamagePlugin,
         ))
         .add_event::<AttackEvent>()
-        .add_event::<DeathEvent>()
+        .add_event::<DeathTrigger>()
         .add_event::<DamageTakenEvent>()
         .add_systems(Startup, create_level_entity)
         .add_systems(PreUpdate, purge_despawned_targets)
@@ -386,7 +386,7 @@ pub struct AttackEvent {
 }
 
 //entities may be despawned depending on event ordering and death behavior
-#[derive(Clone, Copy, Event)]
+#[derive(Clone, Copy, Event, Debug)]
 pub struct DamageTakenEvent {
     pub attacker: Option<Entity>,
     pub target: Entity,
@@ -397,7 +397,7 @@ pub struct DamageTakenEvent {
 }
 
 #[derive(Clone, Copy, Event)]
-pub struct DeathEvent {
+pub struct DeathTrigger {
     pub final_blow: DamageTakenEvent,
     pub damage_taken: f32,
 }

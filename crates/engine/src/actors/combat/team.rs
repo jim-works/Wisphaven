@@ -171,7 +171,6 @@ pub fn test_box(
 ) -> Option<Entity> {
     //test entity
     for (entity, tf, col, other_team) in object_query.iter() {
-        info!("My team is {:?}, checking {:?}", my_team, other_team);
         if exclude.contains(&entity) || !my_team.can_hit(*other_team) {
             continue;
         }

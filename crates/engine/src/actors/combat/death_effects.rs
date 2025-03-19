@@ -1,14 +1,15 @@
 use bevy::prelude::*;
+use interfaces::scheduling::LevelSystemSet;
 
 use crate::actors::abilities::stamina::Stamina;
 
-use super::DeathEvent;
+use super::DeathTrigger;
 
 pub struct DeathEffectsPlugin;
 
 impl Plugin for DeathEffectsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, restore_stamina_on_death);
+        app.add_observer(restore_stamina_on_death);
     }
 }
 
@@ -19,18 +20,18 @@ pub struct RestoreStaminaOnKill {
 }
 
 fn restore_stamina_on_death(
-    mut reader: EventReader<DeathEvent>,
+    trigger: Trigger<DeathTrigger>,
     mut query: Query<(&mut Stamina, &RestoreStaminaOnKill)>,
 ) {
-    for DeathEvent {
-        final_blow,
-        damage_taken: _,
-    } in reader.read()
+    let final_blow = trigger.final_blow;
+    info!("trying to restore stamina on kill {:?}", final_blow);
+    if let Some(attacker_entity) = final_blow.attacker
+        && let Ok((mut stamina, effect)) = query.get_mut(attacker_entity)
     {
-        if let Some(attacker_entity) = final_blow.attacker
-            && let Ok((mut stamina, effect)) = query.get_mut(attacker_entity)
-        {
-            stamina.change(effect.amount);
-        }
+        stamina.change(effect.amount);
+        info!(
+            "restoring {:?} stamina (total {:?})",
+            effect.amount, stamina
+        );
     }
 }

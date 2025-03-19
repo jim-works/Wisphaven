@@ -115,7 +115,7 @@ fn update_health(
                 damage_writer.send(*attack);
                 if health.current <= 0.0 {
                     if let Some(mut ec) = commands.get_entity(attack.target) {
-                        ec.trigger(DeathEvent {
+                        ec.trigger(DeathTrigger {
                             final_blow: *attack,
                             damage_taken: attack.damage.amount,
                         });
@@ -143,7 +143,7 @@ fn apply_knockback(
 }
 
 pub fn do_death(
-    death_trigger: Trigger<DeathEvent>,
+    death_trigger: Trigger<DeathTrigger>,
     death_type: Query<(
         &DeathInfo,
         &Transform,

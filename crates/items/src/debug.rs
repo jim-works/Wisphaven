@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use engine::{
-    actors::{DamageTakenEvent, DeathEvent},
+    actors::{DamageTakenEvent, DeathTrigger},
     items::UseItemEvent,
 };
 
@@ -19,7 +19,7 @@ struct SuicidePill;
 
 fn use_suicide_pill(
     mut reader: EventReader<UseItemEvent>,
-    mut attack_writer: EventWriter<DeathEvent>,
+    mut attack_writer: EventWriter<DeathTrigger>,
     item_query: Query<&SuicidePill>,
 ) {
     for UseItemEvent {
@@ -30,7 +30,7 @@ fn use_suicide_pill(
     } in reader.read()
     {
         if item_query.contains(stack.id) {
-            attack_writer.send(DeathEvent {
+            attack_writer.send(DeathTrigger {
                 final_blow: DamageTakenEvent {
                     target: *user,
                     attacker: Some(Entity::PLACEHOLDER),

@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use ahash::HashMap;
 use bevy::prelude::*;
 use engine::actors::{
-    ActorName, Combatant, CombatantBundle, Damage, SpawnActorEvent,
+    ActorName, ActorRegistry, ActorResources, Combatant, CombatantBundle, Damage, SpawnActorEvent,
     projectile::{Projectile, ProjectileSpawnedInEntity},
     team::*,
 };
@@ -18,9 +18,12 @@ impl Plugin for SpawningPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             FixedUpdate,
-            named_projectile_spawn_handler.in_set(LevelSystemSet::PostTick),
+            (named_projectile_spawn_handler, named_actor_spawn_handler)
+                .chain()
+                .in_set(LevelSystemSet::PostTick),
         )
         .add_event::<SpawnNamedProjectileEvent>()
+        .add_event::<SpawnNamedActorEvent>()
         .register_type::<ProjectileName>();
     }
 }
@@ -28,7 +31,8 @@ impl Plugin for SpawningPlugin {
 #[derive(Event)]
 pub struct SpawnNamedActorEvent {
     pub name: Arc<ActorName>,
-    pub event: SpawnActorEvent<()>,
+    pub spawn_args: SpawnActorEvent<()>,
+    pub json_args: Option<Arc<str>>,
 }
 
 #[derive(Event)]
@@ -49,7 +53,32 @@ fn named_projectile_spawn_handler(
         json_args,
     } in events.read()
     {
-        registry.spawn(name, &mut commands, spawn_args.clone(), json_args.clone());
+        registry.spawn(
+            name,
+            &mut commands,
+            spawn_args.clone(),
+            json_args.as_deref(),
+        );
+    }
+}
+
+fn named_actor_spawn_handler(
+    mut events: EventReader<SpawnNamedActorEvent>,
+    mut commands: Commands,
+    resources: Res<ActorResources>,
+) {
+    for SpawnNamedActorEvent {
+        name,
+        spawn_args,
+        json_args,
+    } in events.read()
+    {
+        resources.registry.spawn(
+            name,
+            &mut commands,
+            spawn_args.transform,
+            json_args.as_deref(),
+        );
     }
 }
 
@@ -155,7 +184,7 @@ impl<T> SpawnProjectileEvent<T> {
 #[derive(Resource, Default)]
 pub struct ProjectileRegistry {
     pub dynamic_generators:
-        Vec<Box<dyn Fn(&mut Commands, ProjectileSpawnArgs, Option<Arc<str>>) + Send + Sync>>,
+        Vec<Box<dyn Fn(&mut Commands, ProjectileSpawnArgs, Option<&str>) + Send + Sync>>,
     //ids may not be stable across program runs
     pub id_map: ProjectileNameIdMap,
 }
@@ -193,7 +222,7 @@ impl ProjectileRegistry {
         projectile: &ProjectileName,
         commands: &mut Commands,
         spawn_args: ProjectileSpawnArgs,
-        json_args: Option<Arc<str>>,
+        json_args: Option<&str>,
     ) {
         if let Some(projectile_id) = self.get_id(projectile) {
             if let Some(generator) = self.dynamic_generators.get(projectile_id.0) {
@@ -206,7 +235,7 @@ impl ProjectileRegistry {
         projectile_id: ProjectileId,
         commands: &mut Commands,
         spawn_args: ProjectileSpawnArgs,
-        json_args: Option<Arc<str>>,
+        json_args: Option<&str>,
     ) {
         if let Some(generator) = self.dynamic_generators.get(projectile_id.0) {
             generator(commands, spawn_args, json_args);
