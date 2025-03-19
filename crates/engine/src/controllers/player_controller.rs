@@ -1,6 +1,6 @@
 use crate::{
     actors::*,
-    items::{inventory::Inventory, SpawnDroppedItemEvent},
+    items::{SpawnDroppedItemEvent, inventory::Inventory},
 };
 use abilities::{
     dash::{CurrentlyDashing, Dash},
@@ -291,7 +291,7 @@ pub fn player_punch(
                         Some(RaycastHit::Object(hit)) => {
                             if combat_query.contains(hit.entity) {
                                 attack_punch_writer.send(AttackEvent {
-                                    attacker: player_entity,
+                                    attacker: Some(player_entity),
                                     target: hit.entity,
                                     damage: player.hit_damage,
                                     knockback: *tf.forward(),

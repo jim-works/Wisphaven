@@ -7,6 +7,7 @@ pub use player::*;
 mod combat;
 pub use combat::*;
 use serde::{Deserialize, Serialize};
+use util::SendEventCommand;
 
 use crate::util::{ease_out_quad, inverse_lerp, lerp};
 
@@ -288,7 +289,7 @@ pub struct ActorBundle {
     pub name: ActorName,
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct ActorResources {
     //should be fine not being behind an arc, can probably send an event if it needs to be done async during loading
     //easier to find a work around for that than a workaround for not being able to mutate it to add new actors during loading
@@ -298,36 +299,102 @@ pub struct ActorResources {
 
 pub type ActorNameIdMap = HashMap<ActorName, ActorId>;
 
+#[derive(Event, Default, Serialize, Deserialize)]
+pub struct SpawnActorEvent<T> {
+    pub transform: Transform,
+    pub event: T,
+}
+
 #[derive(Default)]
 pub struct ActorRegistry {
-    pub dynamic_generators: Vec<Box<dyn Fn(&mut Commands, Transform) + Send + Sync>>,
+    pub dynamic_generators: Vec<Box<dyn Fn(&mut Commands, Transform, Option<&str>) + Send + Sync>>,
     //ids may not be stable across program runs
     pub id_map: ActorNameIdMap,
 }
 
 impl ActorRegistry {
-    pub fn add_dynamic(
+    pub fn add_dynamic<
+        T: std::fmt::Debug + Default + for<'de> Deserialize<'de> + Send + Sync + 'static,
+    >(
         &mut self,
         name: ActorName,
-        generator: Box<dyn Fn(&mut Commands, Transform) + Send + Sync>,
     ) {
         let id = ActorId(self.dynamic_generators.len());
-        self.dynamic_generators.push(generator);
+        self.dynamic_generators
+            .push(Box::new(|commands, tf, args_opt| {
+                if let Some(args) = args_opt
+                    && let Ok(event) = serde_json::from_str::<T>(args)
+                {
+                    info!("parsed json spawn event {:?}", event);
+                    commands.queue(SendEventCommand(SpawnActorEvent {
+                        transform: tf,
+                        event,
+                    }));
+                } else {
+                    info!("using default spawn event");
+                    commands.queue(SendEventCommand(SpawnActorEvent {
+                        transform: tf,
+                        event: T::default(),
+                    }));
+                };
+            }));
         self.id_map.insert(name, id);
     }
     pub fn get_id(&self, name: &ActorName) -> Option<ActorId> {
         self.id_map.get(name).copied()
     }
-    pub fn spawn(&self, actor: &ActorName, commands: &mut Commands, spawn_tf: Transform) {
+    pub fn spawn(
+        &self,
+        actor: &ActorName,
+        commands: &mut Commands,
+        spawn_tf: Transform,
+        args: Option<&str>,
+    ) {
         if let Some(actor_id) = self.get_id(actor) {
             if let Some(generator) = self.dynamic_generators.get(actor_id.0) {
-                generator(commands, spawn_tf);
+                generator(commands, spawn_tf, args);
             }
         }
     }
-    pub fn spawn_id(&self, actor_id: ActorId, commands: &mut Commands, spawn_tf: Transform) {
+    pub fn spawn_id(
+        &self,
+        actor_id: ActorId,
+        commands: &mut Commands,
+        spawn_tf: Transform,
+        args: Option<&str>,
+    ) {
         if let Some(generator) = self.dynamic_generators.get(actor_id.0) {
-            generator(commands, spawn_tf);
+            generator(commands, spawn_tf, args);
         }
+    }
+}
+
+pub trait BuildActorRegistry {
+    fn add_actor<T: std::fmt::Debug + Default + for<'de> Deserialize<'de> + Send + Sync + 'static>(
+        &mut self,
+        name: ActorName,
+    ) -> &mut Self;
+}
+
+impl BuildActorRegistry for App {
+    fn add_actor<
+        T: std::fmt::Debug + Default + for<'de> Deserialize<'de> + Send + Sync + 'static,
+    >(
+        &mut self,
+        name: ActorName,
+    ) -> &mut App {
+        if self
+            .world_mut()
+            .get_resource::<Events<SpawnActorEvent<T>>>()
+            .is_some()
+        {
+            warn!("Adding duplicate actor spawn event: {:?}", name);
+        }
+        self.add_event::<SpawnActorEvent<T>>();
+        let mut resources = self
+            .world_mut()
+            .get_resource_or_insert_with(ActorResources::default);
+        resources.registry.add_dynamic::<T>(name);
+        self
     }
 }

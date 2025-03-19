@@ -1,26 +1,26 @@
 use core::f32;
 use std::f32::consts::PI;
 
-use super::spawning::*;
 use bevy::prelude::*;
 use engine::{
     actors::{
-        team::EnemyTeam, AggroPlayer, AggroTargets, Combatant, CombatantBundle, ContactDamage,
-        Damage, MoveSpeed,
+        ActorName, AggroPlayer, AggroTargets, BuildActorRegistry, Combatant, CombatantBundle,
+        ContactDamage, Damage, MoveSpeed, SpawnActorEvent, team::ENEMY_TEAM,
     },
     controllers::{ControllableBundle, TickMovement},
     items::{
-        loot::{ItemLootTable, ItemLootTableDrop},
         ItemName,
+        loot::{ItemLootTable, ItemLootTableDrop},
     },
 };
 
 use interfaces::scheduling::{LevelLoadState, LevelSystemSet, PhysicsLevelSet};
 use physics::{
+    PhysicsBundle,
     collision::{Aabb, CollidingDirections, IgnoreTerrainCollision, TerrainQueryPoint},
     movement::{Drag, GravityMult, LookInMovementDirection, Velocity},
-    PhysicsBundle,
 };
+use serde::Deserialize;
 use world::{chunk::ChunkCoord, chunk_loading::ChunkLoader};
 
 pub struct SlitherSpinePlugin;
@@ -35,35 +35,21 @@ impl Plugin for SlitherSpinePlugin {
                     .in_set(LevelSystemSet::PostTick),
             )
             .add_systems(FixedUpdate, move_head.in_set(PhysicsLevelSet::Main))
-            .add_event::<SpawnSlitherSpineEvent>()
-            .add_actor::<SpawnSlitherSpineEvent>("slither_spine".to_string());
+            .add_actor::<SpawnSlitherSpine>(ActorName::core("slither_spine"));
     }
 }
 
-#[derive(Event)]
-pub struct SpawnSlitherSpineEvent {
-    default: DefaultSpawnArgs,
+#[derive(Debug, Deserialize)]
+pub struct SpawnSlitherSpine {
     segment_count: usize,
     segment_offset: Vec3,
 }
 
-impl Default for SpawnSlitherSpineEvent {
+impl Default for SpawnSlitherSpine {
     fn default() -> Self {
         Self {
-            default: DefaultSpawnArgs {
-                transform: Transform::from_translation(Vec3::new(0., 10., -10.)),
-            },
             segment_count: 15,
             segment_offset: Vec3::Z,
-        }
-    }
-}
-
-impl From<DefaultSpawnArgs> for SpawnSlitherSpineEvent {
-    fn from(value: DefaultSpawnArgs) -> Self {
-        Self {
-            default: value,
-            ..default()
         }
     }
 }
@@ -130,9 +116,13 @@ fn update_segments(
 fn spawn_handler(
     mut commands: Commands,
     resources: Res<SlitherSpineResources>,
-    mut events: EventReader<SpawnSlitherSpineEvent>,
+    mut events: EventReader<SpawnActorEvent<SpawnSlitherSpine>>,
 ) {
-    for spawn_event in events.read() {
+    for SpawnActorEvent::<SpawnSlitherSpine> {
+        transform,
+        event: spawn_event,
+    } in events.read()
+    {
         let segment_length = spawn_event.segment_offset.length();
         let mut prev: Option<(Entity, Entity)> = None;
         for i in 0..spawn_event.segment_count {
@@ -142,10 +132,7 @@ fn spawn_handler(
                     spawn_segement(
                         &mut commands,
                         resources.spine_scene.clone(),
-                        spawn_event
-                            .default
-                            .transform
-                            .with_translation(spawn_event.default.transform.translation + offset),
+                        transform.with_translation(transform.translation + offset),
                         SlitherSpineSegment {
                             target_dist: segment_length,
                             parent: prev_segment,
@@ -158,10 +145,7 @@ fn spawn_handler(
                 let head = spawn_head(
                     &mut commands,
                     resources.head_scene.clone(),
-                    spawn_event
-                        .default
-                        .transform
-                        .with_translation(spawn_event.default.transform.translation + offset),
+                    transform.with_translation(transform.translation + offset),
                 );
                 (head, head)
             });
@@ -208,8 +192,9 @@ fn spawn_head(commands: &mut Commands, scene: Handle<Scene>, transform: Transfor
                 lod_levels: 0,
                 mesh: false,
             },
-            CombatantBundle::<EnemyTeam> {
+            CombatantBundle {
                 combatant: Combatant::new(10., 1.),
+                team: ENEMY_TEAM,
                 ..default()
             },
             ContactDamage::new(Damage::new(5.0)),
@@ -240,8 +225,9 @@ fn spawn_segement(
             Name::new("slither_spine_segment"),
             segment,
             IgnoreTerrainCollision,
-            CombatantBundle::<EnemyTeam> {
+            CombatantBundle {
                 combatant: Combatant::new_child(head, 0.),
+                team: ENEMY_TEAM,
                 ..default()
             },
             ContactDamage::new(Damage::new(1.0)),

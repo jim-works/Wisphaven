@@ -211,7 +211,10 @@
         ),
         "engine::items::MaxStackSize": (9999),
         "items::weapons::ProjectileLauncherItem": (
-          name: "coin",
+          name: ProjectileName (
+            namespace: "core",
+            name: "coin"
+          ),
           speed: 1,
           damage: Damage (amount: 3.0)
         ),
@@ -240,7 +243,10 @@
         ),
         "engine::items::MaxStackSize": (9999),
         "items::weapons::ProjectileLauncherItem": (
-          name: "spike_ball",
+          name: ProjectileName (
+            namespace: "core",
+            name: "spike_ball"
+          ),
           speed: 2,
           damage: Damage (amount: 10.0),
           lifetime_mult: 0.5,

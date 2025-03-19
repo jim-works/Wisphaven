@@ -1,12 +1,12 @@
 use std::time::Duration;
 
 use bevy::{ecs::entity::EntityHashMap, prelude::*};
+use serde::{Deserialize, Serialize};
 use team::*;
 
 pub mod damage;
 pub mod death_effects;
 pub mod projectile;
-#[macro_use]
 pub mod team;
 
 use interfaces::scheduling::*;
@@ -30,8 +30,7 @@ impl Plugin for CombatPlugin {
         .add_systems(PreUpdate, purge_despawned_targets)
         .add_systems(
             FixedUpdate,
-            (update_aggro_on_player, all_teams_system!(do_contact_damage))
-                .in_set(LevelSystemSet::Tick),
+            (update_aggro_on_player, do_contact_damage).in_set(LevelSystemSet::Tick),
         )
         .add_systems(PostUpdate, update_combat_relationships)
         .insert_resource(CombatantRelationships::default())
@@ -42,12 +41,12 @@ impl Plugin for CombatPlugin {
 #[derive(Resource)]
 pub struct LevelEntity(Entity);
 
-#[derive(Bundle, Clone)]
-pub struct CombatantBundle<T: team::Team> {
+#[derive(Bundle, Clone, Serialize, Deserialize, Debug)]
+pub struct CombatantBundle {
     pub combatant: Combatant,
     pub death_info: DeathInfo,
     pub invulnerability: Invulnerability,
-    pub team: T,
+    pub team: Team,
 }
 
 #[derive(Component, Clone)]
@@ -65,18 +64,18 @@ impl ContactDamage {
     }
 }
 
-impl<T: team::Team> Default for CombatantBundle<T> {
+impl Default for CombatantBundle {
     fn default() -> Self {
         Self {
             combatant: Combatant::new(10.0, 0.0),
             death_info: DeathInfo::default(),
             invulnerability: Invulnerability::default(),
-            team: T::default(),
+            team: PLAYER_TEAM,
         }
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Serialize, Deserialize, Debug)]
 pub struct Invulnerability {
     pub until: Duration,
     pub time_after_hit: Duration,
@@ -106,7 +105,7 @@ impl Invulnerability {
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Serialize, Deserialize, Debug)]
 pub enum Combatant {
     Root { health: Health, defense: Defense },
     Child { parent: Entity, defense: Defense },
@@ -225,7 +224,7 @@ impl<'a> GetRootMut<'a> for Mut<'a, Combatant> {
     }
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug, Deserialize, Serialize)]
 pub struct Health {
     pub current: f32,
     pub max: f32,
@@ -240,7 +239,7 @@ impl Health {
     }
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug, Serialize, Deserialize)]
 pub struct Defense {
     pub current: f32,
     pub base: f32,
@@ -308,13 +307,13 @@ fn update_combat_relationships(
     }
 }
 
-#[derive(Component, Default, Clone)]
+#[derive(Component, Default, Clone, Serialize, Deserialize, Debug)]
 pub struct DeathInfo {
     pub death_type: DeathType,
     //death_message: Option<&str>,
 }
 
-#[derive(Default, Copy, Clone)]
+#[derive(Default, Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum DeathType {
     #[default]
     Default,
@@ -323,14 +322,14 @@ pub enum DeathType {
     Immortal,
 }
 
-#[derive(Default, Copy, Clone, Reflect, Debug)]
+#[derive(Default, Copy, Clone, Reflect, Debug, Deserialize, Serialize)]
 pub enum DamageType {
     #[default]
     Normal,
     HPRemoval,
 }
 
-#[derive(Clone, Copy, Debug, Reflect, Default)]
+#[derive(Clone, Copy, Debug, Reflect, Default, Deserialize, Serialize)]
 pub struct Damage {
     pub amount: f32,
     pub dtype: DamageType,
@@ -380,7 +379,7 @@ impl Damage {
 
 #[derive(Clone, Copy, Event)]
 pub struct AttackEvent {
-    pub attacker: Entity,
+    pub attacker: Option<Entity>,
     pub target: Entity,
     pub damage: Damage,
     pub knockback: Vec3,
@@ -389,7 +388,7 @@ pub struct AttackEvent {
 //entities may be despawned depending on event ordering and death behavior
 #[derive(Clone, Copy, Event)]
 pub struct DamageTakenEvent {
-    pub attacker: Entity,
+    pub attacker: Option<Entity>,
     pub target: Entity,
     //after reductions
     pub damage: Damage,
@@ -457,11 +456,7 @@ impl AggroTargets {
             .iter()
             .enumerate()
             .fold((0, i32::MIN), |(idx, max), (elem_idx, (_, p))| {
-                if *p > max {
-                    (elem_idx, *p)
-                } else {
-                    (idx, max)
-                }
+                if *p > max { (elem_idx, *p) } else { (idx, max) }
             })
             .0;
     }
@@ -553,27 +548,28 @@ fn create_level_entity(mut commands: Commands) {
     commands.insert_resource(LevelEntity(entity));
 }
 
-fn do_contact_damage<T: Team>(
-    attacker_query: Query<(Entity, &ContactDamage, &GlobalTransform, &Aabb), With<T>>,
-    target_query: Query<(Entity, &GlobalTransform, &Aabb), T::Targets>,
+fn do_contact_damage(
+    attacker_query: Query<(Entity, &ContactDamage, &GlobalTransform, &Aabb, &Team)>,
+    target_query: Query<(Entity, &GlobalTransform, &Aabb, &Team)>,
     mut attack_writer: EventWriter<AttackEvent>,
 ) {
     const AABB_SCALE: Vec3 = Vec3::splat(1.1);
-    for (entity, cd, gtf, aabb) in attacker_query.iter() {
-        for (target_entity, target_gtf, _) in
+    for (entity, cd, gtf, aabb, attacker_team) in attacker_query.iter() {
+        for (target_entity, target_gtf, _, target_team) in
             target_query
                 .iter()
-                .filter(move |(_, target_gtf, target_aabb)| {
-                    target_aabb.intersects_aabb(
-                        target_gtf.translation(),
-                        aabb.scale(AABB_SCALE),
-                        gtf.translation(),
-                    )
+                .filter(move |(_, target_gtf, target_aabb, target_team)| {
+                    attacker_team.can_hit(**target_team)
+                        && target_aabb.intersects_aabb(
+                            target_gtf.translation(),
+                            aabb.scale(AABB_SCALE),
+                            gtf.translation(),
+                        )
                 })
         {
             //they intersect
             attack_writer.send(AttackEvent {
-                attacker: entity,
+                attacker: Some(entity),
                 target: target_entity,
                 damage: cd.damage,
                 knockback: (target_gtf.translation() - gtf.translation()) * cd.knockback,

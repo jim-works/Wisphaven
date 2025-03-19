@@ -1,144 +1,140 @@
-use bevy::{ecs::query::QueryFilter, prelude::*};
+use std::num::NonZeroU32;
+
+use bevy::prelude::*;
 
 use physics::collision::{Aabb, BlockPhysics};
+use serde::{Deserialize, Serialize};
 use world::{block::BlockCoord, level::Level};
 
 use super::Combatant;
 
-#[derive(Component, Clone, Copy, Default)]
-pub struct PlayerTeam;
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Component, Serialize, Deserialize)]
+pub struct Team(pub Option<NonZeroU32>);
 
-#[derive(Component, Clone, Copy, Default)]
-pub struct EnemyTeam;
+impl Team {
+    pub fn can_hit(self, other: Team) -> bool {
+        self.0
+            .is_none_or(|my_team| other.0.is_none_or(|other_team| my_team != other_team))
+    }
 
-#[derive(Component, Clone, Copy, Default)]
-pub struct FreeForAllTeam;
-
-//when adding a new team, add to macro below
-pub trait Team: Component + Clone + Copy + Default + Send + Sync {
-    type Targets: QueryFilter;
-    type Allies: QueryFilter;
+    pub fn is_allied(self, other: Team) -> bool {
+        !self.can_hit(other)
+    }
 }
 
-impl Team for PlayerTeam {
-    type Targets = Or<(With<EnemyTeam>, With<FreeForAllTeam>)>;
-    type Allies = With<PlayerTeam>;
-}
-impl Team for EnemyTeam {
-    type Targets = Or<(With<PlayerTeam>, With<FreeForAllTeam>)>;
-    type Allies = With<EnemyTeam>;
-}
-impl Team for FreeForAllTeam {
-    type Targets = Or<(With<PlayerTeam>, With<EnemyTeam>, With<FreeForAllTeam>)>;
-    type Allies = ();
+pub const PLAYER_TEAM: Team = Team(Some(NonZeroU32::new(1).unwrap()));
+pub const ENEMY_TEAM: Team = Team(Some(NonZeroU32::new(2).unwrap()));
+
+pub fn get_targets_in_range<'a>(
+    my_team: Team,
+    query: &'a Query<'a, 'a, (Entity, &'a Combatant, &'a GlobalTransform, &'a Team)>,
+    origin: Vec3,
+    range: f32,
+) -> impl Iterator<Item = (Entity, &'a Combatant, &'a GlobalTransform, &'a Team)> {
+    let sqr_dist = range * range;
+    query.iter().filter(move |(_, _, gtf, other_team)| {
+        my_team.can_hit(**other_team) && gtf.translation().distance_squared(origin) <= sqr_dist
+    })
 }
 
-//for use when building app, for example:
-//  app.add_systems(FixedUpdate, all_teams_system!(do_contact_damage))
-//will expand the macro to a tuple with `do_contact_damage::<Team>` for all teams
-//note: have to import all teams in destination module
-#[macro_export]
-macro_rules! all_teams_system {
-    (
-        $name:ident
-    ) => {
+pub fn get_colliding_targets<'a, 'b: 'a>(
+    my_team: Team,
+    query: &'b Query<
+        'a,
+        'a,
         (
-            $name::<PlayerTeam>,
-            $name::<EnemyTeam>,
-            $name::<FreeForAllTeam>,
-        )
-    };
-}
-
-//for use when building app, for example:
-//  all_teams_function(app, add_event, Event)
-//will expand the macro to a list of statements `app.add_event::<Event<Team>>();` for all teams
-//note: have to import all teams in destination module
-#[macro_export]
-macro_rules! all_teams_function {
-    (
-        $app:ident,
-        $function:ident,
-        $event:ident
-        $(,$args:expr)?
-    ) => {
-        $app.$function::<$event<PlayerTeam>>($($args)?);
-        $app.$function::<$event<EnemyTeam>>($($args)?);
-        $app.$function::<$event<FreeForAllTeam>>($($args)?);
-    };
-}
-
-pub trait AddTeam {
-    type TargetResultType;
-    type AllyResultType;
-
-    fn append_target<T>(self, t: T) -> Self::TargetResultType;
-    fn append_ally<T>(self, t: T) -> Self::AllyResultType;
-}
-
-pub fn get_targets_in_range<'a, T: Team>(
-    query: &'a Query<'a, 'a, (Entity, &'a Combatant, &'a GlobalTransform), T::Targets>,
-    origin: Vec3,
-    range: f32,
-) -> impl Iterator<Item = (Entity, &'a Combatant, &'a GlobalTransform)> {
-    let sqr_dist = range * range;
-    query
-        .iter()
-        .filter(move |(_, _, gtf)| gtf.translation().distance_squared(origin) <= sqr_dist)
-}
-
-pub fn get_colliding_targets<'a, 'b: 'a, T: Team>(
-    query: &'b Query<'a, 'a, (Entity, &'a Combatant, &'a GlobalTransform, &'a Aabb), T::Targets>,
+            Entity,
+            &'a Combatant,
+            &'a GlobalTransform,
+            &'a Aabb,
+            &'a Team,
+        ),
+    >,
     origin: Vec3,
     aabb: Aabb,
     my_aabb_scale: f32,
-) -> impl Iterator<Item = (Entity, &'b Combatant, &'b GlobalTransform, &'b Aabb)> {
-    query.iter().filter(move |(_, _, gtf, target_aabb)| {
-        target_aabb.intersects_aabb(
-            gtf.translation(),
-            aabb.scale(Vec3::ONE * my_aabb_scale),
-            origin,
-        )
+) -> impl Iterator<
+    Item = (
+        Entity,
+        &'b Combatant,
+        &'b GlobalTransform,
+        &'b Aabb,
+        &'b Team,
+    ),
+> {
+    query
+        .iter()
+        .filter(move |(_, _, gtf, target_aabb, other_team)| {
+            my_team.can_hit(**other_team)
+                && target_aabb.intersects_aabb(
+                    gtf.translation(),
+                    aabb.scale(Vec3::ONE * my_aabb_scale),
+                    origin,
+                )
+        })
+}
+
+pub fn get_allies_in_range<'a>(
+    my_team: Team,
+    query: &'a Query<'a, 'a, (Entity, &'a Combatant, &'a GlobalTransform, &'a Team)>,
+    origin: Vec3,
+    range: f32,
+) -> impl Iterator<Item = (Entity, &'a Combatant, &'a GlobalTransform, &'a Team)> {
+    let sqr_dist = range * range;
+    query.iter().filter(move |(_, _, gtf, other_team)| {
+        my_team.is_allied(**other_team) && gtf.translation().distance_squared(origin) <= sqr_dist
     })
 }
 
-pub fn get_allies_in_range<'a, T: Team>(
-    query: &'a Query<'a, 'a, (Entity, &'a Combatant, &'a GlobalTransform), T::Allies>,
-    origin: Vec3,
-    range: f32,
-) -> impl Iterator<Item = (Entity, &'a Combatant, &'a GlobalTransform)> {
-    let sqr_dist = range * range;
-    query
-        .iter()
-        .filter(move |(_, _, gtf)| gtf.translation().distance_squared(origin) <= sqr_dist)
-}
-
-pub fn get_colliding_allies<'a, T: Team>(
-    query: &'a Query<'a, 'a, (Entity, &'a Combatant, &'a GlobalTransform, &'a Aabb), T::Allies>,
+pub fn get_colliding_allies<'a>(
+    my_team: Team,
+    query: &'a Query<
+        'a,
+        'a,
+        (
+            Entity,
+            &'a Combatant,
+            &'a GlobalTransform,
+            &'a Aabb,
+            &'a Team,
+        ),
+    >,
     origin: Vec3,
     aabb: Aabb,
     my_aabb_scale: f32,
-) -> impl Iterator<Item = (Entity, &'a Combatant, &'a GlobalTransform, &'a Aabb)> {
-    query.iter().filter(move |(_, _, gtf, target_aabb)| {
-        target_aabb.intersects_aabb(
-            gtf.translation(),
-            aabb.scale(Vec3::ONE * my_aabb_scale),
-            origin,
-        )
-    })
+) -> impl Iterator<
+    Item = (
+        Entity,
+        &'a Combatant,
+        &'a GlobalTransform,
+        &'a Aabb,
+        &'a Team,
+    ),
+> {
+    query
+        .iter()
+        .filter(move |(_, _, gtf, target_aabb, other_team)| {
+            my_team.is_allied(**other_team)
+                && target_aabb.intersects_aabb(
+                    gtf.translation(),
+                    aabb.scale(Vec3::ONE * my_aabb_scale),
+                    origin,
+                )
+        })
 }
 
 //todo improve this
-pub fn test_point<T: Team>(
+pub fn test_point(
+    my_team: Team,
     point: Vec3,
     level: &Level,
     physics_query: &Query<&BlockPhysics>,
-    object_query: &Query<(Entity, &GlobalTransform, &Aabb), T::Targets>,
+    object_query: &Query<(Entity, &GlobalTransform, &Aabb, &Team)>,
     exclude: &[Entity],
 ) -> Option<Entity> {
     //test entity
-    for (entity, tf, col) in object_query.iter() {
-        if exclude.contains(&entity) {
+    for (entity, tf, col, other_team) in object_query.iter() {
+        if exclude.contains(&entity) || !my_team.can_hit(*other_team) {
             continue;
         }
         if col.intersects_point(tf.translation(), point) {
@@ -166,15 +162,17 @@ pub fn test_point<T: Team>(
 }
 
 //todo improve this
-pub fn test_box<T: crate::actors::team::Team>(
+pub fn test_box(
+    my_team: Team,
     point: Vec3,
     aabb: Aabb,
-    object_query: &Query<(Entity, &GlobalTransform, &Aabb), T::Targets>,
+    object_query: &Query<(Entity, &GlobalTransform, &Aabb, &Team)>,
     exclude: &[Entity],
 ) -> Option<Entity> {
     //test entity
-    for (entity, tf, col) in object_query.iter() {
-        if exclude.contains(&entity) {
+    for (entity, tf, col, other_team) in object_query.iter() {
+        info!("My team is {:?}, checking {:?}", my_team, other_team);
+        if exclude.contains(&entity) || !my_team.can_hit(*other_team) {
             continue;
         }
         if aabb.intersects_aabb(point, *col, tf.translation()) {

@@ -2,31 +2,33 @@ use std::sync::Arc;
 
 use bevy::prelude::*;
 
-use actors::skeleton_pirate::SpawnSkeletonPirateEvent;
-use actors::spawning::{DefaultSpawnArgs, SpawnActorEvent};
+use actors::spawning::SpawnNamedActorEvent;
+use engine::actors::{ActorName, SpawnActorEvent};
 use util::SendEventCommand;
 
 use super::SpawnAction;
 
-pub struct SkeletonPirateSpawn;
+pub struct DefaultSpawn(pub Arc<ActorName>);
 
-impl SpawnAction for SkeletonPirateSpawn {
+impl SpawnAction for DefaultSpawn {
     fn spawn(&self, commands: &mut Commands, translation: Vec3) {
-        commands.queue(SendEventCommand(SpawnSkeletonPirateEvent {
-            location: Transform::from_translation(translation),
+        commands.queue(SendEventCommand(SpawnNamedActorEvent {
+            name: self.0.clone(),
+            event: SpawnActorEvent::<()> {
+                transform: Transform::from_translation(translation),
+                event: (),
+            },
         }));
     }
 }
 
-pub struct DefaultSpawn(pub Arc<String>);
+pub struct DirectSpawn<T>(pub T);
 
-impl SpawnAction for DefaultSpawn {
+impl<T: Clone + Send + Sync + 'static> SpawnAction for DirectSpawn<T> {
     fn spawn(&self, commands: &mut Commands, translation: Vec3) {
-        commands.queue(SendEventCommand(SpawnActorEvent {
-            name: self.0.clone(),
-            args: DefaultSpawnArgs {
-                transform: Transform::from_translation(translation),
-            },
+        commands.queue(SendEventCommand(SpawnActorEvent::<T> {
+            transform: Transform::from_translation(translation),
+            event: self.0.clone(),
         }));
     }
 }

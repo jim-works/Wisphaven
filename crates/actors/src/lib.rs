@@ -1,3 +1,5 @@
+#![feature(let_chains)]
+
 pub mod block_actors;
 pub mod coin;
 mod eye_balloon;

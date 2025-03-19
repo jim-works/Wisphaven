@@ -1,19 +1,14 @@
-use std::time::Duration;
-
 use bevy::prelude::*;
-use engine::actors::{
-    projectile::{Projectile, ProjectileBundle},
-    team::*,
-};
-use engine::{all_teams_function, all_teams_system};
-use interfaces::scheduling::LevelLoadState;
+use engine;
+use engine::actors::projectile::Projectile;
+use interfaces::scheduling::LevelSystemSet;
 use physics::{
     collision::Aabb,
     movement::{Drag, Restitution},
-    PhysicsBundle,
 };
+use serde::Deserialize;
 
-use crate::spawning::{BuildProjectileRegistry, DefaultSpawnArgs, ProjectileSpawnArgs};
+use crate::spawning::{BuildProjectileRegistry, ProjectileName, SpawnProjectileEvent};
 
 #[derive(Resource)]
 struct SpikeBallResources {
@@ -29,31 +24,16 @@ pub struct SpikeBallPlugin;
 impl Plugin for SpikeBallPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, load_resources)
-            .add_systems(Update, all_teams_system!(spawn_spike_ball));
-        all_teams_function!(app, add_event, SpawnSpikeBallEvent);
-        all_teams_function!(
-            app,
-            add_projectile,
-            SpawnSpikeBallEvent,
-            "spike_ball".to_string()
-        );
+            .add_systems(
+                FixedUpdate,
+                spawn_spike_ball.in_set(LevelSystemSet::PostTick),
+            )
+            .add_projectile::<SpawnSpikeBall>(ProjectileName::core("spike_ball"));
     }
 }
 
-#[derive(Event)]
-pub struct SpawnSpikeBallEvent<T: Team> {
-    pub projectile_args: ProjectileSpawnArgs<T>,
-    pub default_args: DefaultSpawnArgs,
-}
-
-impl<T: Team> From<(DefaultSpawnArgs, ProjectileSpawnArgs<T>)> for SpawnSpikeBallEvent<T> {
-    fn from(value: (DefaultSpawnArgs, ProjectileSpawnArgs<T>)) -> Self {
-        Self {
-            projectile_args: value.1,
-            default_args: value.0,
-        }
-    }
-}
+#[derive(Debug, Default, Deserialize)]
+pub struct SpawnSpikeBall {}
 
 fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(SpikeBallResources {
@@ -62,43 +42,28 @@ fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
     });
 }
 
-fn spawn_spike_ball<T: Team>(
+fn spawn_spike_ball(
     mut commands: Commands,
     res: Res<SpikeBallResources>,
-    mut spawn_requests: EventReader<SpawnSpikeBallEvent<T>>,
+    mut spawn_requests: EventReader<SpawnProjectileEvent<SpawnSpikeBall>>,
     time: Res<Time>,
 ) {
-    const LIFETIME: Duration = Duration::from_secs(5);
     let curr_time = time.elapsed();
-    for SpawnSpikeBallEvent {
-        projectile_args,
-        default_args,
-    } in spawn_requests.read()
-    {
-        commands.spawn((
-            StateScoped(LevelLoadState::Loaded),
-            SceneRoot(res.scene.clone_weak()),
-            default_args.transform,
+    for SpawnProjectileEvent::<SpawnSpikeBall> { args, event: _ } in spawn_requests.read() {
+        let mut ec = commands.spawn_empty();
+        let proj = args.spawn(&mut ec, curr_time);
+        ec.insert((
             Name::new("spike_ball"),
-            projectile_args.combat.clone(),
-            PhysicsBundle {
-                collider: Aabb::centered(1.5 * Vec3::ONE),
-                velocity: projectile_args.velocity,
-                restitution: Restitution(1.),
-                drag: Drag(0.),
-                ..default()
-            },
-            ProjectileBundle::new(Projectile {
-                owner: projectile_args.owner,
-                knockback_mult: 1.0 * projectile_args.knockback_mult,
-                terrain_damage: 0.5 * projectile_args.terrain_damage_mult,
-                despawn_time: curr_time + LIFETIME.mul_f32(projectile_args.lifetime_mult),
-                damage: projectile_args.damage,
-                hit_behavior: engine::actors::projectile::ProjecileHitBehavior::None,
-                on_hit: None,
-            }),
+            SceneRoot(res.scene.clone_weak()),
+            Aabb::centered(1.5 * Vec3::ONE),
+            Restitution(1.),
+            Drag(0.),
             AudioPlayer(res.spawn_audio.clone()),
             PlaybackSettings::ONCE,
+            Projectile {
+                hit_behavior: engine::actors::projectile::ProjecileHitBehavior::None,
+                ..proj
+            },
         ));
     }
 }

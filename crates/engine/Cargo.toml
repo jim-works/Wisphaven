@@ -27,6 +27,7 @@ serde_with = { workspace = true }
 bevy_hanabi = { workspace = true }
 bitflags = { workspace = true }
 regex = { workspace = true }
+serde_json = { workspace = true }
 #internal deps
 util = { path = "../util" }
 world = { path = "../world" }

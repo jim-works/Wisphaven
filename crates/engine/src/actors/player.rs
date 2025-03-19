@@ -7,7 +7,7 @@ use lightyear::{prelude::client::Predicted, shared::replication::components::Con
 use player_controller::RotateWithMouse;
 
 use crate::{
-    actors::{ghost::FloatBoost, team::PlayerTeam, Invulnerability, MoveSpeed},
+    actors::{Invulnerability, MoveSpeed, ghost::FloatBoost},
     camera::MainCamera,
     controllers::*,
     items::{
@@ -18,13 +18,13 @@ use crate::{
 };
 
 use super::{
+    Combatant, CombatantBundle, Damage, DeathInfo,
     abilities::{
         dash::Dash,
         stamina::{RestoreStaminaDuringDay, Stamina},
     },
     death_effects::RestoreStaminaOnKill,
-    ghost::{spawn_ghost_hand, Float, GhostResources, Handed},
-    Combatant, CombatantBundle, Damage, DeathInfo,
+    ghost::{Float, GhostResources, Handed, spawn_ghost_hand},
 };
 use interfaces::components::RemoteClient;
 use interfaces::resources::HeldItemResources;
@@ -351,7 +351,7 @@ fn populate_player_entity(
             },
         ),
         Dash::new(0.5, Duration::from_secs_f32(0.5)),
-        CombatantBundle::<PlayerTeam> {
+        CombatantBundle {
             combatant: Combatant::new(10.0, 0.0),
             death_info: DeathInfo {
                 death_type: crate::actors::DeathType::LocalPlayer,

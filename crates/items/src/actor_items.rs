@@ -154,6 +154,7 @@ fn do_spawn_actors(
                     &item.0,
                     &mut commands,
                     Transform::from_translation(spawn_pos),
+                    None,
                 );
                 hit_writer.send(UseEndEvent {
                     user: *user,

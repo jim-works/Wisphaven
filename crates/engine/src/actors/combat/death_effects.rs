@@ -27,7 +27,9 @@ fn restore_stamina_on_death(
         damage_taken: _,
     } in reader.read()
     {
-        if let Ok((mut stamina, effect)) = query.get_mut(final_blow.attacker) {
+        if let Some(attacker_entity) = final_blow.attacker
+            && let Ok((mut stamina, effect)) = query.get_mut(attacker_entity)
+        {
             stamina.change(effect.amount);
         }
     }

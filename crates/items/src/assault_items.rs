@@ -1,12 +1,16 @@
 use std::{sync::Arc, time::Duration};
 
+use actors::skeleton_pirate::SpawnSkeletonPirate;
 use bevy::prelude::*;
 
-use engine::items::{HitResult, UseEndEvent, UseItemEvent};
+use engine::{
+    actors::ActorName,
+    items::{HitResult, UseEndEvent, UseItemEvent},
+};
 use interfaces::scheduling::{GameState, ItemSystemSet};
 use waves::waves::{
-    spawns::{DefaultSpawn, SkeletonPirateSpawn},
     Assault, SpawnStrategy, SpawnableEntity, WaveInfo, WaveSpawn, WaveSpawnType,
+    spawns::{DefaultSpawn, DirectSpawn},
 };
 use world::atmosphere::Calendar;
 
@@ -142,11 +146,11 @@ fn use_assault_summoner_item(
                 let mut spawns = vec![
                     SpawnableEntity {
                         strength: 1.,
-                        action: Box::new(SkeletonPirateSpawn),
+                        action: Box::new(DirectSpawn(SpawnSkeletonPirate)),
                     },
                     SpawnableEntity {
                         strength: 10.,
-                        action: Box::new(DefaultSpawn(Arc::new("slither_spine".to_string()))),
+                        action: Box::new(DefaultSpawn(Arc::new(ActorName::core("slither_spine")))),
                     },
                 ];
                 spawns.sort_by(|a, b| a.strength.total_cmp(&b.strength));

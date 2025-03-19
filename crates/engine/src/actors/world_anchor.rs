@@ -1,16 +1,17 @@
 use core::f32;
 
-use crate::util::SendEventCommand;
 use bevy::prelude::*;
 use interfaces::scheduling::*;
-use physics::{collision::Aabb, movement::Mass, PhysicsBundle};
+use physics::{PhysicsBundle, collision::Aabb, movement::Mass};
+use serde::Deserialize;
 use world::{
     atmosphere::Calendar, chunk_loading::ChunkLoader, level::Level, settings::Settings,
     spawn_point::SpawnPoint,
 };
 
 use super::{
-    team::PlayerTeam, ActorName, ActorResources, Combatant, CombatantBundle, DeathEvent, DeathInfo,
+    ActorName, ActorResources, BuildActorRegistry, Combatant, CombatantBundle, DeathEvent,
+    DeathInfo, SpawnActorEvent,
 };
 
 #[derive(Resource)]
@@ -25,10 +26,8 @@ pub struct WorldAnchor;
 #[derive(Component)]
 pub struct ActiveWorldAnchor;
 
-#[derive(Event)]
-pub struct SpawnWorldAnchorEvent {
-    pub location: Transform,
-}
+#[derive(Default, Debug, Deserialize)]
+pub struct SpawnWorldAnchor;
 
 pub struct WorldAnchorPlugin;
 
@@ -42,17 +41,13 @@ impl Plugin for WorldAnchorPlugin {
             )
             .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
             .add_observer(on_world_anchor_destroyed)
-            .add_event::<SpawnWorldAnchorEvent>();
+            .add_actor::<SpawnWorldAnchor>(ActorName::core("world_anchor"));
     }
 }
 
 fn add_to_registry(mut res: ResMut<ActorResources>) {
-    res.registry.add_dynamic(
-        ActorName::core("world_anchor"),
-        Box::new(|commands, tf| {
-            commands.queue(SendEventCommand(SpawnWorldAnchorEvent { location: tf }))
-        }),
-    );
+    res.registry
+        .add_dynamic::<SpawnWorldAnchor>(ActorName::core("world_anchor"));
 }
 
 pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
@@ -62,19 +57,20 @@ pub fn load_resources(mut commands: Commands, assets: Res<AssetServer>) {
 }
 
 fn trigger_spawning(
-    mut writer: EventWriter<SpawnWorldAnchorEvent>,
+    mut writer: EventWriter<SpawnActorEvent<SpawnWorldAnchor>>,
     spawn_point: Res<SpawnPoint>,
     level: Res<Level>,
 ) {
-    writer.send(SpawnWorldAnchorEvent {
-        location: Transform::from_translation(spawn_point.get_spawn_point(&level)),
+    writer.send(SpawnActorEvent {
+        transform: Transform::from_translation(spawn_point.get_spawn_point(&level)),
+        ..default()
     });
 }
 
 pub fn spawn_world_anchor(
     mut commands: Commands,
     res: Res<WorldAnchorResources>,
-    mut spawn_requests: EventReader<SpawnWorldAnchorEvent>,
+    mut spawn_requests: EventReader<SpawnActorEvent<SpawnWorldAnchor>>,
     settings: Res<Settings>,
     _children_query: Query<&Children>,
 ) {
@@ -83,9 +79,9 @@ pub fn spawn_world_anchor(
             .spawn((
                 StateScoped(LevelLoadState::Loaded),
                 SceneRoot(res.scene.clone_weak()),
-                spawn.location.with_scale(Vec3::new(2.0, 2.0, 2.0)),
+                spawn.transform.with_scale(Vec3::new(2.0, 2.0, 2.0)),
                 Name::new("world anchor"),
-                CombatantBundle::<PlayerTeam> {
+                CombatantBundle {
                     combatant: Combatant::new(10., 0.),
                     death_info: DeathInfo {
                         death_type: super::DeathType::Immortal,

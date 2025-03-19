@@ -53,6 +53,7 @@ bitflags = "2.6.0"
 # already included in naga_oil
 regex = "1.11.1"
 bevy_simple_text_input = "0.10.1"
+serde_json = "1.0.140"
 
 [dependencies]
 ahash = { workspace = true }

@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use crate::all_teams_system;
 use bevy::prelude::*;
 use interfaces::scheduling::*;
 use physics::{
@@ -17,19 +16,17 @@ impl Plugin for ProjectilePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             FixedUpdate,
-            (
-                all_teams_system!(test_projectile_hit),
-                update_projectile_lifetime,
-            )
+            (test_projectile_hit, update_projectile_lifetime)
                 .in_set(LevelSystemSet::PreTick)
                 .chain(),
         );
     }
 }
 
+// use observer, triggered when projectile lifetime ends or hits something
+#[derive(Event)]
 pub struct ProjectileHit {
     hit: Option<Entity>,
-    projectile: Entity,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -39,37 +36,33 @@ pub enum ProjecileHitBehavior {
     None,
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct Projectile {
-    pub owner: Entity,
+    pub owner: Option<Entity>,
     pub damage: Damage,
     pub terrain_damage: f32,
     pub knockback_mult: f32,
     pub despawn_time: Duration,
     pub hit_behavior: ProjecileHitBehavior,
-    //usually want same behavior for both, so one function
-    pub on_hit: Option<Box<dyn Fn(ProjectileHit, &mut Commands) + Send + Sync>>,
+}
+
+impl Default for Projectile {
+    fn default() -> Self {
+        Self {
+            owner: None,
+            damage: default(),
+            terrain_damage: 0.,
+            knockback_mult: 0.,
+            despawn_time: Duration::from_secs(5),
+            hit_behavior: default(),
+        }
+    }
 }
 
 //makrs that a projectile could spawn inside of an entity, and should ignore that entity until it is not inside it.
 #[derive(Component)]
+#[require(Projectile)]
 pub struct ProjectileSpawnedInEntity(pub Entity);
-
-#[derive(Bundle)]
-pub struct ProjectileBundle {
-    pub projectile: Projectile,
-    pub inside_entity: ProjectileSpawnedInEntity,
-}
-
-impl ProjectileBundle {
-    //can set projectile.owner to Entity::PLACEHOLDER if projectile doesn't have one
-    pub fn new(projectile: Projectile) -> Self {
-        Self {
-            inside_entity: ProjectileSpawnedInEntity(projectile.owner),
-            projectile,
-        }
-    }
-}
 
 fn update_projectile_lifetime(
     query: Query<(Entity, &Projectile)>,
@@ -79,41 +72,37 @@ fn update_projectile_lifetime(
     let curr_time = time.elapsed();
     for (entity, proj) in query.iter() {
         if proj.despawn_time < curr_time {
-            if let Some(action) = &proj.on_hit {
-                action(
-                    ProjectileHit {
-                        hit: None,
-                        projectile: entity,
-                    },
-                    &mut commands,
-                );
-            }
+            commands.trigger_targets(ProjectileHit { hit: None }, entity);
             commands.entity(entity).despawn_recursive();
         }
     }
 }
 
 //todo - add collision events
-fn test_projectile_hit<T: Team>(
-    query: Query<
-        (
-            Entity,
-            &GlobalTransform,
-            &Projectile,
-            Option<&Velocity>,
-            Option<&ProjectileSpawnedInEntity>,
-            &CollidingBlocks,
-            &Aabb,
-        ),
-        With<T>,
-    >,
+fn test_projectile_hit(
+    query: Query<(
+        Entity,
+        &GlobalTransform,
+        &Projectile,
+        Option<&Velocity>,
+        Option<&ProjectileSpawnedInEntity>,
+        &CollidingBlocks,
+        &Aabb,
+        &Team,
+    )>,
     mut attack_writer: EventWriter<AttackEvent>,
     mut commands: Commands,
-    object_query: Query<(Entity, &GlobalTransform, &Aabb), T::Targets>,
+    object_query: Query<(Entity, &GlobalTransform, &Aabb, &Team)>,
     mut damage_writer: EventWriter<DealBlockDamageEvent>,
 ) {
-    for (proj_entity, tf, proj, v, opt_in_entity, colliding_blocks, aabb) in query.iter() {
-        let opt_hit_entity = test_box::<T>(tf.translation(), *aabb, &object_query, &[proj_entity]);
+    for (proj_entity, tf, proj, v, opt_in_entity, colliding_blocks, aabb, my_team) in query.iter() {
+        let opt_hit_entity = test_box(
+            *my_team,
+            tf.translation(),
+            *aabb,
+            &object_query,
+            &[proj_entity],
+        );
         if opt_hit_entity.is_some() || !colliding_blocks.is_empty() {
             let hit_blocks = colliding_blocks.iter().map(|&(coord, _, _)| coord);
             if let Some(&ProjectileSpawnedInEntity(ignore)) = opt_in_entity {
@@ -130,16 +119,12 @@ fn test_projectile_hit<T: Team>(
                     knockback: v.map_or(Vec3::ZERO, |v| v.0 * proj.knockback_mult),
                 });
             }
-
-            if let Some(ref on_hit) = proj.on_hit {
-                on_hit(
-                    ProjectileHit {
-                        hit: opt_hit_entity,
-                        projectile: proj_entity,
-                    },
-                    &mut commands,
-                );
-            }
+            commands.trigger_targets(
+                ProjectileHit {
+                    hit: opt_hit_entity,
+                },
+                proj_entity,
+            );
             for block_position in hit_blocks {
                 damage_writer.send(DealBlockDamageEvent {
                     block_position,

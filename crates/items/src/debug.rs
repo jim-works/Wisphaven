@@ -33,7 +33,7 @@ fn use_suicide_pill(
             attack_writer.send(DeathEvent {
                 final_blow: DamageTakenEvent {
                     target: *user,
-                    attacker: Entity::PLACEHOLDER,
+                    attacker: Some(Entity::PLACEHOLDER),
                     damage: engine::actors::Damage::new(0.0),
                     knockback_impulse: Vec3::ZERO,
                     hit_location: Vec3::ZERO,

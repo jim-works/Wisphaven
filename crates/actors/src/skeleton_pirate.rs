@@ -3,22 +3,24 @@ use big_brain::prelude::*;
 
 use engine::{
     actors::{
-        ai::{scorers::AggroScorer, AttackAction, WalkToCurrentTargetAction},
+        ActorName, ActorResources, AggroPlayer, AggroTargets, BuildActorRegistry, Combatant,
+        CombatantBundle, Damage, DefaultAnimation, Jump, MoveSpeed, SpawnActorEvent,
+        UninitializedActor,
+        ai::{AttackAction, WalkToCurrentTargetAction, scorers::AggroScorer},
         damage::KillOnSunrise,
-        team::EnemyTeam,
+        team::ENEMY_TEAM,
         world_anchor::WorldAnchor,
-        ActorName, ActorResources, AggroPlayer, AggroTargets, Combatant, CombatantBundle, Damage,
-        DefaultAnimation, Jump, MoveSpeed, UninitializedActor,
     },
     controllers::{ControllableBundle, JumpBundle},
 };
 use interfaces::scheduling::LevelLoadState;
-use physics::{collision::Aabb, movement::Velocity, PhysicsBundle, GRAVITY};
-use util::{physics::aim_projectile_straight_fallback, plugin::SmoothLookTo, SendEventCommand};
+use physics::{GRAVITY, PhysicsBundle, collision::Aabb, movement::Velocity};
+use serde::Deserialize;
+use util::{physics::aim_projectile_straight_fallback, plugin::SmoothLookTo};
 
-use crate::spawning::{DefaultSpawnArgs, ProjectileSpawnArgs};
+use crate::spawning::{ProjectileSpawnArgs, SpawnProjectileEvent};
 
-use super::coin::SpawnCoinEvent;
+use super::coin::SpawnCoin;
 
 #[derive(Resource)]
 pub struct SkeletonPirateResources {
@@ -36,10 +38,8 @@ pub struct SkeletonPirate {
 #[derive(Component)]
 pub struct SkeletonPirateScene;
 
-#[derive(Event)]
-pub struct SpawnSkeletonPirateEvent {
-    pub location: Transform,
-}
+#[derive(Event, Deserialize, Debug, Default, Clone)]
+pub struct SpawnSkeletonPirate;
 
 pub struct SkeletonPiratePlugin;
 
@@ -48,7 +48,7 @@ impl Plugin for SkeletonPiratePlugin {
         app.add_systems(Startup, (load_resources, add_to_registry))
             .add_systems(PreUpdate, attack.in_set(BigBrainSet::Actions))
             .add_systems(Update, spawn_skeleton_pirate)
-            .add_event::<SpawnSkeletonPirateEvent>();
+            .add_actor::<SpawnSkeletonPirate>(ActorName::core("skeleton_pirate"));
     }
 }
 
@@ -68,18 +68,14 @@ pub fn load_resources(
 }
 
 fn add_to_registry(mut res: ResMut<ActorResources>) {
-    res.registry.add_dynamic(
-        ActorName::core("skeleton_pirate"),
-        Box::new(|commands, tf| {
-            commands.queue(SendEventCommand(SpawnSkeletonPirateEvent { location: tf }))
-        }),
-    );
+    res.registry
+        .add_dynamic::<SpawnSkeletonPirate>(ActorName::core("skeleton_pirate"));
 }
 
 pub fn spawn_skeleton_pirate(
     mut commands: Commands,
     skele_res: Res<SkeletonPirateResources>,
-    mut spawn_requests: EventReader<SpawnSkeletonPirateEvent>,
+    mut spawn_requests: EventReader<SpawnActorEvent<SpawnSkeletonPirate>>,
     anchor: Query<Entity, With<WorldAnchor>>,
 ) {
     let anchor_entity = anchor.get_single().ok().unwrap_or(Entity::PLACEHOLDER);
@@ -89,11 +85,12 @@ pub fn spawn_skeleton_pirate(
         commands.spawn((
             StateScoped(LevelLoadState::Loaded),
             SceneRoot(skele_res.scene.clone_weak()),
-            spawn.location,
+            spawn.transform,
             Name::new("SkeletonPirate"),
             (
-                CombatantBundle::<EnemyTeam> {
+                CombatantBundle {
                     combatant: Combatant::new(10.0, 0.0),
+                    team: ENEMY_TEAM,
                     ..default()
                 },
                 PhysicsBundle {
@@ -207,12 +204,11 @@ fn attack(
         With<SkeletonPirate>,
     >,
     aggro_query: Query<(&GlobalTransform, Option<&Velocity>)>,
-    mut spawn_coin: EventWriter<SpawnCoinEvent<EnemyTeam>>,
+    mut spawn_coin: EventWriter<SpawnProjectileEvent<SpawnCoin>>,
     time: Res<Time>,
 ) {
     const COIN_OFFSET: Vec3 = Vec3::new(0.0, 2.0, 0.0);
     const THROW_IMPULSE: f32 = 0.5;
-    let combat = CombatantBundle::default();
     let damage = Damage::new(1.0);
     for (&Actor(actor), mut state) in action_query.iter_mut() {
         match *state {
@@ -233,11 +229,8 @@ fn attack(
                             Some(mut anim) => {
                                 anim.tick(time.delta_secs());
                                 if anim.just_acted() {
-                                    spawn_coin.send(SpawnCoinEvent::<EnemyTeam> {
-                                        default_args: DefaultSpawnArgs {
-                                            transform: Transform::from_translation(spawn_point),
-                                        },
-                                        projectile_args: ProjectileSpawnArgs {
+                                    spawn_coin.send(SpawnProjectileEvent::<SpawnCoin> {
+                                        args: ProjectileSpawnArgs {
                                             velocity: Velocity(aim_projectile_straight_fallback(
                                                 target.translation() - spawn_point,
                                                 target_v_opt.unwrap_or(&Velocity::default()).0
@@ -245,11 +238,14 @@ fn attack(
                                                 THROW_IMPULSE,
                                                 GRAVITY,
                                             )),
-                                            combat: combat.clone(),
-                                            owner: actor,
                                             damage,
-                                            ..ProjectileSpawnArgs::new(actor)
+                                            ..ProjectileSpawnArgs::new(
+                                                Some(actor),
+                                                ENEMY_TEAM,
+                                                Transform::from_translation(spawn_point),
+                                            )
                                         },
+                                        ..default()
                                     });
                                 }
                                 if anim.finished() {
@@ -259,22 +255,22 @@ fn attack(
                             }
                             None => {
                                 //no anim so gogogogogogogogogogogogo
-                                spawn_coin.send(SpawnCoinEvent::<EnemyTeam> {
-                                    default_args: DefaultSpawnArgs {
-                                        transform: Transform::from_translation(spawn_point),
-                                    },
-                                    projectile_args: ProjectileSpawnArgs {
+                                spawn_coin.send(SpawnProjectileEvent::<SpawnCoin> {
+                                    args: ProjectileSpawnArgs {
                                         velocity: Velocity(aim_projectile_straight_fallback(
                                             target.translation() - spawn_point,
                                             target_v_opt.unwrap_or(&Velocity::default()).0 - v.0,
                                             THROW_IMPULSE,
                                             GRAVITY,
                                         )),
-                                        combat: combat.clone(),
-                                        owner: actor,
                                         damage,
-                                        ..ProjectileSpawnArgs::new(actor)
+                                        ..ProjectileSpawnArgs::new(
+                                            Some(actor),
+                                            ENEMY_TEAM,
+                                            Transform::from_translation(spawn_point),
+                                        )
                                     },
+                                    ..default()
                                 });
                                 *state = ActionState::Success;
                                 continue;

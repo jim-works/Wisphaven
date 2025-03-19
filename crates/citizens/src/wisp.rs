@@ -6,18 +6,16 @@ use interfaces::{
     resources::HeldItemResources,
     scheduling::{LevelLoadState, LevelSystemSet},
 };
-use physics::{
-    PhysicsBundle,
-    collision::Aabb,
-    movement::{GravityMult, Mass},
-};
-use util::{SendEventCommand, lerp, plugin::SmoothLookTo};
+use physics::{PhysicsBundle, collision::Aabb, movement::Mass};
+use serde::Deserialize;
+use util::{lerp, plugin::SmoothLookTo};
 
 use engine::{
     actors::{
-        ActorName, ActorResources, Combatant, CombatantBundle, Idler,
+        ActorName, ActorResources, BuildActorRegistry, Combatant, CombatantBundle, Idler,
+        SpawnActorEvent,
         ghost::{Float, GhostResources, Handed, OrbitParticle},
-        team::PlayerTeam,
+        team::PLAYER_TEAM,
     },
     items::{ItemName, ItemResources, ItemStack, inventory::Inventory},
 };
@@ -31,9 +29,8 @@ pub struct WispResources {
 #[derive(Component, Default)]
 pub struct Wisp;
 
-#[derive(Event)]
-pub struct SpawnWispEvent {
-    pub location: Transform,
+#[derive(Event, Deserialize, Default, Debug)]
+pub struct SpawnWisp {
     pub handed: Handed,
 }
 
@@ -43,7 +40,7 @@ impl Plugin for WispPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (load_resources, add_to_registry))
             .add_systems(FixedUpdate, spawn_wisp.in_set(LevelSystemSet::Tick))
-            .add_event::<SpawnWispEvent>();
+            .add_actor::<SpawnWisp>(ActorName::core("wisp"));
     }
 }
 
@@ -59,15 +56,8 @@ pub fn load_resources(
 }
 
 fn add_to_registry(mut res: ResMut<ActorResources>) {
-    res.registry.add_dynamic(
-        ActorName::core("wisp"),
-        Box::new(|commands, tf| {
-            commands.queue(SendEventCommand(SpawnWispEvent {
-                location: tf,
-                handed: Handed::Left,
-            }))
-        }),
-    );
+    res.registry
+        .add_dynamic::<SpawnWisp>(ActorName::core("wisp"));
 }
 
 fn spawn_wisp(
@@ -75,7 +65,7 @@ fn spawn_wisp(
     res: Res<GhostResources>,
     items: Res<ItemResources>,
     held_item_resources: Res<HeldItemResources>,
-    mut spawn_requests: EventReader<SpawnWispEvent>,
+    mut spawn_requests: EventReader<SpawnActorEvent<SpawnWisp>>,
 ) {
     const MIN_PARTICLE_SIZE: f32 = 0.225;
     const MAX_PARTICLE_SIZE: f32 = 0.7;
@@ -91,11 +81,12 @@ fn spawn_wisp(
                 MeshMaterial3d(res.material.clone()),
                 Mesh3d(res.center_mesh.clone()),
                 spawn
-                    .location
-                    .with_translation(spawn.location.translation + Vec3::Y),
-                Name::new("ghost"),
-                CombatantBundle::<PlayerTeam> {
+                    .transform
+                    .with_translation(spawn.transform.translation + Vec3::Y),
+                Name::new("wisp"),
+                CombatantBundle {
                     combatant: Combatant::new(10.0, 0.),
+                    team: PLAYER_TEAM,
                     ..default()
                 },
                 PhysicsBundle {
@@ -159,7 +150,7 @@ fn spawn_wisp(
         //right hand
         let right_hand_entity = engine::actors::ghost::spawn_ghost_hand(
             ghost_entity,
-            spawn.location,
+            spawn.transform,
             Vec3::new(0.5, -0.2, -0.6),
             Vec3::new(0.6, 0.2, -0.5),
             0.15,
@@ -170,7 +161,7 @@ fn spawn_wisp(
         //left hand
         let left_hand_entity = engine::actors::ghost::spawn_ghost_hand(
             ghost_entity,
-            spawn.location,
+            spawn.transform,
             Vec3::new(-0.5, -0.2, -0.6),
             Vec3::new(-0.6, 0.2, -0.5),
             0.15,
@@ -178,7 +169,7 @@ fn spawn_wisp(
             &res,
             &mut commands,
         );
-        spawn.handed.assign_hands(
+        spawn.event.handed.assign_hands(
             ghost_entity,
             left_hand_entity,
             right_hand_entity,

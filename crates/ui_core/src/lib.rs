@@ -2,11 +2,9 @@ use bevy::{
     input::mouse::{MouseScrollUnit, MouseWheel},
     picking::focus::{HoverMap, PickingInteraction},
     prelude::*,
-    window::CursorGrabMode,
 };
 use debug::TextStyle;
-use engine::{camera::MainCamera, controllers::Action};
-use leafwing_input_manager::prelude::*;
+use engine::camera::MainCamera;
 
 pub struct UICorePlugin;
 

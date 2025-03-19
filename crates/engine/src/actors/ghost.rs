@@ -1,16 +1,15 @@
 use std::{array, f32::consts::PI};
 
 use bevy::{math::primitives, prelude::*};
-use util::{
-    ease_in_back, ease_in_out_quad, iterators::*, lerp, plugin::SmoothLookTo, SendEventCommand,
-};
+use serde::{Deserialize, Serialize};
+use util::{ease_in_back, ease_in_out_quad, iterators::*, lerp, plugin::SmoothLookTo};
 
-use world::{level::Level, settings::GraphicsSettings, FixedUpdateBlockGizmos};
+use world::{FixedUpdateBlockGizmos, level::Level, settings::GraphicsSettings};
 
 use physics::{
+    PhysicsBundle,
     collision::{Aabb, BlockPhysics},
     movement::{GravityMult, Mass, Velocity},
-    PhysicsBundle,
 };
 
 use interfaces::{
@@ -19,18 +18,16 @@ use interfaces::{
     scheduling::*,
 };
 
-use crate::{
-    actors::team::PlayerTeam,
-    items::{
-        inventory::Inventory,
-        item_attributes::{ItemSwingSpeed, ItemUseSpeed},
-        HitResult, ItemName, ItemResources, ItemStack, StartSwingingItemEvent, StartUsingItemEvent,
-        SwingEndEvent, UseEndEvent,
-    },
+use crate::items::{
+    HitResult, ItemName, ItemResources, ItemStack, StartSwingingItemEvent, StartUsingItemEvent,
+    SwingEndEvent, UseEndEvent,
+    inventory::Inventory,
+    item_attributes::{ItemSwingSpeed, ItemUseSpeed},
 };
 
 use super::{
-    abilities::stamina::Stamina, ActorName, ActorResources, Combatant, CombatantBundle, Idler,
+    ActorName, ActorResources, BuildActorRegistry, Combatant, CombatantBundle, Idler,
+    SpawnActorEvent, abilities::stamina::Stamina,
 };
 
 const GHOST_PARTICLE_COUNT: u32 = 7;
@@ -80,7 +77,7 @@ impl Default for FloatBoost {
     fn default() -> Self {
         Self {
             extra_height: 3.0,
-            gravity_mult: 0.25,
+            gravity_mult: 0.0,
             stamina_per_tick: 1.0 / 64.0,
             enabled: false,
             effects_added: false,
@@ -109,8 +106,9 @@ impl FloatBoost {
     }
 }
 
-#[derive(Component, Clone, Copy)]
+#[derive(Component, Clone, Copy, Serialize, Deserialize, Default, Debug)]
 pub enum Handed {
+    #[default]
     Left,
     Right,
 }
@@ -182,9 +180,8 @@ impl OrbitParticle {
     }
 }
 
-#[derive(Event)]
-pub struct SpawnGhostEvent {
-    pub location: Transform,
+#[derive(Event, Deserialize, Default, Debug)]
+pub struct SpawnGhost {
     pub handed: Handed,
 }
 
@@ -193,7 +190,6 @@ pub struct GhostPlugin;
 impl Plugin for GhostPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (load_resources, add_to_registry))
-            // .add_systems(OnEnter(LevelLoadState::Loaded), trigger_spawning)
             .add_systems(
                 Update,
                 (
@@ -209,7 +205,7 @@ impl Plugin for GhostPlugin {
                     .chain()
                     .in_set(PhysicsLevelSet::Main),
             )
-            .add_event::<SpawnGhostEvent>();
+            .add_actor::<SpawnGhost>(ActorName::core("ghost"));
     }
 }
 
@@ -246,30 +242,9 @@ pub fn load_resources(
     });
 }
 
-fn trigger_spawning(mut writer: EventWriter<SpawnGhostEvent>) {
-    for i in 0..5 {
-        writer.send(SpawnGhostEvent {
-            location: Transform::from_xyz((i % 5) as f32 * -5.0, (i / 5) as f32 * 5.0 + 50.0, 0.0)
-                .with_rotation(Quat::from_euler(EulerRot::XYZ, 0.0, PI, 0.0)),
-            handed: if i % 2 == 0 {
-                Handed::Right
-            } else {
-                Handed::Left
-            },
-        });
-    }
-}
-
 fn add_to_registry(mut res: ResMut<ActorResources>) {
-    res.registry.add_dynamic(
-        ActorName::core("ghost"),
-        Box::new(|commands, tf| {
-            commands.queue(SendEventCommand(SpawnGhostEvent {
-                location: tf,
-                handed: Handed::Right,
-            }))
-        }),
-    );
+    res.registry
+        .add_dynamic::<SpawnGhost>(ActorName::core("ghost"));
 }
 
 fn spawn_ghost(
@@ -277,7 +252,7 @@ fn spawn_ghost(
     res: Res<GhostResources>,
     items: Res<ItemResources>,
     held_item_resources: Res<HeldItemResources>,
-    mut spawn_requests: EventReader<SpawnGhostEvent>,
+    mut spawn_requests: EventReader<SpawnActorEvent<SpawnGhost>>,
 ) {
     const MIN_PARTICLE_SIZE: f32 = 0.225;
     const MAX_PARTICLE_SIZE: f32 = 0.7;
@@ -291,9 +266,9 @@ fn spawn_ghost(
                 StateScoped(LevelLoadState::Loaded),
                 MeshMaterial3d(res.material.clone()),
                 Mesh3d(res.center_mesh.clone()),
-                spawn.location,
+                spawn.transform,
                 Name::new("ghost"),
-                CombatantBundle::<PlayerTeam> {
+                CombatantBundle {
                     combatant: Combatant::new(10.0, 0.),
                     ..default()
                 },
@@ -358,7 +333,7 @@ fn spawn_ghost(
         //right hand
         let right_hand_entity = spawn_ghost_hand(
             ghost_entity,
-            spawn.location,
+            spawn.transform,
             Vec3::new(0.5, -0.2, -0.6),
             Vec3::new(0.6, 0.2, -0.5),
             0.15,
@@ -369,7 +344,7 @@ fn spawn_ghost(
         //left hand
         let left_hand_entity = spawn_ghost_hand(
             ghost_entity,
-            spawn.location,
+            spawn.transform,
             Vec3::new(-0.5, -0.2, -0.6),
             Vec3::new(-0.6, 0.2, -0.5),
             0.15,
@@ -377,7 +352,7 @@ fn spawn_ghost(
             &res,
             &mut commands,
         );
-        spawn.handed.assign_hands(
+        spawn.event.handed.assign_hands(
             ghost_entity,
             left_hand_entity,
             right_hand_entity,

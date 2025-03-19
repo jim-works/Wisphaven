@@ -1,9 +1,9 @@
 use core::f32;
 
 use bevy::prelude::*;
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 
-use crate::items::{loot::CachedLootTable, SpawnDroppedItemEvent};
+use crate::items::{SpawnDroppedItemEvent, loot::CachedLootTable};
 
 use physics::movement::{Mass, Velocity};
 use world::atmosphere::DayStartedEvent;
@@ -82,7 +82,13 @@ fn update_health(
             if invulnerability.is_active(current_time) {
                 info!(
                     "{:?} tried to attack {:?} for {} damage, but they were invulnerable",
-                    name_query.get(attack.attacker).map_err(|_| attack.attacker),
+                    attack
+                        .attacker
+                        .map(|e| name_query
+                            .get(e)
+                            .map(|name| name.as_str())
+                            .map_err(|_| attack.attacker))
+                        .unwrap_or(Ok("None")),
                     name_query.get(attack.target).map_err(|_| attack.target),
                     attack.damage.amount,
                 );
@@ -95,7 +101,13 @@ fn update_health(
                 health.current = (health.current - attack.damage.amount).max(0.0);
                 info!(
                     "{:?} attacked {:?} for {} damage (new health={})",
-                    name_query.get(attack.attacker).map_err(|_| attack.attacker),
+                    attack
+                        .attacker
+                        .map(|e| name_query
+                            .get(e)
+                            .map(|name| name.as_str())
+                            .map_err(|_| attack.attacker))
+                        .unwrap_or(Ok("None")),
                     name_query.get(attack.target).map_err(|_| attack.target),
                     attack.damage.amount,
                     health.current
@@ -216,7 +228,7 @@ fn kill_on_sunrise(
     reader.clear();
     for entity in query.iter() {
         writer.send(AttackEvent {
-            attacker: level_entity.0,
+            attacker: Some(level_entity.0),
             target: entity,
             damage: Damage {
                 amount: f32::INFINITY,
