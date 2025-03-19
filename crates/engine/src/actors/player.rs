@@ -63,12 +63,13 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(LevelLoadState::Loaded), trigger_local_player_spawn)
             .add_systems(
-                Update,
+                FixedUpdate,
                 (
                     (spawn_local_player, spawn_remote_player)
                         .run_if(resource_exists::<HeldItemResources>),
                     handle_disconnect,
-                ),
+                )
+                    .in_set(LevelSystemSet::PreTick),
             )
             .add_systems(
                 FixedUpdate,

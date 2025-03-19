@@ -48,7 +48,10 @@ pub struct ChunkLoadingTimer {
 }
 
 #[derive(Event)]
-pub struct DespawnChunkEvent(pub Entity);
+pub struct DespawnChunkEvent {
+    pub entity: Entity,
+    pub coords: ChunkCoord,
+}
 
 pub fn do_loading(
     mut commands: Commands,
@@ -117,9 +120,9 @@ pub fn do_loading(
             }
         }
     }
-    for (coord, entity) in to_unload {
-        if level.remove_chunk(coord).is_some() {
-            despawn_writer.send(DespawnChunkEvent(entity));
+    for (coords, entity) in to_unload {
+        if level.remove_chunk(coords).is_some() {
+            despawn_writer.send(DespawnChunkEvent { entity, coords });
         }
     }
     //unload lods (i=lod-1)
@@ -135,11 +138,16 @@ pub fn do_loading(
             }
         }
     }
-    for (lod, coord) in to_unload_lod {
-        if let Some((_, lodtype)) = level.remove_lod_chunk(lod, coord) {
+    for (lod, coords) in to_unload_lod {
+        if let Some((_, lodtype)) = level.remove_lod_chunk(lod, coords) {
             match lodtype {
-                LODChunkType::Ungenerated(id, _) => despawn_writer.send(DespawnChunkEvent(id)),
-                LODChunkType::Full(c) => despawn_writer.send(DespawnChunkEvent(c.entity)),
+                LODChunkType::Ungenerated(id, _) => {
+                    despawn_writer.send(DespawnChunkEvent { entity: id, coords })
+                }
+                LODChunkType::Full(c) => despawn_writer.send(DespawnChunkEvent {
+                    entity: c.entity,
+                    coords,
+                }),
             };
         }
     }
@@ -187,8 +195,9 @@ fn load_lod(
 
 pub fn despawn_chunks(mut commands: Commands, mut despawn_reader: EventReader<DespawnChunkEvent>) {
     let _my_span = info_span!("despawn_chunks", name = "despawn_chunks").entered();
-    for e in despawn_reader.read() {
-        if let Some(ec) = commands.get_entity(e.0) {
+    for DespawnChunkEvent { entity, coords } in despawn_reader.read() {
+        if let Some(ec) = commands.get_entity(*entity) {
+            info!("despawning chunk at {:?}", coords);
             ec.despawn_recursive();
         }
     }

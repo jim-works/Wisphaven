@@ -15,15 +15,13 @@ pub struct ChunkLoaderPlugin;
 impl Plugin for ChunkLoaderPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            Update,
-            entity_loader::do_loading.in_set(LevelSystemSet::LoadingAndMain),
+            FixedUpdate,
+            (entity_loader::do_loading, entity_loader::despawn_chunks)
+                .chain()
+                .in_set(LevelSystemSet::EndTickAndInLoading),
         )
         .add_systems(
-            PostUpdate,
-            entity_loader::despawn_chunks.in_set(LevelSystemSet::Despawn),
-        )
-        .add_systems(
-            Update,
+            FixedUpdate,
             (
                 finish_loading_trigger.run_if(
                     in_state(LevelLoadState::Loading).and(not(in_state(NetworkType::Client))),
@@ -33,10 +31,11 @@ impl Plugin for ChunkLoaderPlugin {
                     next_state.set(LevelLoadState::Loaded);
                 })
                 .run_if(in_state(LevelLoadState::Loading).and(in_state(ClientState::Ready))),
-            ),
+            )
+                .after(LevelSystemSet::EndTickAndInLoading),
         )
         .add_systems(OnEnter(LevelLoadState::Loading), on_load_level)
-        .add_systems(OnEnter(LevelLoadState::Loaded), despawn_initial_loader)
+        .add_systems(OnEnter(LevelLoadState::Loaded), alter_initial_loader)
         .insert_resource(ChunkLoadingTimer {
             timer: Timer::from_seconds(0.1, TimerMode::Repeating),
         })
@@ -101,11 +100,8 @@ pub fn finish_loading_trigger(
     }
 }
 
-pub fn despawn_initial_loader(
-    init_loader: Query<Entity, With<InitialLoader>>,
-    mut commands: Commands,
-) {
-    for entity in init_loader.iter() {
-        commands.entity(entity).despawn_recursive();
+pub fn alter_initial_loader(mut init_loader: Query<&mut ChunkLoader, With<InitialLoader>>) {
+    for mut loader in init_loader.iter_mut() {
+        loader.mesh = false;
     }
 }

@@ -62,11 +62,21 @@ impl Plugin for SchedulingPlugin {
                         .before(PhysicsSystemSet::Main)
                         .after(UtilSystemSet),
                     LevelSystemSet::Tick.in_set(PhysicsSystemSet::Main),
-                    LevelSystemSet::PostTick.after(PhysicsSystemSet::UpdateDerivatives),
+                    LevelSystemSet::PostTick
+                        .after(PhysicsSystemSet::UpdateDerivatives)
+                        .before(LevelSystemSet::EndTickAndInLoading),
                 )
                     .chain()
                     .run_if(in_state(LevelLoadState::Loaded))
                     .run_if(in_state(GameState::Game)),
+            )
+            .configure_sets(
+                FixedUpdate,
+                LevelSystemSet::EndTickAndInLoading.run_if(
+                    in_state(GameState::Game).and(
+                        in_state(LevelLoadState::Loading).or(in_state(LevelLoadState::Loaded)),
+                    ),
+                ),
             )
             .add_systems(
                 Update,
@@ -127,7 +137,7 @@ pub enum LevelSystemSet {
     Despawn,
     //Post-update, runs after both main and despawn, in LevelLoadState::Loaded
     PostUpdate,
-    //like main, but also runs in only runs in LevelLoadState::Loading
+    //like main, but also runs in runs in LevelLoadState::Loading
     LoadingAndMain,
     //Update, runs after main/loading in main, in LevelLoadState::Loaded and Loading
     //system buffers from main and loading and main applied beforehand
@@ -136,6 +146,8 @@ pub enum LevelSystemSet {
     PreTick,
     Tick,
     PostTick,
+    // last set, also runs in loading level state. used for chunk loading
+    EndTickAndInLoading,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, SubStates, Default)]

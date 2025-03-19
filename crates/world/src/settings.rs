@@ -29,7 +29,7 @@ impl Default for Settings {
         Self {
             init_loader: loader.clone(),
             player_loader: ChunkLoader {
-                radius: ChunkCoord::new(12, 8, 12),
+                radius: ChunkCoord::new(2, 2, 2),
                 ..loader.clone()
             },
             anchor_loader: ChunkLoader {
