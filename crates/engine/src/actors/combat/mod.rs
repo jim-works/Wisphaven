@@ -555,7 +555,7 @@ fn do_contact_damage(
 ) {
     const AABB_SCALE: Vec3 = Vec3::splat(1.1);
     for (entity, cd, gtf, aabb, attacker_team) in attacker_query.iter() {
-        for (target_entity, target_gtf, _, target_team) in
+        for (target_entity, target_gtf, _, _) in
             target_query
                 .iter()
                 .filter(move |(_, target_gtf, target_aabb, target_team)| {

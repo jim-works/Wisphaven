@@ -71,6 +71,7 @@ pub struct FloatBoost {
     pub stamina_per_tick: f32,
     pub enabled: bool,
     effects_added: bool,
+    delta_grav: f32,
 }
 
 impl Default for FloatBoost {
@@ -81,6 +82,7 @@ impl Default for FloatBoost {
             stamina_per_tick: 1.0 / 64.0,
             enabled: false,
             effects_added: false,
+            delta_grav: 0.0,
         }
     }
 }
@@ -820,12 +822,14 @@ fn float_boost(
         if boost.enabled && !boost.effects_added {
             //add effects
             float.target_ground_dist += boost.extra_height;
-            grav.scale(boost.gravity_mult);
+            let new_grav = grav.with_scale(boost.gravity_mult);
+            boost.delta_grav = grav.0 - new_grav.0;
+            *grav = new_grav;
             boost.effects_added = true;
         } else if !boost.enabled && boost.effects_added {
             //clear effects
             float.target_ground_dist -= boost.extra_height;
-            grav.scale(1. / boost.gravity_mult);
+            grav.0 += boost.delta_grav;
             boost.effects_added = false;
         }
     }

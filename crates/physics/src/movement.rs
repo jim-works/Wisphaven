@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use util::{iterators::AxisMap, project_onto_plane};
 
 use super::{
-    collision::{CollidingBlocks, Friction, IgnoreTerrainCollision},
     PhysicsSystemSet,
+    collision::{CollidingBlocks, Friction, IgnoreTerrainCollision},
 };
 
 //local space, without local rotation
@@ -51,7 +51,10 @@ impl GravityMult {
         self.0
     }
     pub fn scale(&mut self, factor: f32) {
-        self.0 *= factor;
+        *self = self.with_scale(factor);
+    }
+    pub fn with_scale(self, factor: f32) -> Self {
+        GravityMult::new(self.0 * factor)
     }
 }
 
