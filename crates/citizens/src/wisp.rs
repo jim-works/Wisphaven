@@ -4,9 +4,13 @@ use bevy::prelude::*;
 
 use interfaces::{
     resources::HeldItemResources,
-    scheduling::{LevelLoadState, LevelSystemSet},
+    scheduling::{LevelLoadState, LevelSystemSet, PhysicsLevelSet},
 };
-use physics::{PhysicsBundle, collision::Aabb, movement::Mass};
+use physics::{
+    PhysicsBundle,
+    collision::{Aabb, BlockPhysics},
+    movement::{Gravity, GravityMult, Mass, Velocity},
+};
 use serde::Deserialize;
 use util::{lerp, plugin::SmoothLookTo};
 
@@ -19,6 +23,7 @@ use engine::{
     },
     items::{ItemName, ItemResources, ItemStack, inventory::Inventory},
 };
+use world::{FixedUpdateBlockGizmos, level::Level};
 
 #[derive(Resource)]
 pub struct WispResources {
@@ -40,6 +45,7 @@ impl Plugin for WispPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (load_resources, add_to_registry))
             .add_systems(FixedUpdate, spawn_wisp.in_set(LevelSystemSet::Tick))
+            .add_systems(FixedUpdate, update_floater.in_set(PhysicsLevelSet::Main))
             .add_actor::<SpawnWisp>(ActorName::core("wisp"));
     }
 }
@@ -183,5 +189,137 @@ fn spawn_wisp(
         commands
             .entity(right_hand_entity)
             .add_child(item_visualizer);
+    }
+}
+
+fn get_float_delta_velocity(float: &mut Float, desired_height_change: f32, gravity: f32) -> f32 {
+    let derivative = desired_height_change - float.last_error;
+    float.last_error = desired_height_change;
+    let kp = 0.005;
+    let kd = 0.02;
+    return kp * desired_height_change + kd * derivative - gravity;
+}
+
+fn update_floater(
+    mut query: Query<(
+        &mut Velocity,
+        &mut Float,
+        &GlobalTransform,
+        &Aabb,
+        &GravityMult,
+    )>,
+    physics_query: Query<&BlockPhysics>,
+    level: Res<Level>,
+    gravity: Res<Gravity>,
+    mut block_gizmos: ResMut<FixedUpdateBlockGizmos>,
+) {
+    const CHECK_MULT: f32 = 2.0;
+    for (mut v, mut float, gtf, aabb, gravity_mult) in query.iter_mut() {
+        let translation = gtf.translation();
+        //the ground has check area slightly larger than the actual hitbox to climb walls
+        let ground_area = aabb.scale(float.ground_aabb_scale).move_min(Vec3::new(
+            0.0,
+            -float.target_ground_dist * CHECK_MULT,
+            0.0,
+        ));
+        //the ceiling doesn't, because then we couldn't climb walls (would cancel out with the ground)
+        let ceiling_area =
+            aabb.add_size(Vec3::new(0.0, float.target_ceiling_dist * CHECK_MULT, 0.0));
+        //should move this into a function, but difficult to make borrow checker happy
+        let ground_overlaps = level.get_blocks_in_volume(ground_area.to_block_volume(translation));
+        let ground_blocks = ground_overlaps
+            .iter()
+            .filter_map(|(coord, block)| {
+                block
+                    .and_then(|b| b.entity())
+                    .and_then(|e| physics_query.get(e).ok().and_then(Aabb::from_block))
+                    .map(|b| (coord.as_vec3(), coord, b))
+            })
+            .filter(move |(pos, _, b)| ground_area.intersects_aabb(translation, *b, *pos));
+        //now for ceiling blocks
+        let ceiling_overlaps =
+            level.get_blocks_in_volume(ceiling_area.to_block_volume(translation));
+        let ceiling_blocks = ceiling_overlaps
+            .iter()
+            .filter_map(|(coord, block)| {
+                block
+                    .and_then(|b| b.entity())
+                    .and_then(|e| physics_query.get(e).ok().and_then(Aabb::from_block))
+                    .map(|b| (coord.as_vec3(), b))
+            })
+            .filter(move |(coord, b)| ceiling_area.intersects_aabb(translation, *b, *coord));
+        let collider_top = aabb.world_max(translation).y;
+        let collider_bot = aabb.world_min(translation).y;
+        let mut ground_y = None;
+        let mut ceiling_y = None;
+        //ceiling will be lowest point above the top of the floater's collider
+        for (pos, block_col) in ceiling_blocks {
+            let block_bot = block_col.world_min(pos).y;
+            if collider_top <= block_bot {
+                //possible ceiling
+                ceiling_y = Some(if let Some(y) = ceiling_y {
+                    block_bot.min(y)
+                } else {
+                    block_bot
+                });
+            }
+        }
+        //ground will be the highest point below the bottom of the floater's collider
+        //ground has to have an exposed block above it
+        for (pos, coord, block_col) in ground_blocks {
+            let block_top = block_col.world_max(pos).y;
+            if collider_bot >= block_top
+                && ground_overlaps
+                    .get(coord + IVec3::new(0, 1, 0))
+                    .and_then(|t| t.entity())
+                    .and_then(|e| physics_query.get(e).ok().map(|p| !p.is_solid()))
+                    .unwrap_or(true)
+            {
+                //possible ground
+                block_gizmos.blocks.insert(coord.into());
+                ground_y = Some(if let Some(y) = ground_y {
+                    block_top.max(y)
+                } else {
+                    block_top
+                });
+            }
+        }
+
+        let target_y = match (
+            ground_y.map(|y| y + aabb.min().y + float.target_ground_dist),
+            ceiling_y.map(|y| y - aabb.max().y - float.target_ceiling_dist),
+        ) {
+            (None, None) => {
+                //not close enough to ground, cop out
+                continue;
+            }
+            (None, Some(y)) => y,
+            (Some(y), None) => y,
+            (Some(ground_y), Some(ceiling_y)) => 0.5 * (ground_y + ceiling_y), //take avg if we are in the middle
+        };
+
+        let delta_v = get_float_delta_velocity(
+            &mut float,
+            target_y - translation.y,
+            gravity.y * gravity_mult.0,
+        );
+        if delta_v < -gravity.y.abs() && ceiling_y.is_none()
+            || gravity.y.abs() > 0.0 && ground_y.is_none()
+        {
+            //don't want to get pulled down to the ground or pushed up to the ceiling
+            continue;
+        }
+        // if v.0.y * delta_v.signum() >= delta_v.abs() {
+        //     //we are already moving in the right direction faster than the floater would push
+        //     //slow down a bit to reduce bobbing
+        //     let extra_v = v.0.y - delta_v;
+        //     if extra_v.abs() > delta_v.abs() {
+        //         v.0.y -= delta_v;
+        //     } else {
+        //         v.0.y -= extra_v;
+        //     }
+        //     continue;
+        // }
+        v.0.y += delta_v;
     }
 }
