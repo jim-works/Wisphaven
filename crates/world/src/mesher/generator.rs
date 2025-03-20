@@ -17,7 +17,7 @@ use bevy::{
 
 use super::is_chunk_ready_for_meshing;
 use super::{ChunkMaterial, SPAWN_MESH_TIME_BUDGET_COUNT};
-use materials::{TextureArrayExtension, ATTRIBUTE_AO, ATTRIBUTE_TEXLAYER};
+use materials::{ATTRIBUTE_AO, ATTRIBUTE_TEXLAYER, TextureArrayExtension};
 
 #[derive(Component, Default)]
 pub struct NeedsMesh {
@@ -196,6 +196,29 @@ pub fn queue_meshing(
         });
     }
 }
+
+pub(crate) fn delete_meshes(
+    mut commands: Commands,
+    query: Query<(Entity, Option<&Children>), Added<DontMeshChunk>>,
+    children_query: Query<Entity, With<ChunkMeshChild>>,
+) {
+    for (entity, opt_children) in query.iter() {
+        //remove mesh
+        if let Some(children) = opt_children {
+            for child in children {
+                if children_query.contains(*child) {
+                    commands.entity(*child).despawn_recursive();
+                }
+            }
+        }
+        // if DontMeshChunk is removed, we want to make sure the mesh is regenerated.
+        commands
+            .entity(entity)
+            .remove::<MeshTask>()
+            .insert(NeedsMesh::default());
+    }
+}
+
 pub fn poll_mesh_queue(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,

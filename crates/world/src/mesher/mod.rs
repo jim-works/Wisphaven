@@ -9,9 +9,9 @@ use ::materials::TextureArrayExtension;
 use bevy::{asset::load_internal_asset, pbr::*, prelude::*};
 
 use crate::{
+    LevelSystemSet,
     chunk::{ChunkCoord, ChunkType},
     level::Level,
-    LevelSystemSet,
 };
 
 use interfaces::scheduling::*;
@@ -37,10 +37,12 @@ impl Plugin for MesherPlugin {
         .add_systems(
             Update,
             (
+                order::set_meshing_order,
                 generator::poll_mesh_queue,
                 generator::queue_meshing,
-                order::set_meshing_order,
+                generator::delete_meshes,
             )
+                .chain()
                 .in_set(LevelSystemSet::AfterLoadingAndMain),
         )
         .add_systems(Startup, materials::init)
