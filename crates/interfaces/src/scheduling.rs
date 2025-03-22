@@ -60,7 +60,8 @@ impl Plugin for SchedulingPlugin {
                 (
                     LevelSystemSet::PreTick
                         .before(PhysicsSystemSet::Main)
-                        .after(UtilSystemSet),
+                        .after(UtilSystemSet)
+                        .after(LevelSystemSet::NetTick),
                     LevelSystemSet::Tick.in_set(PhysicsSystemSet::Main),
                     LevelSystemSet::PostTick
                         .after(PhysicsSystemSet::UpdateDerivatives)
@@ -73,6 +74,14 @@ impl Plugin for SchedulingPlugin {
             .configure_sets(
                 FixedUpdate,
                 LevelSystemSet::EndTickAndInLoading.run_if(
+                    in_state(GameState::Game).and(
+                        in_state(LevelLoadState::Loading).or(in_state(LevelLoadState::Loaded)),
+                    ),
+                ),
+            )
+            .configure_sets(
+                FixedUpdate,
+                LevelSystemSet::NetTick.run_if(
                     in_state(GameState::Game).and(
                         in_state(LevelLoadState::Loading).or(in_state(LevelLoadState::Loaded)),
                     ),
@@ -143,6 +152,7 @@ pub enum LevelSystemSet {
     //system buffers from main and loading and main applied beforehand
     AfterLoadingAndMain,
     //fixedupdate
+    NetTick,
     PreTick,
     Tick,
     PostTick,

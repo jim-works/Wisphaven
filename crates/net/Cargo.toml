@@ -34,6 +34,7 @@ engine = { path = "../engine" }
 interfaces = { path = "../interfaces" }
 serialization = { path = "../serialization" }
 physics = { path = "../physics" }
+actors = { path = "../actors" }
 
 [lints]
 workspace = true

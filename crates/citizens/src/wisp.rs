@@ -193,6 +193,7 @@ fn spawn_wisp(
 }
 
 fn get_float_delta_velocity(float: &mut Float, desired_height_change: f32, gravity: f32) -> f32 {
+    // there will likely be some steady state error, but adding an I term makes the controller more unstable
     let derivative = desired_height_change - float.last_error;
     float.last_error = desired_height_change;
     let kp = 0.005;

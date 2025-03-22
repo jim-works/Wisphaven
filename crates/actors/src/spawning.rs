@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use ahash::HashMap;
 use bevy::prelude::*;
 use engine::actors::{
-    ActorName, ActorRegistry, ActorResources, Combatant, CombatantBundle, Damage, SpawnActorEvent,
+    ActorName, ActorResources, Combatant, CombatantBundle, Damage, SpawnActorEvent,
     projectile::{Projectile, ProjectileSpawnedInEntity},
     team::*,
 };

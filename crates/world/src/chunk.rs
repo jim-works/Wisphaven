@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use util::direction::Direction;
 
-use super::{util::BlockPalette, BlockCoord, BlockId, BlockRegistry, BlockType};
+use super::{BlockCoord, BlockId, BlockRegistry, BlockType, util::BlockPalette};
 
 pub const CHUNK_SIZE: usize = 16;
 pub const FAT_CHUNK_SIZE: usize = CHUNK_SIZE + 2;
@@ -600,7 +600,7 @@ impl ChunkSaveFormat {
         chunk
     }
     pub fn into_buffer(
-        self,
+        &self,
         registry: &BlockRegistry,
         commands: &mut Commands,
     ) -> Vec<(BlockType, u16)> {
@@ -610,10 +610,13 @@ impl ChunkSaveFormat {
             .collect()
     }
     pub fn map_to_loaded(&mut self, map: &SavedToLoadedIdMap<BlockId>) {
+        self.map(&map.map);
+    }
+    pub fn map(&mut self, map: &bevy::utils::HashMap<BlockId, BlockId>) {
         for (id, _) in self.data.iter_mut() {
             match map.get(id) {
                 Some(loaded_id) => {
-                    *id = loaded_id;
+                    *id = *loaded_id;
                 }
                 None => {
                     error!("Couldn't map saved block id {:?} to loaded id", id);

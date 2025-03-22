@@ -1,7 +1,7 @@
 use std::{hash::Hash, net::IpAddr, thread::sleep, time::Duration};
 
 use bevy::{app::AppExit, prelude::*, utils::HashMap};
-use interfaces::scheduling::{ClientState, GameState, NetworkType};
+use interfaces::scheduling::{ClientState, GameState, LevelLoadState, LevelSystemSet, NetworkType};
 use lightyear::prelude::client::*;
 use lightyear::prelude::*;
 use lightyear::{prelude::client::ClientCommands, shared::events::components::MessageEvent};
@@ -13,16 +13,22 @@ use engine::{
     items::{ItemId, ItemResources},
 };
 use interfaces::*;
+use world::block::BlockResources;
+use world::chunk::ChunkSaveFormat;
+use world::mesher::NeedsMesh;
+use world::worldgen::pipeline::GeneratedChunk;
 use world::{
     block::BlockId,
     events::ChunkUpdatedEvent,
     level::{Level, LevelData},
 };
 
+use crate::protocol::{ChunkMessage, InitMessage, InitMessageSystemParam};
+
 use super::protocol::{ClientInfoMessage, OrderedReliable};
 use super::{
-    protocol::PlayerListMessage, ClientMessage, DisconnectedClient, PlayerInfo, PlayerList,
-    ServerMessage, UpdateEntityTransform, UpdateEntityVelocity,
+    ClientMessage, DisconnectedClient, PlayerInfo, PlayerList, ServerMessage,
+    UpdateEntityTransform, UpdateEntityVelocity, protocol::PlayerListMessage,
 };
 
 pub(crate) struct ClientPlugin {
@@ -33,7 +39,25 @@ impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Game), connect)
             .add_systems(OnEnter(NetworkingState::Connected), on_connected)
-            .add_systems(Update, on_server_ready);
+            .add_systems(
+                FixedUpdate,
+                (
+                    //messages which don't needs info from the server
+                    on_server_ready,
+                    handle_chunk_message,
+                    handle_player_list_message,
+                )
+                    .in_set(LevelSystemSet::NetTick),
+            )
+            .add_systems(
+                FixedUpdate,
+                (
+                    // messages/systems which requires the init message to have been recieved
+                    map_chunks
+                )
+                    .in_set(LevelSystemSet::NetTick)
+                    .run_if(in_state(ClientState::Ready)),
+            );
 
         // .add_systems(
         //     Update,
@@ -100,6 +124,12 @@ where
     }
 }
 
+#[derive(Resource, Default, Deref, DerefMut)]
+pub struct NetworkBlockIdMap(NetworkMap<BlockId>);
+
+#[derive(Component)]
+struct UnmappedChunk(ChunkSaveFormat);
+
 fn connect(mut commands: Commands) {
     info!("connecting client...");
     commands.connect_client();
@@ -117,16 +147,74 @@ fn on_connected(mut conn: ResMut<ClientConnectionManager>) {
 }
 
 fn on_server_ready(
-    mut state: ResMut<NextState<ClientState>>,
-    mut messages: EventReader<MessageEvent<PlayerListMessage>>,
+    mut client_state: ResMut<NextState<ClientState>>,
+    prev_level_state: Res<State<LevelLoadState>>,
+    mut level_state: ResMut<NextState<LevelLoadState>>,
+    mut messages: EventReader<MessageEvent<InitMessage>>,
+    init: InitMessageSystemParam,
+    mut commands: Commands,
 ) {
+    for MessageEvent { message, .. } in messages.read() {
+        info!("prev state = {:?}", prev_level_state);
+        let mut block_map = NetworkBlockIdMap(NetworkMap::default());
+        for (name, server_id) in message.block_map.iter() {
+            block_map.insert(init.block_resources.registry.get_id(name), *server_id);
+        }
+        commands.insert_resource(block_map);
+        client_state.set(ClientState::Ready);
+        level_state.set(LevelLoadState::Loaded);
+        info!("Recv init message, client ready!");
+    }
+}
+
+// todo - optimize this to reduce memory allocations if needed
+fn handle_chunk_message(
+    mut messages: ResMut<Events<MessageEvent<ChunkMessage>>>,
+    mut commands: Commands,
+) {
+    for MessageEvent { message, .. } in messages.drain() {
+        info!("recv chunk message for {:?}", message.chunk.position);
+        commands.spawn((UnmappedChunk(message.chunk), StateScoped(GameState::Game)));
+    }
+}
+
+fn map_chunks(
+    mut commands: Commands,
+    id_map: Res<NetworkBlockIdMap>,
+    block_resources: Res<BlockResources>,
+    mut chunk_query: Query<(Entity, &mut UnmappedChunk)>,
+    level: Res<Level>,
+    mut update_writer: EventWriter<ChunkUpdatedEvent>,
+) {
+    for (unmapped_chunk_entity, mut unmapped) in chunk_query.iter_mut() {
+        unmapped.0.map(&id_map.remote_to_local);
+        let coord = unmapped.0.position;
+        let spawned_chunk_entity = level.overwrite_or_spawn_chunk(
+            coord,
+            unmapped.0.clone(),
+            &mut commands,
+            &block_resources.registry,
+        );
+        LevelData::update_chunk_only::<false>(
+            spawned_chunk_entity,
+            coord,
+            &mut commands,
+            &mut update_writer,
+        );
+        level.update_chunk_neighbors_only(coord, &mut commands, &mut update_writer);
+        commands.entity(spawned_chunk_entity).insert(GeneratedChunk);
+        commands.entity(unmapped_chunk_entity).despawn();
+        info!("mapped chunk at {:?}", coord);
+    }
+}
+
+fn handle_player_list_message(mut messages: EventReader<MessageEvent<PlayerListMessage>>) {
     for MessageEvent { message, .. } in messages.read() {
         info!(
             "There are {} players online: {:?}",
             message.name.len(),
             message.name
         );
-        state.set(ClientState::Ready);
     }
 }
 

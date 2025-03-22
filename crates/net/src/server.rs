@@ -4,28 +4,33 @@ use ahash::HashMap;
 use bevy::{prelude::*, utils::HashSet};
 use interfaces::{
     components::RemoteClient,
-    scheduling::{GameState, LevelLoadState, NetworkType, ServerState},
+    scheduling::{GameState, LevelLoadState, LevelSystemSet, NetworkType, ServerState},
 };
 use lightyear::prelude::server::*;
 use lightyear::prelude::*;
 use server::ServerCommands;
+use util::LocalRepeatingTimer;
 
 use crate::{
-    protocol::{OrderedReliable, PlayerListMessage},
     DisconnectedClient, PlayerInfo, PlayerList,
+    protocol::{
+        ChunkMessage, InitMessage, InitMessageSystemParam, OrderedReliable, PlayerListMessage,
+        UnorderedReliable,
+    },
 };
 use engine::{
     actors::LocalPlayer,
-    items::{inventory::Inventory, ItemRegistry, ItemResources, SwingItemEvent, UseItemEvent},
+    items::{ItemRegistry, ItemResources, SwingItemEvent, UseItemEvent, inventory::Inventory},
 };
 use physics::movement::Velocity;
 use world::{
+    ChunkBoundaryCrossedEvent,
     block::{BlockId, BlockRegistry, BlockResources},
-    chunk::{ChunkCoord, ChunkType},
+    chunk::{ChunkCoord, ChunkSaveFormat, ChunkType},
+    chunk_loading::ChunkLoader,
     events::ChunkUpdatedEvent,
     level::Level,
     settings::Settings,
-    ChunkBoundaryCrossedEvent,
 };
 
 use super::{ClientMessage, ServerMessage, UpdateEntityTransform, UpdateEntityVelocity};
@@ -42,8 +47,11 @@ impl Plugin for ServerPlugin {
         app.init_resource::<NetworkPlayerMap>()
             .add_systems(OnEnter(LevelLoadState::Loaded), start_server)
             .add_systems(
-                Update,
-                handle_connections.run_if(in_state(ServerState::Active)),
+                FixedUpdate,
+                (handle_connections, handle_chunk_updates)
+                    .chain()
+                    .run_if(in_state(ServerState::Active))
+                    .in_set(LevelSystemSet::NetTick),
             );
         // .add_systems(OnEnter(LevelLoadState::Loaded), create_server)
         // .add_systems(
@@ -91,6 +99,8 @@ fn handle_connections(
     mut commands: Commands,
     mut conn: ResMut<ConnectionManager>,
     mut player_list: ResMut<PlayerList>,
+    mut test_writer: EventWriter<ChunkUpdatedEvent>,
+    init: InitMessageSystemParam,
 ) {
     for connection in incoming_connections.read() {
         let client_id = connection.client_id;
@@ -123,7 +133,7 @@ fn handle_connections(
         );
         info!("player joined! {:?}", client_id);
         players.client_id_to_entity_id.insert(client_id, entity);
-        if let Err(e) = conn.send_message::<OrderedReliable, PlayerListMessage>(
+        if let Err(e) = conn.send_message::<UnorderedReliable, PlayerListMessage>(
             client_id,
             &mut PlayerListMessage {
                 name: player_list
@@ -135,6 +145,85 @@ fn handle_connections(
         ) {
             error!("Error sending player list message: {:?}", e);
         }
+        if let Err(e) = conn.send_message::<UnorderedReliable, InitMessage>(
+            client_id,
+            &mut InitMessage {
+                block_map: init.block_resources.registry.id_map.clone(),
+                item_map: init.item_resources.registry.id_map.clone(),
+                actor_map: init.actor_resources.registry.id_map.clone(),
+                projectile_map: init.projectile_registry.id_map.clone(),
+            },
+        ) {
+            error!("Error sending init message: {:?}", e);
+        }
+    }
+}
+
+fn handle_chunk_updates(
+    mut reader: EventReader<ChunkUpdatedEvent>,
+    level: Res<Level>,
+    mut conn: ResMut<ConnectionManager>,
+    player_query: Query<(&GlobalTransform, &ChunkLoader, &RemoteClient)>,
+    block_query: Query<&BlockId>,
+    mut timer: Local<LocalRepeatingTimer<1000>>,
+    time: Res<Time>,
+) {
+    let mut sent_chunks = 0;
+    let mut attempted_chunks = 0;
+    timer.tick(time.delta());
+    let mut coords = Vec::new();
+    if timer.just_finished() {
+        for x in -5..5 {
+            for y in -5..5 {
+                for z in -5..5 {
+                    coords.push(ChunkCoord::new(x, y, z));
+                }
+            }
+        }
+    }
+    // for ChunkUpdatedEvent { coord } in reader.read() {
+    for coord in coords.iter() {
+        info!("recv chunk updated event for {:?}", coord);
+        let Some(chunk_ref) = level.get_chunk(*coord) else {
+            warn!("tried to send non existent chunk at {:?}, skipping!", coord);
+            return;
+        };
+        let ChunkType::Full(chunk) = chunk_ref.value() else {
+            warn!(
+                "tried to send not generated chunk at {:?}, skipping!",
+                coord
+            );
+            return;
+        };
+        let mut message = ChunkMessage {
+            chunk: ChunkSaveFormat::palette_ids_only_no_map(
+                (chunk.position, &chunk.blocks),
+                &block_query,
+            ),
+        };
+        for (gtf, loader, client) in player_query.iter() {
+            info!("player found at {:?}", gtf.translation());
+            if loader.chunk_in_range(ChunkCoord::from(gtf.translation()), *coord) {
+                info!("chunk in range, sending!");
+                attempted_chunks += 1;
+                if let Err(e) =
+                    conn.send_message::<UnorderedReliable, ChunkMessage>(client.0, &mut message)
+                {
+                    error!(
+                        "Error sending chunk at {:?} to client id {:?}: {:?}",
+                        coord, client.0, e
+                    )
+                } else {
+                    sent_chunks += 1;
+                }
+            }
+        }
+    }
+    if attempted_chunks > 0 {
+        info!(
+            "Successfully sent {}/{} chunk updates",
+            attempted_chunks, sent_chunks
+        );
     }
 }
 
