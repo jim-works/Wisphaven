@@ -1,4 +1,7 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{
+    prelude::*,
+    utils::{HashMap, HashSet},
+};
 
 use crate::{
     chunk::{ChunkCoord, ChunkType, LODChunk, LODChunkType},
@@ -53,6 +56,12 @@ pub struct DespawnChunkEvent {
     pub coords: ChunkCoord,
 }
 
+#[derive(Resource, Default)]
+pub struct ChunkFetchRequests {
+    //value is if request has been sent
+    pub coords: HashMap<ChunkCoord, bool>,
+}
+
 pub fn do_loading(
     mut commands: Commands,
     level: Res<Level>,
@@ -62,6 +71,8 @@ pub fn do_loading(
     time: Res<Time>,
     save_query: Query<&crate::chunk::NeedsSaving>,
     network_type: Res<State<NetworkType>>,
+    // only needed for client - sends to server in `net` crate
+    mut load_requests: ResMut<ChunkFetchRequests>,
 ) {
     let _my_span = info_span!("do_loading", name = "do_loading").entered();
     timer.timer.tick(time.delta());
@@ -88,8 +99,18 @@ pub fn do_loading(
         }
     }
     match network_type.get() {
-        //chunks get pushed from the server to the client, so the client doesn't need to worry about loading
-        NetworkType::Client => {}
+        // client just sends requests for chunks to server, wait until server responds to do the actual loading (only care about meshed chunks)
+        NetworkType::Client => {
+            for coord in loaded_chunks
+                .iter()
+                .filter(|(_, mesh)| **mesh)
+                .map(|(coord, _)| *coord)
+            {
+                if !level.contains_chunk(coord) {
+                    load_requests.coords.entry(coord).or_insert(false);
+                }
+            }
+        }
         _ => {
             for (coord, mesh) in loaded_chunks.iter() {
                 level.load_chunk(*coord, *mesh, &mut commands);

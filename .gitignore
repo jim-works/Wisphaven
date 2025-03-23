@@ -7,3 +7,4 @@ Cargo.lock
 worlds/
 .cargo/
 *.blend1
+multiplayer

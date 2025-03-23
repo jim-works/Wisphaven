@@ -39,6 +39,7 @@ impl Plugin for ChunkLoaderPlugin {
         .insert_resource(ChunkLoadingTimer {
             timer: Timer::from_seconds(0.1, TimerMode::Repeating),
         })
+        .init_resource::<entity_loader::ChunkFetchRequests>()
         .add_event::<DespawnChunkEvent>();
     }
 }

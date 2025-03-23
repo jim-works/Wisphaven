@@ -12,7 +12,7 @@ use actors::spawning::{ProjectileNameIdMap, ProjectileRegistry};
 use physics::movement::{Acceleration, Velocity};
 use world::{
     block::{BlockNameIdMap, BlockResources},
-    chunk::ChunkSaveFormat,
+    chunk::{ChunkCoord, ChunkSaveFormat},
 };
 
 pub(crate) struct ProtocolPlugin;
@@ -23,6 +23,7 @@ impl Plugin for ProtocolPlugin {
         app.register_message::<PlayerListMessage>(ChannelDirection::ServerToClient);
         app.register_message::<InitMessage>(ChannelDirection::ServerToClient);
         app.register_message::<ChunkMessage>(ChannelDirection::ServerToClient);
+        app.register_message::<RequestChunksMessage>(ChannelDirection::ClientToServer);
 
         // components
         app.register_component::<RemoteClient>(ChannelDirection::ServerToClient)
@@ -100,4 +101,9 @@ pub(crate) struct InitMessageSystemParam<'w> {
 #[derive(Serialize, Deserialize)]
 pub(crate) struct ChunkMessage {
     pub(crate) chunk: ChunkSaveFormat,
+}
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct RequestChunksMessage {
+    pub(crate) coords: Vec<ChunkCoord>,
 }

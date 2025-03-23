@@ -15,6 +15,7 @@ use engine::{
 use interfaces::*;
 use world::block::BlockResources;
 use world::chunk::ChunkSaveFormat;
+use world::chunk_loading::entity_loader::ChunkFetchRequests;
 use world::mesher::NeedsMesh;
 use world::worldgen::pipeline::GeneratedChunk;
 use world::{
@@ -23,7 +24,7 @@ use world::{
     level::{Level, LevelData},
 };
 
-use crate::protocol::{ChunkMessage, InitMessage, InitMessageSystemParam};
+use crate::protocol::{ChunkMessage, InitMessage, InitMessageSystemParam, RequestChunksMessage};
 
 use super::protocol::{ClientInfoMessage, OrderedReliable};
 use super::{
@@ -53,7 +54,8 @@ impl Plugin for ClientPlugin {
                 FixedUpdate,
                 (
                     // messages/systems which requires the init message to have been recieved
-                    map_chunks
+                    map_chunks,
+                    request_chunks,
                 )
                     .in_set(LevelSystemSet::NetTick)
                     .run_if(in_state(ClientState::Ready)),
@@ -185,6 +187,7 @@ fn map_chunks(
     mut chunk_query: Query<(Entity, &mut UnmappedChunk)>,
     level: Res<Level>,
     mut update_writer: EventWriter<ChunkUpdatedEvent>,
+    mut requested_chunks: ResMut<ChunkFetchRequests>,
 ) {
     for (unmapped_chunk_entity, mut unmapped) in chunk_query.iter_mut() {
         unmapped.0.map(&id_map.remote_to_local);
@@ -204,7 +207,37 @@ fn map_chunks(
         level.update_chunk_neighbors_only(coord, &mut commands, &mut update_writer);
         commands.entity(spawned_chunk_entity).insert(GeneratedChunk);
         commands.entity(unmapped_chunk_entity).despawn();
+        requested_chunks.coords.remove(&coord);
         info!("mapped chunk at {:?}", coord);
+    }
+}
+
+fn request_chunks(
+    mut conn: ResMut<ClientConnectionManager>,
+    mut chunk_requests: ResMut<ChunkFetchRequests>,
+) {
+    if chunk_requests.coords.is_empty() {
+        return;
+    }
+    let mut coords = chunk_requests
+        .coords
+        .iter()
+        .filter_map(|(coord, requested)| if !requested { Some(coord) } else { None })
+        .copied()
+        .collect::<Vec<_>>();
+    if coords.is_empty() {
+        return;
+    }
+    info!("requesting {} chunks", coords.len());
+    match conn.send_message::<OrderedReliable, RequestChunksMessage>(&mut RequestChunksMessage {
+        coords: coords.clone(),
+    }) {
+        Ok(_) => {
+            for coord in coords.drain(..) {
+                chunk_requests.coords.insert(coord, true);
+            }
+        }
+        Err(e) => error!("Error requesting chunk coords from server: {:?}", e),
     }
 }
 

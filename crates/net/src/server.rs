@@ -15,7 +15,7 @@ use crate::{
     DisconnectedClient, PlayerInfo, PlayerList,
     protocol::{
         ChunkMessage, InitMessage, InitMessageSystemParam, OrderedReliable, PlayerListMessage,
-        UnorderedReliable,
+        RequestChunksMessage, UnorderedReliable,
     },
 };
 use engine::{
@@ -99,7 +99,6 @@ fn handle_connections(
     mut commands: Commands,
     mut conn: ResMut<ConnectionManager>,
     mut player_list: ResMut<PlayerList>,
-    mut test_writer: EventWriter<ChunkUpdatedEvent>,
     init: InitMessageSystemParam,
 ) {
     for connection in incoming_connections.read() {
@@ -160,40 +159,31 @@ fn handle_connections(
 }
 
 fn handle_chunk_updates(
-    mut reader: EventReader<ChunkUpdatedEvent>,
+    mut update_reader: EventReader<ChunkUpdatedEvent>,
+    mut request_reader: EventReader<MessageEvent<RequestChunksMessage>>,
     level: Res<Level>,
     mut conn: ResMut<ConnectionManager>,
     player_query: Query<(&GlobalTransform, &ChunkLoader, &RemoteClient)>,
     block_query: Query<&BlockId>,
-    mut timer: Local<LocalRepeatingTimer<1000>>,
-    time: Res<Time>,
+    players: Res<PlayerList>,
 ) {
     let mut sent_chunks = 0;
     let mut attempted_chunks = 0;
-    timer.tick(time.delta());
-    let mut coords = Vec::new();
-    if timer.just_finished() {
-        for x in -5..5 {
-            for y in -5..5 {
-                for z in -5..5 {
-                    coords.push(ChunkCoord::new(x, y, z));
-                }
-            }
-        }
-    }
-    // for ChunkUpdatedEvent { coord } in reader.read() {
-    for coord in coords.iter() {
-        info!("recv chunk updated event for {:?}", coord);
-        let Some(chunk_ref) = level.get_chunk(*coord) else {
-            warn!("tried to send non existent chunk at {:?}, skipping!", coord);
-            return;
+    //send chunk updates to all players
+    for updated_coord in update_reader.read().map(|x| x.coord) {
+        let Some(chunk_ref) = level.get_chunk(updated_coord) else {
+            warn!(
+                "tried to send non existent chunk at {:?}, skipping!",
+                updated_coord
+            );
+            continue;
         };
         let ChunkType::Full(chunk) = chunk_ref.value() else {
             warn!(
                 "tried to send not generated chunk at {:?}, skipping!",
-                coord
+                updated_coord
             );
-            return;
+            continue;
         };
         let mut message = ChunkMessage {
             chunk: ChunkSaveFormat::palette_ids_only_no_map(
@@ -203,7 +193,7 @@ fn handle_chunk_updates(
         };
         for (gtf, loader, client) in player_query.iter() {
             info!("player found at {:?}", gtf.translation());
-            if loader.chunk_in_range(ChunkCoord::from(gtf.translation()), *coord) {
+            if loader.chunk_in_range(ChunkCoord::from(gtf.translation()), updated_coord) {
                 info!("chunk in range, sending!");
                 attempted_chunks += 1;
                 if let Err(e) =
@@ -211,7 +201,52 @@ fn handle_chunk_updates(
                 {
                     error!(
                         "Error sending chunk at {:?} to client id {:?}: {:?}",
-                        coord, client.0, e
+                        updated_coord, client.0, e
+                    )
+                } else {
+                    sent_chunks += 1;
+                }
+            }
+        }
+    }
+    for (client, requested_coords) in request_reader
+        .read()
+        .map(|req| (req.context, req.message.coords.iter().copied()))
+    {
+        if let Some(player) = players.get(&client)
+            && let Ok((gtf, loader, _)) = player_query.get(player.entity)
+        {
+            info!("player found at {:?}", gtf.translation());
+            for coord in requested_coords {
+                if !loader.chunk_in_range(ChunkCoord::from(gtf.translation()), coord) {
+                    info!("chunk in range, sending!");
+                    continue;
+                }
+                let Some(chunk_ref) = level.get_chunk(coord) else {
+                    warn!("tried to send non existent chunk at {:?}, skipping!", coord);
+                    continue;
+                };
+                let ChunkType::Full(chunk) = chunk_ref.value() else {
+                    warn!(
+                        "tried to send not generated chunk at {:?}, skipping!",
+                        coord
+                    );
+                    continue;
+                };
+                let mut message = ChunkMessage {
+                    chunk: ChunkSaveFormat::palette_ids_only_no_map(
+                        (chunk.position, &chunk.blocks),
+                        &block_query,
+                    ),
+                };
+
+                attempted_chunks += 1;
+                if let Err(e) =
+                    conn.send_message::<UnorderedReliable, ChunkMessage>(client, &mut message)
+                {
+                    error!(
+                        "Error sending chunk at {:?} to client id {:?}: {:?}",
+                        coord, client, e
                     )
                 } else {
                     sent_chunks += 1;
