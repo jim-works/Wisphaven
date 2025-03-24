@@ -72,7 +72,6 @@ fn main() {
             ::items::ItemsPlugin,
             crafting::RecipePlugin,
             blocks::BlocksPlugin,
-            net::NetPlugin,
             serialization::SerializationPlugin,
             world::LevelPlugin,
             debug::DebugUIPlugin,
@@ -83,7 +82,7 @@ fn main() {
     ));
 
     if server_port.is_some() {
-        net::config::setup(&mut app, NetworkType::Host, server_port, None);
+        net::setup(&mut app, NetworkType::Host, server_port, None);
         app.add_systems(
             Startup,
             |mut next_game_state: ResMut<NextState<GameState>>| {
@@ -91,7 +90,7 @@ fn main() {
             },
         );
     } else if client_connection_string.is_some() {
-        net::config::setup(
+        net::setup(
             &mut app,
             NetworkType::Client,
             None,
@@ -105,7 +104,7 @@ fn main() {
         );
     } else {
         // start in host mode so we can both host and join games later
-        net::config::setup(&mut app, NetworkType::Host, Some(DEFAULT_SERVER_PORT), None);
+        net::setup(&mut app, NetworkType::Host, Some(DEFAULT_SERVER_PORT), None);
         app.add_systems(
             Startup,
             move |mut next_state: ResMut<NextState<NetworkType>>,

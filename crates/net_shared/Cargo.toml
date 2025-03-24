@@ -1,5 +1,5 @@
 [package]
-name = "net"
+name = "net_shared"
 version = "0.1.0"
 edition = "2024"
 
@@ -35,9 +35,6 @@ interfaces = { path = "../interfaces" }
 serialization = { path = "../serialization" }
 physics = { path = "../physics" }
 actors = { path = "../actors" }
-net_shared = { path = "../net_shared" }
-net_client = { path = "../net_client" }
-net_server = { path = "../net_server" }
 
 [lints]
 workspace = true

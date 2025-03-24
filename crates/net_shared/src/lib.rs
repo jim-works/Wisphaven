@@ -1,4 +1,4 @@
-use bevy::{ecs::system::SystemParam, prelude::*};
+use bevy::{ecs::system::SystemParam, prelude::*, utils::HashMap};
 use client::{ComponentSyncMode, LerpFn};
 use engine::{
     actors::{ActorNameIdMap, ActorResources},
@@ -15,7 +15,7 @@ use world::{
     chunk::{ChunkCoord, ChunkSaveFormat},
 };
 
-pub(crate) struct ProtocolPlugin;
+pub struct ProtocolPlugin;
 
 impl Plugin for ProtocolPlugin {
     fn build(&self, app: &mut App) {
@@ -59,51 +59,75 @@ impl Plugin for ProtocolPlugin {
             mode: ChannelMode::UnorderedUnreliable,
             ..default()
         });
+
+        //resources
+        app.init_resource::<PlayerList>();
     }
 }
 
 #[derive(Channel)]
-pub(crate) struct OrderedReliable;
+pub struct OrderedReliable;
 #[derive(Channel)]
-pub(crate) struct UnorderedReliable;
+pub struct UnorderedReliable;
 
 #[derive(Channel)]
-pub(crate) struct UnorderedUnreliable;
+pub struct UnorderedUnreliable;
 
 // client sends on connect
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub(crate) struct ClientInfoMessage {
-    pub(crate) name: String,
+pub struct ClientInfoMessage {
+    pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub(crate) struct PlayerListMessage {
+pub struct PlayerListMessage {
     pub name: Vec<String>,
 }
 
 // server sends on client join - recieving this moves the client into the ready state
 #[derive(Serialize, Deserialize, Default)]
-pub(crate) struct InitMessage {
-    pub(crate) block_map: BlockNameIdMap,
-    pub(crate) item_map: ItemNameIdMap,
-    pub(crate) actor_map: ActorNameIdMap,
-    pub(crate) projectile_map: ProjectileNameIdMap,
+pub struct InitMessage {
+    pub block_map: BlockNameIdMap,
+    pub item_map: ItemNameIdMap,
+    pub actor_map: ActorNameIdMap,
+    pub projectile_map: ProjectileNameIdMap,
 }
 
 #[derive(SystemParam)]
-pub(crate) struct InitMessageSystemParam<'w> {
-    pub(crate) block_resources: Res<'w, BlockResources>,
-    pub(crate) item_resources: Res<'w, ItemResources>,
-    pub(crate) actor_resources: Res<'w, ActorResources>,
-    pub(crate) projectile_registry: Res<'w, ProjectileRegistry>,
+pub struct InitMessageSystemParam<'w> {
+    pub block_resources: Res<'w, BlockResources>,
+    pub item_resources: Res<'w, ItemResources>,
+    pub actor_resources: Res<'w, ActorResources>,
+    pub projectile_registry: Res<'w, ProjectileRegistry>,
 }
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct ChunkMessage {
-    pub(crate) chunk: ChunkSaveFormat,
+pub struct ChunkMessage {
+    pub chunk: ChunkSaveFormat,
 }
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct RequestChunksMessage {
-    pub(crate) coords: Vec<ChunkCoord>,
+pub struct RequestChunksMessage {
+    pub coords: Vec<ChunkCoord>,
+}
+
+#[derive(Resource, Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PlayerList {
+    pub infos: HashMap<ClientId, PlayerInfo>,
+}
+
+impl PlayerList {
+    pub fn get(&self, id: &ClientId) -> Option<&PlayerInfo> {
+        self.infos.get(id)
+    }
+}
+
+//if none, belongs to server
+#[derive(Component)]
+pub struct DisconnectedClient(pub ClientId);
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct PlayerInfo {
+    pub username: String,
+    pub entity: Entity,
 }

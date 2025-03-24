@@ -1,170 +1,115 @@
-#![feature(let_chains)]
-use bevy::{prelude::*, utils::HashMap};
-
-use interfaces::scheduling::{ClientState, NetworkType, ServerState};
+use bevy::prelude::*;
+use interfaces::scheduling::NetworkType;
 use lightyear::prelude::*;
-use serde::{Deserialize, Serialize};
+use lightyear::server::config::{NetcodeConfig, ServerConfig};
+use rand::RngCore;
+use rand::seq::SliceRandom;
+use std::net::*;
+use std::time::Duration;
 
-use engine::{actors::LocalPlayer, items::ItemNameIdMap};
-use physics::movement::Velocity;
-use world::{block::BlockNameIdMap, chunk::ChunkSaveFormat};
+use engine::controllers::Action;
+use net_client::ClientPlugin;
+use net_server::ServerPlugin;
+use net_shared::ProtocolPlugin;
 
-pub mod client;
-pub mod config;
-mod protocol;
-pub mod server;
+pub const REPLICATION_INTERVAL: Duration = Duration::from_millis(100);
 
-pub struct NetPlugin;
-
-impl Plugin for NetPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(
-            PostUpdate,
-            (process_transform_updates, process_velocity_updates),
-        )
-        .add_event::<UpdateEntityTransform>()
-        .add_event::<UpdateEntityVelocity>()
-        .insert_resource(PlayerList::default());
-    }
-}
-
-#[derive(Resource, Debug, Clone, Default, Serialize, Deserialize)]
-pub struct PlayerList {
-    pub infos: HashMap<ClientId, PlayerInfo>,
-}
-
-impl PlayerList {
-    pub fn get(&self, id: &ClientId) -> Option<&PlayerInfo> {
-        self.infos.get(id)
-    }
-}
-
-//if none, belongs to server
-#[derive(Component)]
-pub struct DisconnectedClient(pub ClientId);
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct PlayerInfo {
-    pub username: String,
-    pub entity: Entity,
-}
-
-// Messages from clients
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ClientMessage {
-    Join {
-        name: String,
-    },
-    Disconnect {},
-    ChatMessage {
-        message: String,
-    },
-    UpdatePosition {
-        transform: Transform,
-        velocity: Vec3,
-    },
-    UseItem {
-        tf: GlobalTransform,
-        slot: usize,
-    },
-    SwingItem {
-        tf: GlobalTransform,
-        slot: usize,
-    },
-}
-
-// Messages from the server
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ServerMessage {
-    ClientConnected {
-        client_id: ClientId,
-        info: PlayerInfo,
-    },
-    ClientDisconnected {
-        client_id: ClientId,
-    },
-    ChatMessage {
-        client_id: ClientId,
-        message: String,
-    },
-    InitClient {
-        client_id: ClientId,
-        entity: Entity,
-        spawn_point: Vec3,
-        clients_online: PlayerList,
-        block_ids: BlockNameIdMap,
-        item_ids: ItemNameIdMap,
-    },
-    UpdateEntities {
-        transforms: Vec<UpdateEntityTransform>,
-        velocities: Vec<UpdateEntityVelocity>,
-    },
-    Chunk {
-        chunk: ChunkSaveFormat,
-    },
-}
-
-pub fn network_ready() -> impl Condition<()> {
-    in_state(NetworkType::Host)
-        .and(in_state(ServerState::Active))
-        .and(in_state(ServerState::Active))
-        .or(in_state(NetworkType::Server).and(in_state(ServerState::Active)))
-        .or(in_state(NetworkType::Client).and(in_state(ClientState::Ready)))
-}
-
-//recv from over the network
-#[derive(Event, Copy, Clone, Serialize, Deserialize, Debug)]
-pub struct UpdateEntityTransform {
-    pub entity: Entity,
-    pub transform: Transform,
-}
-
-//recv from over the network
-#[derive(Event, Copy, Clone, Serialize, Deserialize, Debug)]
-pub struct UpdateEntityVelocity {
-    pub entity: Entity,
-    pub velocity: Vec3,
-}
-
-fn process_transform_updates(
-    mut reader: EventReader<UpdateEntityTransform>,
-    mut query: Query<&mut Transform>,
-    local_player_query: Query<&LocalPlayer>,
+pub fn setup(
+    app: &mut App,
+    network_type: NetworkType,
+    server_port: Option<u16>,
+    client_addr: Option<String>,
 ) {
-    const LOCAL_PLAYER_UPDATE_SQR_DIST: f32 = 1.0; //only update our local position if there's a desync with the server to avoid
-    //stuttery or frozen movement
-    for UpdateEntityTransform { entity, transform } in reader.read() {
-        if let Ok(mut tf) = query.get_mut(*entity) {
-            if local_player_query.contains(*entity)
-                && tf.translation.distance_squared(transform.translation)
-                    < LOCAL_PLAYER_UPDATE_SQR_DIST
-            {
-                continue;
-            }
-            *tf = *transform
-        } else {
-            warn!("Recv UpdateEntityTransform for entity that doesn't have a transform!");
+    info!(
+        "entering network setup with type {:?}, server_port {:?}, client_addr {:?}",
+        network_type, server_port, client_addr
+    );
+    app.world_mut()
+        .get_resource_mut::<NextState<NetworkType>>()
+        .unwrap()
+        .set(network_type);
+    match network_type {
+        NetworkType::Inactive => {
+            info!("skipping network setup");
+            return;
         }
-    }
-}
+        _ => (),
+    };
 
-fn process_velocity_updates(
-    mut reader: EventReader<UpdateEntityVelocity>,
-    mut query: Query<&mut Velocity>,
-    local_player_query: Query<&LocalPlayer>,
-) {
-    const LOCAL_PLAYER_UPDATE_SQR_DIST: f32 = 100.0; //only update our local position if there's a desync with the server to avoid
-    //stuttery or frozen movement
-    for UpdateEntityVelocity { entity, velocity } in reader.read() {
-        if let Ok(mut v) = query.get_mut(*entity) {
-            if local_player_query.contains(*entity)
-                && v.0.distance_squared(*velocity) < LOCAL_PLAYER_UPDATE_SQR_DIST
-            {
-                continue;
-            }
-            v.0 = *velocity
-        } else {
-            warn!("Recv UpdateEntityVelocity for entity that doesn't have a velocity!");
-        }
+    let replication = ReplicationConfig {
+        send_interval: REPLICATION_INTERVAL,
+        ..default()
+    };
+    let shared = SharedConfig {
+        server_replication_send_interval: REPLICATION_INTERVAL,
+        tick: TickConfig::new(Duration::from_secs_f64(1. / physics::TPS)),
+        mode: network_type.to_network_mode(),
+    };
+
+    if matches!(network_type, NetworkType::Server | NetworkType::Host) {
+        let server_net_configs = vec![server::NetConfig::Netcode {
+            config: NetcodeConfig::default().with_client_timeout_secs(10),
+            io: server::IoConfig {
+                transport: server::ServerTransport::UdpSocket(SocketAddr::new(
+                    Ipv4Addr::UNSPECIFIED.into(),
+                    server_port.unwrap_or(15155),
+                )),
+                ..default()
+            },
+        }];
+        let server = ServerConfig {
+            shared,
+            net: server_net_configs,
+            replication,
+            ..default()
+        };
+        app.add_plugins((
+            lightyear::prelude::server::ServerPlugins { config: server },
+            ServerPlugin { network_type },
+        ));
+        info!("added server plugins!");
     }
+
+    if matches!(network_type, NetworkType::Client | NetworkType::Host) {
+        //pick a random ip address from the dns resolution
+        let client_socket = client_addr
+            .and_then(|addr| addr.to_socket_addrs().ok())
+            .and_then(|iter| {
+                iter.collect::<Vec<_>>()
+                    .choose(&mut rand::thread_rng())
+                    .copied()
+            });
+        let client_net_config = if matches!(network_type.to_network_mode(), Mode::HostServer) {
+            client::NetConfig::Local { id: 0 }
+        } else {
+            // os should assign a random port
+            const CLIENT_ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+            info!("resolved server ip address: {:?}", client_socket.unwrap());
+            client::NetConfig::Netcode {
+                auth: client::Authentication::Manual {
+                    server_addr: client_socket.unwrap(),
+                    client_id: rand::thread_rng().next_u64(),
+                    private_key: Key::default(),
+                    protocol_id: 0,
+                },
+                config: client::NetcodeConfig::default(),
+                io: client::IoConfig {
+                    transport: client::ClientTransport::UdpSocket(CLIENT_ADDR),
+                    ..default()
+                },
+            }
+        };
+        let client = client::ClientConfig {
+            shared,
+            net: client_net_config,
+            ..default()
+        };
+        app.add_plugins((
+            lightyear::prelude::client::ClientPlugins { config: client },
+            ClientPlugin { network_type },
+        ));
+        info!("added client plugins!");
+    }
+    app.add_plugins(ProtocolPlugin);
+    info!("done setting up network");
 }

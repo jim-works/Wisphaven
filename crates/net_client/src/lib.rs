@@ -1,3 +1,4 @@
+#![feature(let_chains)]
 use std::{hash::Hash, net::IpAddr, thread::sleep, time::Duration};
 
 use bevy::{app::AppExit, prelude::*, utils::HashMap};
@@ -12,11 +13,9 @@ use engine::{
     actors::{LocalPlayer, LocalPlayerSpawnedEvent},
     items::{ItemId, ItemResources},
 };
-use interfaces::*;
 use world::block::BlockResources;
 use world::chunk::ChunkSaveFormat;
 use world::chunk_loading::entity_loader::ChunkFetchRequests;
-use world::mesher::NeedsMesh;
 use world::worldgen::pipeline::GeneratedChunk;
 use world::{
     block::BlockId,
@@ -24,16 +23,12 @@ use world::{
     level::{Level, LevelData},
 };
 
-use crate::protocol::{ChunkMessage, InitMessage, InitMessageSystemParam, RequestChunksMessage};
+use net_shared::{ChunkMessage, InitMessage, InitMessageSystemParam, RequestChunksMessage};
 
-use super::protocol::{ClientInfoMessage, OrderedReliable};
-use super::{
-    ClientMessage, DisconnectedClient, PlayerInfo, PlayerList, ServerMessage,
-    UpdateEntityTransform, UpdateEntityVelocity, protocol::PlayerListMessage,
-};
+use net_shared::{ClientInfoMessage, OrderedReliable, PlayerListMessage};
 
-pub(crate) struct ClientPlugin {
-    pub(crate) network_type: NetworkType,
+pub struct ClientPlugin {
+    pub network_type: NetworkType,
 }
 
 impl Plugin for ClientPlugin {

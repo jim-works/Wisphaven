@@ -1,3 +1,4 @@
+#![feature(let_chains)]
 use std::net::IpAddr;
 
 use ahash::HashMap;
@@ -11,16 +12,13 @@ use lightyear::prelude::*;
 use server::ServerCommands;
 use util::LocalRepeatingTimer;
 
-use crate::{
-    DisconnectedClient, PlayerInfo, PlayerList,
-    protocol::{
-        ChunkMessage, InitMessage, InitMessageSystemParam, OrderedReliable, PlayerListMessage,
-        RequestChunksMessage, UnorderedReliable,
-    },
-};
 use engine::{
     actors::LocalPlayer,
     items::{ItemRegistry, ItemResources, SwingItemEvent, UseItemEvent, inventory::Inventory},
+};
+use net_shared::{
+    ChunkMessage, DisconnectedClient, InitMessage, InitMessageSystemParam, OrderedReliable,
+    PlayerInfo, PlayerList, PlayerListMessage, RequestChunksMessage, UnorderedReliable,
 };
 use physics::movement::Velocity;
 use world::{
@@ -33,12 +31,10 @@ use world::{
     settings::Settings,
 };
 
-use super::{ClientMessage, ServerMessage, UpdateEntityTransform, UpdateEntityVelocity};
-
 pub const TICK_MS: u64 = 10;
 
-pub(crate) struct ServerPlugin {
-    pub(crate) network_type: NetworkType,
+pub struct ServerPlugin {
+    pub network_type: NetworkType,
 }
 
 impl Plugin for ServerPlugin {
