@@ -20,7 +20,7 @@ pub struct AIPlugin;
 impl Plugin for AIPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(scorers::ScorersPlugin).add_systems(
-            Update,
+            FixedUpdate,
             (
                 walk_to_destination_action,
                 walk_to_entity_action,
@@ -28,7 +28,7 @@ impl Plugin for AIPlugin {
                 fly_to_current_target_action,
             )
                 .in_set(BigBrainSet::Actions)
-                .in_set(LevelSystemSet::Main),
+                .in_set(LevelSystemSet::Tick),
         );
     }
 }

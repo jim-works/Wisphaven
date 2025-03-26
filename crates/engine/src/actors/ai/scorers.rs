@@ -8,7 +8,7 @@ pub struct ScorersPlugin;
 impl Plugin for ScorersPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            PreUpdate,
+            FixedUpdate,
             update_ranged_line_of_sight_scorer.in_set(BigBrainSet::Scorers),
         );
     }

@@ -22,7 +22,7 @@ impl Plugin for ActorPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             CombatPlugin,
-            BigBrainPlugin::new(PreUpdate),
+            BigBrainPlugin::new(FixedUpdate),
             world_anchor::WorldAnchorPlugin,
             player::PlayerPlugin,
             ai::AIPlugin,

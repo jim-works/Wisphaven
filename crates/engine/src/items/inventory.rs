@@ -329,6 +329,9 @@ impl Inventory {
             .flatten()
             .map(|(stack, _)| stack)
     }
+    pub fn get_action(&self, slot: usize) -> Option<(ItemStack, ItemAction)> {
+        self.items.get(slot).cloned().flatten()
+    }
     pub fn len(&self) -> usize {
         self.items.len()
     }

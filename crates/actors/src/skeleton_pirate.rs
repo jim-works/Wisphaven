@@ -46,7 +46,7 @@ pub struct SkeletonPiratePlugin;
 impl Plugin for SkeletonPiratePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (load_resources, add_to_registry))
-            .add_systems(PreUpdate, attack.in_set(BigBrainSet::Actions))
+            .add_systems(FixedUpdate, attack.in_set(BigBrainSet::Actions))
             .add_systems(Update, spawn_skeleton_pirate)
             .add_actor::<SpawnSkeletonPirate>(ActorName::core("skeleton_pirate"));
     }

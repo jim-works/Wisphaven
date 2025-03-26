@@ -1,5 +1,5 @@
 [package]
-name = "citizens"
+name = "ai"
 version = "0.1.0"
 edition = "2024"
 
@@ -16,7 +16,6 @@ interfaces = { path = "../interfaces" }
 physics = { path = "../physics" }
 world = { path = "../world" }
 actors = { path = "../actors" }
-ai = { path = "../ai" }
 
 [lints]
 workspace = true

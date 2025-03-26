@@ -2,6 +2,8 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 
+use ai::attacker::{AggroClosestEnemy, UseItemAction};
+use big_brain::prelude::*;
 use interfaces::{
     resources::HeldItemResources,
     scheduling::{LevelLoadState, LevelSystemSet, PhysicsLevelSet},
@@ -16,10 +18,11 @@ use util::{lerp, plugin::SmoothLookTo};
 
 use engine::{
     actors::{
-        ActorName, ActorResources, BuildActorRegistry, Combatant, CombatantBundle, Idler,
-        SpawnActorEvent,
+        ActorName, ActorResources, BuildActorRegistry, Combatant, CombatantBundle, IdleAction,
+        Idler, SpawnActorEvent,
+        ai::{AttackAction, scorers::AggroScorer},
         ghost::{Float, GhostResources, Handed, OrbitParticle},
-        team::PLAYER_TEAM,
+        team::{ENEMY_TEAM, PLAYER_TEAM},
     },
     items::{ItemName, ItemResources, ItemStack, inventory::Inventory},
 };
@@ -80,6 +83,7 @@ fn spawn_wisp(
     const MIN_PARTICLE_SPEED: f32 = 0.05;
     const MAX_PARTICLE_SPEED: f32 = 0.2;
     const PARTICLE_COUNT: u32 = 7;
+    const ATTACK_RANGE: f32 = 10.0;
     for spawn in spawn_requests.read() {
         let ghost_entity = commands
             .spawn((
@@ -92,7 +96,7 @@ fn spawn_wisp(
                 Name::new("wisp"),
                 CombatantBundle {
                     combatant: Combatant::new(10.0, 0.),
-                    team: PLAYER_TEAM,
+                    team: ENEMY_TEAM,
                     ..default()
                 },
                 PhysicsBundle {
@@ -104,6 +108,20 @@ fn spawn_wisp(
                 Wisp,
                 Idler::default(),
                 SmoothLookTo::new(0.5),
+                AggroClosestEnemy {
+                    range: ATTACK_RANGE,
+                    ..default()
+                },
+                Thinker::build()
+                    .label("wisp thinker")
+                    .picker(Highest)
+                    .when(FixedScore::build(0.01), IdleAction { seconds: 0.5 })
+                    .when(
+                        AggroScorer {
+                            range: ATTACK_RANGE,
+                        },
+                        UseItemAction { slot: 0 },
+                    ),
             ))
             .with_children(|children| {
                 //orbit particles
@@ -147,7 +165,7 @@ fn spawn_wisp(
             ItemStack::new(
                 items
                     .registry
-                    .get_basic(&ItemName::core("ruby_pickaxe"))
+                    .get_basic(&ItemName::core("spike_ball_launcher"))
                     .unwrap(),
                 1,
             ),
@@ -310,17 +328,6 @@ fn update_floater(
             //don't want to get pulled down to the ground or pushed up to the ceiling
             continue;
         }
-        // if v.0.y * delta_v.signum() >= delta_v.abs() {
-        //     //we are already moving in the right direction faster than the floater would push
-        //     //slow down a bit to reduce bobbing
-        //     let extra_v = v.0.y - delta_v;
-        //     if extra_v.abs() > delta_v.abs() {
-        //         v.0.y -= delta_v;
-        //     } else {
-        //         v.0.y -= extra_v;
-        //     }
-        //     continue;
-        // }
         v.0.y += delta_v;
     }
 }

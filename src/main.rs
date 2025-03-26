@@ -78,6 +78,7 @@ fn main() {
             physics::PhysicsPlugin,
         ),
         citizens::CitizensPlugin,
+        ai::AIPlugin,
         // new internal crates go here
     ));
 

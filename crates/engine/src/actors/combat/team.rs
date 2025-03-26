@@ -11,6 +11,12 @@ use super::Combatant;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Component, Serialize, Deserialize)]
 pub struct Team(pub Option<NonZeroU32>);
 
+impl Default for Team {
+    fn default() -> Self {
+        PLAYER_TEAM
+    }
+}
+
 impl Team {
     pub fn can_hit(self, other: Team) -> bool {
         self.0

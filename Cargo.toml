@@ -96,6 +96,7 @@ materials = { path = "crates/materials" }
 net = { path = "crates/net" }
 serialization = { path = "crates/serialization" }
 citizens = { path = "crates/citizens" }
+ai = { path = "crates/ai" }
 #new internal crates go here
 
 [workspace.metadata.dylint]
