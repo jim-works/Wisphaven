@@ -70,7 +70,7 @@ impl Default for CombatantBundle {
             combatant: Combatant::new(10.0, 0.0),
             death_info: DeathInfo::default(),
             invulnerability: Invulnerability::default(),
-            team: PLAYER_TEAM,
+            team: Team::default(),
         }
     }
 }

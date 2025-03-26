@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use bevy::prelude::*;
 
-use engine::actors::{AttackEvent, Combatant, CombatantBundle, Damage, team::PLAYER_TEAM};
+use engine::actors::{
+    AttackEvent, Combatant, CombatantBundle, Damage,
+    team::{PLAYER_TEAM, Team},
+};
 use interfaces::scheduling::ItemSystemSet;
 use physics::{
     collision::{Aabb, BlockPhysics},
@@ -26,7 +29,7 @@ impl Plugin for WeaponItemPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (attack_melee, launch_coin).in_set(ItemSystemSet::UsageProcessing),
+            (attack_melee, launch_projectile).in_set(ItemSystemSet::UsageProcessing),
         )
         .register_type::<ProjectileLauncherItem>()
         .register_type::<MeleeWeaponItem>();
@@ -120,11 +123,12 @@ pub fn attack_melee(
     }
 }
 
-pub fn launch_coin(
+pub fn launch_projectile(
     mut attack_item_reader: EventReader<UseItemEvent>,
     mut hit_writer: EventWriter<UseEndEvent>,
     mut writer: EventWriter<SpawnNamedProjectileEvent>,
     mut weapon_query: Query<&mut ProjectileLauncherItem>,
+    owner_query: Query<&Team>,
 ) {
     for UseItemEvent {
         user,
@@ -151,7 +155,7 @@ pub fn launch_coin(
                     velocity: Velocity(tf.forward() * weapon.speed),
                     combat: CombatantBundle {
                         combatant: Combatant::new(100.0, 0.0),
-                        team: PLAYER_TEAM,
+                        team: owner_query.get(*user).copied().unwrap_or(Team::default()),
                         ..default()
                     },
                     owner: Some(*user),

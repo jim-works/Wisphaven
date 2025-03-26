@@ -83,7 +83,7 @@ fn spawn_wisp(
     const MIN_PARTICLE_SPEED: f32 = 0.05;
     const MAX_PARTICLE_SPEED: f32 = 0.2;
     const PARTICLE_COUNT: u32 = 7;
-    const ATTACK_RANGE: f32 = 10.0;
+    const ATTACK_RANGE: f32 = 25.0;
     for spawn in spawn_requests.read() {
         let ghost_entity = commands
             .spawn((
@@ -96,7 +96,7 @@ fn spawn_wisp(
                 Name::new("wisp"),
                 CombatantBundle {
                     combatant: Combatant::new(10.0, 0.),
-                    team: ENEMY_TEAM,
+                    team: PLAYER_TEAM,
                     ..default()
                 },
                 PhysicsBundle {
@@ -165,7 +165,7 @@ fn spawn_wisp(
             ItemStack::new(
                 items
                     .registry
-                    .get_basic(&ItemName::core("spike_ball_launcher"))
+                    .get_basic(&ItemName::core("coin_launcher"))
                     .unwrap(),
                 1,
             ),
