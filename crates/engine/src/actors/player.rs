@@ -343,7 +343,7 @@ fn populate_player_entity(
             },
             ItemSwingSpeed {
                 windup: Duration::ZERO,
-                backswing: Duration::from_millis(100),
+                backswing: Duration::from_millis(1000),
             },
             Stamina::new(10.0),
             RestoreStaminaOnKill { amount: 1.0 },

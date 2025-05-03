@@ -1,12 +1,16 @@
 use crate::{
     actors::*,
-    items::{SpawnDroppedItemEvent, inventory::Inventory},
+    items::{
+        SpawnDroppedItemEvent,
+        inventory::Inventory,
+        item_attributes::{ItemSwingSpeed, ItemUseSpeed},
+    },
 };
 use abilities::{
     dash::{CurrentlyDashing, Dash},
     stamina::Stamina,
 };
-use bevy::{prelude::*, window::CursorGrabMode};
+use bevy::{prelude::*, time::Stopwatch, window::CursorGrabMode};
 use ghost::FloatBoost;
 use interfaces::scheduling::*;
 use leafwing_input_manager::prelude::ActionState;
