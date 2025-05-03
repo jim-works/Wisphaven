@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::{inventory::Inventory, UseEndEvent};
+use super::{UseEndEvent, inventory::Inventory};
 use interfaces::scheduling::ItemSystemSet;
 
 pub struct ItemAttributesPlugin;
@@ -28,19 +28,37 @@ pub struct ConsumeItemOnHit;
 #[reflect(Component, FromWorld)]
 pub struct ConsumeItemOnSucess;
 
-#[derive(Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Component,
+    Reflect,
+    Default,
+    Serialize,
+    Deserialize,
+    Deref,
+    DerefMut,
+)]
 #[reflect(Component, FromWorld)]
-pub struct ItemSwingSpeed {
-    pub windup: Duration,
-    pub backswing: Duration,
-}
+pub struct ItemSwingSpeed(pub Duration);
 
-#[derive(Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Component,
+    Reflect,
+    Default,
+    Serialize,
+    Deserialize,
+    Deref,
+    DerefMut,
+)]
 #[reflect(Component, FromWorld)]
-pub struct ItemUseSpeed {
-    pub windup: Duration,
-    pub backswing: Duration,
-}
+pub struct ItemUseSpeed(pub Duration);
 
 fn consume_items(
     mut events: EventReader<UseEndEvent>,
@@ -49,21 +67,18 @@ fn consume_items(
     mut inventory_query: Query<&mut Inventory>,
 ) {
     for UseEndEvent {
-        user,
-        inventory_slot,
-        stack,
-        result,
+        user, slot, result, ..
     } in events.read()
     {
         if result.is_fail() {
             continue;
         }
-        let consume = on_sucess_query.contains(stack.id)
-            || (result.is_hit() && on_hit_query.contains(stack.id));
-        if consume {
-            if let Some(slot_num) = inventory_slot {
+        if let Some((slot, stack)) = slot {
+            let consume = on_sucess_query.contains(stack.id)
+                || (result.is_hit() && on_hit_query.contains(stack.id));
+            if consume {
                 if let Ok(mut inv) = inventory_query.get_mut(*user) {
-                    inv.drop_items(*slot_num, 1);
+                    inv.drop_items(*slot, 1);
                 }
             }
         }

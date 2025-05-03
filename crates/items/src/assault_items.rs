@@ -46,12 +46,14 @@ fn use_assault_summoner_item(
 ) {
     for UseItemEvent {
         user,
-        inventory_slot,
-        stack,
+        slot,
         tf: _,
+        speed,
     } in reader.read()
     {
-        if let Ok(summoner) = query.get(stack.id) {
+        if let Some((_, stack)) = slot
+            && let Ok(summoner) = query.get(stack.id)
+        {
             // Check if it's night time
             if cal.in_night() {
                 info!("Starting assault...");
@@ -159,8 +161,8 @@ fn use_assault_summoner_item(
                 commands.spawn((assault, StateScoped(GameState::Game)));
                 hit_writer.send(UseEndEvent {
                     user: *user,
-                    inventory_slot: *inventory_slot,
-                    stack: *stack,
+                    slot: *slot,
+                    speed: *speed,
                     result: HitResult::Miss, // Successful use
                 });
             } else {
@@ -168,8 +170,8 @@ fn use_assault_summoner_item(
                 info!("Assault Summoner can only be used at night!");
                 hit_writer.send(UseEndEvent {
                     user: *user,
-                    inventory_slot: *inventory_slot,
-                    stack: *stack,
+                    slot: *slot,
+                    speed: *speed,
                     result: HitResult::Fail, // Failed use
                 });
             }

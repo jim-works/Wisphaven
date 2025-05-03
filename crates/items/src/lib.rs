@@ -1,3 +1,4 @@
+#![feature(let_chains)]
 use bevy::prelude::*;
 
 mod actor_items;

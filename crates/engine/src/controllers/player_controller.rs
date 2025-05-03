@@ -2,7 +2,7 @@ use crate::{
     actors::*,
     items::{
         SpawnDroppedItemEvent,
-        inventory::Inventory,
+        inventory::{Inventory, ItemAction},
         item_attributes::{ItemSwingSpeed, ItemUseSpeed},
     },
 };
@@ -248,7 +248,8 @@ pub fn player_punch(
             Entity,
             &GlobalTransform,
             &Player,
-            &mut Inventory,
+            &Inventory,
+            &mut ItemAction,
             &ActionState<Action>,
             Option<&LocalPlayer>,
         ),
@@ -262,17 +263,18 @@ pub fn player_punch(
     focused: Res<CursorLocked>,
     level: Res<Level>,
 ) {
-    for (player_entity, tf, player, mut inv, action, local) in player_query.iter_mut() {
+    for (player_entity, tf, player, inv, mut item_action, action, local) in player_query.iter_mut()
+    {
         if local.is_some() && !focused.0 {
             // don't continue if we're in the inventory
             continue;
         }
         if action.pressed(&Action::Punch) {
             //first test if we punched a combatant
-            let slot = inv.selected_slot();
-            match inv.get(slot) {
-                Some(_) => inv.swing_item(
-                    slot,
+            let stack_opt = inv.selected_item();
+            match stack_opt {
+                Some(_) => item_action.swing_item(
+                    inv,
                     crate::items::inventory::ItemTargetPosition::Entity(player_entity),
                 ),
                 None => {
@@ -313,8 +315,9 @@ pub fn player_punch(
 pub fn player_use(
     mut player_query: Query<
         (
-            &mut Inventory,
             Entity,
+            &Inventory,
+            &mut ItemAction,
             &GlobalTransform,
             &ActionState<Action>,
             Option<&LocalPlayer>,
@@ -328,7 +331,7 @@ pub fn player_use(
     usable_block_query: Query<&UsableBlock>,
     mut block_use_writer: EventWriter<BlockUsedEvent>,
 ) {
-    for (mut inv, entity, tf, action, local) in player_query.iter_mut() {
+    for (entity, inv, mut item_action, tf, action, local) in player_query.iter_mut() {
         if local.is_some() && !focused.0 {
             // don't continue if we're in the inventory
             continue;
@@ -354,9 +357,8 @@ pub fn player_use(
                 }
             }
             //we didn't use a block, so try to use an item
-            let slot = inv.selected_slot();
-            inv.use_item(
-                slot,
+            item_action.use_item(
+                inv,
                 crate::items::inventory::ItemTargetPosition::Entity(entity),
             );
         }

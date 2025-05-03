@@ -74,11 +74,14 @@ pub fn on_swing(
 ) {
     for SwingItemEvent {
         user,
-        inventory_slot,
-        stack,
+        slot,
         tf,
+        speed,
     } in reader.read()
     {
+        let Some((_, stack)) = slot else {
+            continue;
+        };
         if !item_query.contains(stack.id) {
             continue;
         }
@@ -97,15 +100,15 @@ pub fn on_swing(
             });
             swing_hit_writer.send(SwingEndEvent {
                 user: *user,
-                inventory_slot: *inventory_slot,
-                stack: *stack,
+                slot: *slot,
+                speed: *speed,
                 result: HitResult::Hit(hit.hit_pos),
             });
         } else {
             swing_hit_writer.send(SwingEndEvent {
                 user: *user,
-                inventory_slot: *inventory_slot,
-                stack: *stack,
+                slot: *slot,
+                speed: *speed,
                 result: HitResult::Miss,
             });
         }

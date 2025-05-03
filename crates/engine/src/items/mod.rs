@@ -1,6 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use bevy::{prelude::*, utils::HashMap};
+use item_attributes::{ItemSwingSpeed, ItemUseSpeed};
 use serde::{Deserialize, Serialize};
 
 use interfaces::components::Id;
@@ -17,10 +18,8 @@ pub struct ItemsPlugin;
 
 impl Plugin for ItemsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<StartUsingItemEvent>()
-            .add_event::<UseItemEvent>()
+        app.add_event::<UseItemEvent>()
             .add_event::<UseEndEvent>()
-            .add_event::<StartSwingingItemEvent>()
             .add_event::<SwingItemEvent>()
             .add_event::<SwingEndEvent>()
             .add_event::<SpawnDroppedItemEvent>()
@@ -142,50 +141,34 @@ pub struct SpawnDroppedItemEvent {
 }
 
 #[derive(Event)]
-pub struct StartUsingItemEvent {
-    pub user: Entity,
-    pub inventory_slot: Option<usize>,
-    pub stack: ItemStack,
-    pub tf: Transform,
-}
-
-#[derive(Event)]
 pub struct UseItemEvent {
     pub user: Entity,
-    pub inventory_slot: Option<usize>,
-    pub stack: ItemStack,
+    pub slot: Option<(usize, ItemStack)>,
+    pub speed: ItemUseSpeed,
     pub tf: Transform,
 }
 
 #[derive(Event)]
 pub struct UseEndEvent {
     pub user: Entity,
-    pub inventory_slot: Option<usize>,
-    pub stack: ItemStack,
+    pub slot: Option<(usize, ItemStack)>,
+    pub speed: ItemUseSpeed,
     pub result: HitResult,
-}
-
-#[derive(Event)]
-pub struct StartSwingingItemEvent {
-    pub user: Entity,
-    pub inventory_slot: Option<usize>,
-    pub stack: ItemStack,
-    pub tf: Transform,
 }
 
 #[derive(Event)]
 pub struct SwingItemEvent {
     pub user: Entity,
-    pub inventory_slot: Option<usize>,
-    pub stack: ItemStack,
+    pub slot: Option<(usize, ItemStack)>,
+    pub speed: ItemSwingSpeed,
     pub tf: Transform,
 }
 
 #[derive(Event)]
 pub struct SwingEndEvent {
     pub user: Entity,
-    pub inventory_slot: Option<usize>,
-    pub stack: ItemStack,
+    pub slot: Option<(usize, ItemStack)>,
+    pub speed: ItemSwingSpeed,
     pub result: HitResult,
 }
 

@@ -17,16 +17,6 @@
             knockback: 1.0,
         ),
         "items::tools::DontHitBlocks": (),
-        "engine::items::item_attributes::ItemSwingSpeed": (
-            windup: (
-                secs: 0,
-                nanos: 0,
-            ),
-            backswing: (
-                secs: 0,
-                nanos: 500000000,
-            )
-        ),
       },
     ),
     4294967299: (
@@ -45,16 +35,6 @@
             shovel: 2,
             axe: 2,
         ),
-        "engine::items::item_attributes::ItemSwingSpeed": (
-            windup: (
-                secs: 0,
-                nanos: 0,
-            ),
-            backswing: (
-                secs: 0,
-                nanos: 500000000,
-            )
-        ),
       },
     ),
     4294967300: (
@@ -70,16 +50,6 @@
         "engine::items::MaxStackSize": (1),
         "items::tools::Tool": (
             axe: 3
-        ),
-        "engine::items::item_attributes::ItemSwingSpeed": (
-            windup: (
-                secs: 0,
-                nanos: 0,
-            ),
-            backswing: (
-                secs: 0,
-                nanos: 500000000,
-            )
         ),
         "items::tools::abilities::AxeAbility": (
             max_blocks: 10,
@@ -101,16 +71,6 @@
         "engine::items::MaxStackSize": (1),
         "items::tools::Tool": (
             shovel: 3
-        ),
-        "engine::items::item_attributes::ItemSwingSpeed": (
-            windup: (
-                secs: 0,
-                nanos: 0,
-            ),
-            backswing: (
-                secs: 0,
-                nanos: 500000000,
-            )
         ),
         "items::tools::abilities::ShovelAbility": (
             radius: 2,
@@ -135,16 +95,6 @@
           name: "glowjelly",
         )),
         "engine::items::item_attributes::ConsumeItemOnHit": (),
-        "engine::items::item_attributes::ItemUseSpeed": (
-            windup: (
-                secs: 0,
-                nanos: 250000000,
-            ),
-            backswing: (
-                secs: 0,
-                nanos: 500000000,
-            )
-        ),
       },
     ),
     4294967303: (
@@ -163,16 +113,6 @@
           name: "world_anchor",
         )),
         "engine::items::item_attributes::ConsumeItemOnHit": (),
-        "engine::items::item_attributes::ItemUseSpeed": (
-            windup: (
-                secs: 1,
-                nanos: 0,
-            ),
-            backswing: (
-                secs: 0,
-                nanos: 500000000,
-            )
-        ),
       },
     ),
     4294967304: (
@@ -187,16 +127,6 @@
         ),
         "engine::items::MaxStackSize": (9999),
         "items::time_items::SkipToNightItem": (),
-        "engine::items::item_attributes::ItemUseSpeed": (
-            windup: (
-                secs: 0,
-                nanos: 250000000,
-            ),
-            backswing: (
-                secs: 0,
-                nanos: 500000000,
-            )
-        ),
       },
     ),
     4294967305: (
@@ -219,13 +149,9 @@
           damage: Damage (amount: 3.0)
         ),
         "engine::items::item_attributes::ItemUseSpeed": (
-            windup: (
-                secs: 0,
-                nanos: 0,
-            ),
-            backswing: (
+            (
                 secs: 1,
-                nanos: 0
+                nanos: 0,
             )
         ),
         "engine::items::item_attributes::ConsumeItemOnHit": ()
@@ -252,13 +178,9 @@
           lifetime_mult: 0.5,
         ),
         "engine::items::item_attributes::ItemUseSpeed": (
-            windup: (
+            (
                 secs: 0,
-                nanos: 0,
-            ),
-            backswing: (
-                secs: 0,
-                nanos: 250000000
+                nanos: 250000000,
             )
         ),
         "engine::items::item_attributes::ConsumeItemOnHit": ()
@@ -282,13 +204,9 @@
           remove_distance: Some(2.0)
         ),
         "engine::items::item_attributes::ItemUseSpeed": (
-            windup: (
+            (
                 secs: 0,
-                nanos: 0
-            ),
-            backswing: (
-                secs: 0,
-                nanos: 500000000,
+                nanos: 0,
             )
         ),
       },
@@ -305,16 +223,6 @@
         ),
         "engine::items::MaxStackSize": (1),
         "items::debug::SuicidePill": (),
-        "engine::items::item_attributes::ItemUseSpeed": (
-            windup: (
-                secs: 0,
-                nanos: 0
-            ),
-            backswing: (
-                secs: 0,
-                nanos: 500000000,
-            )
-        ),
       },
     ),
     4294967309: (
@@ -330,16 +238,6 @@
         "engine::items::MaxStackSize": (1),
         "items::assault_items::AssaultSummonerItem": (
             strength: 5
-        ),
-        "engine::items::item_attributes::ItemUseSpeed": (
-            windup: (
-                secs: 0,
-                nanos: 0
-            ),
-            backswing: (
-                secs: 2,
-                nanos: 0,
-            )
         ),
         "engine::items::item_attributes::ConsumeItemOnSucess": ()
       },

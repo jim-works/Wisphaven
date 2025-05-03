@@ -12,6 +12,8 @@ pub mod team;
 use interfaces::scheduling::*;
 use physics::collision::Aabb;
 
+use crate::items::inventory::ItemAction;
+
 use super::Player;
 
 pub struct CombatPlugin;
@@ -106,6 +108,7 @@ impl Invulnerability {
 }
 
 #[derive(Component, Clone, Serialize, Deserialize, Debug)]
+#[require(ItemAction)]
 pub enum Combatant {
     Root { health: Health, defense: Defense },
     Child { parent: Entity, defense: Defense },

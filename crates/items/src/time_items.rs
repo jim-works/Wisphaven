@@ -30,19 +30,18 @@ fn use_skip_to_night_item(
     cal: Res<Calendar>,
 ) {
     for UseItemEvent {
-        user,
-        inventory_slot,
-        stack,
-        tf: _,
+        user, slot, speed, ..
     } in reader.read()
     {
-        if query.contains(stack.id) {
+        if let Some((_, stack)) = slot
+            && query.contains(stack.id)
+        {
             info!("Skipping to night...");
             writer.send(SpeedupCalendarEvent(cal.next_night()));
             hit_writer.send(UseEndEvent {
                 user: *user,
-                inventory_slot: *inventory_slot,
-                stack: *stack,
+                slot: *slot,
+                speed: *speed,
                 result: HitResult::Miss,
             });
         }

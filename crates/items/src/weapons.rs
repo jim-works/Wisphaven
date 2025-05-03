@@ -84,12 +84,14 @@ pub fn attack_melee(
 ) {
     for SwingItemEvent {
         user,
-        inventory_slot,
-        stack,
+        slot,
         tf,
+        speed,
     } in attack_item_reader.read()
     {
-        if let Ok(weapon) = weapon_query.get(stack.id) {
+        if let Some((_, stack)) = slot
+            && let Ok(weapon) = weapon_query.get(stack.id)
+        {
             if let Some(RaycastHit::Object(hit)) = query::raycast(
                 query::Raycast::new(tf.translation, tf.forward(), 10.0),
                 &level,
@@ -105,16 +107,16 @@ pub fn attack_melee(
                 });
                 swing_hit_writer.send(SwingEndEvent {
                     user: *user,
-                    inventory_slot: *inventory_slot,
-                    stack: *stack,
+                    slot: *slot,
+                    speed: *speed,
                     result: HitResult::Hit(hit.hit_pos),
                 });
                 info!("melee hit!");
             } else {
                 swing_hit_writer.send(SwingEndEvent {
                     user: *user,
-                    inventory_slot: *inventory_slot,
-                    stack: *stack,
+                    slot: *slot,
+                    speed: *speed,
                     result: HitResult::Miss,
                 });
                 info!("melee miss!");
@@ -132,12 +134,14 @@ pub fn launch_projectile(
 ) {
     for UseItemEvent {
         user,
-        inventory_slot,
-        stack,
+        slot,
         tf,
+        speed,
     } in attack_item_reader.read()
     {
-        if let Ok(mut weapon) = weapon_query.get_mut(stack.id) {
+        if let Some((_, stack)) = slot
+            && let Ok(mut weapon) = weapon_query.get_mut(stack.id)
+        {
             weapon.cached_name = Some(
                 weapon
                     .cached_name
@@ -168,8 +172,8 @@ pub fn launch_projectile(
             });
             hit_writer.send(UseEndEvent {
                 user: *user,
-                inventory_slot: *inventory_slot,
-                stack: *stack,
+                slot: *slot,
+                speed: *speed,
                 result: HitResult::Miss,
             });
         }

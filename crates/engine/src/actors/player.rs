@@ -337,14 +337,8 @@ fn populate_player_entity(
                     .add_offset(Vec3::new(0.0, -0.3, 0.0)),
                 ..default()
             },
-            ItemUseSpeed {
-                windup: Duration::ZERO,
-                backswing: Duration::from_millis(100),
-            },
-            ItemSwingSpeed {
-                windup: Duration::ZERO,
-                backswing: Duration::from_millis(1000),
-            },
+            ItemUseSpeed(Duration::from_millis(500)),
+            ItemSwingSpeed(Duration::from_millis(500)),
             Stamina::new(10.0),
             RestoreStaminaOnKill { amount: 1.0 },
             RestoreStaminaDuringDay {

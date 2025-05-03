@@ -134,12 +134,14 @@ fn do_spawn_actors(
     const BACKWARD_DIST: f32 = 1.0;
     for UseItemEvent {
         user,
-        inventory_slot,
-        stack,
+        slot,
         tf,
+        speed,
     } in reader.read()
     {
-        if let Ok(item) = item_query.get(stack.id) {
+        if let Some((_, stack)) = slot
+            && let Ok(item) = item_query.get(stack.id)
+        {
             if let Some(RaycastHit::Block(_, hit)) = query::raycast(
                 Raycast::new(tf.translation, tf.forward(), REACH),
                 &level,
@@ -158,8 +160,8 @@ fn do_spawn_actors(
                 );
                 hit_writer.send(UseEndEvent {
                     user: *user,
-                    inventory_slot: *inventory_slot,
-                    stack: *stack,
+                    slot: *slot,
+                    speed: *speed,
                     result: HitResult::Hit(spawn_pos),
                 });
                 if let Ok((mut tf, mut spawner)) = particles.get_mut(effects.spawn_particles) {
@@ -169,8 +171,8 @@ fn do_spawn_actors(
             } else {
                 hit_writer.send(UseEndEvent {
                     user: *user,
-                    inventory_slot: *inventory_slot,
-                    stack: *stack,
+                    slot: *slot,
+                    speed: *speed,
                     result: HitResult::Miss,
                 });
             }

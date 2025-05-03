@@ -22,14 +22,10 @@ fn use_suicide_pill(
     mut attack_writer: EventWriter<DeathTrigger>,
     item_query: Query<&SuicidePill>,
 ) {
-    for UseItemEvent {
-        user,
-        inventory_slot: _,
-        stack,
-        tf: _,
-    } in reader.read()
-    {
-        if item_query.contains(stack.id) {
+    for UseItemEvent { user, slot, .. } in reader.read() {
+        if let Some((_, stack)) = slot
+            && item_query.contains(stack.id)
+        {
             attack_writer.send(DeathTrigger {
                 final_blow: DamageTakenEvent {
                     target: *user,

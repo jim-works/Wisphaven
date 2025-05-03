@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::{prelude::*, time::Stopwatch};
 
 use crate::util::ExtraOptions;
@@ -7,7 +9,7 @@ use super::{
     *,
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ItemTargetPosition {
     Entity(Entity),
     Positon(GlobalTransform),
@@ -32,25 +34,25 @@ impl ItemTargetPosition {
 //local space
 pub struct ItemUsageOffset(Vec3);
 
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone, Component)]
 pub enum ItemAction {
     #[default]
     None,
     UsingWindup {
-        elapsed_time: Stopwatch,
         target_position: ItemTargetPosition,
-        sent_start_event: bool,
-    },
-    UsingBackswing {
-        elapsed_time: Stopwatch,
+        from_slot: Option<(usize, ItemStack)>,
     },
     //elapsed time, target position
     SwingingWindup {
-        elapsed_time: Stopwatch,
         target_position: ItemTargetPosition,
-        sent_start_event: bool,
+        from_slot: Option<(usize, ItemStack)>,
+    },
+    UsingBackswing {
+        from_slot: Option<(usize, ItemStack)>,
+        elapsed_time: Stopwatch,
     },
     SwingingBackswing {
+        from_slot: Option<(usize, ItemStack)>,
         elapsed_time: Stopwatch,
     },
 }
@@ -62,34 +64,43 @@ impl ItemAction {
         match self {
             ItemAction::None => (),
             ItemAction::UsingWindup { .. } => *self = ItemAction::None,
-            ItemAction::UsingBackswing { .. } => (),
             ItemAction::SwingingWindup { .. } => *self = ItemAction::None,
-            ItemAction::SwingingBackswing { .. } => (),
+            _ => {}
         }
     }
-    pub fn try_swing(&mut self, tf: ItemTargetPosition) {
-        if let ItemAction::None = self {
-            *self = ItemAction::SwingingWindup {
-                elapsed_time: Stopwatch::default(),
-                target_position: tf,
-                sent_start_event: false,
-            }
+    pub fn swing_item(&mut self, inv: &Inventory, tf: ItemTargetPosition) {
+        info!("try swing");
+        if matches!(
+            self,
+            ItemAction::SwingingBackswing { .. } | ItemAction::UsingBackswing { .. }
+        ) {
+            return;
+        }
+        info!("do swang");
+        let slot = inv.selected_slot();
+        *self = ItemAction::SwingingWindup {
+            target_position: tf,
+            from_slot: inv.get(slot).map(|stack| (slot, stack)),
         }
     }
-    pub fn try_use(&mut self, tf: ItemTargetPosition) {
-        if let ItemAction::None = self {
-            *self = ItemAction::UsingWindup {
-                elapsed_time: Stopwatch::default(),
-                target_position: tf,
-                sent_start_event: false,
-            };
+    pub fn use_item(&mut self, inv: &Inventory, tf: ItemTargetPosition) {
+        if matches!(
+            self,
+            ItemAction::SwingingBackswing { .. } | ItemAction::UsingBackswing { .. }
+        ) {
+            return;
         }
+        let slot = inv.selected_slot();
+        *self = ItemAction::UsingWindup {
+            target_position: tf,
+            from_slot: inv.get(slot).map(|stack| (slot, stack)),
+        };
     }
 }
 
 #[derive(Component)]
 pub struct Inventory {
-    items: Vec<Option<(ItemStack, ItemAction)>>,
+    items: Vec<Option<ItemStack>>,
     owner: Entity,
     selected_slot: usize,
 }
@@ -102,10 +113,10 @@ impl Inventory {
             selected_slot: 0,
         }
     }
-    pub fn iter(&self) -> std::slice::Iter<'_, Option<(ItemStack, ItemAction)>> {
+    pub fn iter(&self) -> std::slice::Iter<'_, Option<ItemStack>> {
         self.items.iter()
     }
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Option<(ItemStack, ItemAction)>> {
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Option<ItemStack>> {
         self.items.iter_mut()
     }
     pub fn selected_slot(&self) -> usize {
@@ -122,19 +133,13 @@ impl Inventory {
         //loop back around
         let new_slot = slot_num.rem_euclid(self.items.len() as i32) as usize;
         if new_slot != self.selected_slot {
-            if let Some((_, action)) = &mut self.items[new_slot] {
-                action.cancel_action();
-            }
-            if let Some((_, action)) = &mut self.items[self.selected_slot] {
-                action.cancel_action();
-            }
             self.selected_slot = new_slot;
         }
     }
     pub fn has_item(&self, item: Entity) -> bool {
         self.items.iter().any(|x| {
             if let Some(stack) = x {
-                stack.0.id == item
+                stack.id == item
             } else {
                 false
             }
@@ -145,9 +150,9 @@ impl Inventory {
             .iter()
             .map(|x| {
                 if let Some(stack) = x
-                    && stack.0.id == item
+                    && stack.id == item
                 {
-                    stack.0.size
+                    stack.size
                 } else {
                     0
                 }
@@ -166,7 +171,7 @@ impl Inventory {
             match stacks {
                 Some(stack) => {
                     //pick up part of the stack
-                    if stack.0.id != item.id {
+                    if stack.id != item.id {
                         continue;
                     }
                     let picking_up = item
@@ -174,12 +179,12 @@ impl Inventory {
                         .min(data_query.get(item.id).unwrap().0.saturating_sub(item.size));
                     if picking_up > 0 {
                         item.size -= picking_up;
-                        stack.0.size += picking_up;
+                        stack.size += picking_up;
                     }
                 }
                 None => {
                     //pick up the whole stack into an empty slot
-                    *stacks = Some((item, default()));
+                    *stacks = Some(item);
                     item.size = 0;
                     return None;
                 }
@@ -198,7 +203,7 @@ impl Inventory {
             match stacks {
                 Some(stack) => {
                     //pick up part of the stack
-                    if stack.0.id != item.id {
+                    if stack.id != item.id {
                         continue;
                     }
                     let picking_up = item
@@ -228,7 +233,7 @@ impl Inventory {
             return 0;
         }
         for stack in self.iter_mut() {
-            if let Some((inv_item, _)) = stack.clone()
+            if let Some(inv_item) = stack.clone()
                 && inv_item.id == item.id
             {
                 to_remove -= descrease_slot_size(stack, to_remove);
@@ -241,7 +246,7 @@ impl Inventory {
     }
 
     pub fn set_slot_no_events(&mut self, slot: usize, item: ItemStack) {
-        self.items[slot] = Some((item, default()));
+        self.items[slot] = Some(item);
     }
     pub fn swap_slots(&mut self, slot_a: usize, slot_b: usize) {
         self.items.swap(slot_a, slot_b);
@@ -258,16 +263,12 @@ impl Inventory {
             // no items to move
             return 0;
         }
-        // block moving items if they are currently being used or on cooldown to avoid exploits
-        let Some((from_stack, ItemAction::None)) = self.items[from_slot].clone() else {
+        let Some(from_stack) = self.items[from_slot].clone() else {
             // no items to move
             return 0;
         };
         match self.items[to_slot].clone() {
-            Some((to_stack, to_action)) => {
-                if !matches!(to_action, ItemAction::None) || from_stack.id != to_stack.id {
-                    return 0; //block move if there's an active action or the items aren't the same
-                }
+            Some(to_stack) => {
                 let Ok(max_stack_size) = data_query.get(to_stack.id) else {
                     return 0; //invalid or non-stackable item
                 };
@@ -275,7 +276,7 @@ impl Inventory {
                     .min(from_stack.size)
                     .min(max_stack_size.0.saturating_sub(to_stack.size));
                 descrease_slot_size(&mut self.items[from_slot], moving);
-                self.items[to_slot].as_mut().unwrap().0.size += moving;
+                self.items[to_slot].as_mut().unwrap().size += moving;
                 moving
             }
             None => {
@@ -285,8 +286,7 @@ impl Inventory {
                     self.swap_slots(from_slot, to_slot);
                 } else {
                     //we are only moving part of the stack
-                    self.items[to_slot] =
-                        Some((ItemStack::new(from_stack.id, moving), ItemAction::None));
+                    self.items[to_slot] = Some(ItemStack::new(from_stack.id, moving));
                     descrease_slot_size(&mut self.items[from_slot], moving);
                 }
                 moving
@@ -297,39 +297,21 @@ impl Inventory {
     pub fn drop_slot(&mut self, slot: usize) -> Option<ItemStack> {
         let item = self.items[slot].clone();
         self.items[slot] = None;
-        let dropped = item.map(|(stack, _)| stack);
-        dropped
+        item
     }
     //returns the dropped items
     pub fn drop_items(&mut self, slot: usize, max_drops: u32) -> Option<ItemStack> {
-        let (stack, _) = self.items[slot].clone()?;
+        let stack = self.items[slot].clone()?;
         descrease_slot_size(&mut self.items[slot], max_drops);
         let dropped_size = self.items[slot]
             .as_ref()
-            .map(|(new_stack, _)| stack.size - new_stack.size)
+            .map(|new_stack| stack.size - new_stack.size)
             .unwrap_or(stack.size);
         let dropped_stack = ItemStack::new(stack.id, dropped_size);
 
         Some(dropped_stack)
     }
-    pub fn use_item(&mut self, slot: usize, target: ItemTargetPosition) {
-        if let Some((_, action)) = &mut self.items[slot] {
-            action.try_use(target);
-        }
-    }
-    pub fn swing_item(&mut self, slot: usize, target: ItemTargetPosition) {
-        if let Some((_, action)) = &mut self.items[slot] {
-            action.try_swing(target);
-        }
-    }
     pub fn get(&self, slot: usize) -> Option<ItemStack> {
-        self.items
-            .get(slot)
-            .cloned()
-            .flatten()
-            .map(|(stack, _)| stack)
-    }
-    pub fn get_action(&self, slot: usize) -> Option<(ItemStack, ItemAction)> {
         self.items.get(slot).cloned().flatten()
     }
     pub fn len(&self) -> usize {
@@ -340,172 +322,225 @@ impl Inventory {
     }
 }
 
-fn descrease_slot_size(stack_opt: &mut Option<(ItemStack, ItemAction)>, max_amount: u32) -> u32 {
+fn descrease_slot_size(stack_opt: &mut Option<ItemStack>, max_amount: u32) -> u32 {
     let mut removed = 0;
-    *stack_opt = stack_opt.as_ref().and_then(|(stack, act)| {
+    *stack_opt = stack_opt.as_ref().and_then(|stack| {
         let new_size = stack.size.saturating_sub(max_amount);
         removed = stack.size - new_size;
         if new_size == 0 {
             None
         } else {
-            Some((ItemStack::new(stack.id, new_size), act.clone()))
+            Some(ItemStack::new(stack.id, new_size))
         }
     });
     removed
 }
 
 pub fn tick_item_timers(
-    mut query: Query<&mut Inventory>,
+    mut query: Query<(Entity, Option<&Inventory>, &mut ItemAction)>,
     use_pos_query: Query<(&GlobalTransform, Option<&ItemUsageOffset>)>,
     swing_speed_query: Query<&ItemSwingSpeed>,
     use_speed_query: Query<&ItemUseSpeed>,
     time: Res<Time>,
-    mut start_using_writer: EventWriter<StartUsingItemEvent>,
     mut use_writer: EventWriter<UseItemEvent>,
-    mut start_swinging_writer: EventWriter<StartSwingingItemEvent>,
     mut swing_writer: EventWriter<SwingItemEvent>,
 ) {
-    for mut inventory in query.iter_mut() {
-        let owner = inventory.owner;
+    for (owner, inventory_opt, mut action) in query.iter_mut() {
         //speeds to use if the equipped item doesn't have a speed
-        let base_use_speed = use_speed_query.get(inventory.owner).ok();
-        let base_swing_speed = swing_speed_query.get(inventory.owner).ok();
-        for (inventory_slot, opt) in inventory.iter_mut().enumerate() {
-            if let Some((stack, action)) = opt {
-                match action {
-                    ItemAction::None => (),
-                    ItemAction::UsingWindup {
-                        elapsed_time,
-                        target_position,
-                        sent_start_event,
-                    } => {
-                        elapsed_time.tick(time.delta());
-                        match use_speed_query.get(stack.id).ok().fallback(base_use_speed) {
-                            Some(use_speed) => {
-                                if elapsed_time.elapsed() >= use_speed.windup {
-                                    if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
-                                        use_writer.send(UseItemEvent {
-                                            user: owner,
-                                            inventory_slot: Some(inventory_slot),
-                                            stack: *stack,
-                                            tf,
-                                        });
-                                    } else {
-                                        warn!("Invalid entity get_use_pos");
-                                    }
-                                    *action = ItemAction::UsingBackswing {
-                                        elapsed_time: Stopwatch::default(),
-                                    };
-                                } else if !*sent_start_event {
-                                    if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
-                                        start_using_writer.send(StartUsingItemEvent {
-                                            user: owner,
-                                            inventory_slot: Some(inventory_slot),
-                                            stack: *stack,
-                                            tf,
-                                        });
-                                    } else {
-                                        warn!("Invalid entity get_use_pos");
-                                    }
-                                    *sent_start_event = true;
-                                }
-                            }
-                            _ => {
-                                if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
-                                    use_writer.send(UseItemEvent {
-                                        user: owner,
-                                        inventory_slot: Some(inventory_slot),
-                                        stack: *stack,
-                                        tf,
-                                    });
-                                } else {
-                                    warn!("Invalid entity get_use_pos");
-                                }
-                                *action = ItemAction::None;
-                            }
-                        }
+        let base_use_speed = use_speed_query.get(owner).ok();
+        let base_swing_speed = swing_speed_query.get(owner).ok();
+        if let Some(inv) = inventory_opt {
+            let selected_slot = inv
+                .selected_item()
+                .map(|stack| (inv.selected_slot(), stack));
+            let action_slot = match action.as_ref() {
+                ItemAction::UsingBackswing { from_slot, .. }
+                | ItemAction::SwingingBackswing { from_slot, .. } => Some(*from_slot),
+                _ => None,
+            }
+            .flatten();
+            match (action_slot, selected_slot) {
+                (None, Some(_)) | (Some(_), None) => {
+                    if matches!(
+                        action.as_ref(),
+                        ItemAction::UsingBackswing { .. } | ItemAction::SwingingBackswing { .. }
+                    ) {
+                        info!(
+                            "Swapped to/from an empty slot, cancelling action. Action {:?} inv {:?}",
+                            action_slot, selected_slot
+                        );
+                        *action = ItemAction::None;
                     }
-                    ItemAction::UsingBackswing { elapsed_time } => {
-                        elapsed_time.tick(time.delta());
-                        match use_speed_query.get(stack.id).ok().fallback(base_use_speed) {
-                            Some(use_speed) => {
-                                if elapsed_time.elapsed() >= use_speed.backswing {
-                                    *action = ItemAction::None;
-                                }
-                            }
-                            _ => *action = ItemAction::None,
-                        }
+                }
+                (Some((action_slot, action_stack)), Some((selected_slot, selected_stack))) => {
+                    if action_slot != selected_slot || action_stack != selected_stack {
+                        info!("Swapped to a new item, cancelling action");
+                        *action = ItemAction::None;
                     }
-                    ItemAction::SwingingWindup {
-                        elapsed_time,
-                        target_position,
-                        sent_start_event,
-                    } => {
-                        elapsed_time.tick(time.delta());
-                        match swing_speed_query
-                            .get(stack.id)
-                            .ok()
-                            .fallback(base_swing_speed)
-                        {
-                            Some(swing_speed) => {
-                                if elapsed_time.elapsed() >= swing_speed.windup {
-                                    if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
-                                        swing_writer.send(SwingItemEvent {
-                                            user: owner,
-                                            inventory_slot: Some(inventory_slot),
-                                            stack: *stack,
-                                            tf,
-                                        });
-                                    } else {
-                                        warn!("Invalid entity get_use_pos");
-                                    }
-                                    *action = ItemAction::SwingingBackswing {
-                                        elapsed_time: Stopwatch::default(),
-                                    };
-                                } else if !*sent_start_event {
-                                    if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
-                                        start_swinging_writer.send(StartSwingingItemEvent {
-                                            user: owner,
-                                            inventory_slot: Some(inventory_slot),
-                                            stack: *stack,
-                                            tf,
-                                        });
-                                    } else {
-                                        warn!("Invalid entity get_use_pos");
-                                    }
-                                    *sent_start_event = true;
-                                }
-                            }
-                            _ => {
-                                if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
-                                    swing_writer.send(SwingItemEvent {
-                                        user: owner,
-                                        inventory_slot: Some(inventory_slot),
-                                        stack: *stack,
-                                        tf,
-                                    });
-                                } else {
-                                    warn!("Invalid entity get_use_pos");
-                                }
-                                *action = ItemAction::None;
-                            }
-                        }
-                    }
-                    ItemAction::SwingingBackswing { elapsed_time } => {
-                        elapsed_time.tick(time.delta());
-                        match swing_speed_query
-                            .get(stack.id)
-                            .ok()
-                            .fallback(base_swing_speed)
-                        {
-                            Some(swing_speed) => {
-                                if elapsed_time.elapsed() >= swing_speed.backswing {
-                                    *action = ItemAction::None;
-                                }
-                            }
-                            _ => *action = ItemAction::None,
-                        }
-                    }
+                }
+                _ => {}
+            };
+        }
+
+        match action.as_mut() {
+            ItemAction::None => (),
+            ItemAction::UsingWindup {
+                target_position,
+                from_slot,
+            } => {
+                if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
+                    let speed = from_slot
+                        .map(|(_, stack)| use_speed_query.get(stack.id).ok())
+                        .flatten()
+                        .fallback(base_use_speed)
+                        .cloned()
+                        .unwrap_or_default();
+                    use_writer.send(UseItemEvent {
+                        user: owner,
+                        slot: *from_slot,
+                        speed,
+                        tf,
+                    });
+                } else {
+                    warn!("Invalid entity get_use_pos");
+                }
+                *action = ItemAction::UsingBackswing {
+                    from_slot: *from_slot,
+                    elapsed_time: Stopwatch::default(),
+                }
+                // match from_slot
+                //     .map(|(_, stack)| use_speed_query.get(stack.id).ok())
+                //     .flatten()
+                //     .fallback(base_use_speed)
+                // {
+                //     Some(use_speed) => {
+
+                //         // if elapsed_time.elapsed() >= use_speed.0 {
+
+                //         // } else if !*sent_start_event {
+                //         //     if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
+                //         //         start_using_writer.send(StartUsingItemEvent {
+                //         //             user: owner,
+                //         //             slot: *from_slot,
+                //         //             tf,
+                //         //         });
+                //         //     } else {
+                //         //         warn!("Invalid entity get_use_pos");
+                //         //     }
+                //         //     *sent_start_event = true;
+                //         // }
+                //     }
+                //     _ => {
+                //         if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
+                //             use_writer.send(UseItemEvent {
+                //                 user: owner,
+                //                 slot: *from_slot,
+                //                 tf,
+                //             });
+                //         } else {
+                //             warn!("Invalid entity get_use_pos");
+                //         }
+                //         *action = ItemAction::None;
+                //     }
+                // }
+            }
+            ItemAction::UsingBackswing {
+                from_slot,
+                elapsed_time,
+            } => {
+                elapsed_time.tick(time.delta());
+                let target_duration = from_slot
+                    .map(|(_, stack)| use_speed_query.get(stack.id).ok())
+                    .flatten()
+                    .fallback(base_use_speed)
+                    .map(|use_speed| use_speed.0)
+                    .unwrap_or(Duration::ZERO);
+                if elapsed_time.elapsed() >= target_duration {
+                    *action = ItemAction::None;
+                }
+            }
+            ItemAction::SwingingWindup {
+                target_position,
+                from_slot,
+            } => {
+                if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
+                    let speed = from_slot
+                        .map(|(_, stack)| swing_speed_query.get(stack.id).ok())
+                        .flatten()
+                        .fallback(base_swing_speed)
+                        .cloned()
+                        .unwrap_or_default();
+                    swing_writer.send(SwingItemEvent {
+                        user: owner,
+                        slot: *from_slot,
+                        speed,
+                        tf,
+                    });
+                } else {
+                    warn!("Invalid entity get_use_pos");
+                }
+                *action = ItemAction::SwingingBackswing {
+                    from_slot: *from_slot,
+                    elapsed_time: Stopwatch::default(),
+                }
+                // elapsed_time.tick(time.delta());
+                // match from_slot
+                //     .map(|(_, stack)| swing_speed_query.get(stack.id).ok())
+                //     .flatten()
+                //     .fallback(base_swing_speed)
+                // {
+                //     Some(swing_speed) => {
+                //         if elapsed_time.elapsed() >= swing_speed.windup {
+                //             if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
+                //                 swing_writer.send(SwingItemEvent {
+                //                     user: owner,
+                //                     slot: *from_slot,
+                //                     tf,
+                //                 });
+                //             } else {
+                //                 warn!("Invalid entity get_use_pos");
+                //             }
+                //             *action = ItemAction::None;
+                //         } else if !*sent_start_event {
+                //             if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
+                //                 start_swinging_writer.send(StartSwingingItemEvent {
+                //                     user: owner,
+                //                     slot: *from_slot,
+                //                     tf,
+                //                 });
+                //             } else {
+                //                 warn!("Invalid entity get_use_pos");
+                //             }
+                //             *sent_start_event = true;
+                //         }
+                //     }
+                //     _ => {
+                //         if let Some(tf) = target_position.get_use_pos(&use_pos_query) {
+                //             swing_writer.send(SwingItemEvent {
+                //                 user: owner,
+                //                 slot: *from_slot,
+                //                 tf,
+                //             });
+                //         } else {
+                //             warn!("Invalid entity get_use_pos");
+                //         }
+                //         *action = ItemAction::None;
+                //     }
+                // }
+            }
+            ItemAction::SwingingBackswing {
+                from_slot,
+                elapsed_time,
+            } => {
+                elapsed_time.tick(time.delta());
+                let target_duration = from_slot
+                    .map(|(_, stack)| swing_speed_query.get(stack.id).ok())
+                    .flatten()
+                    .fallback(base_swing_speed)
+                    .map(|swing_speed| swing_speed.0)
+                    .unwrap_or(Duration::ZERO);
+                if elapsed_time.elapsed() >= target_duration {
+                    *action = ItemAction::None;
                 }
             }
         }

@@ -17,16 +17,6 @@
           name: "wisp",
         )),
         "engine::items::item_attributes::ConsumeItemOnHit": (),
-        "engine::items::item_attributes::ItemUseSpeed": (
-            windup: (
-                secs: 0,
-                nanos: 250000000,
-            ),
-            backswing: (
-                secs: 0,
-                nanos: 500000000,
-            )
-        ),
       },
     ),
   }

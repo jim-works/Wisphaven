@@ -4,12 +4,12 @@ use bevy::{math::primitives, prelude::*};
 use serde::{Deserialize, Serialize};
 use util::{ease_in_back, ease_in_out_quad, iterators::*, lerp, plugin::SmoothLookTo};
 
-use world::{FixedUpdateBlockGizmos, level::Level, settings::GraphicsSettings};
+use world::settings::GraphicsSettings;
 
 use physics::{
     PhysicsBundle,
-    collision::{Aabb, BlockPhysics},
-    movement::{GravityMult, Mass, Velocity},
+    collision::Aabb,
+    movement::{GravityMult, Mass},
 };
 
 use interfaces::{
@@ -19,10 +19,8 @@ use interfaces::{
 };
 
 use crate::items::{
-    HitResult, ItemName, ItemResources, ItemStack, StartSwingingItemEvent, StartUsingItemEvent,
-    SwingEndEvent, UseEndEvent,
-    inventory::Inventory,
-    item_attributes::{ItemSwingSpeed, ItemUseSpeed},
+    HitResult, ItemName, ItemResources, ItemStack, SwingEndEvent, SwingItemEvent, UseEndEvent,
+    UseItemEvent, inventory::Inventory,
 };
 
 use super::{
@@ -443,22 +441,19 @@ pub fn spawn_ghost_hand(
 
 fn windup_swing_hand(
     owner_query: Query<&SwingHand, Without<Hand>>,
-    item_query: Query<&ItemSwingSpeed, Without<Hand>>,
     mut hand_query: Query<(&GlobalTransform, &mut Hand)>,
-    mut swing_event: EventReader<StartSwingingItemEvent>,
+    mut swing_event: EventReader<SwingItemEvent>,
 ) {
     for event in swing_event.read() {
         if let Ok(swing_hand) = owner_query.get(event.user) {
-            if let Ok(swing_speed) = item_query.get(event.stack.id) {
-                if let Ok((tf, mut hand)) = hand_query.get_mut(swing_hand.hand) {
-                    //play windup animation for the items windup duration, if 0 duration, don't play anim
-                    //simple xP
-                    hand.state = HandState::Windup {
-                        start_pos: tf.translation(),
-                        windup_time: swing_speed.windup.as_secs_f32(),
-                        time_remaining: swing_speed.windup.as_secs_f32(),
-                    };
-                }
+            if let Ok((tf, mut hand)) = hand_query.get_mut(swing_hand.hand) {
+                //play windup animation for the items windup duration, if 0 duration, don't play anim
+                //simple xP
+                hand.state = HandState::Windup {
+                    start_pos: tf.translation(),
+                    windup_time: event.speed.as_secs_f32(),
+                    time_remaining: event.speed.as_secs_f32(),
+                };
             }
         }
     }
@@ -466,22 +461,19 @@ fn windup_swing_hand(
 
 fn windup_use_hand(
     owner_query: Query<&UseHand, Without<Hand>>,
-    item_query: Query<&ItemUseSpeed, Without<Hand>>,
     mut hand_query: Query<(&GlobalTransform, &mut Hand)>,
-    mut swing_event: EventReader<StartUsingItemEvent>,
+    mut swing_event: EventReader<UseItemEvent>,
 ) {
     for event in swing_event.read() {
         if let Ok(use_hand) = owner_query.get(event.user) {
-            if let Ok(use_speed) = item_query.get(event.stack.id) {
-                if let Ok((tf, mut hand)) = hand_query.get_mut(use_hand.hand) {
-                    //play windup animation for the items windup duration, if 0 duration, don't play anim
-                    //simple xP
-                    hand.state = HandState::Windup {
-                        start_pos: tf.translation(),
-                        windup_time: use_speed.windup.as_secs_f32(),
-                        time_remaining: use_speed.windup.as_secs_f32(),
-                    };
-                }
+            if let Ok((tf, mut hand)) = hand_query.get_mut(use_hand.hand) {
+                //play windup animation for the items windup duration, if 0 duration, don't play anim
+                //simple xP
+                hand.state = HandState::Windup {
+                    start_pos: tf.translation(),
+                    windup_time: event.speed.as_secs_f32(),
+                    time_remaining: event.speed.as_secs_f32(),
+                };
             }
         }
     }
@@ -489,33 +481,29 @@ fn windup_use_hand(
 
 fn swing_hand(
     owner_query: Query<&SwingHand, Without<Hand>>,
-    item_query: Query<&ItemSwingSpeed, Without<Hand>>,
     mut hand_query: Query<(&GlobalTransform, &mut Hand)>,
     mut swing_event: EventReader<SwingEndEvent>,
     settings: Res<GraphicsSettings>,
 ) {
     for event in swing_event.read() {
         if let Ok(swing_hand) = owner_query.get(event.user) {
-            if let Ok(swing_speed) = item_query.get(event.stack.id) {
-                if let Ok((tf, mut hand)) = hand_query.get_mut(swing_hand.hand) {
-                    //we already waiting for the windup, but we need a small amount of time for the animation to play
-                    //subtract that time off the backswing if we have the budget so the animation still has the correct total duration
-                    //if we don't have the time budget, it will be slightly off. better than no animation though!
-                    hand.state = HandState::Hitting {
-                        start_pos: tf.translation(),
-                        target: match event.result {
-                            HitResult::Hit(pos) => pos,
-                            HitResult::Miss | HitResult::Fail => {
-                                tf.transform_point(swing_hand.miss_offset)
-                            }
-                        },
-                        hit_time: settings.hand_hit_animation_duration,
-                        return_time: (swing_speed.backswing.as_secs_f32()
-                            - settings.hand_hit_animation_duration)
-                            .max(settings.hand_hit_animation_duration),
-                        hit_time_remaining: settings.hand_hit_animation_duration,
-                    };
-                }
+            if let Ok((tf, mut hand)) = hand_query.get_mut(swing_hand.hand) {
+                //we already waiting for the windup, but we need a small amount of time for the animation to play
+                //subtract that time off the backswing if we have the budget so the animation still has the correct total duration
+                //if we don't have the time budget, it will be slightly off. better than no animation though!
+                hand.state = HandState::Hitting {
+                    start_pos: tf.translation(),
+                    target: match event.result {
+                        HitResult::Hit(pos) => pos,
+                        HitResult::Miss | HitResult::Fail => {
+                            tf.transform_point(swing_hand.miss_offset)
+                        }
+                    },
+                    hit_time: settings.hand_hit_animation_duration,
+                    return_time: (event.speed.as_secs_f32() - settings.hand_hit_animation_duration)
+                        .max(settings.hand_hit_animation_duration),
+                    hit_time_remaining: settings.hand_hit_animation_duration,
+                };
             }
         }
     }
@@ -523,33 +511,29 @@ fn swing_hand(
 
 fn use_hand(
     owner_query: Query<&UseHand, Without<Hand>>,
-    item_query: Query<&ItemUseSpeed, Without<Hand>>,
     mut hand_query: Query<(&GlobalTransform, &mut Hand)>,
     mut use_event: EventReader<UseEndEvent>,
     settings: Res<GraphicsSettings>,
 ) {
     for event in use_event.read() {
         if let Ok(use_hand) = owner_query.get(event.user) {
-            if let Ok(use_speed) = item_query.get(event.stack.id) {
-                if let Ok((tf, mut hand)) = hand_query.get_mut(use_hand.hand) {
-                    //we already waiting for the windup, but we need a small amount of time for the animation to play
-                    //subtract that time off the backuse if we have the budget so the animation still has the correct total duration
-                    //if we don't have the time budget, it will be slightly off. better than no animation though!
-                    hand.state = HandState::Hitting {
-                        start_pos: tf.translation(),
-                        target: match event.result {
-                            HitResult::Hit(p) => p,
-                            HitResult::Miss | HitResult::Fail => {
-                                tf.transform_point(use_hand.miss_offset)
-                            }
-                        },
-                        hit_time: settings.hand_hit_animation_duration,
-                        return_time: (use_speed.backswing.as_secs_f32()
-                            - settings.hand_hit_animation_duration)
-                            .max(settings.hand_hit_animation_duration),
-                        hit_time_remaining: settings.hand_hit_animation_duration,
-                    };
-                }
+            if let Ok((tf, mut hand)) = hand_query.get_mut(use_hand.hand) {
+                //we already waiting for the windup, but we need a small amount of time for the animation to play
+                //subtract that time off the backuse if we have the budget so the animation still has the correct total duration
+                //if we don't have the time budget, it will be slightly off. better than no animation though!
+                hand.state = HandState::Hitting {
+                    start_pos: tf.translation(),
+                    target: match event.result {
+                        HitResult::Hit(p) => p,
+                        HitResult::Miss | HitResult::Fail => {
+                            tf.transform_point(use_hand.miss_offset)
+                        }
+                    },
+                    hit_time: settings.hand_hit_animation_duration,
+                    return_time: (event.speed.as_secs_f32() - settings.hand_hit_animation_duration)
+                        .max(settings.hand_hit_animation_duration),
+                    hit_time_remaining: settings.hand_hit_animation_duration,
+                };
             }
         }
     }

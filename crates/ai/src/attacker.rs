@@ -2,7 +2,7 @@ use bevy::{math::FloatPow, prelude::*};
 use big_brain::prelude::*;
 use engine::{
     actors::{AggroTargets, team::Team},
-    items::inventory::{Inventory, ItemTargetPosition},
+    items::inventory::{Inventory, ItemAction, ItemTargetPosition},
 };
 use interfaces::scheduling::LevelSystemSet;
 
@@ -120,18 +120,19 @@ fn update_closest_enemy_aggro(
 // todo - aim for weapons with gravity??
 fn update_use_item_action(
     mut action_query: Query<(&Actor, &mut ActionState, &UseItemAction)>,
-    mut attacker_query: Query<(&mut Transform, &AggroTargets, &mut Inventory)>,
+    mut attacker_query: Query<(&mut Transform, &AggroTargets, &Inventory, &mut ItemAction)>,
     target_query: Query<&GlobalTransform>,
 ) {
     for (&Actor(actor), mut state, action) in action_query.iter_mut() {
         match *state {
             ActionState::Requested => {
-                if let Ok((mut tf, aggro_targets, mut inv)) = attacker_query.get_mut(actor)
+                if let Ok((mut tf, aggro_targets, inv, mut item_action)) =
+                    attacker_query.get_mut(actor)
                     && let Some(target_entity) = aggro_targets.current_target()
                     && let Ok(target_gtf) = target_query.get(target_entity)
                 {
                     tf.look_at(target_gtf.translation(), Vec3::Y);
-                    inv.use_item(action.slot, ItemTargetPosition::Entity(actor));
+                    item_action.use_item(inv, ItemTargetPosition::Entity(actor));
                     *state = ActionState::Executing;
                 } else {
                     info!("Cancelling use item action due to missing target or missing components");
@@ -139,19 +140,14 @@ fn update_use_item_action(
                 }
             }
             ActionState::Executing => {
-                let Ok((_, _, inv)) = attacker_query.get(actor) else {
-                    warn!("Cancelling use item action due to missing inventory");
-                    *state = ActionState::Failure;
-                    continue;
-                };
-                let Some((_, item_action)) = inv.get_action(action.slot) else {
-                    warn!("Cancelling use item action due to missing item");
-                    *state = ActionState::Failure;
-                    continue;
-                };
                 //wait for animation to finish
-                if matches!(item_action, engine::items::inventory::ItemAction::None) {
-                    *state = ActionState::Success;
+                if let Ok((_, _, _, item_action)) = attacker_query.get_mut(actor) {
+                    if matches!(*item_action, engine::items::inventory::ItemAction::None) {
+                        *state = ActionState::Success;
+                    }
+                } else {
+                    info!("Cancelling due to missing actor");
+                    *state = ActionState::Cancelled;
                 }
             }
             ActionState::Cancelled => {

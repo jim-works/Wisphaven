@@ -28,12 +28,14 @@ pub fn use_block_entity_item(
 ) {
     for UseItemEvent {
         user,
-        inventory_slot,
-        stack,
+        slot,
         tf,
+        speed,
     } in reader.read()
     {
-        if let Ok(block_item) = block_query.get(stack.id) {
+        if let Some((_, stack)) = slot
+            && let Ok(block_item) = block_query.get(stack.id)
+        {
             if let Some(RaycastHit::Block(coord, hit)) = query::raycast(
                 Raycast::new(tf.translation, tf.forward(), 10.0),
                 &level,
@@ -51,15 +53,15 @@ pub fn use_block_entity_item(
                 );
                 hit_writer.send(UseEndEvent {
                     user: *user,
-                    inventory_slot: *inventory_slot,
-                    stack: *stack,
+                    slot: *slot,
+                    speed: *speed,
                     result: HitResult::Hit(hit.hit_pos),
                 });
             } else {
                 hit_writer.send(UseEndEvent {
                     user: *user,
-                    inventory_slot: *inventory_slot,
-                    stack: *stack,
+                    slot: *slot,
+                    speed: *speed,
                     result: HitResult::Miss,
                 });
             }

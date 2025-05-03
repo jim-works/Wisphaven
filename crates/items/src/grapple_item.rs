@@ -45,12 +45,14 @@ pub fn launch_grapple(
 ) {
     for UseItemEvent {
         user,
-        inventory_slot,
-        stack,
+        slot,
         tf,
+        speed,
     } in attack_item_reader.read()
     {
-        if let Ok(item) = item_query.get(stack.id) {
+        if let Some((_, stack)) = slot
+            && let Ok(item) = item_query.get(stack.id)
+        {
             writer.send(ShootGrappleEvent {
                 owner: *user,
                 ray: Raycast::new(tf.translation, tf.forward(), item.length),
@@ -60,8 +62,8 @@ pub fn launch_grapple(
             });
             hit_writer.send(UseEndEvent {
                 user: *user,
-                inventory_slot: *inventory_slot,
-                stack: *stack,
+                slot: *slot,
+                speed: *speed,
                 result: HitResult::Miss,
             });
         }
