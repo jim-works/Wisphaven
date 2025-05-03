@@ -103,6 +103,25 @@
           )
         ),
       },
+    ),
+    4294967301: (
+      components: {
+        "crafting::Recipe": (
+          inputs: [
+            ((
+              namespace: "core",
+              name: "sand",
+            ), 2)
+          ],
+          output: (
+            (
+              namespace: "core",
+              name: "tnt",
+            ),
+            1
+          )
+        ),
+      },
     )
   }
 )

@@ -132,7 +132,7 @@ fn update_use_item_action(
                     && let Ok(target_gtf) = target_query.get(target_entity)
                 {
                     tf.look_at(target_gtf.translation(), Vec3::Y);
-                    item_action.use_item(inv, ItemTargetPosition::Entity(actor));
+                    item_action.try_use(inv, ItemTargetPosition::Entity(actor));
                     *state = ActionState::Executing;
                 } else {
                     info!("Cancelling use item action due to missing target or missing components");

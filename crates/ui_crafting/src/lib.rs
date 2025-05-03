@@ -3,11 +3,11 @@ use bevy::prelude::*;
 use crafting::*;
 use engine::{
     actors::LocalPlayer,
-    items::{inventory::Inventory, ItemStack},
+    items::{ItemStack, inventory::Inventory},
 };
 use interfaces::scheduling::{GameState, LevelSystemSet};
-use ui_core::{get_text_style, ButtonColors, ExpandOnHover};
-use ui_inventory::{default_slot_background, InventoryResources, SetIconEvent, SLOT_PX};
+use ui_core::{ButtonColors, ExpandOnHover, get_text_style};
+use ui_inventory::{InventoryResources, SLOT_PX, SetIconEvent, default_slot_background};
 use ui_state::UIState;
 
 pub struct UICraftingPlugin;
@@ -161,7 +161,10 @@ impl Component for RecipeRow {
                 .unwrap();
             let output = cached_recipe.output;
             let output_entity = output.id;
-            let output_name = world.get::<Name>(output_entity).unwrap().to_string();
+            let output_name = world
+                .get::<Name>(output_entity)
+                .map(|name| name.to_string())
+                .unwrap_or("Missing Item".into());
             let resources = world.get_resource::<InventoryResources>().cloned().unwrap();
             let text_style = get_text_style(world.get_resource::<AssetServer>().unwrap());
             let mut commands = world.commands();

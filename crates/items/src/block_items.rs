@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use engine::items::{
-    block_item::BlockItem, item_attributes::ConsumeItemOnHit, loot::CachedLootTable, CreatorItem,
-    ItemBundle, ItemName, ItemResources, ItemStack, MaxStackSize, SpawnDroppedItemEvent,
+    CreatorItem, ItemBundle, ItemName, ItemResources, ItemStack, MaxStackSize,
+    SpawnDroppedItemEvent, block_item::BlockItem, item_attributes::ConsumeItemOnHit,
+    loot::CachedLootTable,
 };
 
 use interfaces::scheduling::LevelSystemSet;
@@ -41,6 +42,7 @@ fn create_block_item(
                     name: item_name.clone(),
                     max_stack_size: MaxStackSize(999),
                 },
+                Name::new(name.name.clone()),
                 BlockItem(entity),
                 ConsumeItemOnHit,
             ))

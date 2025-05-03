@@ -449,11 +449,13 @@ fn windup_swing_hand(
             if let Ok((tf, mut hand)) = hand_query.get_mut(swing_hand.hand) {
                 //play windup animation for the items windup duration, if 0 duration, don't play anim
                 //simple xP
-                hand.state = HandState::Windup {
-                    start_pos: tf.translation(),
-                    windup_time: event.speed.as_secs_f32(),
-                    time_remaining: event.speed.as_secs_f32(),
-                };
+                if matches!(hand.state, HandState::Following | HandState::Windup { .. }) {
+                    hand.state = HandState::Windup {
+                        start_pos: tf.translation(),
+                        windup_time: event.speed.as_secs_f32(),
+                        time_remaining: event.speed.as_secs_f32(),
+                    };
+                }
             }
         }
     }
@@ -469,11 +471,15 @@ fn windup_use_hand(
             if let Ok((tf, mut hand)) = hand_query.get_mut(use_hand.hand) {
                 //play windup animation for the items windup duration, if 0 duration, don't play anim
                 //simple xP
-                hand.state = HandState::Windup {
-                    start_pos: tf.translation(),
-                    windup_time: event.speed.as_secs_f32(),
-                    time_remaining: event.speed.as_secs_f32(),
-                };
+                // make sure we don't overwrite a hitting animation, that way ordering of systems doesn't matter
+                //  (if we changed to hitting first, then windup, hand would get stuck)
+                if matches!(hand.state, HandState::Following | HandState::Windup { .. }) {
+                    hand.state = HandState::Windup {
+                        start_pos: tf.translation(),
+                        windup_time: event.speed.as_secs_f32(),
+                        time_remaining: event.speed.as_secs_f32(),
+                    };
+                }
             }
         }
     }
@@ -583,9 +589,15 @@ fn update_ghost_hand(
                 windup_time,
                 time_remaining,
             } => {
+                const DEFAULT_RETURN_TIME_SECS: f32 = 0.1;
                 let dest = ghost_tf.transform_point(windup_offset);
                 if *windup_time <= 0.0 {
                     tf.translation = dest;
+                    hand.state = HandState::Returning {
+                        start_pos: tf.translation,
+                        return_time: DEFAULT_RETURN_TIME_SECS,
+                        return_time_remaining: DEFAULT_RETURN_TIME_SECS,
+                    };
                 } else {
                     tf.translation = start_pos.lerp(
                         dest,
@@ -593,6 +605,13 @@ fn update_ghost_hand(
                     );
                     let t = *time_remaining - time.delta_secs();
                     *time_remaining = t.max(0.0);
+                    if *time_remaining <= 0.0 {
+                        hand.state = HandState::Returning {
+                            start_pos: tf.translation,
+                            return_time: DEFAULT_RETURN_TIME_SECS,
+                            return_time_remaining: DEFAULT_RETURN_TIME_SECS,
+                        };
+                    }
                 }
 
                 //hold at top of windup until hit event comes through, then transition to hitting

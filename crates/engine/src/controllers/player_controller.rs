@@ -1,8 +1,8 @@
 use crate::{
     actors::*,
     items::{
-        SpawnDroppedItemEvent,
-        inventory::{Inventory, ItemAction},
+        HitResult, SpawnDroppedItemEvent, SwingEndEvent, UseEndEvent,
+        inventory::{Inventory, ItemAction, ItemTargetPosition},
         item_attributes::{ItemSwingSpeed, ItemUseSpeed},
     },
 };
@@ -249,6 +249,7 @@ pub fn player_punch(
             &GlobalTransform,
             &Player,
             &Inventory,
+            &ItemSwingSpeed,
             &mut ItemAction,
             &ActionState<Action>,
             Option<&LocalPlayer>,
@@ -260,51 +261,68 @@ pub fn player_punch(
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
     mut attack_punch_writer: EventWriter<AttackEvent>,
     mut block_hit_writer: EventWriter<BlockHitEvent>,
+    mut swing_end_event: EventWriter<SwingEndEvent>,
     focused: Res<CursorLocked>,
     level: Res<Level>,
 ) {
-    for (player_entity, tf, player, inv, mut item_action, action, local) in player_query.iter_mut()
+    for (player_entity, tf, player, inv, swing_speed, mut item_action, action, local) in
+        player_query.iter_mut()
     {
         if local.is_some() && !focused.0 {
             // don't continue if we're in the inventory
             continue;
         }
         if action.pressed(&Action::Punch) {
-            //first test if we punched a combatant
-            let stack_opt = inv.selected_item();
-            match stack_opt {
-                Some(_) => item_action.swing_item(
-                    inv,
-                    crate::items::inventory::ItemTargetPosition::Entity(player_entity),
-                ),
-                None => {
-                    //todo convert to ability
-                    match query::raycast(
-                        Raycast::new(tf.translation(), tf.forward(), 10.0),
-                        &level,
-                        &block_physics_query,
-                        &object_query,
-                        &[player_entity],
-                    ) {
-                        Some(RaycastHit::Block(hit_pos, _)) => {
-                            block_hit_writer.send(BlockHitEvent {
-                                item: None,
-                                user: Some(player_entity),
-                                block_position: hit_pos,
-                                hit_forward: tf.forward(),
+            let swang = item_action.try_swing(
+                inv,
+                crate::items::inventory::ItemTargetPosition::Entity(player_entity),
+            );
+            if swang && inv.selected_item().is_none() {
+                // our default action will be punching
+                match query::raycast(
+                    Raycast::new(tf.translation(), tf.forward(), 10.0),
+                    &level,
+                    &block_physics_query,
+                    &object_query,
+                    &[player_entity],
+                ) {
+                    Some(RaycastHit::Block(hit_pos, hit_entity)) => {
+                        block_hit_writer.send(BlockHitEvent {
+                            item: None,
+                            user: Some(player_entity),
+                            block_position: hit_pos,
+                            hit_forward: tf.forward(),
+                        });
+                        swing_end_event.send(SwingEndEvent {
+                            user: player_entity,
+                            slot: None,
+                            speed: *swing_speed,
+                            result: HitResult::Hit(hit_entity.hit_pos),
+                        });
+                    }
+                    Some(RaycastHit::Object(hit)) => {
+                        if combat_query.contains(hit.entity) {
+                            attack_punch_writer.send(AttackEvent {
+                                attacker: Some(player_entity),
+                                target: hit.entity,
+                                damage: player.hit_damage,
+                                knockback: *tf.forward(),
+                            });
+                            swing_end_event.send(SwingEndEvent {
+                                user: player_entity,
+                                slot: None,
+                                speed: *swing_speed,
+                                result: HitResult::Hit(hit.hit_pos),
                             });
                         }
-                        Some(RaycastHit::Object(hit)) => {
-                            if combat_query.contains(hit.entity) {
-                                attack_punch_writer.send(AttackEvent {
-                                    attacker: Some(player_entity),
-                                    target: hit.entity,
-                                    damage: player.hit_damage,
-                                    knockback: *tf.forward(),
-                                });
-                            }
-                        }
-                        _ => {}
+                    }
+                    _ => {
+                        swing_end_event.send(SwingEndEvent {
+                            user: player_entity,
+                            slot: None,
+                            speed: *swing_speed,
+                            result: HitResult::Miss,
+                        });
                     }
                 }
             }
@@ -318,6 +336,7 @@ pub fn player_use(
             Entity,
             &Inventory,
             &mut ItemAction,
+            &ItemUseSpeed,
             &GlobalTransform,
             &ActionState<Action>,
             Option<&LocalPlayer>,
@@ -329,16 +348,17 @@ pub fn player_use(
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
     usable_block_query: Query<&UsableBlock>,
+    mut use_end_event: EventWriter<UseEndEvent>,
     mut block_use_writer: EventWriter<BlockUsedEvent>,
 ) {
-    for (entity, inv, mut item_action, tf, action, local) in player_query.iter_mut() {
+    for (entity, inv, mut item_action, use_speed, tf, action, local) in player_query.iter_mut() {
         if local.is_some() && !focused.0 {
             // don't continue if we're in the inventory
             continue;
         }
-        if action.just_pressed(&Action::Use) {
+        if action.just_pressed(&Action::Use) && item_action.can_use() {
             //first test if we used a block
-            if let Some(RaycastHit::Block(coord, _)) = query::raycast(
+            if let Some(RaycastHit::Block(coord, hit_entity)) = query::raycast(
                 Raycast::new(tf.translation(), tf.forward(), 10.0),
                 &level,
                 &block_physics_query,
@@ -351,16 +371,20 @@ pub fn player_use(
                     tf.forward(),
                     &usable_block_query,
                     &mut block_use_writer,
-                ) {
+                ) && item_action.try_use_empty(ItemTargetPosition::Entity(entity))
+                {
                     //we used a block, so don't also use an item
+                    use_end_event.send(UseEndEvent {
+                        user: entity,
+                        slot: None,
+                        speed: *use_speed,
+                        result: HitResult::Hit(hit_entity.hit_pos),
+                    });
                     return;
                 }
             }
             //we didn't use a block, so try to use an item
-            item_action.use_item(
-                inv,
-                crate::items::inventory::ItemTargetPosition::Entity(entity),
-            );
+            item_action.try_use(inv, ItemTargetPosition::Entity(entity));
         }
     }
 }

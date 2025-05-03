@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{num::NonZeroI32, time::Duration};
 
 use bevy::{prelude::*, time::Stopwatch};
 
@@ -68,33 +68,59 @@ impl ItemAction {
             _ => {}
         }
     }
-    pub fn swing_item(&mut self, inv: &Inventory, tf: ItemTargetPosition) {
-        info!("try swing");
-        if matches!(
+    pub fn can_swing(&self) -> bool {
+        !matches!(
             self,
             ItemAction::SwingingBackswing { .. } | ItemAction::UsingBackswing { .. }
-        ) {
-            return;
+        )
+    }
+    pub fn try_swing(&mut self, inv: &Inventory, tf: ItemTargetPosition) -> bool {
+        if !self.can_swing() {
+            return false;
         }
-        info!("do swang");
         let slot = inv.selected_slot();
         *self = ItemAction::SwingingWindup {
             target_position: tf,
             from_slot: inv.get(slot).map(|stack| (slot, stack)),
-        }
+        };
+        true
     }
-    pub fn use_item(&mut self, inv: &Inventory, tf: ItemTargetPosition) {
-        if matches!(
+    pub fn try_swing_empty(&mut self, tf: ItemTargetPosition) -> bool {
+        if !self.can_use() {
+            return false;
+        }
+        *self = ItemAction::SwingingWindup {
+            target_position: tf,
+            from_slot: None,
+        };
+        true
+    }
+    pub fn can_use(&self) -> bool {
+        !matches!(
             self,
             ItemAction::SwingingBackswing { .. } | ItemAction::UsingBackswing { .. }
-        ) {
-            return;
+        )
+    }
+    pub fn try_use(&mut self, inv: &Inventory, tf: ItemTargetPosition) -> bool {
+        if !self.can_use() {
+            return false;
         }
         let slot = inv.selected_slot();
         *self = ItemAction::UsingWindup {
             target_position: tf,
             from_slot: inv.get(slot).map(|stack| (slot, stack)),
         };
+        true
+    }
+    pub fn try_use_empty(&mut self, tf: ItemTargetPosition) -> bool {
+        if !self.can_use() {
+            return false;
+        }
+        *self = ItemAction::UsingWindup {
+            target_position: tf,
+            from_slot: None,
+        };
+        true
     }
 }
 
