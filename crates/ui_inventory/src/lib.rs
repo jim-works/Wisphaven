@@ -36,6 +36,7 @@ pub const BACKGROUND_COLOR: Color = Color::srgba(0.15, 0.15, 0.15, 0.25);
 
 const MARGIN_PX: f32 = 1.0;
 pub const SLOT_PX: f32 = 32.0;
+pub const BLOCK_RENDER_SCALE_FACTOR: f32 = 2.0;
 const SELECTOR_PADDING_PX: f32 = 1.0;
 const STACK_SIZE_LABEL_PADDING_PX: f32 = 3.0;
 
@@ -169,6 +170,17 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
         slot_background: assets.load("textures/inventory_tile.png"),
         selection_image: assets.load("textures/selection.png"),
     });
+    commands.spawn((
+        Name::new("Block Preview Light"),
+        DirectionalLight {
+            shadows_enabled: false,
+            color: Color::WHITE,
+            illuminance: 7500.,
+            ..default()
+        },
+        Transform::from_rotation(Quat::from_rotation_x(-1.0) * Quat::from_rotation_y(0.1)),
+        BLOCK_PREVIEW_LAYER,
+    ));
 }
 
 fn toggle_inventory(
@@ -574,8 +586,8 @@ fn spawn_block_preview(
     // https://github.com/bevyengine/bevy/blob/main/examples/3d/render_to_texture.rs
     info!("spawning preview");
     let size = Extent3d {
-        width: SLOT_PX as u32,
-        height: SLOT_PX as u32,
+        width: (SLOT_PX * BLOCK_RENDER_SCALE_FACTOR) as u32,
+        height: (SLOT_PX * BLOCK_RENDER_SCALE_FACTOR) as u32,
         ..default()
     };
 
@@ -607,6 +619,7 @@ fn spawn_block_preview(
             MeshMaterial3d(material.clone()),
             Transform::from_translation(position),
             BlockPreview(block),
+            Name::new("block preview"),
             BLOCK_PREVIEW_LAYER,
         ))
         .with_children(|children| {
@@ -623,7 +636,7 @@ fn spawn_block_preview(
                         ..default()
                     },
                     Projection::Orthographic(OrthographicProjection {
-                        scale: 2.0 / SLOT_PX, // smaller numbers here make the block look bigger
+                        scale: 2.0 / (SLOT_PX * BLOCK_RENDER_SCALE_FACTOR), // smaller numbers here make the block look bigger
                         ..OrthographicProjection::default_3d()
                     }),
                     Transform::from_translation(CAMERA_OFFSET).looking_at(Vec3::ZERO, Vec3::Y),
