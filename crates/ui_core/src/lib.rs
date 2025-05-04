@@ -3,7 +3,6 @@ use bevy::{
     picking::focus::{HoverMap, PickingInteraction},
     prelude::*,
 };
-use debug::TextStyle;
 use engine::camera::MainCamera;
 
 pub struct UICorePlugin;
@@ -24,6 +23,12 @@ impl Plugin for UICorePlugin {
             );
     }
 }
+
+pub type TextStyle = (TextColor, TextFont, PickingBehavior);
+
+pub const BORDER_COLOR_ACTIVE: BorderColor = BorderColor(Color::hsl(0., 0., 0.5));
+pub const BORDER_COLOR_INACTIVE: BorderColor = BorderColor::DEFAULT;
+pub const TEXT_INPUT_BACKGROUND_COLOR: BackgroundColor = BackgroundColor(Color::BLACK);
 
 #[derive(Resource)]
 pub struct UIFont(pub TextStyle);

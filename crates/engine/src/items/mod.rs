@@ -78,6 +78,39 @@ impl ItemName {
     }
 }
 
+impl TryFrom<&str> for ItemName {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let parts: Vec<&str> = value.split("::").collect();
+        if parts.len() == 1 {
+            return Ok(Self::core(parts[0]));
+        }
+        if parts.len() != 2 {
+            return Err(format!("Invalid item name format: {}", value));
+        }
+
+        Ok(Self {
+            namespace: parts[0].to_string(),
+            name: parts[1].to_string(),
+        })
+    }
+}
+
+impl TryFrom<String> for ItemName {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
+}
+
+impl std::fmt::Display for ItemName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}::{}", self.namespace, self.name)
+    }
+}
+
 #[derive(Bundle)]
 pub struct ItemBundle {
     pub name: ItemName,

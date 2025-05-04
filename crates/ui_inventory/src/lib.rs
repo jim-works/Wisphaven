@@ -17,16 +17,15 @@ use bevy::{
 use interfaces::scheduling::{GameState, LevelSystemSet};
 use leafwing_input_manager::prelude::ActionState;
 
-use debug::TextStyle;
 use engine::{
     actors::{LocalPlayer, LocalPlayerSpawnedEvent},
-    controllers::{player_controller::CursorLocked, Action},
-    items::{block_item::BlockItem, inventory::Inventory, ItemIcon, ItemStack, MaxStackSize},
+    controllers::{Action, player_controller::CursorLocked},
+    items::{ItemIcon, ItemStack, MaxStackSize, block_item::BlockItem, inventory::Inventory},
 };
 use materials::TextureArrayExtension;
 use world::{block::BlockMesh, mesher::ChunkMaterial};
 
-use ui_core::MainCameraUIRoot;
+use ui_core::{MainCameraUIRoot, TextStyle};
 
 use ui_core::get_small_text_style;
 use ui_state::UIState;
