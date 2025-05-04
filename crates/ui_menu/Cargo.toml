@@ -12,3 +12,4 @@ util = { path = "../util" }
 interfaces = { path = "../interfaces" }
 serialization = { path = "../serialization" }
 ui_core = { path = "../ui_core" }
+effects = { path = "../effects" }

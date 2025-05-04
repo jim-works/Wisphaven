@@ -80,6 +80,7 @@ fn main() {
         citizens::CitizensPlugin,
         ai::AIPlugin,
         dialog::DialogPlugin,
+        effects::EffectsPlugin,
         // new internal crates go here
     ));
 

@@ -103,6 +103,7 @@ serialization = { path = "crates/serialization" }
 citizens = { path = "crates/citizens" }
 ai = { path = "crates/ai" }
 dialog = { path = "crates/dialog" }
+effects = { path = "crates/effects" }
 #new internal crates go here
 
 [workspace.metadata.dylint]

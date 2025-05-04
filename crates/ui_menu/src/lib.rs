@@ -7,13 +7,11 @@ use serialization::{LevelCreationInput, SavedLevels};
 use std::time::Duration;
 
 use bevy_simple_text_input::{TextInput, TextInputTextColor, TextInputTextFont, TextInputValue};
-use engine::{
-    actors::ghost::{GhostResources, Handed, OrbitParticle},
-    effects::mesh_particles::MeshParticleEmitter,
-};
-use util::{iterators::even_distribution_on_sphere, lerp, LocalRepeatingTimer};
+use effects::mesh_particles::{MeshParticleEmitter, MeshParticleShape};
+use engine::actors::ghost::{GhostResources, Handed, OrbitParticle};
+use util::{LocalRepeatingTimer, iterators::even_distribution_on_sphere, lerp};
 
-use ui_core::{get_large_text_style, get_text_style, ButtonColors, TRANSLUCENT_PANEL_BACKGROUND};
+use ui_core::{ButtonColors, TRANSLUCENT_PANEL_BACKGROUND, get_large_text_style, get_text_style};
 
 pub struct MainMenuPlugin;
 
@@ -699,7 +697,7 @@ fn spawn_ghost(
             ),
             Visibility::default(),
             MeshParticleEmitter {
-                shape: engine::effects::mesh_particles::MeshParticleShape::Cube,
+                shape: MeshParticleShape::Cube,
                 min_scale: 0.08 * Vec3::ONE,
                 max_scale: 0.125 * Vec3::ONE,
                 emit_radius: 1.,

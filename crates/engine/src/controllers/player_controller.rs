@@ -10,7 +10,7 @@ use abilities::{
     dash::{CurrentlyDashing, Dash},
     stamina::Stamina,
 };
-use bevy::{prelude::*, time::Stopwatch, window::CursorGrabMode};
+use bevy::{prelude::*, window::CursorGrabMode};
 use ghost::FloatBoost;
 use interfaces::scheduling::*;
 use leafwing_input_manager::prelude::ActionState;
