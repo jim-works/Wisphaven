@@ -1,4 +1,4 @@
-use std::{num::NonZeroI32, time::Duration};
+use std::time::Duration;
 
 use bevy::{prelude::*, time::Stopwatch};
 
@@ -295,6 +295,9 @@ impl Inventory {
         };
         match self.items[to_slot].clone() {
             Some(to_stack) => {
+                if to_stack.id != from_stack.id {
+                    return 0; //different item
+                }
                 let Ok(max_stack_size) = data_query.get(to_stack.id) else {
                     return 0; //invalid or non-stackable item
                 };
