@@ -48,6 +48,7 @@ bitflags = "2.6.0"
 # already included in naga_oil
 regex = "1.11.1"
 serde_json = "1.0.140"
+thiserror = "2.0.12"
 
 #bevy dependencies
 leafwing-input-manager = "0.16.0" # not updated to bevy 0.16, change merged
@@ -101,6 +102,7 @@ net = { path = "crates/net" }
 serialization = { path = "crates/serialization" }
 citizens = { path = "crates/citizens" }
 ai = { path = "crates/ai" }
+dialog = { path = "crates/dialog" }
 #new internal crates go here
 
 [workspace.metadata.dylint]

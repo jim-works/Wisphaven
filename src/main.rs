@@ -79,6 +79,7 @@ fn main() {
         ),
         citizens::CitizensPlugin,
         ai::AIPlugin,
+        dialog::DialogPlugin,
         // new internal crates go here
     ));
 

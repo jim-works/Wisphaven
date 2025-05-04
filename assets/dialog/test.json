@@ -1,0 +1,73 @@
+{
+  "character": "jumbooble",
+  "event": "testEvent",
+  "conditions": [],
+  "node": {
+    "type": "decision",
+    "choices": [
+      {
+        "conditions": [
+          {
+            "minHearts": 6,
+            "time": "night"
+          },
+          {
+            "time": "day"
+          }
+        ],
+        "node": {
+          "type": "message",
+          "message": "I love balloons.",
+          "id": "balloon",
+          "node": {
+            "type": "response",
+            "options": [
+              {
+                "message": "That's great! Me too!",
+                "effects": [
+                  {
+                    "changeFriendship": 5
+                  },
+                  {
+                    "triggerEvent": "balloonDay"
+                  }
+                ]
+              },
+              {
+                "message": "I hate balloons almost as much as I hate you.",
+                "effects": [
+                  {
+                    "changeFriendship": -20
+                  }
+                ],
+                "node": {
+                  "type": "message",
+                  "message": "This means war.",
+                  "effects": [
+                    {
+                      "triggerEvent": "fight"
+                    }
+                  ]
+                }
+              },
+              {
+                "message": "Can you repeat that?",
+                "node": {
+                  "type": "jump",
+                  "jumpTo": "balloon"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "conditions": [],
+        "node": {
+          "type": "message",
+          "message": "Hello."
+        }
+      }
+    ]
+  }
+}
