@@ -1,0 +1,45 @@
+(
+  resources: {},
+  entities: {
+    4294967296: (
+      components: {
+        "engine::items::ItemName": (
+          namespace: "core",
+          name: "rock",
+        ),
+        "bevy_core::name::Name": "Rock",
+        "engine::items::NamedItemIcon": (
+            path: "rock.png"
+        ),
+        "engine::items::MaxStackSize": (5),
+        "items::actor_items::SpawnActorItem": (ActorName(
+          namespace: "core",
+          name: "wisp",
+        )),
+        "items_tools::Tool": (
+            pickaxe: 1,
+            shovel: 1,
+            axe: 1,
+        ),
+        "items_tools::abilities::RockAbility": (
+            sure_radius: 0,
+            chance_radius: 1,
+            probability: 0.5
+        ),
+        "engine::items::item_attributes::ItemSwingSpeed": (
+            (
+                secs: 0,
+                nanos: 750000000,
+            )
+        ),
+        "engine::items::item_attributes::ItemUseSpeed": (
+            (
+                secs: 1,
+                nanos: 0,
+            )
+        ),
+        "engine::items::item_attributes::ConsumeItemOnHit": (),
+      },
+    ),
+  }
+)

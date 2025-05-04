@@ -1,7 +1,10 @@
 use bevy::prelude::*;
-use engine::items::{inventory::Inventory, ItemName, ItemResources, ItemStack, MaxStackSize};
+use engine::items::{
+    ItemName, ItemResources, ItemStack, MaxStackSize, block_item::BlockItem, inventory::Inventory,
+};
 use interfaces::scheduling::LevelSystemSet;
 use serde::{Deserialize, Serialize};
+use world::block::BlockResources;
 
 pub struct RecipePlugin;
 
@@ -12,7 +15,9 @@ impl Plugin for RecipePlugin {
             .add_systems(FixedUpdate, craft.in_set(LevelSystemSet::Tick))
             .add_systems(
                 FixedPreUpdate,
-                cache_recipe_entities.run_if(resource_exists::<ItemResources>),
+                cache_recipe_entities.run_if(
+                    resource_exists::<ItemResources>.and(resource_exists::<BlockResources>),
+                ),
             );
     }
 }
@@ -114,12 +119,22 @@ fn craft(
 
 fn cache_recipe_entities(
     query: Query<(Entity, &Recipe), Without<CachedEntityRecipe>>,
+    block_query: Query<&BlockItem>,
     mut commands: Commands,
     items: Res<ItemResources>,
+    mut warned: Local<bool>,
 ) {
+    // don't run if block items aren't created yet to avoid unnecessary warning
+    if block_query.is_empty() {
+        return;
+    }
+    let mut issued_warning = false;
     for (entity, recipe) in query.iter() {
         let Some(mut ec) = commands.get_entity(entity) else {
-            warn!("adding cached recipe to invalid entity somehow");
+            if !*warned {
+                warn!("adding cached recipe to invalid entity somehow");
+                issued_warning = true;
+            }
             continue;
         };
         match CachedEntityRecipe::from_recipe(recipe, &items) {
@@ -128,8 +143,14 @@ fn cache_recipe_entities(
                 info!("cached recipe {:?}", recipe);
             }
             None => {
-                warn!("failed to lookup items for recipe {:?}", recipe)
+                if !*warned {
+                    warn!("failed to lookup items for recipe {:?}", recipe);
+                    issued_warning = true;
+                }
             }
         }
+    }
+    if issued_warning {
+        *warned = true;
     }
 }

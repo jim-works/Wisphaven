@@ -1,7 +1,8 @@
 use bevy::{prelude::*, utils::HashSet};
+use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 
-use util::direction::Direction;
+use util::{direction::Direction, iterators::Volume};
 
 use interfaces::scheduling::LevelSystemSet;
 use world::{
@@ -10,7 +11,7 @@ use world::{
     level::Level,
 };
 
-use super::{calc_block_damage, Tool, ToolResistance};
+use super::{Tool, ToolResistance, calc_block_damage};
 
 pub struct ToolAbilitiesPlugin;
 
@@ -20,9 +21,16 @@ impl Plugin for ToolAbilitiesPlugin {
             .register_type::<AxeAbilityTarget>()
             .register_type::<ShovelAbility>()
             .register_type::<ShovelAbilityTarget>()
+            .register_type::<RockAbility>()
             .add_systems(
-                Update,
-                (axe_ability_system, shovel_ability_system).in_set(LevelSystemSet::Main),
+                FixedUpdate,
+                (
+                    axe_ability_system,
+                    shovel_ability_system,
+                    rock_ability_system,
+                )
+                    .chain()
+                    .in_set(LevelSystemSet::Tick),
             );
     }
 }
@@ -49,6 +57,14 @@ pub struct ShovelAbility {
     pub radius: usize,
     pub length: usize,
     pub damage_mult: f32,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Component, Reflect, Default, Serialize, Deserialize)]
+#[reflect(Component, FromWorld)]
+pub struct RockAbility {
+    pub sure_radius: i32,
+    pub chance_radius: i32,
+    pub probability: f32,
 }
 
 fn axe_ability_system(
@@ -237,6 +253,64 @@ fn shovel_ability_system(
                             });
                         }
                     });
+                }
+            }
+        }
+    }
+}
+
+fn rock_ability_system(
+    level: Res<Level>,
+    mut reader: EventReader<BlockHitEvent>,
+    mut damage_writer: EventWriter<DealBlockDamageEvent>,
+    ability_query: Query<(&Tool, &RockAbility)>,
+    resistance_query: Query<&ToolResistance>,
+) {
+    let mut rng = thread_rng();
+    for BlockHitEvent {
+        item,
+        user: _,
+        block_position: tool_hit_position,
+        hit_forward: _,
+    } in reader.read()
+    {
+        if let Some(item) = item {
+            if let Ok((
+                tool,
+                RockAbility {
+                    sure_radius,
+                    chance_radius,
+                    probability,
+                },
+            )) = ability_query.get(*item)
+            {
+                // damage in sphere
+                let sure_volume = Volume::new_inclusive(
+                    IVec3::from(*tool_hit_position) - IVec3::splat(*sure_radius),
+                    IVec3::from(*tool_hit_position) + IVec3::splat(*sure_radius),
+                );
+                let chance_volume = Volume::new_inclusive(
+                    IVec3::from(*tool_hit_position) - IVec3::splat(sure_radius + chance_radius),
+                    IVec3::from(*tool_hit_position) + IVec3::splat(sure_radius + chance_radius),
+                );
+                for coord in chance_volume.iter() {
+                    let chance_hit = util::random_proportion(&mut rng) <= *probability;
+                    let block_position = BlockCoord::from(coord);
+                    if (sure_volume.has(coord) || chance_hit)
+                        && block_position != *tool_hit_position
+                    {
+                        if let Some(block) = level.get_block_entity(block_position) {
+                            let damage = calc_block_damage(
+                                resistance_query.get(block).copied().unwrap_or_default(),
+                                *tool,
+                            );
+                            damage_writer.send(DealBlockDamageEvent {
+                                block_position,
+                                damage,
+                                damager: Some(*item),
+                            });
+                        }
+                    }
                 }
             }
         }

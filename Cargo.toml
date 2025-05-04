@@ -104,6 +104,7 @@ citizens = { path = "crates/citizens" }
 ai = { path = "crates/ai" }
 dialog = { path = "crates/dialog" }
 effects = { path = "crates/effects" }
+items_tools = { path = "crates/items_tools" }
 #new internal crates go here
 
 [workspace.metadata.dylint]

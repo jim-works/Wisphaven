@@ -81,6 +81,7 @@ fn main() {
         ai::AIPlugin,
         dialog::DialogPlugin,
         effects::EffectsPlugin,
+        items_tools::ToolsPlugin,
         // new internal crates go here
     ));
 

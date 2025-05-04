@@ -85,6 +85,15 @@ impl Volume {
                 && self.max_corner.z >= other.max_corner.z)
     }
 
+    pub fn has(&self, point: IVec3) -> bool {
+        point.x >= self.min_corner.x
+            && point.x < self.max_corner.x
+            && point.y >= self.min_corner.y
+            && point.y < self.max_corner.y
+            && point.z >= self.min_corner.z
+            && point.z < self.max_corner.z
+    }
+
     pub fn intersects(&self, other: Volume) -> bool {
         (self.min_corner.x <= other.max_corner.x && self.max_corner.x >= other.min_corner.x)
             && (self.min_corner.y <= other.max_corner.y && self.max_corner.y >= other.min_corner.y)

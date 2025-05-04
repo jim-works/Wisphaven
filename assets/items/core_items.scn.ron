@@ -16,7 +16,7 @@
             damage: Damage (amount: 5.0),
             knockback: 1.0,
         ),
-        "items::tools::DontHitBlocks": (),
+        "items_tools::DontHitBlocks": (),
       },
     ),
     4294967299: (
@@ -30,7 +30,7 @@
             path: "ruby_pickaxe.png"
         ),
         "engine::items::MaxStackSize": (1),
-        "items::tools::Tool": (
+        "items_tools::Tool": (
             pickaxe: 3,
             shovel: 2,
             axe: 2,
@@ -48,10 +48,10 @@
             path: "ruby_axe.png"
         ),
         "engine::items::MaxStackSize": (1),
-        "items::tools::Tool": (
+        "items_tools::Tool": (
             axe: 3
         ),
-        "items::tools::abilities::AxeAbility": (
+        "items_tools::abilities::AxeAbility": (
             max_blocks: 10,
             search_radius: 2,
             damage_mult: 1.0
@@ -69,10 +69,10 @@
             path: "ruby_shovel.png"
         ),
         "engine::items::MaxStackSize": (1),
-        "items::tools::Tool": (
+        "items_tools::Tool": (
             shovel: 3
         ),
-        "items::tools::abilities::ShovelAbility": (
+        "items_tools::abilities::ShovelAbility": (
             radius: 2,
             length: 10,
             damage_mult: 1.0
