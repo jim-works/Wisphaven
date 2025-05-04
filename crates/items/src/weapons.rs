@@ -12,6 +12,7 @@ use physics::{
     movement::Velocity,
     query::{self, RaycastHit},
 };
+use rand::thread_rng;
 use world::level::Level;
 
 use actors::{
@@ -53,6 +54,7 @@ pub struct ProjectileLauncherItem {
     pub lifetime_mult: f32,
     pub knockback_mult: f32,
     pub terrain_damage_mult: f32,
+    pub spread: f32,
     cached_name: Option<Arc<ProjectileName>>,
     cached_json: Option<Arc<str>>,
 }
@@ -67,6 +69,7 @@ impl Default for ProjectileLauncherItem {
             lifetime_mult: 1.,
             knockback_mult: 1.,
             terrain_damage_mult: 1.,
+            spread: 0.,
             cached_name: None,
             cached_json: None,
         }
@@ -132,6 +135,7 @@ pub fn launch_projectile(
     mut weapon_query: Query<&mut ProjectileLauncherItem>,
     owner_query: Query<&Team>,
 ) {
+    let mut rng = thread_rng();
     for UseItemEvent {
         user,
         slot,
@@ -156,7 +160,24 @@ pub fn launch_projectile(
                 name: weapon.cached_name.clone().unwrap(),
                 spawn_args: ProjectileSpawnArgs {
                     transform: Transform::from_translation(tf.translation),
-                    velocity: Velocity(tf.forward() * weapon.speed),
+                    velocity: Velocity(
+                        (if weapon.spread > 0.0 {
+                            let x_angle = (util::random_proportion(&mut rng) - 0.5)
+                                * weapon.spread.to_radians();
+                            let y_angle = (util::random_proportion(&mut rng) - 0.5)
+                                * weapon.spread.to_radians();
+                            let rotation = Quat::from_euler(
+                                EulerRot::XYZ,
+                                x_angle,
+                                y_angle,
+                                // z rot only matters for visual
+                                y_angle + x_angle,
+                            );
+                            rotation * tf.forward()
+                        } else {
+                            tf.forward()
+                        }) * weapon.speed,
+                    ),
                     combat: CombatantBundle {
                         combatant: Combatant::new(100.0, 0.0),
                         team: owner_query.get(*user).copied().unwrap_or(Team::default()),

@@ -12,10 +12,6 @@
             path: "rock.png"
         ),
         "engine::items::MaxStackSize": (5),
-        "items::actor_items::SpawnActorItem": (ActorName(
-          namespace: "core",
-          name: "wisp",
-        )),
         "items_tools::Tool": (
             pickaxe: 1,
             shovel: 1,
@@ -38,7 +34,59 @@
                 nanos: 0,
             )
         ),
-        "engine::items::item_attributes::ConsumeItemOnHit": (),
+        "items::weapons::ProjectileLauncherItem": (
+          name: ProjectileName (
+            namespace: "core",
+            name: "rock"
+          ),
+          speed: 0.5,
+          damage: Damage (amount: 2.0),
+          terrain_damage_mult: 0.5,
+          spread: 30.0,
+          lifetime_mult: 1.0,
+        ),
+        "engine::items::item_attributes::ConsumeItemOnSucess": (),
+      },
+    ),
+        4294967297: (
+      components: {
+        "engine::items::ItemName": (
+          namespace: "core",
+          name: "rock_hammer",
+        ),
+        "bevy_core::name::Name": "Rock Hammer",
+        "engine::items::NamedItemIcon": (
+            path: "rock_hammer.png"
+        ),
+        "engine::items::MaxStackSize": (1),
+        "items_tools::Tool": (
+            pickaxe: 2,
+            shovel: 2,
+            axe: 2,
+        ),
+        "items_tools::abilities::RockAbility": (
+            sure_radius: 1,
+            chance_radius: 1,
+            probability: 0.75
+        ),
+        "engine::items::item_attributes::ItemSwingSpeed": (
+            (
+                secs: 0,
+                nanos: 500000000,
+            )
+        ),
+        "items::weapons::ProjectileLauncherItem": (
+          name: ProjectileName (
+            namespace: "core",
+            name: "rock_hammer"
+          ),
+          speed: 1.0,
+          damage: Damage (amount: 5.0),
+          terrain_damage_mult: 0.5,
+          spread: 0.0,
+          lifetime_mult: 1.0,
+        ),
+        "engine::items::item_attributes::ConsumeItemOnSucess": (),
       },
     ),
   }

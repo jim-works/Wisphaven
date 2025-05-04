@@ -3,6 +3,7 @@
 pub mod block_actors;
 pub mod coin;
 mod eye_balloon;
+mod rock;
 pub mod skeleton_pirate;
 pub mod slither_spine;
 pub mod spawning;
@@ -24,6 +25,7 @@ impl Plugin for ActorsPlugin {
             eye_balloon::EyeBalloonPlugin,
             util::ActorUtilPlugin,
             block_actors::BlockActorPlugin,
+            rock::RockPlugin,
         ));
     }
 }

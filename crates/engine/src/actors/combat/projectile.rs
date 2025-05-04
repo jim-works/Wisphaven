@@ -6,7 +6,13 @@ use physics::{
     collision::{Aabb, CollidingBlocks},
     movement::Velocity,
 };
+use rand::thread_rng;
 use world::events::DealBlockDamageEvent;
+
+use crate::items::{
+    SpawnDroppedItemEvent,
+    loot::{CachedLootTable, ItemLootTable},
+};
 
 use super::*;
 
@@ -32,6 +38,7 @@ pub struct ProjectileHit {
 #[derive(Clone, Copy, Default)]
 pub enum ProjecileHitBehavior {
     #[default]
+    // also drops items if the projectile has a `ItemLootTable` component
     Despawn,
     None,
 }
@@ -65,15 +72,29 @@ impl Default for Projectile {
 pub struct ProjectileSpawnedInEntity(pub Entity);
 
 fn update_projectile_lifetime(
-    query: Query<(Entity, &Projectile)>,
+    query: Query<(
+        Entity,
+        &Projectile,
+        &GlobalTransform,
+        Option<&CachedLootTable<Entity>>,
+        Option<&ItemLootTable>,
+    )>,
     mut commands: Commands,
+    mut drop_writer: EventWriter<SpawnDroppedItemEvent>,
     time: Res<Time>,
 ) {
     let curr_time = time.elapsed();
-    for (entity, proj) in query.iter() {
+    let mut rng = thread_rng();
+    for (entity, proj, gtf, opt_cached_loot, opt_loot) in query.iter() {
         if proj.despawn_time < curr_time {
             commands.trigger_targets(ProjectileHit { hit: None }, entity);
             commands.entity(entity).despawn_recursive();
+            // make sure to also update the on hit behavior
+            if opt_loot.is_some()
+                && let Some(cached_loot) = opt_cached_loot
+            {
+                cached_loot.drop_items(gtf.translation(), &mut drop_writer, &mut rng);
+            }
         }
     }
 }
@@ -86,6 +107,8 @@ fn test_projectile_hit(
         &Projectile,
         Option<&Velocity>,
         Option<&ProjectileSpawnedInEntity>,
+        Option<&CachedLootTable<Entity>>,
+        Option<&ItemLootTable>,
         &CollidingBlocks,
         &Aabb,
         &Team,
@@ -94,8 +117,22 @@ fn test_projectile_hit(
     mut commands: Commands,
     object_query: Query<(Entity, &GlobalTransform, &Aabb, &Team)>,
     mut damage_writer: EventWriter<DealBlockDamageEvent>,
+    mut drop_writer: EventWriter<SpawnDroppedItemEvent>,
 ) {
-    for (proj_entity, tf, proj, v, opt_in_entity, colliding_blocks, aabb, my_team) in query.iter() {
+    let mut rng = thread_rng();
+    for (
+        proj_entity,
+        tf,
+        proj,
+        v,
+        opt_in_entity,
+        opt_cached_loot,
+        opt_loot,
+        colliding_blocks,
+        aabb,
+        my_team,
+    ) in query.iter()
+    {
         let opt_hit_entity = test_box(
             *my_team,
             tf.translation(),
@@ -133,8 +170,16 @@ fn test_projectile_hit(
                 });
             }
 
+            // make sure to also update the case where the projectile times out
             match proj.hit_behavior {
-                ProjecileHitBehavior::Despawn => commands.entity(proj_entity).despawn_recursive(),
+                ProjecileHitBehavior::Despawn => {
+                    if opt_loot.is_some()
+                        && let Some(cached_loot) = opt_cached_loot
+                    {
+                        cached_loot.drop_items(tf.translation(), &mut drop_writer, &mut rng);
+                    }
+                    commands.entity(proj_entity).despawn_recursive()
+                }
                 ProjecileHitBehavior::None => (),
             }
         } else if opt_hit_entity.is_none() {
