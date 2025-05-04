@@ -19,66 +19,6 @@
         "items_tools::DontHitBlocks": (),
       },
     ),
-    4294967299: (
-      components: {
-        "engine::items::ItemName": (
-          namespace: "core",
-          name: "ruby_pickaxe",
-        ),
-        "bevy_core::name::Name": "Ruby Pickaxe",
-        "engine::items::NamedItemIcon": (
-            path: "ruby_pickaxe.png"
-        ),
-        "engine::items::MaxStackSize": (1),
-        "items_tools::Tool": (
-            pickaxe: 3,
-            shovel: 2,
-            axe: 2,
-        ),
-      },
-    ),
-    4294967300: (
-      components: {
-        "engine::items::ItemName": (
-          namespace: "core",
-          name: "ruby_axe",
-        ),
-        "bevy_core::name::Name": "Ruby Axe",
-        "engine::items::NamedItemIcon": (
-            path: "ruby_axe.png"
-        ),
-        "engine::items::MaxStackSize": (1),
-        "items_tools::Tool": (
-            axe: 3
-        ),
-        "items_tools::abilities::AxeAbility": (
-            max_blocks: 10,
-            search_radius: 2,
-            damage_mult: 1.0
-        ),
-      },
-    ),
-    4294967301: (
-      components: {
-        "engine::items::ItemName": (
-          namespace: "core",
-          name: "ruby_shovel",
-        ),
-        "bevy_core::name::Name": "Ruby Shovel",
-        "engine::items::NamedItemIcon": (
-            path: "ruby_shovel.png"
-        ),
-        "engine::items::MaxStackSize": (1),
-        "items_tools::Tool": (
-            shovel: 3
-        ),
-        "items_tools::abilities::ShovelAbility": (
-            radius: 2,
-            length: 10,
-            damage_mult: 1.0
-        )
-      },
-    ),
     4294967302: (
       components: {
         "engine::items::ItemName": (
