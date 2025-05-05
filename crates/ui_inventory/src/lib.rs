@@ -189,10 +189,10 @@ fn toggle_inventory(
     action: Res<ActionState<Action>>,
 ) {
     if action.just_pressed(&Action::ToggleInventory) {
-        next_state.set(if *state.get() == UIState::Inventory {
-            UIState::Default
-        } else {
-            UIState::Inventory
+        next_state.set(match state.get() {
+            UIState::Default => UIState::Inventory,
+            UIState::Inventory => UIState::Default,
+            other_state @ _ => other_state.clone(),
         });
     }
 }
@@ -214,7 +214,9 @@ fn spawn_inventory_system(
             }
             spawn_inventory(&mut commands, *id, inv.len(), &resources);
             match state.get() {
-                UIState::Hidden => commands.run_system_cached(hide_inventory::<true>),
+                UIState::Hidden | UIState::Dialogue => {
+                    commands.run_system_cached(hide_inventory::<true>)
+                }
                 UIState::Default => commands.run_system_cached(hide_inventory::<false>),
                 UIState::Inventory => commands.run_system_cached(show_inventory),
             };

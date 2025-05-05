@@ -56,6 +56,7 @@ fn advance_dialogue(
         selected_response,
     } in reader.read()
     {
+        info!("advancing dialogue");
         let Ok(mut active_dialogue) = query.get_mut(*dialogue_entity) else {
             error!(
                 "trying to advance dialogue for invalid entity {:?}",
@@ -74,10 +75,20 @@ fn advance_dialogue(
         // continue advancing until we hit a user interaction
         loop {
             // default active node to root if not set
-            let active_node = active_dialogue
+            let active_node_opt = active_dialogue
                 .active_node
                 .clone()
-                .unwrap_or(dialogue.node.clone());
+                .or(if active_dialogue.init {
+                    None
+                } else {
+                    Some(dialogue.node.clone())
+                });
+            let Some(active_node) = active_node_opt else {
+                //dialogue ended, remove component
+                info!("dialogue ended, removing component");
+                commands.entity(*dialogue_entity).remove::<ActiveDialogue>();
+                break;
+            };
             let new_active_node = match active_node.as_ref() {
                 DialogueNode::Decision { choices, .. } => {
                     // todo - more involved. for now we always pick the first
@@ -115,8 +126,8 @@ fn advance_dialogue(
                     }
                 }
                 None => {
-                    //dialogue ended, remove component
-                    commands.entity(*dialogue_entity).remove::<ActiveDialogue>();
+                    // conversation ended, wait until we advance again to remove component
+                    info!("conversation ended");
                     break;
                 }
             };
@@ -215,6 +226,7 @@ impl AssetLoader for DialogueAssetLoader {
 pub struct ActiveDialogue {
     pub handle: Handle<Dialogue>,
     pub active_node: Option<Arc<DialogueNode>>,
+    init: bool,
 }
 
 impl ActiveDialogue {
@@ -222,6 +234,7 @@ impl ActiveDialogue {
         Self {
             handle,
             active_node: None,
+            init: false,
         }
     }
 }

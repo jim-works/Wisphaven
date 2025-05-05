@@ -34,6 +34,7 @@ pub enum UIState {
     Hidden,
     Default,
     Inventory,
+    Dialogue,
 }
 
 #[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone)]
@@ -54,6 +55,7 @@ pub fn toggle_hidden(
     if action.just_pressed(&Action::ToggleUIHidden) {
         match curr_state.get() {
             UIState::Hidden => next_state.set(UIState::Default),
+            UIState::Dialogue => (),
             _ => next_state.set(UIState::Hidden),
         }
     }
@@ -80,6 +82,7 @@ pub fn world_mouse_active(state: &UIState) -> bool {
         UIState::Hidden => true,
         UIState::Default => true,
         UIState::Inventory => false,
+        UIState::Dialogue => false,
     }
 }
 
