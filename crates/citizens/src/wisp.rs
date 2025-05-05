@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use ai::attacker::{AggroClosestEnemy, UseItemAction};
 use big_brain::prelude::*;
-use dialog::{ActiveDialog, Dialogs};
+use dialogue::{ActiveDialogue, Dialogues};
 use interfaces::{
     components::Interactable,
     events::InteractedEvent,
@@ -217,21 +217,21 @@ fn spawn_wisp(
 
 fn on_interacted(
     trigger: Trigger<InteractedEvent>,
-    query: Query<&ActiveDialog>,
+    query: Query<&ActiveDialogue>,
     mut commands: Commands,
-    dialogs: Res<Dialogs>,
+    dialogues: Res<Dialogues>,
 ) {
     if query.contains(trigger.entity()) {
-        //already a dialog happening, don't cancel it.
+        //already a dialogue happening, don't cancel it.
         return;
     }
-    let Some(introduction) = dialogs.dialogs.get("citizen.introduction") else {
-        error!("dialog not found!");
+    let Some(introduction) = dialogues.dialogues.get("citizen.introduction") else {
+        error!("dialogue not found!");
         return;
     };
     if let Some(mut ec) = commands.get_entity(trigger.entity()) {
-        ec.insert(ActiveDialog::new(introduction.clone()));
-        info!("inserted dialog!");
+        ec.insert(ActiveDialogue::new(introduction.clone()));
+        info!("inserted dialogue!");
     }
 }
 

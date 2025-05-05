@@ -1,5 +1,5 @@
 [package]
-name = "ui_dialog"
+name = "ui_dialogue"
 version = "0.1.0"
 edition = "2024"
 
@@ -9,7 +9,7 @@ bevy = { workspace = true }
 engine = { path = "../engine" }
 interfaces = { path = "../interfaces" }
 world = { path = "../world" }
-dialog = { path = "../dialog" }
+dialogue = { path = "../dialogue" }
 ui_core = { path = "../ui_core" }
 ui_state = { path = "../ui_state" }
 

@@ -17,7 +17,7 @@ physics = { path = "../physics" }
 world = { path = "../world" }
 actors = { path = "../actors" }
 ai = { path = "../ai" }
-dialog = { path = "../dialog" }
+dialogue = { path = "../dialogue" }
 
 [lints]
 workspace = true

@@ -79,10 +79,10 @@ fn main() {
         ),
         citizens::CitizensPlugin,
         ai::AIPlugin,
-        dialog::DialogPlugin,
+        dialogue::DialoguePlugin,
         effects::EffectsPlugin,
         items_tools::ToolsPlugin,
-        ui_dialog::UiDialogPlugin,
+        ui_dialogue::UiDialoguePlugin,
         // new internal crates go here
     ));
 
