@@ -4,7 +4,10 @@ use bevy::prelude::*;
 
 use ai::attacker::{AggroClosestEnemy, UseItemAction};
 use big_brain::prelude::*;
+use dialog::{ActiveDialog, Dialogs};
 use interfaces::{
+    components::Interactable,
+    events::InteractedEvent,
     resources::HeldItemResources,
     scheduling::{LevelLoadState, LevelSystemSet, PhysicsLevelSet},
 };
@@ -90,6 +93,7 @@ fn spawn_wisp(
                 StateScoped(LevelLoadState::Loaded),
                 MeshMaterial3d(res.material.clone()),
                 Mesh3d(res.center_mesh.clone()),
+                Interactable,
                 spawn
                     .transform
                     .with_translation(spawn.transform.translation + Vec3::Y),
@@ -158,6 +162,7 @@ fn spawn_wisp(
                     ));
                 }
             })
+            .observe(on_interacted)
             .id();
         let mut inventory = Inventory::new(ghost_entity, 5);
         inventory.set_slot_no_events(
@@ -207,6 +212,26 @@ fn spawn_wisp(
         commands
             .entity(right_hand_entity)
             .add_child(item_visualizer);
+    }
+}
+
+fn on_interacted(
+    trigger: Trigger<InteractedEvent>,
+    query: Query<&ActiveDialog>,
+    mut commands: Commands,
+    dialogs: Res<Dialogs>,
+) {
+    if query.contains(trigger.entity()) {
+        //already a dialog happening, don't cancel it.
+        return;
+    }
+    let Some(introduction) = dialogs.dialogs.get("citizen.introduction") else {
+        error!("dialog not found!");
+        return;
+    };
+    if let Some(mut ec) = commands.get_entity(trigger.entity()) {
+        ec.insert(ActiveDialog::new(introduction.clone()));
+        info!("inserted dialog!");
     }
 }
 

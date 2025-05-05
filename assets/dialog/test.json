@@ -1,6 +1,6 @@
 {
-  "character": "jumbooble",
-  "event": "testEvent",
+  "character": "citizen",
+  "event": "introduction",
   "conditions": [],
   "node": {
     "type": "decision",

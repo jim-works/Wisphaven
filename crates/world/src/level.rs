@@ -16,7 +16,7 @@ use util::{
 };
 
 use super::{
-    BlockCoord, BlockDamage, BlockId, BlockRegistry, BlockType, UsableBlock,
+    BlockCoord, BlockDamage, BlockId, BlockRegistry, BlockType,
     block_buffer::BlockBuffer,
     chunk::*,
     events::{BlockDamageSetEvent, BlockUsedEvent, ChunkUpdatedEvent},
@@ -116,7 +116,7 @@ impl LevelData {
         key: BlockCoord,
         user: Entity,
         use_forward: Dir3,
-        query: &Query<&UsableBlock>,
+        query: &Query<&Interactable>,
         writer: &mut EventWriter<BlockUsedEvent>,
     ) -> bool {
         match self.get_block_entity(key) {

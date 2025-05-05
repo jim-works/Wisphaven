@@ -34,7 +34,7 @@ bevy = { version = "0.15.1", features = ["dynamic_linking", "serialize"] }
 bracket-noise = "0.8.7"
 dashmap = "6.1.0"
 futures-lite = "2.5.0"
-serde = { version = "1.0.215", features = ["derive"] }
+serde = { version = "1.0.215", features = ["derive", "rc"] }
 bincode = "1.3.3"
 rusqlite = { version = "0.32.1", features = ["bundled"] }
 r2d2_sqlite = "0.25.0"
@@ -105,6 +105,7 @@ ai = { path = "crates/ai" }
 dialog = { path = "crates/dialog" }
 effects = { path = "crates/effects" }
 items_tools = { path = "crates/items_tools" }
+ui_dialog = { path = "crates/ui_dialog" }
 #new internal crates go here
 
 [workspace.metadata.dylint]

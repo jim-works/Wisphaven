@@ -1,4 +1,5 @@
 pub mod components;
+pub mod events;
 pub mod resources;
 pub mod scheduling;
 pub mod serialization;
@@ -9,6 +10,7 @@ pub struct InterfacesPlugin;
 
 impl Plugin for InterfacesPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(scheduling::SchedulingPlugin);
+        app.add_plugins(scheduling::SchedulingPlugin)
+            .register_type::<components::Interactable>();
     }
 }

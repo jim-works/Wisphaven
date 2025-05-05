@@ -1,0 +1,17 @@
+[package]
+name = "ui_dialog"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { workspace = true }
+
+engine = { path = "../engine" }
+interfaces = { path = "../interfaces" }
+world = { path = "../world" }
+dialog = { path = "../dialog" }
+ui_core = { path = "../ui_core" }
+ui_state = { path = "../ui_state" }
+
+[lints]
+workspace = true

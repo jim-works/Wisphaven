@@ -12,7 +12,7 @@ use abilities::{
 };
 use bevy::{prelude::*, window::CursorGrabMode};
 use ghost::FloatBoost;
-use interfaces::scheduling::*;
+use interfaces::{components::Interactable, events::InteractedEvent, scheduling::*};
 use leafwing_input_manager::prelude::ActionState;
 use physics::{
     collision::{Aabb, BlockPhysics},
@@ -21,7 +21,6 @@ use physics::{
     query::{self, Raycast, RaycastHit},
 };
 use world::{
-    block::UsableBlock,
     events::{BlockHitEvent, BlockUsedEvent},
     level::Level,
     settings::Settings,
@@ -347,9 +346,10 @@ pub fn player_use(
     level: Res<Level>,
     block_physics_query: Query<&BlockPhysics>,
     object_query: Query<(Entity, &GlobalTransform, &Aabb)>,
-    usable_block_query: Query<&UsableBlock>,
+    usable_query: Query<&Interactable>,
     mut use_end_event: EventWriter<UseEndEvent>,
     mut block_use_writer: EventWriter<BlockUsedEvent>,
+    mut commands: Commands,
 ) {
     for (entity, inv, mut item_action, use_speed, tf, action, local) in player_query.iter_mut() {
         if local.is_some() && !focused.0 {
@@ -357,31 +357,56 @@ pub fn player_use(
             continue;
         }
         if action.just_pressed(&Action::Use) && item_action.can_use() {
-            //first test if we used a block
-            if let Some(RaycastHit::Block(coord, hit_entity)) = query::raycast(
+            //first test if we interacted with the world
+            match query::raycast(
                 Raycast::new(tf.translation(), tf.forward(), 10.0),
                 &level,
                 &block_physics_query,
                 &object_query,
                 &[entity],
             ) {
-                if level.use_block(
-                    coord,
-                    entity,
-                    tf.forward(),
-                    &usable_block_query,
-                    &mut block_use_writer,
-                ) && item_action.try_use_empty(ItemTargetPosition::Entity(entity))
-                {
-                    //we used a block, so don't also use an item
-                    use_end_event.send(UseEndEvent {
-                        user: entity,
-                        slot: None,
-                        speed: *use_speed,
-                        result: HitResult::Hit(hit_entity.hit_pos),
-                    });
-                    return;
+                Some(RaycastHit::Block(coord, hit_entity)) => {
+                    if level.use_block(
+                        coord,
+                        entity,
+                        tf.forward(),
+                        &usable_query,
+                        &mut block_use_writer,
+                    ) && item_action.try_use_empty(ItemTargetPosition::Positon(
+                        Transform::from_translation(hit_entity.hit_pos).into(),
+                    )) {
+                        //we used a block, so don't also use an item
+                        use_end_event.send(UseEndEvent {
+                            user: entity,
+                            slot: None,
+                            speed: *use_speed,
+                            result: HitResult::Hit(hit_entity.hit_pos),
+                        });
+                        return;
+                    }
                 }
+                Some(RaycastHit::Object(hit)) => {
+                    if usable_query.contains(hit.entity)
+                        && item_action.try_use_empty(ItemTargetPosition::Entity(hit.entity))
+                    {
+                        commands.trigger_targets(
+                            InteractedEvent {
+                                user: entity,
+                                hit_pos: hit.hit_pos,
+                            },
+                            hit.entity,
+                        );
+                        //don't also use an item
+                        use_end_event.send(UseEndEvent {
+                            user: entity,
+                            slot: None,
+                            speed: *use_speed,
+                            result: HitResult::Hit(hit.hit_pos),
+                        });
+                        return;
+                    }
+                }
+                _ => (),
             }
             //we didn't use a block, so try to use an item
             item_action.try_use(inv, ItemTargetPosition::Entity(entity));

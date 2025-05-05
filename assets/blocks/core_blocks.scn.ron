@@ -90,7 +90,7 @@
         "blocks::tnt::TNTBlock": (
           explosion_strength: 10.0,
         ),
-        "world::block::UsableBlock": (),
+        "interfaces::components::Interactable": (),
         "world::block::NamedBlockMesh": (
             shape: MultiTexture(("tnt_side.png", "tnt_top.png", "tnt_side.png", "tnt_side.png", "tnt_top.png", "tnt_side.png")),
         )

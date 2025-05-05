@@ -79,10 +79,6 @@ impl From<BlockId> for Id {
 #[derive(Resource, Default)]
 pub struct SavedBlockId(pub BlockId);
 
-#[derive(Component, Reflect, Default)]
-#[reflect(Component, FromWorld)]
-pub struct UsableBlock;
-
 //used in world generation
 //we need this trait because we can't spawn entities in tasks, so we create an instance of BlockGenerator, which we can use later to create the block entity
 pub trait BlockGenerator: Send + Sync {

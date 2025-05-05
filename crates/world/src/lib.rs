@@ -43,7 +43,6 @@ impl Plugin for LevelPlugin {
             .register_type::<[std::path::PathBuf; 6]>()
             .register_type::<[std::path::PathBuf; 2]>()
             .register_type::<BlockName>()
-            .register_type::<UsableBlock>()
             .register_type::<BlockCoord>()
             .register_type::<NamedBlockMesh>()
             .register_type::<NamedBlockMeshShape>();

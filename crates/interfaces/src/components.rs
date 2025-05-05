@@ -78,3 +78,7 @@ pub struct RemoteClient(pub ClientId);
 pub struct VisualizeHeldItem {
     pub inventory: Entity,
 }
+
+#[derive(Component, Reflect, Default)]
+#[reflect(Component, FromWorld)]
+pub struct Interactable;
