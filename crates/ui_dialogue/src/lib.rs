@@ -206,16 +206,22 @@ fn progress_dialogue_text(
     mut last_progress: Local<usize>,
     mut commands: Commands,
 ) {
-    if state.completed.is_some() {
-        return;
-    }
     if let UIType::Message(target_message) = &state.ui {
         if target_message.len() == 0 {
             //very important cause i do some -1's in here
             return;
         }
+        if state.completed.is_some() {
+            if *last_progress <= target_message.len() - 1 {
+                for mut text in text_query.iter_mut() {
+                    text.0 = target_message.to_string();
+                    *last_progress = target_message.len() - 1;
+                }
+            }
+            return;
+        }
         let mut rng = rand::thread_rng();
-        let speed = 40.0 + 10. * util::random_proportion(&mut rng); //characters per second
+        let speed = 40.0; //characters per second
         let len = ((state.display_progress * speed) as usize).min(target_message.len() - 1);
         if len != *last_progress {
             // this api causes a lot of allocations T_T
@@ -337,6 +343,7 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
                 justify_content: JustifyContent::FlexEnd,
                 ..default()
             },
+            Name::new("dialogue ui"),
             PickingBehavior::IGNORE,
             Visibility::Hidden,
         ))
@@ -345,9 +352,10 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
                 // background
                 .spawn((
                     Node {
-                        height: Val::Px(200.),
+                        height: Val::Auto,
                         width: Val::Percent(100.),
                         border: UiRect::all(Val::Px(5.)),
+                        padding: UiRect::left(Val::Px(5.)),
                         flex_direction: FlexDirection::Column,
                         align_items: AlignItems::FlexStart,
                         justify_content: JustifyContent::FlexStart,
@@ -365,12 +373,11 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
                             flex_direction: FlexDirection::Column,
                             align_items: AlignItems::Center,
                             justify_content: JustifyContent::FlexEnd,
-                            position_type: PositionType::Absolute,
-                            margin: UiRect::horizontal(Val::Px(10.)),
                             ..default()
                         },
                         Text::new("Default text"),
-                        TextLayout::new_with_justify(JustifyText::Left),
+                        TextLayout::new(JustifyText::Left, LineBreak::WordOrCharacter),
+                        Name::new("dialogue text"),
                         get_text_style(&asset_server),
                         DialogueTextBox,
                     ));
@@ -382,10 +389,9 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
                             flex_direction: FlexDirection::Column,
                             align_items: AlignItems::Center,
                             justify_content: JustifyContent::FlexStart,
-                            position_type: PositionType::Absolute,
-                            margin: UiRect::horizontal(Val::Px(10.)),
                             ..default()
                         },
+                        Name::new("dialogue buttons"),
                         DialogueButtonContainer,
                     ));
                 });
