@@ -83,41 +83,37 @@ fn advance_dialogue(
                 } else {
                     Some(dialogue.node.clone())
                 });
-            let Some(active_node) = active_node_opt else {
-                //dialogue ended, remove component
-                info!("dialogue ended, removing component");
-                commands.entity(*dialogue_entity).remove::<ActiveDialogue>();
-                break;
-            };
-            let new_active_node = match active_node.as_ref() {
-                DialogueNode::Decision { choices, .. } => {
-                    // todo - more involved. for now we always pick the first
-                    choices.get(0).map(|choice| choice.node.clone())
-                }
-                DialogueNode::Message {
-                    effects: _, node, ..
-                } => {
-                    // todo - more involved. apply effects
-                    node.clone()
-                }
-                DialogueNode::Response { options, .. } => {
-                    let i = match selected_response {
-                        Some(i) => *i,
-                        None => {
-                            warn!(
-                                "no response number sent for advancing response node. defaulting to 0"
-                            );
-                            0
-                        }
-                    };
-                    // todo - more involved. apply effects
-                    options.get(i).and_then(|option| option.node.clone())
-                }
-                DialogueNode::Jump { jump_to, .. } => {
-                    dialogue.id_map.get(&jump_to.clone()).cloned()
-                }
-            };
-            active_dialogue.active_node = new_active_node;
+            if let Some(active_node) = active_node_opt {
+                // advance node
+                active_dialogue.active_node = match active_node.as_ref() {
+                    DialogueNode::Decision { choices, .. } => {
+                        // todo - more involved. for now we always pick the first
+                        choices.get(0).map(|choice| choice.node.clone())
+                    }
+                    DialogueNode::Message {
+                        effects: _, node, ..
+                    } => {
+                        // todo - more involved. apply effects
+                        node.clone()
+                    }
+                    DialogueNode::Response { options, .. } => {
+                        let i = match selected_response {
+                            Some(i) => *i,
+                            None => {
+                                warn!(
+                                    "no response number sent for advancing response node. defaulting to 0"
+                                );
+                                0
+                            }
+                        };
+                        // todo - more involved. apply effects
+                        options.get(i).and_then(|option| option.node.clone())
+                    }
+                    DialogueNode::Jump { jump_to, .. } => {
+                        dialogue.id_map.get(&jump_to.clone()).cloned()
+                    }
+                };
+            }
             match &active_dialogue.active_node {
                 Some(node) => {
                     if node.is_visual_node() {
@@ -126,8 +122,8 @@ fn advance_dialogue(
                     }
                 }
                 None => {
-                    // conversation ended, wait until we advance again to remove component
-                    info!("conversation ended");
+                    info!("dialogue ended, removing component");
+                    commands.entity(*dialogue_entity).remove::<ActiveDialogue>();
                     break;
                 }
             };
@@ -245,11 +241,14 @@ pub struct AdvanceDialogue {
     pub selected_response: Option<usize>,
 }
 
+// You will see a lot more Arc<str> than String in here
+// using ECS requires us to clone a lot, and we never need to modify these strings after loading
+
 // Enum to represent the different possible value types in conditions
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum ConditionValue {
-    String(String),
+    String(Arc<str>),
     Int(i32),
     Float(f32),
 }
@@ -264,7 +263,7 @@ pub enum Effect {
     },
     TriggerEvent {
         #[serde(rename = "triggerEvent")]
-        trigger_event: String,
+        trigger_event: Arc<str>,
     },
 }
 
@@ -272,17 +271,17 @@ pub enum Effect {
 #[serde(untagged)]
 pub enum Condition {
     Time {
-        time: String,
+        time: Arc<str>,
     },
     MinHearts {
         #[serde(rename = "minHearts")]
-        min_hearts: String,
+        min_hearts: Arc<str>,
     },
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ResponseOption {
-    pub message: String,
+    pub message: Arc<str>,
     #[serde(default)]
     pub effects: Vec<Effect>,
     #[serde(default)]
@@ -310,7 +309,7 @@ pub enum DialogueNode {
     Message {
         #[serde(default)]
         id: Option<Arc<str>>,
-        message: String,
+        message: Arc<str>,
         #[serde(default)]
         effects: Vec<Effect>,
         #[serde(default)]
@@ -401,8 +400,8 @@ impl Iterator for DialogueNodeIter {
 
 #[derive(Asset, TypePath, Debug, Deserialize)]
 pub struct Dialogue {
-    pub character: String,
-    pub event: String,
+    pub character: Arc<str>,
+    pub event: Arc<str>,
     #[serde(default)]
     pub conditions: Vec<Condition>,
     pub node: Arc<DialogueNode>,

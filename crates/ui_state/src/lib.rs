@@ -24,6 +24,7 @@ impl Plugin for UIStatePlugin {
             .add_systems(OnEnter(GameState::Game), (on_load, capture_mouse))
             .add_systems(OnEnter(UIState::Default), capture_mouse)
             .add_systems(OnEnter(UIState::Inventory), release_mouse)
+            .add_systems(OnEnter(UIState::Dialogue), release_mouse)
             .add_systems(OnExit(GameState::Game), release_mouse);
     }
 }

@@ -17,6 +17,7 @@ pub enum Action {
     DropItem,
     Look,
     Scroll,
+    SkipDialogue,
     ToggleInventory,
     ToggleUIHidden,
     ToggleDebugUIHidden,
@@ -46,6 +47,8 @@ pub fn get_input_map() -> InputMap<Action> {
         .with(Action::Dash, KeyCode::ShiftLeft)
         .with(Action::MoveDown, KeyCode::ControlLeft)
         .with(Action::Float, KeyCode::Space)
+        .with(Action::SkipDialogue, MouseButton::Left)
+        .with(Action::SkipDialogue, KeyCode::Space)
         .with(Action::ToggleFlight, KeyCode::KeyF)
         .with(Action::Punch, MouseButton::Left)
         .with(Action::Use, MouseButton::Right)

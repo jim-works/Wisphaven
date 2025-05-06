@@ -5,6 +5,8 @@ edition = "2024"
 
 [dependencies]
 bevy = { workspace = true }
+rand = { workspace = true }
+leafwing-input-manager = { workspace = true }
 
 engine = { path = "../engine" }
 interfaces = { path = "../interfaces" }
@@ -12,6 +14,7 @@ world = { path = "../world" }
 dialogue = { path = "../dialogue" }
 ui_core = { path = "../ui_core" }
 ui_state = { path = "../ui_state" }
+util = { path = "../util" }
 
 [lints]
 workspace = true
