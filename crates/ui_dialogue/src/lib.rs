@@ -43,23 +43,20 @@ struct DialogueButtonContainer;
 #[derive(Resource, Default)]
 struct DialogueUIState {
     active_entity: Option<Entity>,
-    ui: UIType,
+    ui: Option<UIType>,
     display_progress: f32,
     completed: Option<Duration>,
 }
 
 impl DialogueUIState {
-    fn update_ui(&mut self, ui: UIType) {
+    fn update_ui(&mut self, ui: Option<UIType>) {
         self.ui = ui;
         self.display_progress = 0.;
         self.completed = None;
     }
 }
 
-#[derive(Default)]
 enum UIType {
-    #[default]
-    None,
     Message(Arc<str>),
     Buttons(Vec<Arc<str>>),
 }
@@ -117,7 +114,7 @@ fn update_display(
         Some(node) => {
             match node.as_ref() {
                 dialogue::DialogueNode::Message { message, .. } => {
-                    state.update_ui(UIType::Message(message.clone()));
+                    state.update_ui(Some(UIType::Message(message.clone())));
 
                     if let Ok((mut text, mut vis)) = text_query.get_single_mut() {
                         text.0 = String::new();
@@ -131,9 +128,9 @@ fn update_display(
                     }
                 }
                 dialogue::DialogueNode::Response { options, .. } => {
-                    state.update_ui(UIType::Buttons(
+                    state.update_ui(Some(UIType::Buttons(
                         options.iter().map(|opt| opt.message.clone()).collect(),
-                    ));
+                    )));
 
                     if let Ok((mut text, mut vis)) = text_query.get_single_mut() {
                         text.0 = String::new();
@@ -174,7 +171,7 @@ fn advance_dialogue(
     input: Res<ActionState<Action>>,
     time: Res<Time>,
 ) {
-    if !input.just_pressed(&Action::SkipDialogue) || !matches!(state.ui, UIType::Message(_)) {
+    if !input.just_pressed(&Action::SkipDialogue) || !matches!(state.ui, Some(UIType::Message(_))) {
         return;
     }
     let Some(dialogue_entity) = state.active_entity else {
@@ -206,7 +203,7 @@ fn progress_dialogue_text(
     mut last_progress: Local<usize>,
     mut commands: Commands,
 ) {
-    if let UIType::Message(target_message) = &state.ui {
+    if let Some(UIType::Message(target_message)) = &state.ui {
         if target_message.len() == 0 {
             //very important cause i do some -1's in here
             return;
@@ -278,7 +275,7 @@ fn spawn_buttons(
         error!("can't find da container to spawn da dialogue buttons WTFFFFF!!!!");
         return;
     };
-    let UIType::Buttons(button_texts) = &state.ui else {
+    let Some(UIType::Buttons(button_texts)) = &state.ui else {
         error!("can't find da texts to spawn da dialogue buttons! FRICK!");
         return;
     };
