@@ -18,6 +18,7 @@ impl Plugin for DialoguePlugin {
             .init_asset_loader::<DialogueAssetLoader>()
             .init_resource::<Dialogues>()
             .add_event::<AdvanceDialogue>()
+            .add_event::<DialogueEffectEvent>()
             .add_systems(Startup, setup)
             .add_systems(
                 FixedUpdate,
@@ -50,6 +51,7 @@ fn advance_dialogue(
     mut reader: EventReader<AdvanceDialogue>,
     mut query: Query<&mut ActiveDialogue>,
     dialogue_assets: Res<Assets<Dialogue>>,
+    mut effect_writer: EventWriter<DialogueEffectEvent>,
 ) {
     for AdvanceDialogue {
         dialogue_entity,
@@ -90,10 +92,13 @@ fn advance_dialogue(
                         // todo - more involved. for now we always pick the first
                         choices.get(0).map(|choice| choice.node.clone())
                     }
-                    DialogueNode::Message {
-                        effects: _, node, ..
-                    } => {
-                        // todo - more involved. apply effects
+                    DialogueNode::Message { effects, node, .. } => {
+                        send_effects(
+                            &mut effect_writer,
+                            effects.iter().cloned(),
+                            *dialogue_entity,
+                            active_dialogue.other,
+                        );
                         node.clone()
                     }
                     DialogueNode::Response { options, .. } => {
@@ -106,8 +111,16 @@ fn advance_dialogue(
                                 0
                             }
                         };
-                        // todo - more involved. apply effects
-                        options.get(i).and_then(|option| option.node.clone())
+                        let selected_option = options.get(i);
+                        if let Some(option) = selected_option {
+                            send_effects(
+                                &mut effect_writer,
+                                option.effects.iter().cloned(),
+                                *dialogue_entity,
+                                active_dialogue.other,
+                            );
+                        }
+                        selected_option.and_then(|option| option.node.clone())
                     }
                     DialogueNode::Jump { jump_to, .. } => {
                         dialogue.id_map.get(&jump_to.clone()).cloned()
@@ -128,6 +141,21 @@ fn advance_dialogue(
                 }
             };
         }
+    }
+}
+
+fn send_effects(
+    effect_writer: &mut EventWriter<DialogueEffectEvent>,
+    iter: impl Iterator<Item = DialogueEffect>,
+    dialogue_entity: Entity,
+    other_entity: Entity,
+) {
+    for effect in iter {
+        effect_writer.send(DialogueEffectEvent {
+            effect,
+            dialogue_entity,
+            other_entity,
+        });
     }
 }
 
@@ -222,13 +250,15 @@ impl AssetLoader for DialogueAssetLoader {
 pub struct ActiveDialogue {
     pub handle: Handle<Dialogue>,
     pub active_node: Option<Arc<DialogueNode>>,
+    pub other: Entity,
     init: bool,
 }
 
 impl ActiveDialogue {
-    pub fn new(handle: Handle<Dialogue>) -> Self {
+    pub fn new(handle: Handle<Dialogue>, other: Entity) -> Self {
         Self {
             handle,
+            other,
             active_node: None,
             init: false,
         }
@@ -239,6 +269,13 @@ impl ActiveDialogue {
 pub struct AdvanceDialogue {
     pub dialogue_entity: Entity,
     pub selected_response: Option<usize>,
+}
+
+#[derive(Event)]
+pub struct DialogueEffectEvent {
+    pub effect: DialogueEffect,
+    pub dialogue_entity: Entity,
+    pub other_entity: Entity,
 }
 
 // You will see a lot more Arc<str> than String in here
@@ -254,9 +291,11 @@ pub enum ConditionValue {
 }
 
 // Effect types
-#[derive(Debug, Deserialize)]
+// these will get cloned a lot
+#[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
-pub enum Effect {
+/// to handle effect, add event reader for `DialogueEffect` in relevant crate
+pub enum DialogueEffect {
     ChangeFriendship {
         #[serde(rename = "changeFriendship")]
         change_friendship: i64,
@@ -264,6 +303,12 @@ pub enum Effect {
     TriggerEvent {
         #[serde(rename = "triggerEvent")]
         trigger_event: Arc<str>,
+    },
+    /// handled in items crate
+    GiveItem {
+        #[serde(rename = "giveItem")]
+        give_item: Arc<str>,
+        quantity: u32,
     },
 }
 
@@ -283,7 +328,7 @@ pub enum Condition {
 pub struct ResponseOption {
     pub message: Arc<str>,
     #[serde(default)]
-    pub effects: Vec<Effect>,
+    pub effects: Vec<DialogueEffect>,
     #[serde(default)]
     pub node: Option<Arc<DialogueNode>>,
 }
@@ -311,7 +356,7 @@ pub enum DialogueNode {
         id: Option<Arc<str>>,
         message: Arc<str>,
         #[serde(default)]
-        effects: Vec<Effect>,
+        effects: Vec<DialogueEffect>,
         #[serde(default)]
         node: Option<Arc<DialogueNode>>,
     },

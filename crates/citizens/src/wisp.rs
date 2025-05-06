@@ -230,7 +230,7 @@ fn on_interacted(
         return;
     };
     if let Some(mut ec) = commands.get_entity(trigger.entity()) {
-        ec.insert(ActiveDialogue::new(introduction.clone()));
+        ec.insert(ActiveDialogue::new(introduction.clone(), trigger.user));
         info!("inserted dialogue!");
     }
 }

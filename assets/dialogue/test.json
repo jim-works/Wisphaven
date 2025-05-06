@@ -26,7 +26,8 @@
                 "message": "That's great! Me too!",
                 "effects": [
                   {
-                    "changeFriendship": 5
+                    "giveItem": "rock",
+                    "quantity": 5
                   },
                   {
                     "triggerEvent": "balloonDay"
