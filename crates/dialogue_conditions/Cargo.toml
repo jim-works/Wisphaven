@@ -10,6 +10,7 @@ serde = { workspace = true }
 
 interfaces = { path = "../interfaces" }
 dialogue = { path = "../dialogue" }
+engine = { path = "../engine" }
 
 [lints]
 workspace = true

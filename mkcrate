@@ -11,7 +11,7 @@ fi
 
 CRATE_NAME=$1
 # Create the PascalCase version of the name for the plugin
-PLUGIN_NAME="$(echo ${CRATE_NAME:0:1} | tr '[:lower:]' '[:upper:]')${CRATE_NAME:1}"
+PLUGIN_NAME="$(echo $CRATE_NAME | sed -r 's/(^|_)(.)/\U\2/g')"
 CRATE_PATH="crates/$CRATE_NAME"
 
 # Step 2: Create a new library crate

@@ -45,16 +45,34 @@ impl Dialogues {
 
 #[derive(Resource, Default)]
 struct DialogueConditions {
-    map: HashMap<&'static str, Box<dyn Fn(&DeferredWorld, &Condition) -> bool + Send + Sync>>,
+    map: Vec<Box<dyn Fn(&DeferredWorld, &Condition, Entity, Entity) -> Option<bool> + Send + Sync>>,
 }
 
 impl DialogueConditions {
     fn insert(
         &mut self,
-        name: &'static str,
-        function: Box<dyn Fn(&DeferredWorld, &Condition) -> bool + Send + Sync>,
+        function: Box<
+            dyn Fn(&DeferredWorld, &Condition, Entity, Entity) -> Option<bool> + Send + Sync,
+        >,
     ) {
-        self.map.insert(name, function);
+        self.map.push(function);
+    }
+
+    /// checks if the first matching condition function returns true
+    /// if no matches, returns true
+    fn matches(
+        &self,
+        world: &DeferredWorld,
+        condition: &Condition,
+        owner: Entity,
+        interactor: Entity,
+    ) -> bool {
+        self.map
+            .iter()
+            .filter_map(|cond| cond(world, condition, owner, interactor))
+            .next()
+            // return true if no matches
+            .unwrap_or(true)
     }
 }
 
@@ -66,6 +84,7 @@ fn advance_dialogue(
     mut commands: Commands,
     mut world: DeferredWorld, // needed for conditions, they can require checking arbitrary data
 ) {
+    // we want to read past events and the ones which just came up, requiring 2 drains
     let mut advance_events = world
         .get_resource_mut::<Events<AdvanceDialogue>>()
         .unwrap()
@@ -92,6 +111,7 @@ fn advance_dialogue(
         // Ensures they get dropped, so we don't have any borrow issues below when doing the mutable stuff (advancing the actual dialogue)
         {
             let dialogue_assets = world.get_resource::<Assets<Dialogue>>().unwrap();
+            let condition_registry = world.get_resource::<DialogueConditions>().unwrap();
             let Ok(Some(active_dialogue)) = world
                 .get_entity(dialogue_entity)
                 .map(|e| e.get_components::<&ActiveDialogue>())
@@ -121,8 +141,26 @@ fn advance_dialogue(
                     // advance node
                     active_node_opt = match active_node.as_ref() {
                         DialogueNode::Decision { choices, .. } => {
-                            // todo - more involved. for now we always pick the first
-                            choices.get(0).map(|choice| choice.node.clone())
+                            let first_matching_choice = choices
+                                .iter()
+                                .filter(|choice| {
+                                    choice.conditions.iter().all(|cond| {
+                                        condition_registry.matches(
+                                            &world,
+                                            cond,
+                                            dialogue_entity,
+                                            active_dialogue.other,
+                                        )
+                                    })
+                                })
+                                .next();
+                            match first_matching_choice {
+                                Some(choice) => Some(choice.node.clone()),
+                                None => {
+                                    info!("no matching choice, ending conversation");
+                                    None
+                                }
+                            }
                         }
                         DialogueNode::Message { effects, node, .. } => {
                             send_effects(
@@ -377,6 +415,10 @@ pub enum DialogueEffect {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum Condition {
+    HasItem {
+        #[serde(rename = "hasItem")]
+        has_item: Arc<str>,
+    },
     Time {
         time: Arc<str>,
     },
@@ -531,23 +573,25 @@ impl Dialogue {
 }
 
 pub trait BuildDialogueConditionRegistry {
-    fn add_dialogue_condition<T: Fn(&DeferredWorld, &Condition) -> bool + Send + Sync + 'static>(
+    fn add_dialogue_condition<
+        Cond: Fn(&DeferredWorld, &Condition, Entity, Entity) -> Option<bool> + Send + Sync + 'static,
+    >(
         &mut self,
-        function: T,
-        key: &'static str,
+        function: Cond,
     ) -> &mut Self;
 }
 
 impl BuildDialogueConditionRegistry for App {
-    fn add_dialogue_condition<T: Fn(&DeferredWorld, &Condition) -> bool + Send + Sync + 'static>(
+    fn add_dialogue_condition<
+        Cond: Fn(&DeferredWorld, &Condition, Entity, Entity) -> Option<bool> + Send + Sync + 'static,
+    >(
         &mut self,
-        function: T,
-        key: &'static str,
+        function: Cond,
     ) -> &mut Self {
         let mut registry = self
             .world_mut()
             .get_resource_or_insert_with(DialogueConditions::default);
-        registry.insert(key, Box::new(function));
+        registry.insert(Box::new(function));
         self
     }
 }

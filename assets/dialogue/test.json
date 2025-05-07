@@ -8,6 +8,17 @@
       {
         "conditions": [
           {
+            "hasItem": "rock"
+          }
+        ],
+        "node": {
+          "type": "message",
+          "message": "I am a big rock fan if you couldn't tell"
+        }
+      },
+      {
+        "conditions": [
+          {
             "minHearts": 6,
             "time": "night"
           },
