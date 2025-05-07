@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use bevy::{
     asset::{AssetLoader, LoadContext, io::Reader},
+    ecs::world::DeferredWorld,
     prelude::*,
     utils::HashMap,
 };
@@ -17,7 +18,7 @@ impl Plugin for DialoguePlugin {
         app.init_asset::<Dialogue>()
             .init_asset_loader::<DialogueAssetLoader>()
             .init_resource::<Dialogues>()
-            .add_event::<AdvanceDialogue>()
+            .init_resource::<Events<AdvanceDialogue>>()
             .add_event::<DialogueEffectEvent>()
             .add_systems(Startup, setup)
             .add_systems(
@@ -42,101 +43,162 @@ impl Dialogues {
     }
 }
 
+#[derive(Resource, Default)]
+struct DialogueConditions {
+    map: HashMap<&'static str, Box<dyn Fn(&DeferredWorld, &Condition) -> bool + Send + Sync>>,
+}
+
+impl DialogueConditions {
+    fn insert(
+        &mut self,
+        name: &'static str,
+        function: Box<dyn Fn(&DeferredWorld, &Condition) -> bool + Send + Sync>,
+    ) {
+        self.map.insert(name, function);
+    }
+}
+
 fn setup(asset_server: Res<AssetServer>, mut dialogues: ResMut<Dialogues>) {
     dialogues.load_dialogue("dialogue/test.json", &asset_server);
 }
 
 fn advance_dialogue(
     mut commands: Commands,
-    mut reader: EventReader<AdvanceDialogue>,
-    mut query: Query<&mut ActiveDialogue>,
-    dialogue_assets: Res<Assets<Dialogue>>,
-    mut effect_writer: EventWriter<DialogueEffectEvent>,
+    mut world: DeferredWorld, // needed for conditions, they can require checking arbitrary data
 ) {
+    let mut advance_events = world
+        .get_resource_mut::<Events<AdvanceDialogue>>()
+        .unwrap()
+        .update_drain()
+        .collect::<Vec<_>>();
+
+    advance_events.extend(
+        world
+            .get_resource_mut::<Events<AdvanceDialogue>>()
+            .unwrap()
+            .update_drain(),
+    );
+
+    let mut send_effect_events = Vec::new();
+
     for AdvanceDialogue {
         dialogue_entity,
         selected_response,
-    } in reader.read()
+    } in advance_events.drain(..)
     {
         info!("advancing dialogue");
-        let Ok(mut active_dialogue) = query.get_mut(*dialogue_entity) else {
-            error!(
-                "trying to advance dialogue for invalid entity {:?}",
-                dialogue_entity
-            );
-            continue;
-        };
-        let Some(dialogue) = dialogue_assets.get(&active_dialogue.handle) else {
-            error!(
-                "trying to advance dialogue for invalid dialogue handle {:?}. removing component",
-                active_dialogue.handle
-            );
-            commands.entity(*dialogue_entity).remove::<ActiveDialogue>();
-            continue;
-        };
-        // continue advancing until we hit a user interaction
-        loop {
+        let mut active_node_opt;
+        // I have this weird block for all the read-only world access
+        // Ensures they get dropped, so we don't have any borrow issues below when doing the mutable stuff (advancing the actual dialogue)
+        {
+            let dialogue_assets = world.get_resource::<Assets<Dialogue>>().unwrap();
+            let Ok(Some(active_dialogue)) = world
+                .get_entity(dialogue_entity)
+                .map(|e| e.get_components::<&ActiveDialogue>())
+            else {
+                error!(
+                    "trying to advance dialogue for invalid entity {:?}",
+                    dialogue_entity
+                );
+                continue;
+            };
+            let Some(dialogue) = dialogue_assets.get(&active_dialogue.handle) else {
+                error!(
+                    "trying to advance dialogue for invalid dialogue handle {:?}. removing component",
+                    active_dialogue.handle
+                );
+                commands.entity(dialogue_entity).remove::<ActiveDialogue>();
+                continue;
+            };
             // default active node to root if not set
-            let active_node_opt = active_dialogue
+            active_node_opt = active_dialogue
                 .active_node
                 .clone()
-                .or(if active_dialogue.init {
-                    None
-                } else {
-                    Some(dialogue.node.clone())
-                });
-            if let Some(active_node) = active_node_opt {
-                // advance node
-                active_dialogue.active_node = match active_node.as_ref() {
-                    DialogueNode::Decision { choices, .. } => {
-                        // todo - more involved. for now we always pick the first
-                        choices.get(0).map(|choice| choice.node.clone())
-                    }
-                    DialogueNode::Message { effects, node, .. } => {
-                        send_effects(
-                            &mut effect_writer,
-                            effects.iter().cloned(),
-                            *dialogue_entity,
-                            active_dialogue.other,
-                        );
-                        node.clone()
-                    }
-                    DialogueNode::Response { options, .. } => {
-                        let i = match selected_response {
-                            Some(i) => *i,
-                            None => {
-                                warn!(
-                                    "no response number sent for advancing response node. defaulting to 0"
-                                );
-                                0
-                            }
-                        };
-                        let selected_option = options.get(i);
-                        if let Some(option) = selected_option {
+                .or(Some(dialogue.node.clone()));
+            // continue advancing until we hit a user interaction
+            loop {
+                if let Some(active_node) = active_node_opt {
+                    // advance node
+                    active_node_opt = match active_node.as_ref() {
+                        DialogueNode::Decision { choices, .. } => {
+                            // todo - more involved. for now we always pick the first
+                            choices.get(0).map(|choice| choice.node.clone())
+                        }
+                        DialogueNode::Message { effects, node, .. } => {
                             send_effects(
-                                &mut effect_writer,
-                                option.effects.iter().cloned(),
-                                *dialogue_entity,
+                                &mut send_effect_events,
+                                effects.iter().cloned(),
+                                dialogue_entity,
                                 active_dialogue.other,
                             );
+                            node.clone()
                         }
-                        selected_option.and_then(|option| option.node.clone())
-                    }
-                    DialogueNode::Jump { jump_to, .. } => {
-                        dialogue.id_map.get(&jump_to.clone()).cloned()
-                    }
-                };
-            }
-            match &active_dialogue.active_node {
-                Some(node) => {
-                    if node.is_visual_node() {
-                        // wait for user interaction
-                        break;
-                    }
+                        DialogueNode::Response { options, .. } => {
+                            let i = match selected_response {
+                                Some(i) => i,
+                                None => {
+                                    warn!(
+                                        "no response number sent for advancing response node. defaulting to 0"
+                                    );
+                                    0
+                                }
+                            };
+                            let selected_option = options.get(i);
+                            if let Some(option) = selected_option {
+                                send_effects(
+                                    &mut send_effect_events,
+                                    option.effects.iter().cloned(),
+                                    dialogue_entity,
+                                    active_dialogue.other,
+                                );
+                            }
+                            selected_option.and_then(|option| option.node.clone())
+                        }
+                        DialogueNode::Jump { jump_to, .. } => {
+                            dialogue.id_map.get(&jump_to.clone()).cloned()
+                        }
+                    };
                 }
+                info!("active node {:?}", active_node_opt);
+                info!(
+                    "is visual? {}",
+                    active_node_opt
+                        .as_ref()
+                        .map(|n| n.is_visual_node())
+                        .unwrap_or(true)
+                );
+                if active_node_opt
+                    .as_ref()
+                    .map(|n| n.is_visual_node())
+                    .unwrap_or(true)
+                {
+                    // break out if we need user interaction or if the convo is over
+                    break;
+                }
+            }
+            // update stuff
+            // I tried doing `drop(active_dialogue)` but did not work for some reason, hence the block
+            world.send_event_batch(send_effect_events.drain(..));
+            let Ok(mut entity) = world.get_entity_mut(dialogue_entity) else {
+                error!("cannot get entity from world on the second try");
+                continue;
+            };
+            match &active_node_opt {
+                Some(node) => match entity.get_mut::<ActiveDialogue>() {
+                    Some(mut active_dialogue) => {
+                        active_dialogue.active_node = Some(node.clone());
+                    }
+                    None => {
+                        error!(
+                            "cannot get active dialogue from world on the second try. gonna remove the component anyway for swag."
+                        );
+                        commands.entity(dialogue_entity).remove::<ActiveDialogue>();
+                        continue;
+                    }
+                },
                 None => {
                     info!("dialogue ended, removing component");
-                    commands.entity(*dialogue_entity).remove::<ActiveDialogue>();
+                    commands.entity(dialogue_entity).remove::<ActiveDialogue>();
                     break;
                 }
             };
@@ -145,13 +207,13 @@ fn advance_dialogue(
 }
 
 fn send_effects(
-    effect_writer: &mut EventWriter<DialogueEffectEvent>,
+    effect_writer: &mut Vec<DialogueEffectEvent>,
     iter: impl Iterator<Item = DialogueEffect>,
     dialogue_entity: Entity,
     other_entity: Entity,
 ) {
     for effect in iter {
-        effect_writer.send(DialogueEffectEvent {
+        effect_writer.push(DialogueEffectEvent {
             effect,
             dialogue_entity,
             other_entity,
@@ -166,6 +228,7 @@ fn init_active_dialogue(
     mut advance_writer: EventWriter<AdvanceDialogue>,
 ) {
     for (dialogue_entity, mut active) in query.iter_mut() {
+        info!("init active dialogue system");
         if active.active_node.is_none() {
             active.active_node = dialogue_assets
                 .get(&active.handle)
@@ -173,6 +236,7 @@ fn init_active_dialogue(
             if let Some(node) = &active.active_node
                 && !node.is_visual_node()
             {
+                info!("sending advance event to init");
                 advance_writer.send(AdvanceDialogue {
                     dialogue_entity,
                     selected_response: None,
@@ -246,12 +310,11 @@ impl AssetLoader for DialogueAssetLoader {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct ActiveDialogue {
     pub handle: Handle<Dialogue>,
     pub active_node: Option<Arc<DialogueNode>>,
     pub other: Entity,
-    init: bool,
 }
 
 impl ActiveDialogue {
@@ -260,7 +323,6 @@ impl ActiveDialogue {
             handle,
             other,
             active_node: None,
-            init: false,
         }
     }
 }
@@ -465,5 +527,27 @@ impl Dialogue {
                 self.id_map.insert(id, node.clone());
             }
         }
+    }
+}
+
+pub trait BuildDialogueConditionRegistry {
+    fn add_dialogue_condition<T: Fn(&DeferredWorld, &Condition) -> bool + Send + Sync + 'static>(
+        &mut self,
+        function: T,
+        key: &'static str,
+    ) -> &mut Self;
+}
+
+impl BuildDialogueConditionRegistry for App {
+    fn add_dialogue_condition<T: Fn(&DeferredWorld, &Condition) -> bool + Send + Sync + 'static>(
+        &mut self,
+        function: T,
+        key: &'static str,
+    ) -> &mut Self {
+        let mut registry = self
+            .world_mut()
+            .get_resource_or_insert_with(DialogueConditions::default);
+        registry.insert(key, Box::new(function));
+        self
     }
 }

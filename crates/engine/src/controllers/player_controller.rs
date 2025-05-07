@@ -36,18 +36,19 @@ impl Plugin for PlayerControllerPlugin {
             Update,
             (
                 rotate_mouse,
+                follow_local_player,
                 boost_float_player,
                 move_player,
                 dash_player,
-                follow_local_player,
-                player_punch,
-                player_use,
                 toggle_player_flight,
-                player_drop_item,
             )
                 .in_set(LevelSystemSet::Main),
         )
         .add_systems(Update, update_window_focused)
+        .add_systems(
+            FixedUpdate,
+            (player_punch, player_use, player_drop_item).in_set(LevelSystemSet::PreTick),
+        )
         .insert_resource(CursorLocked(false));
     }
 }

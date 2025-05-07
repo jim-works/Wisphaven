@@ -143,7 +143,8 @@ fn update_display(
                 }
                 dialogue::DialogueNode::Decision { .. } | dialogue::DialogueNode::Jump { .. } => {
                     error!(
-                        "trying to display non-visual node. this shouldn't happen ever. advancing dialogue..."
+                        "trying to display non-visual node. this shouldn't happen ever. advancing dialogue...{:?}",
+                        dialogue
                     );
                     advance_writer.send(AdvanceDialogue {
                         dialogue_entity,

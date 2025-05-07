@@ -1,0 +1,15 @@
+[package]
+name = "dialogue_conditions"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
+
+interfaces = { path = "../interfaces" }
+dialogue = { path = "../dialogue" }
+
+[lints]
+workspace = true

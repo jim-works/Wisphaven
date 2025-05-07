@@ -83,6 +83,8 @@ fn main() {
         effects::EffectsPlugin,
         items_tools::ToolsPlugin,
         ui_dialogue::UiDialoguePlugin,
+        dialogue_conditions::DialogueConditionsPlugin,
+        dialogue_effects::DialogueEffectsPlugin,
         // new internal crates go here
     ));
 

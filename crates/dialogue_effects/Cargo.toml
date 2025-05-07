@@ -1,0 +1,15 @@
+[package]
+name = "dialogue_effects"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { workspace = true }
+
+interfaces = { path = "../interfaces" }
+dialogue = { path = "../dialogue" }
+engine = { path = "../engine" }
+items = { path = "../items" }
+
+[lints]
+workspace = true
