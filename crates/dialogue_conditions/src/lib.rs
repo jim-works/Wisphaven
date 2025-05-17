@@ -1,5 +1,5 @@
 use bevy::{ecs::world::DeferredWorld, prelude::*};
-use dialogue::{BuildDialogueConditionRegistry, Condition, ConditionValue};
+use dialogue::{BuildDialogueConditionRegistry, Condition};
 use engine::items::{ItemId, ItemName, ItemResources, inventory::Inventory};
 use interfaces::components::Id;
 

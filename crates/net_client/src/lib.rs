@@ -1,18 +1,12 @@
 #![feature(let_chains)]
-use std::{hash::Hash, net::IpAddr, thread::sleep, time::Duration};
+use std::hash::Hash;
 
-use bevy::{app::AppExit, prelude::*, utils::HashMap};
+use bevy::{prelude::*, utils::HashMap};
 use interfaces::scheduling::{ClientState, GameState, LevelLoadState, LevelSystemSet, NetworkType};
 use lightyear::prelude::client::*;
 use lightyear::prelude::*;
 use lightyear::{prelude::client::ClientCommands, shared::events::components::MessageEvent};
-use rand::Rng;
-use rand_distr::Alphanumeric;
 
-use engine::{
-    actors::{LocalPlayer, LocalPlayerSpawnedEvent},
-    items::{ItemId, ItemResources},
-};
 use world::block::BlockResources;
 use world::chunk::ChunkSaveFormat;
 use world::chunk_loading::entity_loader::ChunkFetchRequests;

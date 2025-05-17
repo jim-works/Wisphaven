@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use engine::actors::{
     AttackEvent, Combatant, CombatantBundle, Damage,
-    team::{PLAYER_TEAM, Team},
+    team::Team,
 };
 use interfaces::scheduling::ItemSystemSet;
 use physics::{
@@ -15,12 +15,9 @@ use physics::{
 use rand::thread_rng;
 use world::level::Level;
 
-use actors::{
-    coin::SpawnCoin,
-    spawning::{
-        ProjectileName, ProjectileSpawnArgs, SpawnNamedProjectileEvent, SpawnProjectileEvent,
-    },
-};
+use actors::spawning::{
+        ProjectileName, ProjectileSpawnArgs, SpawnNamedProjectileEvent,
+    };
 
 use engine::items::{HitResult, SwingEndEvent, SwingItemEvent, UseEndEvent, UseItemEvent};
 

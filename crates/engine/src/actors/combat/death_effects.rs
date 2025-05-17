@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use interfaces::scheduling::LevelSystemSet;
 
 use crate::actors::abilities::stamina::Stamina;
 

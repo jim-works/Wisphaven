@@ -6,7 +6,7 @@ use bevy::{
     prelude::*,
 };
 use dialogue::{ActiveDialogue, AdvanceDialogue};
-use engine::{actors::LocalPlayer, controllers::Action};
+use engine::controllers::Action;
 use interfaces::scheduling::GameState;
 use leafwing_input_manager::prelude::ActionState;
 use rand::RngCore;
@@ -255,7 +255,7 @@ fn show_dialogue(mut inventory_query: Query<&mut Visibility, With<DialogueUI>>) 
     }
 }
 
-fn hide_dialogue(mut query: Query<&mut Visibility, (With<DialogueUI>)>) {
+fn hide_dialogue(mut query: Query<&mut Visibility, With<DialogueUI>>) {
     for mut vis in query.iter_mut() {
         info!("hiding dialogue");
         *vis.as_mut() = Visibility::Hidden;

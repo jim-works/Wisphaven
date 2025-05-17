@@ -7,7 +7,6 @@ use rand::seq::SliceRandom;
 use std::net::*;
 use std::time::Duration;
 
-use engine::controllers::Action;
 use net_client::ClientPlugin;
 use net_server::ServerPlugin;
 use net_shared::ProtocolPlugin;

@@ -1,8 +1,7 @@
 #![feature(let_chains)]
-use std::net::IpAddr;
 
 use ahash::HashMap;
-use bevy::{prelude::*, utils::HashSet};
+use bevy::prelude::*;
 use interfaces::{
     components::RemoteClient,
     scheduling::{GameState, LevelLoadState, LevelSystemSet, NetworkType, ServerState},
@@ -10,25 +9,17 @@ use interfaces::{
 use lightyear::prelude::server::*;
 use lightyear::prelude::*;
 use server::ServerCommands;
-use util::LocalRepeatingTimer;
 
-use engine::{
-    actors::LocalPlayer,
-    items::{ItemRegistry, ItemResources, SwingItemEvent, UseItemEvent, inventory::Inventory},
-};
 use net_shared::{
-    ChunkMessage, DisconnectedClient, InitMessage, InitMessageSystemParam, OrderedReliable,
+    ChunkMessage, InitMessage, InitMessageSystemParam,
     PlayerInfo, PlayerList, PlayerListMessage, RequestChunksMessage, UnorderedReliable,
 };
-use physics::movement::Velocity;
 use world::{
-    ChunkBoundaryCrossedEvent,
-    block::{BlockId, BlockRegistry, BlockResources},
+    block::BlockId,
     chunk::{ChunkCoord, ChunkSaveFormat, ChunkType},
     chunk_loading::ChunkLoader,
     events::ChunkUpdatedEvent,
     level::Level,
-    settings::Settings,
 };
 
 pub const TICK_MS: u64 = 10;
