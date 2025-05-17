@@ -2,7 +2,6 @@ use bevy::{ecs::world::DeferredWorld, prelude::*};
 use dialogue::{BuildDialogueConditionRegistry, Condition, ConditionValue};
 use engine::items::{ItemId, ItemName, ItemResources, inventory::Inventory};
 use interfaces::components::Id;
-use serde_json::Value;
 
 pub struct DialogueConditionsPlugin;
 

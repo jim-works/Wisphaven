@@ -1,13 +1,10 @@
-use std::f32::consts::PI;
+use std::{array, f32::consts::PI};
 
 use bevy::prelude::*;
 
 use ai::attacker::{AggroClosestEnemy, UseItemAction};
 use big_brain::prelude::*;
-use dialogue::{ActiveDialogue, Dialogues};
 use interfaces::{
-    components::Interactable,
-    events::InteractedEvent,
     resources::HeldItemResources,
     scheduling::{LevelLoadState, LevelSystemSet, PhysicsLevelSet},
 };
@@ -19,51 +16,99 @@ use physics::{
 use serde::Deserialize;
 use util::{lerp, plugin::SmoothLookTo};
 
-use engine::{
-    actors::{
-        ActorName, ActorResources, BuildActorRegistry, Combatant, CombatantBundle, IdleAction,
-        Idler, SpawnActorEvent,
-        ai::{AttackAction, scorers::AggroScorer},
-        ghost::{Float, GhostResources, Handed, OrbitParticle},
-        team::{ENEMY_TEAM, PLAYER_TEAM},
-    },
-    items::{ItemName, ItemResources, ItemStack, inventory::Inventory},
+use engine::actors::{
+    ActorName, ActorResources, BuildActorRegistry, Combatant, CombatantBundle, IdleAction, Idler,
+    SpawnActorEvent,
+    ai::scorers::AggroScorer,
+    ghost::{Float, GhostResources, Handed, OrbitParticle},
+    team::PLAYER_TEAM,
 };
 use world::{FixedUpdateBlockGizmos, level::Level};
 
+const WISP_PARTICLE_COUNT: usize = 7;
 #[derive(Resource)]
 pub struct WispResources {
-    pub mesh: Handle<Mesh>,
+    pub center_mesh: Handle<Mesh>,
+    pub particle_mesh: Handle<Mesh>,
     pub material: Handle<StandardMaterial>,
+    pub particle_materials: [Handle<StandardMaterial>; WISP_PARTICLE_COUNT],
 }
 
 #[derive(Component, Default)]
 pub struct Wisp;
 
-#[derive(Event, Deserialize, Default, Debug)]
+#[derive(Event, Deserialize, Default, Debug, Clone)]
 pub struct SpawnWisp {
     pub handed: Handed,
+    #[serde(skip)] //todo - this will probably come from inventory or something later
+    pub hat: Option<ClothingVisual>,
+    #[serde(skip)]
+    pub front: Option<ClothingVisual>,
 }
 
-pub struct WispPlugin;
+#[derive(Debug, Clone)]
+pub struct ClothingVisual {
+    pub scene: Handle<Scene>,
+    // there are default offsets for different armor slots, this should just be adjust the mesh to look good
+    pub offset: Transform,
+}
+
+impl ClothingVisual {
+    pub fn spawn(&self, cb: &mut ChildBuilder, default_offset: Vec3) {
+        cb.spawn((
+            SceneRoot(self.scene.clone()),
+            self.offset
+                .with_translation(self.offset.translation + default_offset),
+        ));
+    }
+}
+
+#[derive(Event, Debug, Clone)]
+pub struct PopulateWisp(pub Entity, pub Name, pub SpawnActorEvent<SpawnWisp>);
+
+pub(crate) struct WispPlugin;
 
 impl Plugin for WispPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (load_resources, add_to_registry))
-            .add_systems(FixedUpdate, spawn_wisp.in_set(LevelSystemSet::Tick))
+            .add_systems(
+                FixedUpdate,
+                (spawn_wisp, populate_wisp)
+                    .chain()
+                    .in_set(LevelSystemSet::Tick),
+            )
             .add_systems(FixedUpdate, update_floater.in_set(PhysicsLevelSet::Main))
+            .add_event::<PopulateWisp>()
             .add_actor::<SpawnWisp>(ActorName::core("wisp"));
     }
 }
 
-pub fn load_resources(
+fn load_resources(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    const CENTER_PARTICLE_COLOR: Color = Color::srgb(0.95, 0.95, 0.95);
+    const OUTER_PARTICLE_COLOR: Color = Color::srgb(0.96, 0.90, 1.0);
+    let particle_materials: [Handle<StandardMaterial>; WISP_PARTICLE_COUNT as usize] =
+        array::from_fn(|n| {
+            let progress = (n + 1) as f32 / (WISP_PARTICLE_COUNT + 1) as f32;
+            materials.add(StandardMaterial {
+                base_color: Color::mix(&CENTER_PARTICLE_COLOR, &OUTER_PARTICLE_COLOR, progress),
+                ..default()
+            })
+        });
     commands.insert_resource(WispResources {
-        mesh: meshes.add(Cuboid::from_length(1.0)),
-        material: materials.add(StandardMaterial::from(Color::WHITE)),
+        center_mesh: meshes.add(Mesh::from(Cuboid::from_corners(
+            Vec3::new(-0.3, -0.5, -0.3),
+            Vec3::new(0.3, 0.5, 0.3),
+        ))),
+        particle_mesh: meshes.add(Mesh::from(Cuboid::from_length(1.0))),
+        material: materials.add(StandardMaterial {
+            base_color: CENTER_PARTICLE_COLOR,
+            ..default()
+        }),
+        particle_materials,
     });
 }
 
@@ -74,10 +119,28 @@ fn add_to_registry(mut res: ResMut<ActorResources>) {
 
 fn spawn_wisp(
     mut commands: Commands,
-    res: Res<GhostResources>,
-    items: Res<ItemResources>,
-    held_item_resources: Res<HeldItemResources>,
+    mut writer: EventWriter<PopulateWisp>,
     mut spawn_requests: EventReader<SpawnActorEvent<SpawnWisp>>,
+    mut name: Local<Name>,
+) {
+    if name.is_empty() {
+        *name = Name::new("wisp");
+    }
+    for spawn in spawn_requests.read() {
+        writer.send(PopulateWisp(
+            commands.spawn_empty().id(),
+            name.clone(),
+            spawn.clone(),
+        ));
+    }
+}
+
+pub(crate) fn populate_wisp(
+    mut commands: Commands,
+    res: Res<WispResources>,
+    ghost_res: Res<GhostResources>,
+    held_item_resources: Res<HeldItemResources>,
+    mut populate_requests: EventReader<PopulateWisp>,
 ) {
     const MIN_PARTICLE_SIZE: f32 = 0.225;
     const MAX_PARTICLE_SIZE: f32 = 0.7;
@@ -85,153 +148,130 @@ fn spawn_wisp(
     const MAX_PARTICLE_DIST: f32 = 0.5;
     const MIN_PARTICLE_SPEED: f32 = 0.05;
     const MAX_PARTICLE_SPEED: f32 = 0.2;
-    const PARTICLE_COUNT: u32 = 7;
     const ATTACK_RANGE: f32 = 25.0;
-    for spawn in spawn_requests.read() {
-        let ghost_entity = commands
-            .spawn((
-                StateScoped(LevelLoadState::Loaded),
-                MeshMaterial3d(res.material.clone()),
-                Mesh3d(res.center_mesh.clone()),
-                Interactable,
-                spawn
-                    .transform
-                    .with_translation(spawn.transform.translation + Vec3::Y),
-                Name::new("wisp"),
-                CombatantBundle {
-                    combatant: Combatant::new(10.0, 0.),
-                    team: PLAYER_TEAM,
-                    ..default()
-                },
-                PhysicsBundle {
-                    collider: Aabb::centered(Vec3::new(0.8, 1.0, 0.8)),
-                    mass: Mass(0.5),
-                    ..default()
-                },
-                Float::default(),
-                Wisp,
-                Idler::default(),
-                SmoothLookTo::new(0.5),
-                AggroClosestEnemy {
-                    range: ATTACK_RANGE,
-                    ..default()
-                },
-                Thinker::build()
-                    .label("wisp thinker")
-                    .picker(Highest)
-                    .when(FixedScore::build(0.01), IdleAction { seconds: 0.5 })
-                    .when(
-                        AggroScorer {
-                            range: ATTACK_RANGE,
-                        },
-                        UseItemAction { slot: 0 },
+    for PopulateWisp(wisp_entity, name, spawn) in populate_requests.read() {
+        let Some(mut ec) = commands.get_entity(*wisp_entity) else {
+            error!(
+                "cannot get entity commands for invalid wisp entity {:?}",
+                wisp_entity
+            );
+            continue;
+        };
+        ec.insert_if_new((
+            StateScoped(LevelLoadState::Loaded),
+            MeshMaterial3d(res.material.clone()),
+            Mesh3d(res.center_mesh.clone()),
+            name.clone(),
+            spawn
+                .transform
+                .with_translation(spawn.transform.translation + Vec3::Y),
+            CombatantBundle {
+                combatant: Combatant::new(10.0, 0.),
+                team: PLAYER_TEAM,
+                ..default()
+            },
+            PhysicsBundle {
+                collider: Aabb::centered(Vec3::new(0.8, 1.0, 0.8)),
+                mass: Mass(0.5),
+                ..default()
+            },
+            Float::default(),
+            Wisp,
+            Idler::default(),
+            SmoothLookTo::new(0.5),
+            AggroClosestEnemy {
+                range: ATTACK_RANGE,
+                ..default()
+            },
+            Thinker::build()
+                .label("wisp thinker")
+                .picker(Highest)
+                .when(FixedScore::build(0.01), IdleAction { seconds: 0.5 })
+                .when(
+                    AggroScorer {
+                        range: ATTACK_RANGE,
+                    },
+                    UseItemAction { slot: 0 },
+                ),
+        ))
+        .with_children(|children| {
+            // spawn clothing if applicable
+            if let Some(hat) = &spawn.event.hat {
+                hat.spawn(children, Vec3::new(0., 0.5, 0.));
+            }
+            if let Some(front) = &spawn.event.front {
+                front.spawn(children, Vec3::new(0., -1., -0.375))
+            }
+            //orbit particles
+            for (i, point) in (0..WISP_PARTICLE_COUNT).zip(
+                util::iterators::even_distribution_on_sphere(WISP_PARTICLE_COUNT as u32),
+            ) {
+                //size and distance are inversely correlated
+                let size = lerp(
+                    MAX_PARTICLE_SIZE,
+                    MIN_PARTICLE_SIZE,
+                    i as f32 / WISP_PARTICLE_COUNT as f32,
+                );
+                let dist = lerp(
+                    MIN_PARTICLE_DIST,
+                    MAX_PARTICLE_DIST,
+                    i as f32 / WISP_PARTICLE_COUNT as f32,
+                );
+                let speed = lerp(
+                    MIN_PARTICLE_SPEED,
+                    MAX_PARTICLE_SPEED,
+                    i as f32 / WISP_PARTICLE_COUNT as f32,
+                );
+                let material = res.particle_materials[i as usize].clone();
+                let angle_inc = 2.0 * PI / WISP_PARTICLE_COUNT as f32;
+                let angle = i as f32 * angle_inc;
+                children.spawn((
+                    MeshMaterial3d(material),
+                    Mesh3d(res.particle_mesh.clone()),
+                    Transform::from_translation(point * dist).with_scale(Vec3::splat(size)),
+                    OrbitParticle::stable(
+                        dist,
+                        Vec3::new(speed * angle.sin(), 0.0, speed * angle.cos()),
                     ),
-            ))
-            .with_children(|children| {
-                //orbit particles
-                for (i, point) in (0..PARTICLE_COUNT)
-                    .zip(util::iterators::even_distribution_on_sphere(PARTICLE_COUNT))
-                {
-                    //size and distance are inversely correlated
-                    let size = lerp(
-                        MAX_PARTICLE_SIZE,
-                        MIN_PARTICLE_SIZE,
-                        i as f32 / PARTICLE_COUNT as f32,
-                    );
-                    let dist = lerp(
-                        MIN_PARTICLE_DIST,
-                        MAX_PARTICLE_DIST,
-                        i as f32 / PARTICLE_COUNT as f32,
-                    );
-                    let speed = lerp(
-                        MIN_PARTICLE_SPEED,
-                        MAX_PARTICLE_SPEED,
-                        i as f32 / PARTICLE_COUNT as f32,
-                    );
-                    let material = res.particle_materials[i as usize].clone();
-                    let angle_inc = 2.0 * PI / PARTICLE_COUNT as f32;
-                    let angle = i as f32 * angle_inc;
-                    children.spawn((
-                        MeshMaterial3d(material),
-                        Mesh3d(res.particle_mesh.clone()),
-                        Transform::from_translation(point * dist).with_scale(Vec3::splat(size)),
-                        OrbitParticle::stable(
-                            dist,
-                            Vec3::new(speed * angle.sin(), 0.0, speed * angle.cos()),
-                        ),
-                    ));
-                }
-            })
-            .observe(on_interacted)
-            .id();
-        let mut inventory = Inventory::new(ghost_entity, 5);
-        inventory.set_slot_no_events(
-            0,
-            ItemStack::new(
-                items
-                    .registry
-                    .get_basic(&ItemName::core("coin_launcher"))
-                    .unwrap(),
-                1,
-            ),
-        );
-        commands.entity(ghost_entity).insert(inventory);
+                ));
+            }
+        });
         //right hand
         let right_hand_entity = engine::actors::ghost::spawn_ghost_hand(
-            ghost_entity,
+            *wisp_entity,
             spawn.transform,
             Vec3::new(0.5, -0.2, -0.6),
             Vec3::new(0.6, 0.2, -0.5),
             0.15,
             Quat::default(),
-            &res,
+            &ghost_res,
             &mut commands,
         );
         //left hand
         let left_hand_entity = engine::actors::ghost::spawn_ghost_hand(
-            ghost_entity,
+            *wisp_entity,
             spawn.transform,
             Vec3::new(-0.5, -0.2, -0.6),
             Vec3::new(-0.6, 0.2, -0.5),
             0.15,
             Quat::default(),
-            &res,
+            &ghost_res,
             &mut commands,
         );
         spawn.event.handed.assign_hands(
-            ghost_entity,
+            *wisp_entity,
             left_hand_entity,
             right_hand_entity,
             &mut commands,
         );
         let item_visualizer = held_item_resources.create_held_item_visualizer(
             &mut commands,
-            ghost_entity,
+            *wisp_entity,
             Transform::from_scale(Vec3::splat(4.0)).with_translation(Vec3::new(0.0, -1.0, -3.4)),
         );
         commands
             .entity(right_hand_entity)
             .add_child(item_visualizer);
-    }
-}
-
-fn on_interacted(
-    trigger: Trigger<InteractedEvent>,
-    query: Query<&ActiveDialogue>,
-    mut commands: Commands,
-    dialogues: Res<Dialogues>,
-) {
-    if query.contains(trigger.entity()) {
-        //already a dialogue happening, don't cancel it.
-        return;
-    }
-    let Some(introduction) = dialogues.dialogues.get("citizen.introduction") else {
-        error!("dialogue not found!");
-        return;
-    };
-    if let Some(mut ec) = commands.get_entity(trigger.entity()) {
-        ec.insert(ActiveDialogue::new(introduction.clone(), trigger.user));
-        info!("inserted dialogue!");
     }
 }
 

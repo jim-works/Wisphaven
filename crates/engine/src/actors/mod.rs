@@ -299,7 +299,7 @@ pub struct ActorResources {
 
 pub type ActorNameIdMap = HashMap<ActorName, ActorId>;
 
-#[derive(Event, Default, Serialize, Deserialize)]
+#[derive(Event, Default, Debug, Clone, Serialize, Deserialize)]
 pub struct SpawnActorEvent<T> {
     pub transform: Transform,
     pub event: T,

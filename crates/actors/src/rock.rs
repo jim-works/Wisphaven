@@ -1,13 +1,10 @@
 use bevy::prelude::*;
+use engine;
 use engine::actors::projectile::Projectile;
 use engine::items::ItemName;
 use engine::items::loot::{ItemLootTable, ItemLootTableDrop};
-use engine::{self, items::ItemResources};
 use interfaces::scheduling::LevelSystemSet;
-use physics::{
-    collision::Aabb,
-    movement::{Drag, Restitution},
-};
+use physics::{collision::Aabb, movement::Drag};
 use serde::Deserialize;
 
 use crate::spawning::{BuildProjectileRegistry, ProjectileName, SpawnProjectileEvent};

@@ -19,5 +19,41 @@
         "engine::items::item_attributes::ConsumeItemOnHit": (),
       },
     ),
+    4294967297: (
+      components: {
+        "engine::items::ItemName": (
+          namespace: "core",
+          name: "summon_blacksmith",
+        ),
+        "bevy_core::name::Name": "Summon Wisp",
+        "engine::items::NamedItemIcon": (
+            path: "summon_wisp.png"
+        ),
+        "engine::items::MaxStackSize": (9999),
+        "items::actor_items::SpawnActorItem": (ActorName(
+          namespace: "core",
+          name: "blacksmith",
+        )),
+        "engine::items::item_attributes::ConsumeItemOnHit": (),
+      },
+    ),
+    4294967298: (
+      components: {
+        "engine::items::ItemName": (
+          namespace: "core",
+          name: "summon_misguided",
+        ),
+        "bevy_core::name::Name": "Summon Wisp",
+        "engine::items::NamedItemIcon": (
+            path: "summon_wisp.png"
+        ),
+        "engine::items::MaxStackSize": (9999),
+        "items::actor_items::SpawnActorItem": (ActorName(
+          namespace: "core",
+          name: "misguided",
+        )),
+        "engine::items::item_attributes::ConsumeItemOnHit": (),
+      },
+    ),
   }
 )
