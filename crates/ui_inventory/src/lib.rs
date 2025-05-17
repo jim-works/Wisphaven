@@ -214,11 +214,9 @@ fn spawn_inventory_system(
             }
             spawn_inventory(&mut commands, *id, inv.len(), &resources);
             match state.get() {
-                UIState::Hidden | UIState::Dialogue => {
-                    commands.run_system_cached(hide_inventory::<true>)
-                }
                 UIState::Default => commands.run_system_cached(hide_inventory::<false>),
                 UIState::Inventory => commands.run_system_cached(show_inventory),
+                _ => commands.run_system_cached(hide_inventory::<true>),
             };
             commands.run_system_cached(update_counts);
             commands.run_system_cached(update_icons);

@@ -11,7 +11,7 @@ use interfaces::scheduling::GameState;
 use leafwing_input_manager::prelude::ActionState;
 use rand::RngCore;
 use ui_core::{ButtonColors, get_text_style};
-use ui_state::UIState;
+use ui_state::{UIScreen, UIState};
 
 pub struct UiDialoguePlugin;
 
@@ -23,13 +23,17 @@ impl Plugin for UiDialoguePlugin {
             .add_systems(
                 Update,
                 (
-                    update_display,
-                    (advance_dialogue, progress_dialogue_text).run_if(in_state(UIState::Dialogue)),
+                    (
+                        check_dialogue_ui_state,
+                        update_display.run_if(in_state(UIScreen::Dialogue)),
+                    )
+                        .chain(),
+                    (advance_dialogue, progress_dialogue_text).run_if(in_state(UIScreen::Dialogue)),
                 )
                     .chain(),
             )
-            .add_systems(OnEnter(UIState::Dialogue), show_dialogue)
-            .add_systems(OnExit(UIState::Dialogue), hide_dialogue);
+            .add_systems(OnEnter(UIScreen::Dialogue), show_dialogue)
+            .add_systems(OnExit(UIScreen::Dialogue), hide_dialogue);
     }
 }
 
@@ -42,7 +46,6 @@ struct DialogueButtonContainer;
 
 #[derive(Resource, Default)]
 struct DialogueUIState {
-    active_entity: Option<Entity>,
     ui: Option<UIType>,
     display_progress: f32,
     completed: Option<Duration>,
@@ -66,6 +69,30 @@ struct DialogueUIResources {
     sounds: Vec<Handle<AudioSource>>,
 }
 
+fn check_dialogue_ui_state(
+    all_dialogues: Query<Entity, With<ActiveDialogue>>,
+    mut next_ui_state: ResMut<NextState<UIState>>,
+    curr_ui_state: Res<State<UIState>>,
+    mut state: ResMut<DialogueUIState>,
+) {
+    if let UIState::Dialogue(curr_entity) = *curr_ui_state.get() {
+        if !all_dialogues.contains(curr_entity) {
+            // dialogue ended, check if there's a new active one
+            info!("dialogue ended");
+            *state = default();
+            next_ui_state.set(match all_dialogues.iter().next() {
+                Some(next_entity) => UIState::Dialogue(next_entity),
+                None => UIState::Default,
+            });
+        }
+    } else if let Some(next_entity) = all_dialogues.iter().next() {
+        // we weren't in a dialogue, now starting a new one
+        *state = default();
+        next_ui_state.set(UIState::Dialogue(next_entity));
+        info!("started new dialogue!");
+    };
+}
+
 fn update_display(
     changed_dialogue_query: Query<&ActiveDialogue, Changed<ActiveDialogue>>,
     all_dialogues: Query<Entity, With<ActiveDialogue>>,
@@ -83,27 +110,12 @@ fn update_display(
     curr_ui_state: Res<State<UIState>>,
     mut commands: Commands,
 ) {
-    if let Some(curr_entity) = &state.active_entity
-        && !all_dialogues.contains(*curr_entity)
-    {
-        *state = default();
-        state.active_entity = all_dialogues.iter().next();
-    } else if state.active_entity.is_none() {
-        *state = default();
-        state.active_entity = all_dialogues.iter().next();
-    }
-
-    let Some(dialogue_entity) = state.active_entity.clone() else {
-        // no active entity
-        if matches!(curr_ui_state.get(), UIState::Dialogue) {
-            info!("no active dialog entity");
-            next_ui_state.set(UIState::Default);
-        }
+    let UIState::Dialogue(dialogue_entity) = *curr_ui_state.get() else {
         return;
     };
     let Ok(dialogue) = changed_dialogue_query.get(dialogue_entity) else {
         if !all_dialogues.contains(dialogue_entity)
-            && matches!(curr_ui_state.get(), UIState::Dialogue)
+            && matches!(curr_ui_state.get(), UIState::Dialogue(_))
         {
             info!("active entity has no dialogue");
             next_ui_state.set(UIState::Default);
@@ -153,11 +165,6 @@ fn update_display(
                     return;
                 }
             };
-            if !matches!(curr_ui_state.get(), UIState::Dialogue) {
-                // we are now in an active dialogue
-                info!("entering dialogue");
-                next_ui_state.set(UIState::Dialogue);
-            }
         }
         None => {
             // dialogue ended, wait for user to advance
@@ -167,6 +174,7 @@ fn update_display(
 }
 
 fn advance_dialogue(
+    ui_state: Res<State<UIState>>,
     mut state: ResMut<DialogueUIState>,
     mut advance_writer: EventWriter<AdvanceDialogue>,
     input: Res<ActionState<Action>>,
@@ -175,7 +183,7 @@ fn advance_dialogue(
     if !input.just_pressed(&Action::SkipDialogue) || !matches!(state.ui, Some(UIType::Message(_))) {
         return;
     }
-    let Some(dialogue_entity) = state.active_entity else {
+    let UIState::Dialogue(dialogue_entity) = *ui_state.get() else {
         return;
     };
     // i accidentally skip dialogue in games sometimes, so maybe this will help? idk
@@ -266,9 +274,10 @@ fn spawn_buttons(
     mut commands: Commands,
     button_container_query: Query<Entity, With<DialogueButtonContainer>>,
     state: Res<DialogueUIState>,
+    ui_state: Res<State<UIState>>,
     asset_server: Res<AssetServer>,
 ) {
-    let Some(dialogue_entity) = state.active_entity else {
+    let UIState::Dialogue(dialogue_entity) = *ui_state.get() else {
         error!("can't find da active dialogue entity to spawn da dialogue buttons :'(");
         return;
     };

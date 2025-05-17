@@ -80,7 +80,7 @@ fn setup(asset_server: Res<AssetServer>, mut dialogues: ResMut<Dialogues>) {
     dialogues.load_dialogue("dialogue/test.json", &asset_server);
 }
 
-fn advance_dialogue(
+pub fn advance_dialogue(
     mut commands: Commands,
     mut world: DeferredWorld, // needed for conditions, they can require checking arbitrary data
 ) {
@@ -399,6 +399,10 @@ pub enum DialogueEffect {
     ChangeFriendship {
         #[serde(rename = "changeFriendship")]
         change_friendship: i64,
+    },
+    OpenUI {
+        #[serde(rename = "openUI")]
+        open_ui: Arc<str>,
     },
     TriggerEvent {
         #[serde(rename = "triggerEvent")]

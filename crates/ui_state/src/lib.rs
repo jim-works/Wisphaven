@@ -11,6 +11,7 @@ pub struct UIStatePlugin;
 impl Plugin for UIStatePlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<UIState>()
+            .add_computed_state::<UIScreen>()
             .init_state::<InputFocused>()
             .add_systems(OnEnter(GameState::Game), on_load)
             .add_systems(
@@ -22,20 +23,48 @@ impl Plugin for UIStatePlugin {
                 ),
             )
             .add_systems(OnEnter(GameState::Game), (on_load, capture_mouse))
-            .add_systems(OnEnter(UIState::Default), capture_mouse)
-            .add_systems(OnEnter(UIState::Inventory), release_mouse)
-            .add_systems(OnEnter(UIState::Dialogue), release_mouse)
+            .add_systems(OnEnter(UIScreen::Default), capture_mouse)
+            .add_systems(OnEnter(UIScreen::Inventory), release_mouse)
+            .add_systems(OnEnter(UIScreen::Dialogue), release_mouse)
+            .add_systems(OnEnter(UIScreen::Quest), release_mouse)
+            .add_systems(OnEnter(UIScreen::Shop), release_mouse)
             .add_systems(OnExit(GameState::Game), release_mouse);
     }
 }
 
-#[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone)]
+#[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum UIState {
     #[default]
     Hidden,
     Default,
     Inventory,
+    Dialogue(Entity),
+    Quest(Entity),
+    Shop(Entity),
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub enum UIScreen {
+    Hidden,
+    Default,
+    Inventory,
     Dialogue,
+    Quest,
+    Shop,
+}
+
+impl ComputedStates for UIScreen {
+    type SourceStates = UIState;
+    fn compute(source: Self::SourceStates) -> Option<Self> {
+        match source {
+            UIState::Hidden => Some(Self::Hidden),
+            UIState::Default => Some(Self::Default),
+            UIState::Inventory => Some(Self::Inventory),
+            UIState::Dialogue(_) => Some(Self::Dialogue),
+            UIState::Quest(_) => Some(Self::Quest),
+            UIState::Shop(_) => Some(Self::Shop),
+        }
+    }
 }
 
 #[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone)]
@@ -56,7 +85,7 @@ pub fn toggle_hidden(
     if action.just_pressed(&Action::ToggleUIHidden) {
         match curr_state.get() {
             UIState::Hidden => next_state.set(UIState::Default),
-            UIState::Dialogue => (),
+            UIState::Dialogue(_) => (),
             _ => next_state.set(UIState::Hidden),
         }
     }
@@ -80,10 +109,8 @@ fn toggle_fullscreen(mut window_query: Query<&mut Window>, action: Res<ActionSta
 
 pub fn world_mouse_active(state: &UIState) -> bool {
     match state {
-        UIState::Hidden => true,
-        UIState::Default => true,
-        UIState::Inventory => false,
-        UIState::Dialogue => false,
+        UIState::Hidden | UIState::Default => true,
+        _ => false,
     }
 }
 

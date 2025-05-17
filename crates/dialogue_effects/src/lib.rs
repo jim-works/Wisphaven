@@ -6,7 +6,7 @@ pub struct DialogueEffectsPlugin;
 
 impl Plugin for DialogueEffectsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(FixedUpdate, dropped_item);
+        app.add_systems(FixedUpdate, dropped_item.after(dialogue::advance_dialogue));
     }
 }
 
