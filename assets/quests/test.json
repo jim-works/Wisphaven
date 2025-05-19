@@ -1,0 +1,13 @@
+{
+  "character": "blacksmith",
+  "name": "setup_shop",
+  "description": "You need tools to build anything worthwhile. Set up a shop for me and I'd be willing to help you out.",
+  "rewards": [
+    {
+      "description": "Enables the blacksmith's shop.",
+      "reward": {
+        "triggerEvent": "blacksmith_open_shop"
+      }
+    }
+  ]
+}

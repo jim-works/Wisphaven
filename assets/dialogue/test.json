@@ -19,7 +19,9 @@
       {
         "conditions": [
           {
-            "minHearts": 6,
+            "minHearts": 6
+          },
+          {
             "time": "night"
           },
           {
@@ -37,8 +39,10 @@
                 "message": "That's great! Me too!",
                 "effects": [
                   {
-                    "giveItem": "rock",
-                    "quantity": 5
+                    "giveItem": {
+                      "name": "rock",
+                      "quantity": 5
+                    }
                   },
                   {
                     "triggerEvent": "balloonDay"

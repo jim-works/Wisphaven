@@ -1,5 +1,5 @@
 [package]
-name = "dialogue"
+name = "quests"
 version = "0.1.0"
 edition = "2024"
 
@@ -11,6 +11,8 @@ thiserror = { workspace = true }
 
 interfaces = { path = "../interfaces" }
 json_interop = { path = "../json_interop" }
+engine = { path = "../engine" }
+items = { path = "../items" }
 
 [lints]
 workspace = true

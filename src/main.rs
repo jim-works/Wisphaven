@@ -83,8 +83,11 @@ fn main() {
         effects::EffectsPlugin,
         items_tools::ToolsPlugin,
         ui_dialogue::UiDialoguePlugin,
-        dialogue_conditions::DialogueConditionsPlugin,
-        dialogue_effects::DialogueEffectsPlugin,
+        json_conditions::ConditionsPlugin,
+        json_effects::EffectsPlugin,
+        ui_quest::UiQuestPlugin,
+        quests::QuestsPlugin,
+        json_interop::JsonInteropPlugin,
         // new internal crates go here
     ));
 

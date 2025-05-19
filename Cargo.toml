@@ -106,8 +106,11 @@ dialogue = { path = "crates/dialogue" }
 effects = { path = "crates/effects" }
 items_tools = { path = "crates/items_tools" }
 ui_dialogue = { path = "crates/ui_dialogue" }
-dialogue_conditions = { path = "crates/dialogue_conditions" }
-dialogue_effects = { path = "crates/dialogue_effects" }
+json_conditions = { path = "crates/json_conditions" }
+json_effects = { path = "crates/json_effects" }
+ui_quest = { path = "crates/ui_quest" }
+quests = { path = "crates/quests" }
+json_interop = { path = "crates/json_interop" }
 #new internal crates go here
 
 [workspace.metadata.dylint]

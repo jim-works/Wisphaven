@@ -1,41 +1,41 @@
 use bevy::prelude::*;
-use dialogue::{DialogueEffect, DialogueEffectEvent};
 use engine::items::{ItemName, ItemResources, ItemStack, SpawnDroppedItemEvent};
+use interfaces::scheduling::LevelSystemSet;
+use json_interop::{Effect, EffectEvent};
 
-pub struct DialogueEffectsPlugin;
+pub struct EffectsPlugin;
 
-impl Plugin for DialogueEffectsPlugin {
+impl Plugin for EffectsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(FixedUpdate, dropped_item.after(dialogue::advance_dialogue));
+        app.add_systems(FixedUpdate, dropped_item.in_set(LevelSystemSet::PostTick));
     }
 }
 
 fn dropped_item(
     position_query: Query<&GlobalTransform>,
-    mut effect_reader: EventReader<DialogueEffectEvent>,
+    mut effect_reader: EventReader<EffectEvent>,
     mut drop_writer: EventWriter<SpawnDroppedItemEvent>,
     item_resources: Res<ItemResources>,
     mut commands: Commands,
 ) {
     for effect in effect_reader.read() {
-        if let DialogueEffect::GiveItem {
-            give_item: drop_item,
+        if let Effect::GiveItem {
+            name: drop_item,
             quantity,
         } = &effect.effect
         {
             // try to give item to other person first, fallback to ourselves
-            let gtf = match position_query.get(effect.other_entity) {
-                Ok(gtf) => gtf,
-                Err(_) => match position_query.get(effect.dialogue_entity) {
-                    Ok(gtf) => gtf,
-                    Err(_) => {
-                        error!(
-                            "cannot get position for entity to give item from dialgoue effect {:?}",
-                            effect.dialogue_entity
-                        );
-                        continue;
-                    }
-                },
+            let Some(gtf) = [effect.secondary_entity, effect.primary_entity]
+                .into_iter()
+                .filter_map(|opt| opt)
+                .filter_map(|e| position_query.get(e).ok())
+                .next()
+            else {
+                error!(
+                    "cannot get position for entity to give item from dialgoue effect {:?}",
+                    effect
+                );
+                continue;
             };
             match ItemName::try_from(drop_item.as_ref()) {
                 Ok(item_name) => {

@@ -1,15 +1,16 @@
 [package]
-name = "dialogue_effects"
+name = "json_conditions"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 bevy = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
 
 interfaces = { path = "../interfaces" }
-dialogue = { path = "../dialogue" }
+json_interop = { path = "../json_interop" }
 engine = { path = "../engine" }
-items = { path = "../items" }
 
 [lints]
 workspace = true

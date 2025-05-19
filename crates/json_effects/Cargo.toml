@@ -1,16 +1,15 @@
 [package]
-name = "dialogue"
+name = "json_effects"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 bevy = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-thiserror = { workspace = true }
 
 interfaces = { path = "../interfaces" }
 json_interop = { path = "../json_interop" }
+engine = { path = "../engine" }
+items = { path = "../items" }
 
 [lints]
 workspace = true

@@ -8,6 +8,7 @@ use bevy::{
     utils::HashMap,
 };
 use interfaces::scheduling::LevelSystemSet;
+use json_interop::{Condition, ConditionEvaluation, ConditionRegistry, Effect, EffectEvent};
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -19,7 +20,7 @@ impl Plugin for DialoguePlugin {
             .init_asset_loader::<DialogueAssetLoader>()
             .init_resource::<Dialogues>()
             .init_resource::<Events<AdvanceDialogue>>()
-            .add_event::<DialogueEffectEvent>()
+            .add_event::<EffectEvent>()
             .add_systems(Startup, setup)
             .add_systems(
                 FixedUpdate,
@@ -40,39 +41,6 @@ pub struct Dialogues {
 impl Dialogues {
     pub fn load_dialogue(&mut self, path: &str, asset_server: &AssetServer) {
         self.loading_dialogues.push(asset_server.load(path));
-    }
-}
-
-#[derive(Resource, Default)]
-struct DialogueConditions {
-    map: Vec<Box<dyn Fn(&DeferredWorld, &Condition, Entity, Entity) -> Option<bool> + Send + Sync>>,
-}
-
-impl DialogueConditions {
-    fn insert(
-        &mut self,
-        function: Box<
-            dyn Fn(&DeferredWorld, &Condition, Entity, Entity) -> Option<bool> + Send + Sync,
-        >,
-    ) {
-        self.map.push(function);
-    }
-
-    /// checks if the first matching condition function returns true
-    /// if no matches, returns true
-    fn matches(
-        &self,
-        world: &DeferredWorld,
-        condition: &Condition,
-        owner: Entity,
-        interactor: Entity,
-    ) -> bool {
-        self.map
-            .iter()
-            .filter_map(|cond| cond(world, condition, owner, interactor))
-            .next()
-            // return true if no matches
-            .unwrap_or(true)
     }
 }
 
@@ -111,7 +79,7 @@ pub fn advance_dialogue(
         // Ensures they get dropped, so we don't have any borrow issues below when doing the mutable stuff (advancing the actual dialogue)
         {
             let dialogue_assets = world.get_resource::<Assets<Dialogue>>().unwrap();
-            let condition_registry = world.get_resource::<DialogueConditions>().unwrap();
+            let condition_registry = world.get_resource::<ConditionRegistry>().unwrap();
             let Ok(Some(active_dialogue)) = world
                 .get_entity(dialogue_entity)
                 .map(|e| e.get_components::<&ActiveDialogue>())
@@ -147,9 +115,11 @@ pub fn advance_dialogue(
                                     choice.conditions.iter().all(|cond| {
                                         condition_registry.matches(
                                             &world,
-                                            cond,
-                                            dialogue_entity,
-                                            active_dialogue.other,
+                                            ConditionEvaluation::new(
+                                                cond,
+                                                Some(dialogue_entity),
+                                                Some(active_dialogue.other),
+                                            ),
                                         )
                                     })
                                 })
@@ -245,16 +215,16 @@ pub fn advance_dialogue(
 }
 
 fn send_effects(
-    effect_writer: &mut Vec<DialogueEffectEvent>,
-    iter: impl Iterator<Item = DialogueEffect>,
+    effect_writer: &mut Vec<EffectEvent>,
+    iter: impl Iterator<Item = Effect>,
     dialogue_entity: Entity,
     other_entity: Entity,
 ) {
     for effect in iter {
-        effect_writer.push(DialogueEffectEvent {
+        effect_writer.push(EffectEvent {
             effect,
-            dialogue_entity,
-            other_entity,
+            primary_entity: Some(dialogue_entity),
+            secondary_entity: Some(other_entity),
         });
     }
 }
@@ -371,72 +341,14 @@ pub struct AdvanceDialogue {
     pub selected_response: Option<usize>,
 }
 
-#[derive(Event)]
-pub struct DialogueEffectEvent {
-    pub effect: DialogueEffect,
-    pub dialogue_entity: Entity,
-    pub other_entity: Entity,
-}
-
 // You will see a lot more Arc<str> than String in here
 // using ECS requires us to clone a lot, and we never need to modify these strings after loading
-
-// Enum to represent the different possible value types in conditions
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum ConditionValue {
-    String(Arc<str>),
-    Int(i32),
-    Float(f32),
-}
-
-// Effect types
-// these will get cloned a lot
-#[derive(Debug, Deserialize, Clone)]
-#[serde(untagged)]
-/// to handle effect, add event reader for `DialogueEffect` in relevant crate
-pub enum DialogueEffect {
-    ChangeFriendship {
-        #[serde(rename = "changeFriendship")]
-        change_friendship: i64,
-    },
-    OpenUI {
-        #[serde(rename = "openUI")]
-        open_ui: Arc<str>,
-    },
-    TriggerEvent {
-        #[serde(rename = "triggerEvent")]
-        trigger_event: Arc<str>,
-    },
-    /// handled in items crate
-    GiveItem {
-        #[serde(rename = "giveItem")]
-        give_item: Arc<str>,
-        quantity: u32,
-    },
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum Condition {
-    HasItem {
-        #[serde(rename = "hasItem")]
-        has_item: Arc<str>,
-    },
-    Time {
-        time: Arc<str>,
-    },
-    MinHearts {
-        #[serde(rename = "minHearts")]
-        min_hearts: Arc<str>,
-    },
-}
 
 #[derive(Debug, Deserialize)]
 pub struct ResponseOption {
     pub message: Arc<str>,
     #[serde(default)]
-    pub effects: Vec<DialogueEffect>,
+    pub effects: Vec<Effect>,
     #[serde(default)]
     pub node: Option<Arc<DialogueNode>>,
 }
@@ -450,35 +362,35 @@ pub struct DialogueChoice {
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
+#[serde(rename_all = "camelCase")]
 pub enum DialogueNode {
-    #[serde(rename = "decision")]
+    #[serde(rename_all = "camelCase")]
     Decision {
         #[serde(default)]
         id: Option<Arc<str>>,
         choices: Vec<DialogueChoice>,
     },
 
-    #[serde(rename = "message")]
+    #[serde(rename_all = "camelCase")]
     Message {
         #[serde(default)]
         id: Option<Arc<str>>,
         message: Arc<str>,
         #[serde(default)]
-        effects: Vec<DialogueEffect>,
+        effects: Vec<Effect>,
         #[serde(default)]
         node: Option<Arc<DialogueNode>>,
     },
 
-    #[serde(rename = "response")]
+    #[serde(rename_all = "camelCase")]
     Response {
         #[serde(default)]
         id: Option<Arc<str>>,
         options: Vec<ResponseOption>,
     },
 
-    #[serde(rename = "jump")]
+    #[serde(rename_all = "camelCase")]
     Jump {
-        #[serde(rename = "jumpTo")]
         jump_to: Arc<str>,
         #[serde(default)]
         id: Option<Arc<str>>,
@@ -573,29 +485,5 @@ impl Dialogue {
                 self.id_map.insert(id, node.clone());
             }
         }
-    }
-}
-
-pub trait BuildDialogueConditionRegistry {
-    fn add_dialogue_condition<
-        Cond: Fn(&DeferredWorld, &Condition, Entity, Entity) -> Option<bool> + Send + Sync + 'static,
-    >(
-        &mut self,
-        function: Cond,
-    ) -> &mut Self;
-}
-
-impl BuildDialogueConditionRegistry for App {
-    fn add_dialogue_condition<
-        Cond: Fn(&DeferredWorld, &Condition, Entity, Entity) -> Option<bool> + Send + Sync + 'static,
-    >(
-        &mut self,
-        function: Cond,
-    ) -> &mut Self {
-        let mut registry = self
-            .world_mut()
-            .get_resource_or_insert_with(DialogueConditions::default);
-        registry.insert(Box::new(function));
-        self
     }
 }
