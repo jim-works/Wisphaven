@@ -50,7 +50,7 @@ fn spawn_blacksmith(
 ) {
     for spawn in spawn_requests.read() {
         let entity = commands.spawn_empty().id();
-        let mut inventory = Inventory::new(entity, 5);
+        let mut inventory = Inventory::new(entity, 1);
         inventory.set_slot_no_events(
             0,
             ItemStack::new(

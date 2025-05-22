@@ -10,6 +10,7 @@ interfaces = { path = "../interfaces" }
 json_interop = { path = "../json_interop" }
 engine = { path = "../engine" }
 items = { path = "../items" }
+quests = { path = "../quests" }
 
 [lints]
 workspace = true

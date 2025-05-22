@@ -2,12 +2,37 @@ use bevy::prelude::*;
 use engine::items::{ItemName, ItemResources, ItemStack, SpawnDroppedItemEvent};
 use interfaces::scheduling::LevelSystemSet;
 use json_interop::{Effect, EffectEvent};
+use quests::{ActiveQuest, Quests};
 
 pub struct EffectsPlugin;
 
 impl Plugin for EffectsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(FixedUpdate, dropped_item.in_set(LevelSystemSet::PostTick));
+        // todo - consider if it's worth losing some parallelism to only invoke systems on their relevant effects
+        // e.g. matching on EffectEvent.effect in then using Commands.run_system_cached_with
+        // i have a feeling the answer is no unless there's thousands of effects per tick, because then you'll lose parallelism with the entire rest of the game
+        // you could get aroundt this with separate events per effect, but seems like a lot of work. Maybe event struct as the enum arg?
+        app.add_systems(
+            FixedUpdate,
+            (start_quest, dropped_item).in_set(LevelSystemSet::PostTick),
+        );
+    }
+}
+
+fn start_quest(
+    mut effect_reader: EventReader<EffectEvent>,
+    mut commands: Commands,
+    quests: Res<Quests>,
+) {
+    for effect in effect_reader.read() {
+        let Effect::StartQuest(quest_name) = &effect.effect else {
+            continue;
+        };
+        if let Some(entity) = quests.quests.get(quest_name.as_ref()) {
+            if let Some(mut ec) = commands.get_entity(*entity) {
+                ec.insert(ActiveQuest);
+            }
+        }
     }
 }
 

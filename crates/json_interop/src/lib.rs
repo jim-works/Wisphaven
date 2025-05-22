@@ -1,4 +1,4 @@
-use bevy::{ecs::world::DeferredWorld, prelude::*};
+use bevy::{ecs::world::World, prelude::*};
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -27,12 +27,14 @@ pub enum Effect {
     ChangeFriendship(i64),
     OpenUI(Arc<str>),
     TriggerEvent(Arc<str>),
+    StartQuest(Arc<str>),
     GiveItem { name: Arc<str>, quantity: u32 },
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Condition {
+    Not(Box<Condition>),
     HasItem(Arc<str>),
     Time(Arc<str>),
     MinHearts(u32),
@@ -61,20 +63,20 @@ impl<'a> ConditionEvaluation<'a> {
 
 #[derive(Resource, Default)]
 pub struct ConditionRegistry {
-    map: Vec<Box<dyn Fn(&DeferredWorld, ConditionEvaluation) -> Option<bool> + Send + Sync>>,
+    map: Vec<Box<dyn Fn(&World, ConditionEvaluation) -> Option<bool> + Send + Sync>>,
 }
 
 impl ConditionRegistry {
     fn insert(
         &mut self,
-        function: Box<dyn Fn(&DeferredWorld, ConditionEvaluation) -> Option<bool> + Send + Sync>,
+        function: Box<dyn Fn(&World, ConditionEvaluation) -> Option<bool> + Send + Sync>,
     ) {
         self.map.push(function);
     }
 
     /// checks if the first matching condition function returns true
     /// if no matches, returns true
-    pub fn matches(&self, world: &DeferredWorld, eval: ConditionEvaluation) -> bool {
+    pub fn matches(&self, world: &World, eval: ConditionEvaluation) -> bool {
         self.map
             .iter()
             .filter_map(|cond| cond(world, eval))
@@ -86,7 +88,7 @@ impl ConditionRegistry {
 
 pub trait BuildConditionRegistry {
     fn add_condition<
-        Cond: Fn(&DeferredWorld, ConditionEvaluation) -> Option<bool> + Send + Sync + 'static,
+        Cond: Fn(&World, ConditionEvaluation) -> Option<bool> + Send + Sync + 'static,
     >(
         &mut self,
         function: Cond,
@@ -95,7 +97,7 @@ pub trait BuildConditionRegistry {
 
 impl BuildConditionRegistry for App {
     fn add_condition<
-        Cond: Fn(&DeferredWorld, ConditionEvaluation) -> Option<bool> + Send + Sync + 'static,
+        Cond: Fn(&World, ConditionEvaluation) -> Option<bool> + Send + Sync + 'static,
     >(
         &mut self,
         function: Cond,

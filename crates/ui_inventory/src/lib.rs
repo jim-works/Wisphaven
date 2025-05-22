@@ -1,4 +1,12 @@
+//have to enable this because it's a nursery feature
+#![warn(clippy::disallowed_types)]
+//bevy system signatures often violate these rules
+#![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
+#![feature(assert_matches)]
 #![feature(let_chains)]
+//lints created using dylint will give a warning
+#![allow(unknown_lints)]
 
 use ahash::HashMap;
 use bevy::{

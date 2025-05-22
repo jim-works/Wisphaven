@@ -16,12 +16,21 @@ pub struct QuestsPlugin;
 impl Plugin for QuestsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Quests>()
-            .init_asset::<Quest>()
+            .init_asset::<QuestAsset>()
             .init_asset_loader::<QuestAssetLoader>()
             .add_systems(Startup, trigger_loading)
             .add_systems(FixedUpdate, cache_on_load.in_set(LevelSystemSet::Tick));
     }
 }
+
+#[derive(Component)]
+pub struct Quest(pub Handle<QuestAsset>);
+
+#[derive(Component)]
+pub struct ActiveQuest;
+
+#[derive(Component)]
+pub struct CompletedQuest;
 
 fn trigger_loading(asset_server: Res<AssetServer>, mut quests: ResMut<Quests>) {
     quests
@@ -31,9 +40,9 @@ fn trigger_loading(asset_server: Res<AssetServer>, mut quests: ResMut<Quests>) {
 
 fn cache_on_load(
     mut quests: ResMut<Quests>,
-    mut assets: ResMut<Assets<Quest>>,
-    mut buffer: Local<Vec<Handle<Quest>>>,
-    mut completed: Local<Vec<(&'static str, Handle<Quest>)>>,
+    mut assets: ResMut<Assets<QuestAsset>>,
+    mut buffer: Local<Vec<Handle<QuestAsset>>>,
+    mut completed: Local<Vec<(&'static str, Entity)>>,
     items: Res<ItemResources>,
     mut commands: Commands,
 ) {
@@ -48,7 +57,7 @@ fn cache_on_load(
 
         let key = format!("{}.{}", quest.character, quest.name).leak();
         info!("Quest loaded: {} - {:?}", key, quest);
-        completed.push((key, handle));
+        completed.push((key, commands.spawn(Quest(handle)).id()));
     }
     quests.loading_quests.append(&mut buffer);
     for (key, handle) in completed.drain(..) {
@@ -59,19 +68,19 @@ fn cache_on_load(
 #[derive(Resource, Default)]
 pub struct Quests {
     /// key is `character.quest` ex `paul.findMyWife`
-    pub quests: HashMap<&'static str, Handle<Quest>>,
-    loading_quests: Vec<Handle<Quest>>,
+    pub quests: HashMap<&'static str, Entity>,
+    loading_quests: Vec<Handle<QuestAsset>>,
 }
 
 #[derive(Asset, TypePath, Debug, Deserialize)]
-pub struct Quest {
+pub struct QuestAsset {
     pub character: Arc<str>,
     pub name: Arc<str>,
     pub description: Arc<str>,
     pub rewards: Vec<QuestReward>,
 }
 
-impl Quest {
+impl QuestAsset {
     fn cache(&mut self, registry: &ItemRegistry, commands: &mut Commands) {
         for reward in self.rewards.iter_mut() {
             reward.cache(registry, commands)
@@ -115,7 +124,7 @@ pub enum QuestAssetLoaderError {
 }
 
 impl AssetLoader for QuestAssetLoader {
-    type Asset = Quest;
+    type Asset = QuestAsset;
     type Settings = ();
     type Error = QuestAssetLoaderError;
     async fn load(
@@ -126,7 +135,7 @@ impl AssetLoader for QuestAssetLoader {
     ) -> Result<Self::Asset, Self::Error> {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
-        match serde_json::from_slice::<Quest>(&bytes) {
+        match serde_json::from_slice::<QuestAsset>(&bytes) {
             Ok(asset) => Ok(asset),
             Err(e) => {
                 error!("error loading quest: {:?}", e);

@@ -5,8 +5,6 @@
 //bevy system signatures often violate these rules
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
-//TODO: remove this before release. annoying as balls during development
-#![allow(dead_code)]
 #![feature(assert_matches)]
 #![feature(let_chains)]
 //lints created using dylint will give a warning

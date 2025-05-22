@@ -1,5 +1,5 @@
 #![feature(let_chains)]
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 
 use bevy::{
     asset::{AssetLoader, LoadContext, io::Reader},
@@ -114,7 +114,7 @@ pub fn advance_dialogue(
                                 .filter(|choice| {
                                     choice.conditions.iter().all(|cond| {
                                         condition_registry.matches(
-                                            &world,
+                                            world.deref(),
                                             ConditionEvaluation::new(
                                                 cond,
                                                 Some(dialogue_entity),

@@ -1,4 +1,4 @@
-use bevy::{ecs::world::DeferredWorld, prelude::*};
+use bevy::prelude::*;
 use engine::items::{ItemId, ItemName, ItemResources, inventory::Inventory};
 use interfaces::components::Id;
 use json_interop::{Condition, *};
@@ -7,16 +7,27 @@ pub struct ConditionsPlugin;
 
 impl Plugin for ConditionsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_condition(has_item);
+        app.add_condition(route);
     }
 }
 
-fn has_item(world: &DeferredWorld, eval: ConditionEvaluation) -> Option<bool> {
-    info!("in has_item");
-    let Condition::HasItem(item_name_str) = eval.condition else {
-        // expect item name in string format
+fn route(world: &World, eval: ConditionEvaluation) -> Option<bool> {
+    match eval.condition {
+        Condition::Not(condition) => not(condition.as_ref(), world, eval),
+        Condition::HasItem(name) => has_item(name.as_ref(), world, eval),
+        Condition::Time(_) => todo!(),
+        Condition::MinHearts(_) => todo!(),
+    }
+}
+
+fn not(condition: &Condition, world: &World, eval: ConditionEvaluation) -> Option<bool> {
+    let Some(registry) = world.get_resource::<ConditionRegistry>() else {
         return None;
     };
+    return Some(!registry.matches(world, ConditionEvaluation { condition, ..eval }));
+}
+
+fn has_item(item_name_str: &str, world: &World, eval: ConditionEvaluation) -> Option<bool> {
     info!("checking has_item for {}", item_name_str);
     let Ok(item_name) = ItemName::try_from(item_name_str.as_ref()) else {
         error!(
