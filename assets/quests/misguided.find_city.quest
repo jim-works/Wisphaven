@@ -1,6 +1,7 @@
 {
   "character": "misguided",
   "name": "find_city",
+  "title": "The City",
   "description": "I've learned of a city to the north from that Wisp, maybe I can find some improved tools there.",
   "rewards": [
     {

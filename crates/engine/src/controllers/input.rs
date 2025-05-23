@@ -19,6 +19,7 @@ pub enum Action {
     Scroll,
     SkipDialogue,
     ToggleInventory,
+    ToggleQuests,
     ToggleUIHidden,
     ToggleDebugUIHidden,
     ToggleGizmoOverlap,
@@ -56,6 +57,7 @@ pub fn get_input_map() -> InputMap<Action> {
         .with_dual_axis(Action::Look, MouseMove::default())
         .with_axis(Action::Scroll, MouseScrollAxis::Y)
         .with(Action::ToggleInventory, KeyCode::Escape)
+        .with(Action::ToggleQuests, KeyCode::KeyQ)
         .with(Action::ToggleUIHidden, KeyCode::F1)
         .with(Action::ToggleDebugUIHidden, KeyCode::F3)
         .with(Action::ToggleGizmoOverlap, KeyCode::F4)

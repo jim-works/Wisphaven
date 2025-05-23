@@ -1,6 +1,7 @@
 {
   "character": "blacksmith",
   "name": "setup_shop",
+  "title": "Blacksmith's Shop",
   "description": "You need tools to build anything worthwhile. Set up a shop for me and I'd be willing to help you out.",
   "rewards": [
     {

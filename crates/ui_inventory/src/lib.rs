@@ -36,7 +36,7 @@ use world::{block::BlockMesh, mesher::ChunkMaterial};
 use ui_core::{MainCameraUIRoot, TextStyle};
 
 use ui_core::get_small_text_style;
-use ui_state::UIState;
+use ui_state::{UIScreen, UIState};
 
 pub const SLOTS_PER_ROW: usize = 10;
 pub const HOTBAR_SLOTS: usize = SLOTS_PER_ROW;
@@ -73,9 +73,10 @@ impl Plugin for UIInventoryPlugin {
         .add_systems(PostUpdate, update_icon.in_set(LevelSystemSet::PostUpdate))
         .add_event::<SetIconEvent>()
         .init_resource::<MouseInventory>()
-        .add_systems(OnEnter(UIState::Inventory), show_inventory)
-        .add_systems(OnEnter(UIState::Default), hide_inventory::<false>)
-        .add_systems(OnEnter(UIState::Hidden), hide_inventory::<true>)
+        .add_systems(OnEnter(UIScreen::Inventory), show_inventory)
+        .add_systems(OnEnter(UIScreen::Default), hide_inventory::<false>)
+        .add_systems(OnEnter(UIScreen::Hidden), hide_inventory::<true>)
+        .add_systems(OnEnter(UIScreen::Quest), hide_inventory::<true>)
         .add_systems(Startup, init);
     }
 }
@@ -199,7 +200,7 @@ fn toggle_inventory(
     if action.just_pressed(&Action::ToggleInventory) {
         next_state.set(match state.get() {
             UIState::Default => UIState::Inventory,
-            UIState::Inventory => UIState::Default,
+            UIState::Inventory | UIState::Quest => UIState::Default,
             other_state @ _ => other_state.clone(),
         });
     }

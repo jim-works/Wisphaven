@@ -96,6 +96,7 @@ pub struct Quests {
 pub struct QuestAsset {
     pub character: Arc<str>,
     pub name: Arc<str>,
+    pub title: Arc<str>,
     pub description: Arc<str>,
     pub rewards: Vec<QuestReward>,
 }

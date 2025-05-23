@@ -14,9 +14,6 @@ split-debuginfo = "unpacked"
 
 # enable a small amount of optimization in debug mode for core packages
 # if you're using cranelift for debug builds, I recommend enabling llvm for these
-[profile.dev.package.engine]
-opt-level = 1
-
 [profile.dev.package.world]
 opt-level = 1
 

@@ -39,7 +39,7 @@ pub enum UIState {
     Default,
     Inventory,
     Dialogue(Entity),
-    Quest(Entity),
+    Quest,
     Shop(Entity),
 }
 
@@ -61,7 +61,7 @@ impl ComputedStates for UIScreen {
             UIState::Default => Some(Self::Default),
             UIState::Inventory => Some(Self::Inventory),
             UIState::Dialogue(_) => Some(Self::Dialogue),
-            UIState::Quest(_) => Some(Self::Quest),
+            UIState::Quest => Some(Self::Quest),
             UIState::Shop(_) => Some(Self::Shop),
         }
     }
