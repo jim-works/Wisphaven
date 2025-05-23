@@ -30,6 +30,7 @@ fn start_quest(
         };
         if let Some(entity) = quests.quests.get(quest_name.as_ref()) {
             if let Some(mut ec) = commands.get_entity(*entity) {
+                info!("Activated quest {}", quest_name);
                 ec.insert(ActiveQuest);
             }
         }

@@ -1,0 +1,13 @@
+{
+  "character": "misguided",
+  "name": "find_city",
+  "description": "I've learned of a city to the north from that Wisp, maybe I can find some improved tools there.",
+  "rewards": [
+    {
+      "description": "Enables the blacksmith's shop.",
+      "reward": {
+        "triggerEvent": "blacksmith_open_shop"
+      }
+    }
+  ]
+}

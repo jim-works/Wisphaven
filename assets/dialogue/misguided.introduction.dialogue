@@ -1,0 +1,52 @@
+{
+  "character": "misguided",
+  "event": "introduction",
+  "conditions": [],
+  "node": {
+    "type": "decision",
+    "choices": [
+      {
+        "node": {
+          "type": "message",
+          "message": "Hi traveler. It's been a while since I've seen anyone capable of speech. Here, take this thing I found earlier.",
+          "id": "balloon",
+          "effects": [
+            {
+              "giveItem": {
+                "name": "rock",
+                "quantity": 1
+              }
+            }
+          ],
+          "node": {
+            "type": "response",
+            "options": [
+              {
+                "message": "Do you know where I can find some tools?",
+                "node": {
+                  "type": "message",
+                  "message": "Hmmm, interesting... I passed by a rather industrious town a bit ago, maybe you could try there? They had some real impresive buildings, so I'm sure you'll be able to find something there.",
+                  "effects": [
+                    {
+                      "startQuest": "misguided.find_city"
+                    }
+                  ]
+                }
+              },
+              {
+                "message": "Who are you?",
+                "node": {
+                  "type": "message",
+                  "message": "Great question. I don't remember my name. It's been so long since I've talked to anyone, that I've somehow forgotten who I am."
+                }
+              },
+              {
+                "message": "Bye"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

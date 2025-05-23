@@ -1,6 +1,6 @@
 {
   "character": "citizen",
-  "event": "introduction",
+  "event": "test",
   "conditions": [],
   "node": {
     "type": "decision",
@@ -17,17 +17,6 @@
         }
       },
       {
-        "conditions": [
-          {
-            "minHearts": 6
-          },
-          {
-            "time": "night"
-          },
-          {
-            "time": "day"
-          }
-        ],
         "node": {
           "type": "message",
           "message": "I love balloons. aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",

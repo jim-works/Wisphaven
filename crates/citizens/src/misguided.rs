@@ -81,7 +81,7 @@ fn on_interacted(
         //already a dialogue happening, don't cancel it.
         return;
     }
-    let Some(introduction) = dialogues.dialogues.get("citizen.introduction") else {
+    let Some(introduction) = dialogues.dialogues.get("misguided.introduction") else {
         error!("dialogue not found!");
         return;
     };

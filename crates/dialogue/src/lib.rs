@@ -2,7 +2,7 @@
 use std::{ops::Deref, sync::Arc};
 
 use bevy::{
-    asset::{AssetLoader, LoadContext, io::Reader},
+    asset::{AssetLoader, LoadContext, LoadedFolder, io::Reader},
     ecs::world::DeferredWorld,
     prelude::*,
     utils::HashMap,
@@ -21,10 +21,10 @@ impl Plugin for DialoguePlugin {
             .init_resource::<Dialogues>()
             .init_resource::<Events<AdvanceDialogue>>()
             .add_event::<EffectEvent>()
-            .add_systems(Startup, setup)
+            .add_systems(Startup, trigger_loading)
             .add_systems(
                 FixedUpdate,
-                (print_on_load, init_active_dialogue, advance_dialogue)
+                (on_load, init_active_dialogue, advance_dialogue)
                     .chain()
                     .in_set(LevelSystemSet::Tick),
             );
@@ -35,17 +35,12 @@ impl Plugin for DialoguePlugin {
 pub struct Dialogues {
     /// key is `character.event` ex `paul.introduction`
     pub dialogues: HashMap<&'static str, Handle<Dialogue>>,
-    loading_dialogues: Vec<Handle<Dialogue>>,
+    loading_folder: Handle<LoadedFolder>,
+    folder_loaded: bool,
 }
 
-impl Dialogues {
-    pub fn load_dialogue(&mut self, path: &str, asset_server: &AssetServer) {
-        self.loading_dialogues.push(asset_server.load(path));
-    }
-}
-
-fn setup(asset_server: Res<AssetServer>, mut dialogues: ResMut<Dialogues>) {
-    dialogues.load_dialogue("dialogue/test.json", &asset_server);
+fn trigger_loading(asset_server: Res<AssetServer>, mut dialogues: ResMut<Dialogues>) {
+    dialogues.loading_folder = asset_server.load_folder("dialogue");
 }
 
 pub fn advance_dialogue(
@@ -254,26 +249,45 @@ fn init_active_dialogue(
     }
 }
 
-fn print_on_load(
+fn on_load(
     mut dialogues: ResMut<Dialogues>,
-    dialogue_assets: Res<Assets<Dialogue>>,
-    mut buffer: Local<Vec<Handle<Dialogue>>>,
-    mut completed: Local<Vec<(&'static str, Handle<Dialogue>)>>,
+    assets: Res<Assets<Dialogue>>,
+    folder_assets: Res<Assets<LoadedFolder>>,
+    asset_server: Res<AssetServer>,
 ) {
-    buffer.clear();
-    completed.clear();
-    for dialogue_handle in dialogues.loading_dialogues.drain(..) {
-        let Some(loaded_dialogue) = dialogue_assets.get(&dialogue_handle) else {
-            buffer.push(dialogue_handle);
+    if dialogues.folder_loaded {
+        return;
+    }
+    info!("checking if folder deps loaded...");
+    match asset_server.dependency_load_state(&dialogues.loading_folder) {
+        bevy::asset::DependencyLoadState::NotLoaded | bevy::asset::DependencyLoadState::Loading => {
+            return;
+        }
+        bevy::asset::DependencyLoadState::Loaded => (),
+        bevy::asset::DependencyLoadState::Failed(asset_load_error) => {
+            error!("error dialogue quest: {:?}", asset_load_error)
+        }
+    }
+    info!("dialogue folder loaded");
+    let Some(folder) = folder_assets.get(&dialogues.loading_folder) else {
+        error!(
+            "somehow dialogue folder is not loaded yet even though we check the dependency load state."
+        );
+        return;
+    };
+    dialogues.folder_loaded = true;
+    for handle in folder
+        .handles
+        .iter()
+        .filter_map(|handle| handle.clone().try_typed::<Dialogue>().ok())
+    {
+        let Some(loaded_dialogue) = assets.get(&handle) else {
+            error!("somehow dialogue asset not ready even though folder is loaded xd");
             continue;
         };
 
         let key = format!("{}.{}", loaded_dialogue.character, loaded_dialogue.event).leak();
         info!("Dialogue loaded: {} - {:?}", key, loaded_dialogue);
-        completed.push((key, dialogue_handle));
-    }
-    dialogues.loading_dialogues.append(&mut buffer);
-    for (key, handle) in completed.drain(..) {
         dialogues.dialogues.insert(key, handle);
     }
 }
@@ -315,6 +329,10 @@ impl AssetLoader for DialogueAssetLoader {
                 Err(DialogueAssetLoaderError::JsonError(e))
             }
         }
+    }
+
+    fn extensions(&self) -> &[&str] {
+        &["dialogue"]
     }
 }
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bevy::{
-    asset::{AssetLoader, LoadContext, io::Reader},
+    asset::{AssetLoader, LoadContext, LoadedFolder, io::Reader},
     prelude::*,
     utils::HashMap,
 };
@@ -33,35 +33,54 @@ pub struct ActiveQuest;
 pub struct CompletedQuest;
 
 fn trigger_loading(asset_server: Res<AssetServer>, mut quests: ResMut<Quests>) {
-    quests
-        .loading_quests
-        .push(asset_server.load("quests/test.json"));
+    quests.loading_folder = asset_server.load_folder("quests");
 }
 
 fn cache_on_load(
     mut quests: ResMut<Quests>,
     mut assets: ResMut<Assets<QuestAsset>>,
-    mut buffer: Local<Vec<Handle<QuestAsset>>>,
-    mut completed: Local<Vec<(&'static str, Entity)>>,
+    folder_assets: Res<Assets<LoadedFolder>>,
     items: Res<ItemResources>,
+    asset_server: Res<AssetServer>,
     mut commands: Commands,
 ) {
-    buffer.clear();
-    completed.clear();
-    for handle in quests.loading_quests.drain(..) {
+    if quests.folder_loaded {
+        return;
+    }
+    info!("checking if folder deps loaded...");
+    match asset_server.dependency_load_state(&quests.loading_folder) {
+        bevy::asset::DependencyLoadState::NotLoaded | bevy::asset::DependencyLoadState::Loading => {
+            return;
+        }
+        bevy::asset::DependencyLoadState::Loaded => (),
+        bevy::asset::DependencyLoadState::Failed(asset_load_error) => {
+            error!("error loading quest: {:?}", asset_load_error)
+        }
+    }
+    info!("quest folder loaded");
+    let Some(folder) = folder_assets.get(&quests.loading_folder) else {
+        error!(
+            "somehow quest folder is not loaded yet even though we check the dependency load state."
+        );
+        return;
+    };
+    quests.folder_loaded = true;
+    for handle in folder
+        .handles
+        .iter()
+        .filter_map(|handle| handle.clone().try_typed::<QuestAsset>().ok())
+    {
         let Some(quest) = assets.get_mut(&handle) else {
-            buffer.push(handle);
+            error!("somehow quest asset not ready even though folder is loaded xd");
             continue;
         };
         quest.cache(&items.registry, &mut commands);
 
         let key = format!("{}.{}", quest.character, quest.name).leak();
         info!("Quest loaded: {} - {:?}", key, quest);
-        completed.push((key, commands.spawn(Quest(handle)).id()));
-    }
-    quests.loading_quests.append(&mut buffer);
-    for (key, handle) in completed.drain(..) {
-        quests.quests.insert(key, handle);
+        quests
+            .quests
+            .insert(key, commands.spawn(Quest(handle)).id());
     }
 }
 
@@ -69,7 +88,8 @@ fn cache_on_load(
 pub struct Quests {
     /// key is `character.quest` ex `paul.findMyWife`
     pub quests: HashMap<&'static str, Entity>,
-    loading_quests: Vec<Handle<QuestAsset>>,
+    loading_folder: Handle<LoadedFolder>,
+    folder_loaded: bool,
 }
 
 #[derive(Asset, TypePath, Debug, Deserialize)]
@@ -142,5 +162,9 @@ impl AssetLoader for QuestAssetLoader {
                 Err(QuestAssetLoaderError::JsonError(e))
             }
         }
+    }
+
+    fn extensions(&self) -> &[&str] {
+        &["quest"]
     }
 }
